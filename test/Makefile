@@ -17,7 +17,7 @@ INCLUDES = \
 	-I ../include \
 	-I /usr/include/smartmet
 
-LIBS = ../libsmartmet_gis.so -lboost_filesystem -lboost_regex -lgeos -lgdal
+LIBS = ../libsmartmet-gis.so -lboost_filesystem -lboost_regex -lgeos -lgdal
 
 all: $(PROG)
 clean:
@@ -29,5 +29,5 @@ test: $(PROG)
 	./$$prog; \
 	done
 
-$(PROG) : % : %.cpp ../libsmartmet_gis.so
+$(PROG) : % : %.cpp ../libsmartmet-gis.so
 	$(CC) $(CFLAGS) -o $@ $@.cpp $(INCLUDES) $(LIBS)

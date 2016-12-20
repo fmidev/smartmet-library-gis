@@ -1,5 +1,6 @@
 SUBNAME = gis
 LIB = smartmet-$(SUBNAME)
+SPEC = smartmet-library-$(SUBNAME)
 INCDIR = smartmet/$(SUBNAME)
 
 # Installation directories
@@ -72,7 +73,7 @@ CFLAGS_DEBUG   = $(DEFINES) $(FLAGS) $(FLAGS_DEBUG)   -Werror  -O0 -g
 CFLAGS_PROFILE = $(DEFINES) $(FLAGS) $(FLAGS_PROFILE) -DNDEBUG -O2 -g -pg
 
 LIBS = -L$(libdir) \
-	-lsmartmet_macgyver \
+	-lsmartmet-macgyver \
 	-lboost_filesystem \
 	-lboost_regex \
 	-lboost_thread \
@@ -84,13 +85,11 @@ LIBS = -L$(libdir) \
 
 rpmsourcedir = /tmp/$(shell whoami)/rpmbuild
 
-rpmerr = "There's no spec file ($(SUBNAME).spec). RPM wasn't created. Please make a spec file or copy and rename it into $(SUBNAME).spec"
-
 rpmexcludevcs := $(shell tar --help | grep -m 1 -o -- '--exclude-vcs')
 
 # What to install
 
-LIBFILE = libsmartmet_$(SUBNAME).so
+LIBFILE = libsmartmet-$(SUBNAME).so
 
 # How to install
 
@@ -157,16 +156,16 @@ objdir:
 	@mkdir -p $(objdir)
 
 rpm: clean
-	if [ -e $(SUBNAME).spec ]; \
+	if [ -e $(SPEC).spec ]; \
 	then \
-	  smartspecupdate $(SUBNAME).spec ; \
+	  smartspecupdate $(SPEC).spec ; \
 	  mkdir -p $(rpmsourcedir) ; \
-	  tar $(rpmexcludevcs) -C ../ -cf $(rpmsourcedir)/lib$(LIB).tar $(SUBNAME) ; \
-	  gzip -f $(rpmsourcedir)/lib$(LIB).tar ; \
-	  TAR_OPTIONS=--wildcards rpmbuild -v -ta $(rpmsourcedir)/lib$(LIB).tar.gz ; \
-	  rm -f $(rpmsourcedir)/$(LIB).tar.gz ; \
+	  tar $(rpmexcludevcs) -C ../ -cf $(rpmsourcedir)/$(SPEC).tar $(SUBNAME) ; \
+	  gzip -f $(rpmsourcedir)/$(SPEC).tar ; \
+	  TAR_OPTIONS=--wildcards rpmbuild -v -ta $(rpmsourcedir)/$(SPEC).tar.gz ; \
+	  rm -f $(rpmsourcedir)/$(SPEC).tar.gz ; \
 	else \
-	  echo $(rpmerr); \
+	  echo $(SPEC).spec file missing; \
 	fi;
 
 .SUFFIXES: $(SUFFIXES) .cpp
