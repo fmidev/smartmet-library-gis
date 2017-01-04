@@ -23,6 +23,8 @@ Requires: postgis2_93
 Requires: postgis
 %endif
 Provides: %{LIBNAME}
+Obsoletes: libsmartmet-gis < 16.12.20
+Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 
 %description
 FMI GIS library
@@ -49,6 +51,7 @@ rm -rf $RPM_BUILD_ROOT
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
 Requires: libsmartmet-gis
+Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
 FMI GIS library development files
