@@ -79,7 +79,7 @@ LIBS = -L$(libdir) \
 	-lboost_thread \
 	-lgeos \
 	-lgdal \
-	-lcppformat
+	-lfmt
 
 # rpm variables
 

@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 16.12.20
+Version: 17.1.18
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -11,9 +11,11 @@ URL: https://github.com/fmidev/smartmet-library-gis
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 BuildRequires: boost-devel
+BuildRequires: fmt-devel
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
 BuildRequires: smartmet-library-macgyver-devel >= 16.12.20
+Requires: fmt
 Requires: gdal >= 1.11.4
 Requires: geos >= 3.4.2
 Requires: smartmet-library-macgyver >= 16.12.20
@@ -50,7 +52,6 @@ rm -rf $RPM_BUILD_ROOT
 %package -n %{SPECNAME}-devel
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
-Requires: libsmartmet-gis
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -61,6 +62,12 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Jan 18 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.1.18-1.fmi
+- Upgrade from cppformat-library to fmt
+
+* Fri Jan 13 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.1.13-1.fmi
+- Fixed devel-rpm requirements to refer to the changed name of the main rpm
+
 * Tue Dec 20 2016 Mika Heiskanen <mika.heiskanen@fmi.fi> - 16.12.20-1.fmi
 - Switched to open source naming conventions
 
