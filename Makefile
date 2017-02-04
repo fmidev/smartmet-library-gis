@@ -81,10 +81,6 @@ LIBS = -L$(libdir) \
 	-lgdal \
 	-lfmt
 
-# rpm variables
-
-rpmsourcedir = /tmp/$(shell whoami)/rpmbuild
-
 # What to install
 
 LIBFILE = libsmartmet-$(SUBNAME).so
@@ -156,10 +152,9 @@ objdir:
 rpm: clean
 	if [ -e $(SPEC).spec ]; \
 	then \
-	  mkdir -p $(rpmsourcedir) ; \
-	  tar -czvf $(rpmsourcedir)/$(SPEC).tar.gz --transform "s,^,$(SPEC)/," * ; \
-	  rpmbuild -ta $(rpmsourcedir)/$(SPEC).tar.gz ; \
-	  rm -f $(rpmsourcedir)/$(SPEC).tar.gz ; \
+	  tar -czvf $(SPEC).tar.gz --transform "s,^,$(SPEC)/," * ; \
+	  rpmbuild -ta $(SPEC).tar.gz ; \
+	  rm -f $(SPEC).tar.gz ; \
 	else \
 	  echo $(SPEC).spec file missing; \
 	fi;
