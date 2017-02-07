@@ -14,7 +14,7 @@ CC = g++
 CFLAGS = -DUNIX -O0 -g $(MAINFLAGS) -Wno-write-strings
 
 INCLUDES = \
-	-I ../include \
+	-I ../gis \
 	-I /usr/include/smartmet
 
 LIBS = ../libsmartmet-gis.so -lboost_filesystem -lboost_regex -lgeos -lgdal
