@@ -8,8 +8,9 @@
 #include <boost/thread.hpp>
 #include <stdexcept>
 
-// Filename structure for HGT files (for example S89E172.hgt)
+// Filename structure for HGT files (for example S89E72.hgt or S89E07250.fmi.hgt)
 boost::regex hgt_filename_regex("(N|S)[0-9]{2}(E|W)[0-9]{3}\\.hgt");
+boost::regex fmihgt_filename_regex("(N|S)[0-9]{4}(E|W)[0-9]{5}_DEM(((3|9)|27)|81)_fmi\\.hgt");
 
 typedef boost::interprocess::file_mapping FileMapping;
 typedef boost::interprocess::mapped_region MappedRegion;
@@ -31,7 +32,9 @@ namespace Fmi
 bool SrtmTile::valid_path(const std::string &path)
 {
   boost::filesystem::path p(path);
-  return boost::regex_match(p.filename().string(), hgt_filename_regex);
+
+  return boost::regex_match(p.filename().string(), hgt_filename_regex) ||
+         boost::regex_match(p.filename().string(), fmihgt_filename_regex);
 }
 
 // ----------------------------------------------------------------------
@@ -60,17 +63,30 @@ class SrtmTile::Impl
 {
  public:
   Impl(const std::string &path);
-  const std::string &path() const { return itsPath; }
-  std::size_t size() const { return itsSize; }
-  int longitude() const { return itsLon; }
-  int latitude() const { return itsLat; }
+  const std::string &path() const
+  {
+    return itsPath;
+  }
+  std::size_t size() const
+  {
+    return itsSize;
+  }
+  double longitude() const
+  {
+    return itsLon;
+  }
+  double latitude() const
+  {
+    return itsLat;
+  }
+
   int value(std::size_t i, std::size_t j);
 
  private:
   std::string itsPath;
   std::size_t itsSize;
-  int itsLon;
-  int itsLat;
+  double itsLon;
+  double itsLat;
 
   MutexType itsMutex;
   std::unique_ptr<FileMapping> itsFileMapping;
@@ -93,16 +109,23 @@ SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
   auto sz = boost::filesystem::file_size(path);
   itsSize = static_cast<std::size_t>(sqrt(sz / 2));
 
-  // Sample filename : S89E172.hgt
+  // Sample input filename : S89E172.hgt
+  // Sample input filename : N4500E02250_DEM81_fmi.hgt
 
   boost::filesystem::path p(path);
   auto name = p.filename().string();
+  bool fmiFile = (name.find("fmi") != std::string::npos);
 
   int sign = (name[0] == 'S' ? -1 : 1);
-  itsLat = sign * Fmi::stoi(name.substr(1, 2));
+  itsLat = Fmi::stod(name.substr(1, 2));                          // whole part
+  if (fmiFile) itsLat += (Fmi::stod(name.substr(3, 2)) / 100.0);  // fractional part
+  itsLat *= sign;
 
-  sign = (name[3] == 'W' ? -1 : 1);
-  itsLon = sign * Fmi::stoi(name.substr(4, 3));
+  //  char lonChar = (fmifile ? name[5] : name[3]);
+  sign = ((fmiFile ? name[5] : name[3]) == 'W' ? -1 : 1);
+  itsLon = Fmi::stod(name.substr((fmiFile ? 6 : 4), 3));          // whole part
+  if (fmiFile) itsLon += (Fmi::stod(name.substr(9, 2)) / 100.0);  // fractional part
+  itsLon *= sign;
 }
 
 // ----------------------------------------------------------------------
@@ -134,7 +157,6 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
     UpgradeWriteLock writelock(readlock);
     if (!itsFileMapping)
     {
-      // std::cout << "Mapping " << itsPath << std::endl;
       itsFileMapping.reset(new FileMapping(itsPath.c_str(), boost::interprocess::read_only));
 
       itsMappedRegion.reset(new MappedRegion(
@@ -151,6 +173,7 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
   std::int16_t *ptr = reinterpret_cast<std::int16_t *>(itsMappedRegion->get_address());
   std::int16_t big_endian = ptr[i + (itsSize - j - 1) * itsSize];
   std::int16_t little_endian = ((big_endian >> 8) & 0xff) + (big_endian << 8);
+
   return little_endian;
 }
 
@@ -168,35 +191,75 @@ SrtmTile::~SrtmTile() = default;
  */
 // ----------------------------------------------------------------------
 
-SrtmTile::SrtmTile(const std::string &path) : impl(new SrtmTile::Impl(path)) {}
+SrtmTile::SrtmTile(const std::string &path)
+    : impl(new SrtmTile::Impl(path)), tiletype(TileType::UNDEFINED_TILETYPE)
+{
+  size_t tilesize = impl->size();
+  std::string tilefile = impl->path();
+
+  if (tilesize == 361)
+    tiletype = TileType::LAND_COVER_361;
+  else if (tilesize == 3601)
+    tiletype = TileType::DEM1_3601;
+  else if (tilesize == 401)
+    tiletype = TileType::DEM9_401;
+  else if (tilesize == 1001 && tilefile.find("DEM81") != std::string::npos)
+    tiletype = TileType::DEM81_1001;
+  else if (tilesize == 1201)
+  {
+    if (tilefile.find("DEM9") != std::string::npos)
+      tiletype = TileType::DEM9_1201;
+    else if (tilefile.find("DEM27") != std::string::npos)
+      tiletype = TileType::DEM27_1201;
+    else
+      tiletype = TileType::DEM3_1201;
+  }
+
+  if (tiletype == TileType::UNDEFINED_TILETYPE)
+    throw std::runtime_error("Can not define type of srtm file " + impl->path());
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the original path of the tile
  */
 // ----------------------------------------------------------------------
 
-const std::string &SrtmTile::path() const { return impl->path(); }
+const std::string &SrtmTile::path() const
+{
+  return impl->path();
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the size of the tile
  */
 // ----------------------------------------------------------------------
 
-std::size_t SrtmTile::size() const { return impl->size(); }
+std::size_t SrtmTile::size() const
+{
+  return impl->size();
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the lower left corner longitude of the tile
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::longitude() const { return impl->longitude(); }
+double SrtmTile::longitude() const
+{
+  return impl->longitude();
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the lower left corner latitude of the tile
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::latitude() const { return impl->latitude(); }
+double SrtmTile::latitude() const
+{
+  return impl->latitude();
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the value at the given tile coordinate
@@ -206,5 +269,8 @@ int SrtmTile::latitude() const { return impl->latitude(); }
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::value(std::size_t i, std::size_t j) const { return impl->value(i, j); }
+int SrtmTile::value(std::size_t i, std::size_t j) const
+{
+  return impl->value(i, j);
+}
 }

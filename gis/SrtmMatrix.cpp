@@ -3,9 +3,24 @@
 #include <boost/lexical_cast.hpp>
 #include <limits>
 #include <vector>
+#include <iostream>
 
 namespace Fmi
 {
+// returns tilesize in degrees
+double tilesize_degrees(TileType tiletype)
+{
+  if (tiletype == TileType::DEM9_1201)
+    return 3.0;
+  else if (tiletype == TileType::DEM27_1201)
+    return 9.0;
+  else if (tiletype == TileType::DEM81_1001)
+    return 22.5;
+
+  // TileType::DEM1_3601, TileType::DEM3_1201, TileType::DEM9_401,TileType::LAND_COVER_361
+  return 1.0;
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Implementation details
@@ -18,6 +33,15 @@ class SrtmMatrix::Impl
   Impl();
   void add(TileType tile);
   double value(double lon, double lat) const;
+
+  Fmi::TileType tiletype() const
+  {
+    if (itsTiles.size() > 0)
+      for (unsigned int i = 0; i < itsTiles.size(); i++)
+        if (itsTiles[i]) return itsTiles[i]->type();
+
+    return Fmi::TileType::UNDEFINED_TILETYPE;
+  }
 
  private:
   std::vector<TileType> itsTiles;
@@ -43,16 +67,19 @@ SrtmMatrix::Impl::Impl() : itsTiles()
 
 void SrtmMatrix::Impl::add(TileType tile)
 {
+  std::string tilename = tile->path();
   if (itsSize == 0)
     itsSize = tile->size();
   else if (itsSize != tile->size())
     throw std::runtime_error(
         "Attempting to add a SRTM tile of size " + boost::lexical_cast<std::string>(tile->size()) +
-        " to a 2D matrix with tile size " + boost::lexical_cast<std::string>(itsSize));
+        " to a 2D matrix with tile size " + boost::lexical_cast<std::string>(itsSize) +
+        std::string(" ") + tilename);
 
   // Shift to 0..360,0..180 coordinates
-  int lon = tile->longitude() + 180;
-  int lat = tile->latitude() + 90;
+
+  int lon = tile->longitude() + 180.0;
+  int lat = tile->latitude() + 90.0;
 
   itsTiles[lon + 360 * lat] = std::move(tile);
 }
@@ -72,7 +99,10 @@ void SrtmMatrix::Impl::add(TileType tile)
 double SrtmMatrix::Impl::value(double lon, double lat) const
 {
   // Width of one grid cell
-  double resolution = 1.0 / itsSize;  // either 1" or 3"
+  double tilesize_deg = tilesize_degrees(tiletype());
+  double resolution = tilesize_deg / itsSize;  //  possible values: 1",3",9",27",81"
+
+  //  std::cout << "lon, lat: " << lon << ", " << lat << std::endl;
 
   // Handle the north pole gracefully if there was a tile
   // near it. If there isn't, we'll return -32768 as usual.
@@ -83,25 +113,37 @@ double SrtmMatrix::Impl::value(double lon, double lat) const
   lon += 180;
   lat += 90;
 
-  int tile_i = static_cast<int>(lon);  // rounded down
-  int tile_j = static_cast<int>(lat);
+  double tile_i = lon;
+  double tile_j = lat;
+
+  // rounded down to the nearest tilesize_deg
+  tile_i -= fmod(tile_i, tilesize_deg);
+  tile_j -= fmod(tile_j, tilesize_deg);
 
   // Establish the grid cell containing the coordinate.
-
-  int cell_i = static_cast<int>((lon - tile_i) / resolution);
-  int cell_j = static_cast<int>((lat - tile_j) / resolution);
+  int cell_i = static_cast<int>(((lon - tile_i) / resolution));
+  int cell_j = static_cast<int>(((lat - tile_j) / resolution));
 
   // Just in case the above calculation overflows due to
   // numerical accuracies
 
-  // cell_i = std::min(cell_i, static_cast<int>(itsSize-1));
-  // cell_j = std::min(cell_j, static_cast<int>(itsSize-1));
+  cell_i = std::min(cell_i, static_cast<int>(itsSize - 1));
+  cell_j = std::min(cell_j, static_cast<int>(itsSize - 1));
 
-  const auto& tile = itsTiles[tile_i + 360 * tile_j];
+  int tile_i_index = static_cast<int>(tile_i);  // rounded down
+  int tile_j_index = static_cast<int>(tile_j);
+
+  const auto& tile = itsTiles[tile_i_index + 360 * tile_j_index];
+
+  //  std::cout << "value from tile: " << (tile_i_index + 360 * tile_j_index) << std::endl;
+
   if (!tile) return std::numeric_limits<double>::quiet_NaN();
 
-  int h = tile->value(cell_i, cell_j);
-  return h;
+  /*
+  std::cout << "value from position " << cell_i << ", " << cell_j << " is "
+            << tile->value(cell_i, cell_j) << std::endl;
+  */
+  return tile->value(cell_i, cell_j);
 }
 
 // ----------------------------------------------------------------------
@@ -118,7 +160,9 @@ SrtmMatrix::~SrtmMatrix() = default;
  */
 // ----------------------------------------------------------------------
 
-SrtmMatrix::SrtmMatrix() : impl(new SrtmMatrix::Impl()) {}
+SrtmMatrix::SrtmMatrix() : impl(new SrtmMatrix::Impl())
+{
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Add a new tile to the matrix
@@ -131,7 +175,10 @@ SrtmMatrix::SrtmMatrix() : impl(new SrtmMatrix::Impl()) {}
  */
 // ----------------------------------------------------------------------
 
-void SrtmMatrix::add(TileType tile) { impl->add(std::move(tile)); }
+void SrtmMatrix::add(TileType tile)
+{
+  impl->add(std::move(tile));
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Calculate the DEM elevation for the given coordinate.
@@ -147,5 +194,13 @@ void SrtmMatrix::add(TileType tile) { impl->add(std::move(tile)); }
  */
 // ----------------------------------------------------------------------
 
-double SrtmMatrix::value(double lon, double lat) const { return impl->value(lon, lat); }
+double SrtmMatrix::value(double lon, double lat) const
+{
+  return impl->value(lon, lat);
+}
+
+TileType SrtmMatrix::tiletype() const
+{
+  return impl->tiletype();
+}
 }  // namespace Fmi

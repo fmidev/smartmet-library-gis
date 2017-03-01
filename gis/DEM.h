@@ -4,6 +4,8 @@
 
 namespace Fmi
 {
+enum class TileType : std::size_t;
+
 class DEM
 {
  public:
@@ -14,6 +16,7 @@ class DEM
   double elevation(double lon, double lat) const;
 
   double elevation(double lon, double lat, double resolution) const;
+  double elevation(double lon, double lat, TileType tiletype) const;
 
  private:
   DEM() = delete;

@@ -6,6 +6,7 @@
 namespace Fmi
 {
 class SrtmTile;
+enum class TileType : std::size_t;
 
 class SrtmMatrix
 {
@@ -18,6 +19,7 @@ class SrtmMatrix
   void add(TileType tile);
   static constexpr double missing = -32768;
   double value(double lon, double lat) const;
+  Fmi::TileType tiletype() const;
 
  private:
   SrtmMatrix(const SrtmMatrix& other) = delete;

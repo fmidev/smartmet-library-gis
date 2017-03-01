@@ -62,6 +62,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Upcoming
+- Support for new DEM9,DEM27 and DEM81 tiles
+
 * Wed Jan 18 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.1.18-1.fmi
 - Upgrade from cppformat-library to fmt
 
