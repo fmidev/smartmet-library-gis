@@ -101,8 +101,6 @@ class DEM::Impl
   // Note: We want the DEM level with largest tiles (most accurate) first.
   // However, we may skip levels which are of too good resolution for speed
   // and to avoid noise in rendered images.
-  //  typedef std::map<std::size_t, SrtmMatrix, std::greater<std::size_t>> SrtmMatrices;
-  //  typedef std::map<std::size_t, SrtmMatrix, std::less<std::size_t>> SrtmMatrices;
   typedef std::map<TileType, SrtmMatrix, std::less<TileType>> SrtmMatrices;
   SrtmMatrices itsMatrices;
 };
@@ -170,6 +168,13 @@ double DEM::Impl::elevation(double lon, double lat, double resolution) const
 
   if (lon >= 180) lon -= 360;
 
+  // Size limit corresponding to the resolution
+  // 3601 = 1 second = 30 meters
+  // 1201 = 3 seconds = 93 meters
+  // 401 = 9 seconds = 278 meters
+  // 134 = 27 seconds = 831 meters
+  // 45 = 81 seconds = 2474 meters
+
   TileType tiletype = TileType::UNDEFINED_TILETYPE;
 
   // deduce tiletype from resolution
@@ -217,13 +222,6 @@ double DEM::Impl::elevation(double lon, double lat, TileType tiletype) const
 
   // Normalize the coordinates to ranges (-180,180( and (-90,90(
   if (lon >= 180) lon -= 360;
-
-  // Size limit corresponding to the resolution
-  // 3601 = 1 second = 30 meters
-  // 1201 = 3 seconds = 93 meters
-  // 401 = 9 seconds = 278 meters
-  // 134 = 27 seconds = 831 meters
-  // 45 = 81 seconds = 2474 meters
 
   // Find tileset of the requested tiletype
   SrtmMatrices::const_iterator it = itsMatrices.begin();

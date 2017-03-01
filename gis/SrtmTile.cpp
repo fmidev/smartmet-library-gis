@@ -8,7 +8,7 @@
 #include <boost/thread.hpp>
 #include <stdexcept>
 
-// Filename structure for HGT files (for example S89E72.hgt or S89E07250.fmi.hgt)
+// Filename structure for HGT files (for example S89E72.hgt or S8900E07250.fmi.hgt)
 boost::regex hgt_filename_regex("(N|S)[0-9]{2}(E|W)[0-9]{3}\\.hgt");
 boost::regex fmihgt_filename_regex("(N|S)[0-9]{4}(E|W)[0-9]{5}_DEM(((3|9)|27)|81)_fmi\\.hgt");
 
