@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 17.1.18
+Version: 17.3.14
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -14,11 +14,11 @@ BuildRequires: boost-devel
 BuildRequires: fmt-devel
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 16.12.20
+BuildRequires: smartmet-library-macgyver-devel >= 17.3.14
 Requires: fmt
 Requires: gdal >= 1.11.4
 Requires: geos >= 3.4.2
-Requires: smartmet-library-macgyver >= 16.12.20
+Requires: smartmet-library-macgyver >= 17.3.14
 %if 0%{rhel} >= 7
 Requires: postgis2_93
 %else
@@ -62,6 +62,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Mar 14 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.3.14-1.fmi
+- Switched to using macgyver StringConversion tools
+
 * Wed Jan 18 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.1.18-1.fmi
 - Upgrade from cppformat-library to fmt
 

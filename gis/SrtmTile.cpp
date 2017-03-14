@@ -1,5 +1,5 @@
 #include "SrtmTile.h"
-#include <macgyver/String.h>
+#include <macgyver/StringConversion.h>
 #define BOOST_FILESYSTEM_NO_DEPRECATED
 #include <boost/filesystem/operations.hpp>
 #include <boost/interprocess/file_mapping.hpp>
