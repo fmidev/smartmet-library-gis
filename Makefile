@@ -56,7 +56,8 @@ else
 	-Wcast-qual \
 	-Wredundant-decls \
 	-Wwrite-strings \
-	-Wsign-promo
+	-Wsign-promo \
+	-Wno-inline
 
  FLAGS_RELEASE = -Wuninitialized
 
