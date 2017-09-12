@@ -1,8 +1,8 @@
 #pragma once
 #include <gdal/ogr_geometry.h>
 #include <geos/geom/Geometry.h>
-#include <string>
 #include <list>
+#include <string>
 
 namespace Fmi
 {
@@ -10,6 +10,8 @@ class Box;
 
 namespace OGR
 {
+std::string exportToWkt(const OGRSpatialReference& theSRS);
+
 std::string exportToWkt(const OGRGeometry& theGeom);
 
 std::string exportToSvg(const OGRGeometry& theGeom, const Box& theBox, int thePrecision = 1);

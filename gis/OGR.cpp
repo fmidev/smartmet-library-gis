@@ -1,8 +1,23 @@
 #include "OGR.h"
 #include "GEOS.h"
-#include <stdexcept>
-#include <sstream>
 #include <boost/scoped_ptr.hpp>
+#include <sstream>
+#include <stdexcept>
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Export OGR spatial reference to WKT
+ */
+// ----------------------------------------------------------------------
+
+std::string Fmi::OGR::exportToWkt(const OGRSpatialReference& theSRS)
+{
+  char* out;
+  theSRS.exportToWkt(&out);
+  std::string ret = out;
+  OGRFree(out);
+  return ret;
+}
 
 // ----------------------------------------------------------------------
 /*!

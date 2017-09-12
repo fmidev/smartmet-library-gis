@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 17.8.28
+Version: 17.9.12
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -64,6 +64,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Sep 12 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.9.12-1.fmi
+- Added OGR::exportToWkt for OGRSpatialReference
+
 * Sun Aug 27 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.8.28-1.fmi
 - Upgrade to boost 1.65
 
