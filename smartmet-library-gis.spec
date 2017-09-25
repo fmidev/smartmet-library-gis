@@ -21,6 +21,9 @@ Requires: fmt
 Requires: gdal >= 1.11.4
 Requires: geos >= 3.5.0
 Requires: smartmet-library-macgyver >= 17.8.28
+Requires: boost-filesystem
+Requires: boost-regex
+Requires: boost-thread
 %if 0%{rhel} >= 7
 Requires: postgis2_93
 %else

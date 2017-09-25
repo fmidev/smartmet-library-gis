@@ -1,9 +1,11 @@
-#include "OGR.h"
 #include "Box.h"
 #include "ClipParts.h"
+#include "OGR.h"
 #include <boost/foreach.hpp>
 #include <list>
 #include <stdexcept>
+
+#include <iomanip>  // SHIIIT
 
 using Fmi::ClipParts;
 using Fmi::Box;
@@ -304,6 +306,7 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
           add_start = false;
         }
         line->addSubLineString(&g, start_index, i - 1);
+
         theParts.add(line);
       }
     }
@@ -671,5 +674,6 @@ OGRGeometry *Fmi::OGR::polyclip(const OGRGeometry &theGeom, const Box &theBox)
 
   OGRGeometry *geom = parts.build();
   if (geom) geom->assignSpatialReference(theGeom.getSpatialReference());
+
   return geom;
 }

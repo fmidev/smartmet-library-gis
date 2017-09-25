@@ -72,7 +72,20 @@ void Fmi::ClipParts::reconnect()
   delete line1;
   itsLines.pop_front();
   itsLines.pop_back();
-  itsLines.push_front(line2);
+
+  // The merge may have closed a linearring if the intersections
+  // have collapsed to a single point. This can happen if there is
+  // a tiny sliver polygon just outside the rectangle, and the
+  // intersection coordinates will be identical.
+
+  if (!line2->get_IsClosed())
+    itsLines.push_front(line2);
+  else
+  {
+    OGRPolygon *poly = new OGRPolygon;
+    poly->addRingDirectly(reinterpret_cast<OGRLinearRing *>(line2));
+    add(poly);
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -363,9 +376,10 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
   std::list<OGRLinearRing *> exterior;
 
   // If there are no lines, the rectangle must have been
-  // inside the exterior ring.
+  // inside the exterior ring unless there have been sliver
+  // polygons, in which case we may have created a polygon.
 
-  if (itsLines.empty())
+  if (itsLines.empty() && itsPolygons.empty())
   {
     OGRLinearRing *ring = new OGRLinearRing;
     ring->addPoint(theBox.xmin(), theBox.ymin());
@@ -518,11 +532,19 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
   // Build the result polygons
 
   std::list<OGRPolygon *> polygons;
+
   BOOST_FOREACH (auto *ring, exterior)
   {
     OGRPolygon *poly = new OGRPolygon;
     poly->addRingDirectly(ring);
     polygons.push_back(poly);
+  }
+
+  // Make exterior from one polygon, this can happen if there's been a sliver
+  if (polygons.empty() && itsPolygons.size() == 1)
+  {
+    polygons.push_back(itsPolygons.front());
+    itsPolygons.pop_front();
   }
 
   // Attach holes to polygons
