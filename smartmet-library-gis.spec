@@ -54,6 +54,8 @@ rm -rf $RPM_BUILD_ROOT
 %package -n %{SPECNAME}-devel
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
+Requires: geos-devel
+Requires: %{SPECNAME}
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
