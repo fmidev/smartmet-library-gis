@@ -1,6 +1,6 @@
 #include "PostGIS.h"
-#include <gdal/ogrsf_frmts.h>
 #include <gdal/ogr_spatialref.h>
+#include <gdal/ogrsf_frmts.h>
 #include <stdexcept>
 
 namespace Fmi
@@ -100,7 +100,6 @@ Features read(OGRSpatialReference* theSR,
   Features ret;
 
   // Fetch the layer, which is owned by the data source
-
   OGRLayer* layer = theConnection->GetLayerByName(theName.c_str());
   if (!layer) throw std::runtime_error("Failed to read '" + theName + "' from the database");
 
@@ -155,12 +154,14 @@ Features read(OGRSpatialReference* theSR,
     {
       OGRFieldDefn* poFieldDefn = poFDefn->GetFieldDefn(iField);
       std::string fieldname(poFieldDefn->GetNameRef());
+
       if (theFieldNames.find(fieldname) == theFieldNames.end()) continue;
       if (!feature->IsFieldSet(iField))
       {
         ret_item->attributes.insert(make_pair(fieldname, ""));
         continue;
       }
+
       switch (poFieldDefn->GetType())
       {
         case OFTInteger:
@@ -170,8 +171,19 @@ Features read(OGRSpatialReference* theSR,
           ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsDouble(iField)));
           break;
         case OFTString:
+        {
           ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsString(iField)));
-          break;
+        }
+        break;
+        case OFTDateTime:
+        {
+          int year, month, day, hour, min, sec, tzFlag;
+          feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
+          boost::posix_time::ptime timestamp(boost::gregorian::date(year, month, day),
+                                             boost::posix_time::time_duration(hour, min, sec));
+          ret_item->attributes.insert(make_pair(fieldname, timestamp));
+        }
+        break;
         default:
           break;
       };
