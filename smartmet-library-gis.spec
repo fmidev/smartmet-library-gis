@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 17.9.12
+Version: 17.10.31
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -66,6 +66,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Oct 31 2017 Anssi Reponen <anssi.reponen@fmi.fi> - 17.10.31-1.fmi
+- boost::posix_time:ptime type added to Attribute's data type list
+
 * Tue Sep 12 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.9.12-1.fmi
 - Added OGR::exportToWkt for OGRSpatialReference
 
