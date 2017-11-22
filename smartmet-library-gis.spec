@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 17.10.31
+Version: 17.11.22
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -66,6 +66,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Nov 22 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.11.22-1.fmi
+- Added OGR::reverseWindingOrder
+
 * Tue Oct 31 2017 Anssi Reponen <anssi.reponen@fmi.fi> - 17.10.31-1.fmi
 - boost::posix_time:ptime type added to Attribute's data type list
 

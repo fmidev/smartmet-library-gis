@@ -29,17 +29,22 @@ OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox);
 // Filter out small polygons
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);
 
+// Reverse winding order
+OGRGeometry* reverseWindingOrder(const OGRGeometry& theGeom);
+
 // Is the given coordinate inside a shape?
 bool inside(const OGRGeometry& theGeom, double theX, double theY);
 bool inside(const OGRPolygon& theGeom, double theX, double theY);
 
 typedef std::list<std::pair<double, double> > CoordinatePoints;
+
 // OGRGeometry object is constructed from list of coordinates
 // wkbPoint, wkbLineString, wkbLinearRing, wkbPolygon types are supported
 // spatial reference with theEPSGNumber is assigned to the geometry
 OGRGeometry* constructGeometry(const CoordinatePoints& theCoordinates,
                                OGRwkbGeometryType theGeometryType,
                                unsigned int theEPSGNumber);
+
 // OGRGeometry is expanded by theRadiusInMeters meters
 OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters);
 
