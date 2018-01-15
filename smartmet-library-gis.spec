@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 17.11.22
+Version: 18.1.15
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -22,7 +22,7 @@ Requires: gdal >= 1.11.4
 Requires: geos >= 3.5.0
 Requires: smartmet-library-macgyver >= 17.8.28
 %if 0%{rhel} >= 7
-Requires: postgis2_93
+Requires: postgis
 %else
 Requires: postgis
 %endif
@@ -66,6 +66,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Jan 15 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.1.15-1.fmi
+- Updated postgresql dependency to version 9.5
+
 * Wed Nov 22 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.11.22-1.fmi
 - Added OGR::reverseWindingOrder
 
