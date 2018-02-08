@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 18.1.15
+Version: 18.2.8
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -21,11 +21,7 @@ Requires: fmt
 Requires: gdal >= 1.11.4
 Requires: geos >= 3.5.0
 Requires: smartmet-library-macgyver >= 17.8.28
-%if 0%{rhel} >= 7
-Requires: postgis
-%else
-Requires: postgis
-%endif
+Requires: postgis < 2.1
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
@@ -66,6 +62,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Feb  8 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.2.8-1.fmi
+- Added explicit postgis version dependency to avoid pgdg problems
+
 * Mon Jan 15 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.1.15-1.fmi
 - Updated postgresql dependency to version 9.5
 
