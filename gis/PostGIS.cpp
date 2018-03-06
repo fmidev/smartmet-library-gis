@@ -21,8 +21,10 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
                     const std::string& theName,
                     const boost::optional<std::string>& theWhereClause)
 {
-  // Fetch the layer, which is owned by the data source
+  // Get time column in UTC time
+  theConnection->ExecuteSQL("SET TIME ZONE UTC", nullptr, nullptr);
 
+  // Fetch the layer, which is owned by the data source
   OGRLayer* layer = theConnection->GetLayerByName(theName.c_str());
   if (!layer) throw std::runtime_error("Failed to read '" + theName + "' from the database");
 
@@ -97,6 +99,9 @@ Features read(OGRSpatialReference* theSR,
               const std::set<std::string>& theFieldNames,
               const boost::optional<std::string>& theWhereClause)
 {
+  // Get time column in UTC time
+  theConnection->ExecuteSQL("SET TIME ZONE UTC", nullptr, nullptr);
+
   Features ret;
 
   // Fetch the layer, which is owned by the data source
@@ -181,6 +186,7 @@ Features read(OGRSpatialReference* theSR,
           feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
           boost::posix_time::ptime timestamp(boost::gregorian::date(year, month, day),
                                              boost::posix_time::time_duration(hour, min, sec));
+
           ret_item->attributes.insert(make_pair(fieldname, timestamp));
         }
         break;
