@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 18.3.6
+Version: 18.3.7
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -62,7 +62,7 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
-* Tue Mar 6 2018 Anssi Reponen <anssi.reponen@fmi.fi> - 18.3.6-1.fmi
+* Wed Mar 7 2018 Anssi Reponen <anssi.reponen@fmi.fi> - 18.3.7-1.fmi
 - Use UTC timezone when reading data from PostGIS database (BRAINSTORM-1049)
 
 * Thu Feb  8 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.2.8-1.fmi
