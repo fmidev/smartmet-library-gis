@@ -1,16 +1,14 @@
-#include "DEM.h"
-#include "SrtmTile.h"
-#include "SrtmMatrix.h"
-
 #define BOOST_FILESYSTEM_NO_DEPRECATED
+#include "DEM.h"
+#include "SrtmMatrix.h"
+#include "SrtmTile.h"
 #include <boost/filesystem/operations.hpp>
 #include <boost/regex.hpp>
-
+#include <fmt/format.h>
 #include <cmath>
 #include <limits>
 #include <list>
 #include <stdexcept>
-#include <sstream>
 #include <string>
 
 namespace Fmi
@@ -45,7 +43,7 @@ std::list<boost::filesystem::path> find_hgt_files(const std::string& path)
   }
   return files;
 }
-}
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!
@@ -193,9 +191,8 @@ double DEM::elevation(double lon, double lat) const
 {
   if (lon < -180 || lon > 180 || lat < -90 || lat > 90)
   {
-    std::ostringstream out;
-    out << "DEM: Input coordinate " << lon << "," << lat << " is out of bounds [-180,180],[-90,90]";
-    throw std::runtime_error(out.str());
+    throw std::runtime_error(
+        fmt::format("DEM: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
   }
 
   return impl->elevation(lon, lat);
@@ -211,9 +208,8 @@ double DEM::elevation(double lon, double lat, double resolution) const
 {
   if (lon < -180 || lon > 180 || lat < -90 || lat > 90)
   {
-    std::ostringstream out;
-    out << "DEM: Input coordinate " << lon << "," << lat << " is out of bounds [-180,180],[-90,90]";
-    throw std::runtime_error(out.str());
+    throw std::runtime_error(
+        fmt::format("DEM: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
   }
 
   if (resolution < 0) throw std::runtime_error("Desired DEM resolution cannot be negative");

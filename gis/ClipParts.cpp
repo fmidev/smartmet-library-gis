@@ -3,8 +3,6 @@
 #include "OGR.h"  // TODO: REMOVE!
 #include <boost/foreach.hpp>
 #include <cassert>
-#include <iomanip>
-#include <iostream>
 
 // ----------------------------------------------------------------------
 /*!

@@ -1,16 +1,15 @@
-#include "LandCover.h"
-#include "SrtmTile.h"
-#include "SrtmMatrix.h"
-
 #define BOOST_FILESYSTEM_NO_DEPRECATED
+
+#include "LandCover.h"
+#include "SrtmMatrix.h"
+#include "SrtmTile.h"
 #include <boost/filesystem/operations.hpp>
 #include <boost/regex.hpp>
-
+#include <fmt/format.h>
 #include <cmath>
 #include <limits>
 #include <list>
 #include <stdexcept>
-#include <sstream>
 #include <string>
 
 namespace Fmi
@@ -45,7 +44,7 @@ std::list<boost::filesystem::path> find_hgt_files(const std::string& path)
   }
   return files;
 }
-}
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!
@@ -139,10 +138,8 @@ LandCover::Type LandCover::coverType(double lon, double lat) const
 {
   if (lon < -180 || lon > 180 || lat < -90 || lat > 90)
   {
-    std::ostringstream out;
-    out << "LandCover: Input coordinate " << lon << "," << lat
-        << " is out of bounds [-180,180],[-90,90]";
-    throw std::runtime_error(out.str());
+    throw std::runtime_error(fmt::format(
+        "LandCover: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
   }
 
   return impl->coverType(lon, lat);

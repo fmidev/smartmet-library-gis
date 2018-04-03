@@ -1,11 +1,13 @@
-#include "OGR.h"
 #include "Box.h"
-#include <gdal/ogr_geometry.h>
+#include "OGR.h"
 #include <fmt/format.h>
+#include <gdal/ogr_geometry.h>
 #include <stdexcept>
 
 using Fmi::Box;
 
+namespace
+{
 // ----------------------------------------------------------------------
 /*!
  * \brief Pretty print a number
@@ -31,6 +33,7 @@ std::string pretty(double num, const char *format)
   else
     return "0";
 }
+}  // namespace
 
 // Forward declaration needed since two functions call each other
 

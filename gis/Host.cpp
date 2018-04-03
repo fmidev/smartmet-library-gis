@@ -1,5 +1,5 @@
 #include "Host.h"
-#include <sstream>
+#include <fmt/format.h>
 #include <stdexcept>
 
 namespace Fmi
@@ -31,10 +31,12 @@ Host::Host(const std::string& theHostname,
 
 std::string Host::dataSource() const
 {
-  std::stringstream ss;
-  ss << "PG:host='" << itsHostname << "' port='" << itsPort << "' dbname='" << itsDatabase
-     << "' user='" << itsUsername << "' password='" << itsPassword << "'";
-  return ss.str();
+  return fmt::format("PG:host='{}' port='{}' dbname='{}' user='{}' password='{}'",
+                     itsHostname,
+                     itsPort,
+                     itsDatabase,
+                     itsUsername,
+                     itsPassword);
 }
 
 // ----------------------------------------------------------------------

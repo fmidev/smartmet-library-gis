@@ -1,7 +1,7 @@
 // ======================================================================
 
 #include "Box.h"
-#include <sstream>
+#include <fmt/format.h>
 #include <stdexcept>
 
 // ----------------------------------------------------------------------
@@ -29,12 +29,8 @@ Fmi::Box::Box(
       itsHeight(height)
 {
   if (itsXMin == itsXMax || itsYMin == itsYMax)
-  {
-    std::ostringstream ss;
-    ss << "Empty Fmi::Box constructed with x1=" << itsX1 << " y1=" << itsY1 << " x2=" << itsX2
-       << " y2=" << itsY2;
-    throw std::runtime_error(ss.str());
-  }
+    throw std::runtime_error(fmt::format(
+        "Empty Fmi::Box constructed with x1={} y1={} x2={} y2={}", itsX1, itsY1, itsX2, itsY2));
 
   itsXalpha = itsWidth * 1 / (itsX2 - itsX1);
   itsXbeta = itsWidth * itsX1 / (itsX1 - itsX2);

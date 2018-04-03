@@ -1,34 +1,63 @@
 #include "GEOS.h"
 
-#include <geos/geom/Coordinate.h>
-#include <geos/geom/Point.h>
-#include <geos/geom/LinearRing.h>
-#include <geos/geom/LineString.h>
-#include <geos/geom/Polygon.h>
-#include <geos/geom/MultiPoint.h>
-#include <geos/geom/MultiLineString.h>
-#include <geos/geom/MultiPolygon.h>
-#include <geos/geom/CoordinateSequence.h>
-#include <geos/geom/PrecisionModel.h>
 #include <boost/numeric/conversion/cast.hpp>
-#include <sstream>
+#include <fmt/format.h>
+#include <geos/geom/Coordinate.h>
+#include <geos/geom/CoordinateSequence.h>
+#include <geos/geom/LineString.h>
+#include <geos/geom/LinearRing.h>
+#include <geos/geom/MultiLineString.h>
+#include <geos/geom/MultiPoint.h>
+#include <geos/geom/MultiPolygon.h>
+#include <geos/geom/Point.h>
+#include <geos/geom/Polygon.h>
+#include <geos/geom/PrecisionModel.h>
 #include <stdexcept>
-#include <iomanip>
 
 using namespace geos::geom;
 
-// Needed since two functions call each other
-void writeSVG(const Geometry* geom, std::ostream& out);
+namespace
+{
+// ----------------------------------------------------------------------
+/*!
+ * \brief Pretty print a number
+ */
+// ----------------------------------------------------------------------
 
+std::string pretty(double num, const char* format)
+{
+  if (strcmp(format, "%.0f") == 0) return fmt::sprintf("%d", static_cast<long>(round(num)));
+
+  std::string ret = fmt::sprintf(format, num);
+  std::size_t pos = ret.size();
+  while (pos > 0 && ret[--pos] == '0')
+  {
+  }
+
+  if (ret[pos] != ',' && ret[pos] != '.') return ret;
+
+  ret.resize(pos);
+
+  if (ret != "-0")
+    return ret;
+  else
+    return "0";
+}
+}  // namespace
+
+// Needed since two functions call each other
+void writeSVG(std::string& out, const Geometry* geom, const char* format);
 // ----------------------------------------------------------------------
 /*!
  * \brief Handle a coordinate
  */
 // ----------------------------------------------------------------------
 
-void writeCoordinateSVG(const Coordinate& geom, std::ostream& out)
+void writeCoordinateSVG(std::string& out, const Coordinate& geom, const char* format)
 {
-  out << geom.x << ' ' << geom.y;
+  out += pretty(geom.x, format);
+  out += ' ';
+  out += pretty(geom.y, format);
 }
 
 // ----------------------------------------------------------------------
@@ -37,9 +66,15 @@ void writeCoordinateSVG(const Coordinate& geom, std::ostream& out)
  */
 // ----------------------------------------------------------------------
 
-void writePointSVG(const Coordinate* geom, std::ostream& out)
+void writePointSVG(std::string& out, const Coordinate* geom, const char* format)
 {
-  if (geom != NULL) out << 'M' << geom->x << ' ' << geom->y;
+  if (geom != nullptr)
+  {
+    out += 'M';
+    out += pretty(geom->x, format);
+    out += ' ';
+    out += pretty(geom->y, format);
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -48,21 +83,21 @@ void writePointSVG(const Coordinate* geom, std::ostream& out)
  */
 // ----------------------------------------------------------------------
 
-void writeLinearRingSVG(const LinearRing* geom, std::ostream& out)
+void writeLinearRingSVG(std::string& out, const LinearRing* geom, const char* format)
 {
   if (geom == NULL || geom->isEmpty()) return;
   // Bizarre: n is unsigned long but getting coordinate uses int
   for (unsigned long i = 0, n = geom->getNumPoints(); i < n - 1; ++i)
   {
     if (i == 0)
-      out << 'M';
+      out += 'M';
     else if (i == 1)
-      out << ' ';  // implicit lineto, we could also write an 'L'
+      out += ' ';  // implicit lineto, we could also write an 'L'
     else
-      out << ' ';
-    writeCoordinateSVG(geom->getCoordinateN(boost::numeric_cast<int>(i)), out);
+      out += ' ';
+    writeCoordinateSVG(out, geom->getCoordinateN(boost::numeric_cast<int>(i)), format);
   }
-  out << 'Z';
+  out += 'Z';
 }
 
 // ----------------------------------------------------------------------
@@ -71,7 +106,7 @@ void writeLinearRingSVG(const LinearRing* geom, std::ostream& out)
  */
 // ----------------------------------------------------------------------
 
-void writeLineStringSVG(const LineString* geom, std::ostream& out)
+void writeLineStringSVG(std::string& out, const LineString* geom, const char* format)
 {
   if (geom == NULL || geom->isEmpty()) return;
 
@@ -79,20 +114,20 @@ void writeLineStringSVG(const LineString* geom, std::ostream& out)
   for (unsigned long i = 0; i < n - 1; ++i)
   {
     if (i == 0)
-      out << 'M';
+      out += 'M';
     else if (i == 1)
-      out << ' ';  // implicit lineto, we could also write an 'L'
+      out += ' ';  // implicit lineto, we could also write an 'L'
     else
-      out << ' ';
-    writeCoordinateSVG(geom->getCoordinateN(boost::numeric_cast<int>(i)), out);
+      out += ' ';
+    writeCoordinateSVG(out, geom->getCoordinateN(boost::numeric_cast<int>(i)), format);
   }
 
   if (geom->isClosed())
-    out << 'Z';
+    out += 'Z';
   else
   {
-    out << (n == 1 ? 'M' : ' ');
-    writeCoordinateSVG(geom->getCoordinateN(boost::numeric_cast<int>(n - 1)), out);
+    out += (n == 1 ? 'M' : ' ');
+    writeCoordinateSVG(out, geom->getCoordinateN(boost::numeric_cast<int>(n - 1)), format);
   }
 }
 
@@ -102,14 +137,14 @@ void writeLineStringSVG(const LineString* geom, std::ostream& out)
  */
 // ----------------------------------------------------------------------
 
-void writePolygonSVG(const Polygon* geom, std::ostream& out)
+void writePolygonSVG(std::string& out, const Polygon* geom, const char* format)
 {
   if (geom == NULL || geom->isEmpty()) return;
 
-  writeLineStringSVG(geom->getExteriorRing(), out);
+  writeLineStringSVG(out, geom->getExteriorRing(), format);
   for (size_t i = 0, n = geom->getNumInteriorRing(); i < n; ++i)
   {
-    writeLineStringSVG(geom->getInteriorRingN(i), out);
+    writeLineStringSVG(out, geom->getInteriorRingN(i), format);
   }
 }
 
@@ -119,14 +154,14 @@ void writePolygonSVG(const Polygon* geom, std::ostream& out)
  */
 // ----------------------------------------------------------------------
 
-void writeMultiPointSVG(const MultiPoint* geom, std::ostream& out)
+void writeMultiPointSVG(std::string& out, const MultiPoint* geom, const char* format)
 {
   if (geom == NULL || geom->isEmpty()) return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
   {
-    out << 'M';
-    writeCoordinateSVG(*geom->getGeometryN(i)->getCoordinate(), out);
+    out += 'M';
+    writeCoordinateSVG(out, *geom->getGeometryN(i)->getCoordinate(), format);
   }
 }
 
@@ -136,11 +171,11 @@ void writeMultiPointSVG(const MultiPoint* geom, std::ostream& out)
  */
 // ----------------------------------------------------------------------
 
-void writeMultiLineStringSVG(const MultiLineString* geom, std::ostream& out)
+void writeMultiLineStringSVG(std::string& out, const MultiLineString* geom, const char* format)
 {
   if (geom == NULL || geom->isEmpty()) return;
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    writeLineStringSVG(dynamic_cast<const LineString*>(geom->getGeometryN(i)), out);
+    writeLineStringSVG(out, dynamic_cast<const LineString*>(geom->getGeometryN(i)), format);
 }
 
 // ----------------------------------------------------------------------
@@ -149,11 +184,11 @@ void writeMultiLineStringSVG(const MultiLineString* geom, std::ostream& out)
  */
 // ----------------------------------------------------------------------
 
-void writeMultiPolygonSVG(const MultiPolygon* geom, std::ostream& out)
+void writeMultiPolygonSVG(std::string& out, const MultiPolygon* geom, const char* format)
 {
   if (geom == NULL || geom->isEmpty()) return;
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    writePolygonSVG(dynamic_cast<const Polygon*>(geom->getGeometryN(i)), out);
+    writePolygonSVG(out, dynamic_cast<const Polygon*>(geom->getGeometryN(i)), format);
 }
 
 // ----------------------------------------------------------------------
@@ -162,11 +197,13 @@ void writeMultiPolygonSVG(const MultiPolygon* geom, std::ostream& out)
  */
 // ----------------------------------------------------------------------
 
-void writeGeometryCollectionSVG(const GeometryCollection* geom, std::ostream& out)
+void writeGeometryCollectionSVG(std::string& out,
+                                const GeometryCollection* geom,
+                                const char* format)
 {
   if (geom == NULL || geom->isEmpty()) return;
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    writeSVG(geom->getGeometryN(i), out);
+    writeSVG(out, geom->getGeometryN(i), format);
 }
 
 // ----------------------------------------------------------------------
@@ -178,24 +215,24 @@ void writeGeometryCollectionSVG(const GeometryCollection* geom, std::ostream& ou
  */
 // ----------------------------------------------------------------------
 
-void writeSVG(const Geometry* geom, std::ostream& out)
+void writeSVG(std::string& out, const Geometry* geom, const char* format)
 {
   if (const Point* point = dynamic_cast<const Point*>(geom))
-    writePointSVG(point->getCoordinate(), out);
+    writePointSVG(out, point->getCoordinate(), format);
   else if (const LinearRing* lr = dynamic_cast<const LinearRing*>(geom))
-    writeLinearRingSVG(lr, out);
+    writeLinearRingSVG(out, lr, format);
   else if (const LineString* ls = dynamic_cast<const LineString*>(geom))
-    writeLineStringSVG(ls, out);
+    writeLineStringSVG(out, ls, format);
   else if (const Polygon* p = dynamic_cast<const Polygon*>(geom))
-    writePolygonSVG(p, out);
+    writePolygonSVG(out, p, format);
   else if (const MultiPoint* mp = dynamic_cast<const MultiPoint*>(geom))
-    writeMultiPointSVG(mp, out);
+    writeMultiPointSVG(out, mp, format);
   else if (const MultiLineString* ml = dynamic_cast<const MultiLineString*>(geom))
-    writeMultiLineStringSVG(ml, out);
+    writeMultiLineStringSVG(out, ml, format);
   else if (const MultiPolygon* mpg = dynamic_cast<const MultiPolygon*>(geom))
-    writeMultiPolygonSVG(mpg, out);
+    writeMultiPolygonSVG(out, mpg, format);
   else if (const GeometryCollection* g = dynamic_cast<const GeometryCollection*>(geom))
-    writeGeometryCollectionSVG(g, out);
+    writeGeometryCollectionSVG(out, g, format);
   else
     throw std::runtime_error("Encountered an unsupported GEOS geometry component");
 }
@@ -215,9 +252,9 @@ std::string Fmi::GEOS::exportToSvg(const Geometry& theGeom, int thePrecision)
   int decimals = (thePrecision < 0 ? theGeom.getPrecisionModel()->getMaximumSignificantDigits()
                                    : thePrecision);
 
-  std::ostringstream out;
-  out << std::setprecision(decimals >= 0 ? decimals : 0);
+  std::string format = "%." + fmt::sprintf("%d", decimals) + "f";
 
-  writeSVG(&theGeom, out);
-  return out.str();
+  std::string out;
+  writeSVG(out, &theGeom, format.c_str());
+  return out;
 }
