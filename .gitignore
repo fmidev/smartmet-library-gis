@@ -3,4 +3,4 @@ doc/
 obj/
 libsmartmet-gis.so
 *Test
-
+compile_commands.json
