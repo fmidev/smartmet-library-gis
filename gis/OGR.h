@@ -1,4 +1,5 @@
 #pragma once
+#include <boost/optional.hpp>
 #include <gdal/ogr_geometry.h>
 #include <geos/geom/Geometry.h>
 #include <list>
@@ -47,6 +48,11 @@ OGRGeometry* constructGeometry(const CoordinatePoints& theCoordinates,
 
 // OGRGeometry is expanded by theRadiusInMeters meters
 OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters);
+
+// Direction of north in the spatial reference given a WGS84 -> GEOM transformation
+boost::optional<double> gridNorth(OGRCoordinateTransformation& theTransformation,
+                                  double theLon,
+                                  double theLat);
 
 }  // namespace OGR
 }  // namespace Fmi

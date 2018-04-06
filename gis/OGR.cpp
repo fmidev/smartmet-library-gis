@@ -1,7 +1,9 @@
 #include "OGR.h"
 #include "GEOS.h"
+#include <boost/math/constants/constants.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <fmt/format.h>
+#include <cmath>
 #include <stdexcept>
 
 // ----------------------------------------------------------------------
@@ -222,4 +224,55 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
     ret = ::expandGeometry(theGeom, theRadiusInMeters);
 
   return ret;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Direction of north in the spatial reference
+ * \param theTransformation Transformation from WGS84 to the desired spatial reference
+ * \param theLon The longitude
+ * \param theLat The latitude
+ * \return Direction of north in degrees if it can be calculated
+ *
+ * Also called true north azimuth. The difference between in angles
+ * between true north and the meridian at the given point. The direction
+ * where Y increases in the projection.
+ *
+ * GDAL does not seem to provide direct support for this calculation.
+ * We approximate the result by moving a small distance to the north,
+ * and by calculating the resulting azimuth angle. This is not entirely
+ * accurate, but accurate enough for most purposes.
+ *
+ * Note: OGRCoordinateTransformation::Transform is not const
+ */
+// ----------------------------------------------------------------------
+
+boost::optional<double> Fmi::OGR::gridNorth(OGRCoordinateTransformation& theTransformation,
+                                            double theLon,
+                                            double theLat)
+{
+  // Actual coordinate
+  double x1 = theLon;
+  double y1 = theLat;
+  if (!theTransformation.Transform(1, &x1, &y1)) return {};
+
+  // Move slightly to the north
+  double x2 = theLon;
+  double y2 = theLat + 0.0001;
+  if (y2 < 90)
+  {
+    if (!theTransformation.Transform(1, &x2, &y2)) return {};
+  }
+  else
+  {
+    // move south instead and swap orientation
+    y2 = theLat - 0.0001;
+    if (!theTransformation.Transform(1, &x2, &y2)) return {};
+    std::swap(x1, x2);
+    std::swap(y1, y2);
+  }
+
+  // Calculate the azimuth. Note that for us angle 0 is up and not to increasing x
+  // as in normal math, hence we have rotated the system by swapping dx and dy in atan2
+  return atan2(x2 - x1, y2 - y1) * boost::math::double_constants::radian;
 }

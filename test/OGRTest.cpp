@@ -1,6 +1,5 @@
 #include "Box.h"
 #include "OGR.h"
-#include <boost/lexical_cast.hpp>
 #include <gdal/ogr_geometry.h>
 #include <regression/tframe.h>
 
@@ -238,8 +237,8 @@ void expand_geometry()
 
 void exportToSvg_wiki_examples()
 {
-  using Fmi::OGR::exportToSvg;
   using Fmi::Box;
+  using Fmi::OGR::exportToSvg;
 
   // Ref: http://en.wikipedia.org/wiki/Well-known_text
 
@@ -343,8 +342,8 @@ void exportToSvg_wiki_examples()
 void exportToSvg_closing_paths()
 {
   using namespace Fmi;
-  using OGR::exportToSvg;
   using Fmi::Box;
+  using OGR::exportToSvg;
 
   // Ref: http://en.wikipedia.org/wiki/Well-known_text
 
@@ -385,8 +384,8 @@ void exportToSvg_closing_paths()
 
 void exportToSvg_precision()
 {
-  using Fmi::OGR::exportToSvg;
   using Fmi::Box;
+  using Fmi::OGR::exportToSvg;
 
   // Create a new linestring with incremental coordinates
 
@@ -409,9 +408,9 @@ void exportToSvg_precision()
 void lineclip()
 {
   using namespace Fmi;
+  using Fmi::Box;
   using OGR::exportToWkt;
   using OGR::lineclip;
-  using Fmi::Box;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
@@ -459,7 +458,8 @@ void lineclip()
        "MULTILINESTRING ((0 5,5 5,5 0),(1 0,3 1,3 3,0 0))"},
       // Triangle at two corners and one edge
       {
-          "POLYGON ((0 0,5 10,10 0,0 0))", "LINESTRING (0 0,5 10,10 0)",
+          "POLYGON ((0 0,5 10,10 0,0 0))",
+          "LINESTRING (0 0,5 10,10 0)",
       },
       // Same triangle with another starting point
       {"POLYGON ((5 10,0 0,10 0,5 10))", "LINESTRING (10 0,5 10,0 0)"},
@@ -524,7 +524,8 @@ void lineclip()
       {"POLYGON ((-5 5,0 7,0 3,-5 5))", "GEOMETRYCOLLECTION EMPTY"},
       // One point inside
       {
-          "POLYGON ((5 5,-5 0,-5 10,5 5))", "LINESTRING (0.0 7.5,5 5,0.0 2.5)",
+          "POLYGON ((5 5,-5 0,-5 10,5 5))",
+          "LINESTRING (0.0 7.5,5 5,0.0 2.5)",
       },
       {"POLYGON ((5 0,-5 0,-5 10,5 0))", "LINESTRING (0 5,5 0)"},
       {"POLYGON((10 0,-10 0,-10 10,10 0))", "LINESTRING (0 5,10 0)"},
@@ -534,15 +535,18 @@ void lineclip()
       {"POLYGON ((5 5,-5 -5,-5 15,5 5))", "LINESTRING (0 10,5 5,0 0)"},
       {"POLYGON ((10 5,-10 -5,-10 15,10 5))", "LINESTRING (0 10,10 5,0 0)"},
       {
-          "POLYGON ((5 0,-5 0,-5 20,5 0))", "LINESTRING (0 10,5 0)",
+          "POLYGON ((5 0,-5 0,-5 20,5 0))",
+          "LINESTRING (0 10,5 0)",
       },
       {"POLYGON ((10 0,-10 0,-10 20,10 0))", "LINESTRING (0 10,10 0)"},
       {
-          "POLYGON ((5 5,-10 5,0 15,5 5))", "LINESTRING (2.5 10.0,5 5,0 5)",
+          "POLYGON ((5 5,-10 5,0 15,5 5))",
+          "LINESTRING (2.5 10.0,5 5,0 5)",
       },
       {"POLYGON ((5 5,-5 -5,0 15,5 5))", "LINESTRING (2.5 10.0,5 5,0 0)"},
       {
-          "POLYGON ((5 5,-15 -20,-15 30,5 5))", "LINESTRING (1 10,5 5,1 0)",
+          "POLYGON ((5 5,-15 -20,-15 30,5 5))",
+          "LINESTRING (1 10,5 5,1 0)",
       },
       // Two points inside
       {"POLYGON ((5 7,5 3,-5 5,5 7))", "LINESTRING (0 6,5 7,5 3,0 4)"},
@@ -592,9 +596,9 @@ void lineclip()
 void polyclip()
 {
   using namespace Fmi;
+  using Fmi::Box;
   using OGR::exportToWkt;
   using OGR::lineclip;
-  using Fmi::Box;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
@@ -642,11 +646,13 @@ void polyclip()
        "POLYGON ((0 0,0 5,5 5,5 0,1 0,3 1,3 3,0 0))"},
       // Triangle at two corners and one edge
       {
-          "POLYGON ((0 0,5 10,10 0,0 0))", "POLYGON ((0 0,5 10,10 0,0 0))",
+          "POLYGON ((0 0,5 10,10 0,0 0))",
+          "POLYGON ((0 0,5 10,10 0,0 0))",
       },
       // Same triangle with another starting point
       {
-          "POLYGON ((5 10,10 0,0 0,5 10))", "POLYGON ((0 0,5 10,10 0,0 0))",
+          "POLYGON ((5 10,10 0,0 0,5 10))",
+          "POLYGON ((0 0,5 10,10 0,0 0))",
       },
       // Triangle intersection at corner and edge
       {"POLYGON ((-5 -5,5 5,5 -5,-5 -5))", "POLYGON ((0 0,5 5,5 0,0 0))"},
@@ -756,9 +762,9 @@ void polyclip()
 void despeckle()
 {
   using namespace Fmi;
-  using OGR::exportToWkt;
-  using OGR::despeckle;
   using Fmi::Box;
+  using OGR::despeckle;
+  using OGR::exportToWkt;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
@@ -804,9 +810,9 @@ void despeckle()
 void despeckle_geography()
 {
   using namespace Fmi;
-  using OGR::exportToWkt;
-  using OGR::despeckle;
   using Fmi::Box;
+  using OGR::despeckle;
+  using OGR::exportToWkt;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
@@ -850,6 +856,137 @@ void despeckle_geography()
   TEST_PASSED();
 }
 
+// ----------------------------------------------------------------------
+
+void grid_north()
+{
+  std::unique_ptr<OGRSpatialReference> wgs84(new OGRSpatialReference);
+  OGRErr err = wgs84->SetFromUserInput("WGS84");
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+
+  // For latlon itself north is always at 0
+  {
+    std::unique_ptr<OGRCoordinateTransformation> trans(
+        OGRCreateCoordinateTransformation(wgs84.get(), wgs84.get()));
+
+    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+    if (!result) TEST_FAILED("Failed to establish WGS84 north at 25,60");
+    if (*result != 0)
+      TEST_FAILED("Expecting WGS84 north 0 at 25,60 but got " + std::to_string(*result));
+  }
+
+  // EPSG:3035 ETRS-LAEA
+  {
+    std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
+    err = epsg->SetFromUserInput("EPSG:3035");
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference EPSG:3035");
+
+    std::unique_ptr<OGRCoordinateTransformation> trans(
+        OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
+
+    // Helsinki
+    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+    auto expected = -12.762637;
+    if (!result) TEST_FAILED("Failed to establish EPSG:3035 north at 25,60");
+    if (std::abs(*result - expected) > 0.0001)
+      TEST_FAILED("Expecting EPSG:3035 north " + std::to_string(expected) + " at 25,60 but got " +
+                  std::to_string(*result));
+
+    // Stockholm
+    result = Fmi::OGR::gridNorth(*trans, 18, 60);
+    expected = -6.815401;
+    if (!result) TEST_FAILED("Failed to establish EPSG:3035 north at 18,60");
+    if (std::abs(*result - expected) > 0.0001)
+      TEST_FAILED("Expecting EPSG:3035 north " + std::to_string(expected) + " at 18,60 but got " +
+                  std::to_string(*result));
+  }
+
+  // EPSG:3034 ETRS-LCC
+  {
+    std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
+    err = epsg->SetFromUserInput("EPSG:3034");
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference EPSG:3034");
+
+    std::unique_ptr<OGRCoordinateTransformation> trans(
+        OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
+
+    // Helsinki
+    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+    auto expected = -11.630724;
+    if (!result) TEST_FAILED("Failed to establish EPSG:3034 north at 25,60");
+    if (std::abs(*result - expected) > 0.0001)
+      TEST_FAILED("Expecting EPSG:3034 north " + std::to_string(expected) + " at 25,60 but got " +
+                  std::to_string(*result));
+
+    // Stockholm
+    result = Fmi::OGR::gridNorth(*trans, 18, 60);
+    expected = -6.203053;
+    if (!result) TEST_FAILED("Failed to establish EPSG:3034 north at 18,60");
+    if (std::abs(*result - expected) > 0.0001)
+      TEST_FAILED("Expecting EPSG:3034 north " + std::to_string(expected) + " at 18,60 but got " +
+                  std::to_string(*result));
+  }
+
+  // Polar stereographic for Scandinavian maps
+  {
+    std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
+    err = epsg->SetFromUserInput(
+        "+proj=stere +lat_0=90 +lat_ts=60 +lon_0=20 +k=1 +x_0=0 +y_0=0 +a=6371220 +b=6371220 "
+        "+units=m +no_defs");
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create polar stereographic spatial reference");
+
+    std::unique_ptr<OGRCoordinateTransformation> trans(
+        OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
+
+    // Helsinki
+    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+    auto expected = -5;
+    if (!result) TEST_FAILED("Failed to establish polster north at 25,60");
+    if (std::abs(*result - expected) > 0.0001)
+      TEST_FAILED("Expecting polster north " + std::to_string(expected) + " at 25,60 but got " +
+                  std::to_string(*result));
+
+    // Stockholm
+    result = Fmi::OGR::gridNorth(*trans, 18, 60);
+    expected = 2;
+    if (!result) TEST_FAILED("Failed to establish polster north at 18,60");
+    if (std::abs(*result - expected) > 0.0001)
+      TEST_FAILED("Expecting polster north " + std::to_string(expected) + " at 18,60 but got " +
+                  std::to_string(*result));
+  }
+
+  // Rotated latlon coordinates used in HIRLAM weather model
+  {
+    std::string tmp =
+        R"(PROJCS["Plate_Carree",GEOGCS["FMI_Sphere",DATUM["FMI_2007",SPHEROID["FMI_Sphere",6371220,0]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["Plate_Carree"],EXTENSION["PROJ4","+proj=ob_tran +o_proj=longlat +o_lon_p=-180 +o_lat_p=30 +a=6371220 +k=1 +wktext"],UNIT["Meter",1]])";
+
+    std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
+    err = epsg->SetFromUserInput(tmp.c_str());
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create rotlatlon spatial reference");
+
+    std::unique_ptr<OGRCoordinateTransformation> trans(
+        OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
+
+    // Helsinki
+    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+    auto expected = -21.503683;
+    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 25,60");
+    if (std::abs(*result - expected) > 0.0001)
+      TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 25,60 but got " +
+                  std::to_string(*result));
+
+    // Stockholm
+    result = Fmi::OGR::gridNorth(*trans, 18, 60);
+    expected = -15.529383;
+    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 18,60");
+    if (std::abs(*result - expected) > 0.0001)
+      TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 18,60 but got " +
+                  std::to_string(*result));
+  }
+
+  TEST_PASSED();
+}
+
 // Test driver
 class tests : public tframe::tests
 {
@@ -867,6 +1004,7 @@ class tests : public tframe::tests
     TEST(despeckle);
     TEST(despeckle_geography);
     TEST(expand_geometry);
+    TEST(grid_north);
   }
 
 };  // class tests
