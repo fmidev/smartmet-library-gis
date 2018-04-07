@@ -206,5 +206,5 @@ Features read(OGRSpatialReference* theSR,
 
   return ret;
 }
-}
-}
+}  // namespace PostGIS
+}  // namespace Fmi

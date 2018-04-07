@@ -33,4 +33,4 @@ OGRGeometryPtr read(
     const boost::optional<std::string>& theWhereClause = boost::optional<std::string>());
 
 }  // namespace PostGIS
-}  // namespace GIS
+}  // namespace Fmi

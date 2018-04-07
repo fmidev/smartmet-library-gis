@@ -1,12 +1,12 @@
-#include "OGR.h"
 #include "Box.h"
 #include "ClipParts.h"
+#include "OGR.h"
 #include <boost/foreach.hpp>
 #include <list>
 #include <stdexcept>
 
-using Fmi::ClipParts;
 using Fmi::Box;
+using Fmi::ClipParts;
 
 // ----------------------------------------------------------------------
 /*!
@@ -176,9 +176,8 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
 
         if (different(x0, y0, x, y) &&  // discard corners etc
             Box::onEdge(prev_pos) &&    // discard if does not intersect rect
-            Box::onEdge(pos) &&
-            !Box::onSameEdge(prev_pos, pos)  // discard if travels along edge
-            )
+            Box::onEdge(pos) && !Box::onSameEdge(prev_pos, pos)  // discard if travels along edge
+        )
         {
           OGRLineString *line = new OGRLineString;
           line->addPoint(x0, y0);

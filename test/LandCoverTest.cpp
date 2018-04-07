@@ -1,6 +1,6 @@
-#include <regression/tframe.h>
 #include "LandCover.h"
 #include <boost/lexical_cast.hpp>
+#include <regression/tframe.h>
 using namespace std;
 
 std::string tostr(double value)

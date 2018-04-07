@@ -207,4 +207,4 @@ int SrtmTile::latitude() const { return impl->latitude(); }
 // ----------------------------------------------------------------------
 
 int SrtmTile::value(std::size_t i, std::size_t j) const { return impl->value(i, j); }
-}
+}  // namespace Fmi
