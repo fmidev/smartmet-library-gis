@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 18.4.6
+Version: 18.4.7
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -16,11 +16,11 @@ BuildRequires: boost-devel
 BuildRequires: fmt-devel
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 17.8.28
+BuildRequires: smartmet-library-macgyver-devel >= 18.4.7
 Requires: fmt
 Requires: gdal >= 1.11.4
 Requires: geos >= 3.5.0
-Requires: smartmet-library-macgyver >= 17.8.28
+Requires: smartmet-library-macgyver >= 18.4.7
 Requires: postgis < 2.1
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
@@ -62,6 +62,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Sat Apr  7 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.4.7-1.fmi
+- Upgrade to boost 1.66
+
 * Fri Apr  6 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.4.6-1.fmi
 - Added OGR::gridNorth for calculating true north azimuths for spatial references
 
