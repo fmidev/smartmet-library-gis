@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 18.4.7
+Version: 18.7.23
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -16,11 +16,11 @@ BuildRequires: boost-devel
 BuildRequires: fmt-devel
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.4.7
+BuildRequires: smartmet-library-macgyver-devel >= 18.7.23
 Requires: fmt
 Requires: gdal >= 1.11.4
 Requires: geos >= 3.5.0
-Requires: smartmet-library-macgyver >= 18.4.7
+Requires: smartmet-library-macgyver >= 18.7.23
 Requires: postgis < 2.1
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
@@ -62,6 +62,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Jul 23 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.7.23-1.fmi
+- Avoid integer division in float math to avoid CodeChecker warnings
+
 * Sat Apr  7 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.4.7-1.fmi
 - Upgrade to boost 1.66
 

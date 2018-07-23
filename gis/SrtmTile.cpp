@@ -46,7 +46,7 @@ bool SrtmTile::valid_path(const std::string &path)
 bool SrtmTile::valid_size(const std::string &path)
 {
   auto sz = boost::filesystem::file_size(path);
-  auto n = static_cast<std::size_t>(sqrt(sz / 2));
+  auto n = static_cast<std::size_t>(sqrt(sz / 2.0));
   return (sz == 2 * n * n);
 }
 
@@ -91,7 +91,7 @@ SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
     throw std::runtime_error("Not a valid size of form 2*N*N for a .hgt file: '" + path + "'");
 
   auto sz = boost::filesystem::file_size(path);
-  itsSize = static_cast<std::size_t>(sqrt(sz / 2));
+  itsSize = static_cast<std::size_t>(sqrt(sz / 2.0));
 
   // Sample filename : S89E172.hgt
 
