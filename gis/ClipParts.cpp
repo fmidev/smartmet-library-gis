@@ -163,7 +163,7 @@ OGRGeometry *Fmi::ClipParts::internalBuild() const
 
   std::size_t n = itsPolygons.size() + itsLines.size() + itsPoints.size();
 
-  // We wish to avoid NULL pointers due to more prone segfault mistakes
+  // We wish to avoid nullptr pointers due to more prone segfault mistakes
 
   if (n == 0) return new OGRGeometryCollection;
 
@@ -378,11 +378,11 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
     // Reconnect all lines into one or more linearrings
     // using box boundaries if necessary
 
-    OGRLinearRing *ring = NULL;
+    OGRLinearRing *ring = nullptr;
 
-    while (!itsLines.empty() || ring != NULL)
+    while (!itsLines.empty() || ring != nullptr)
     {
-      if (ring == NULL)
+      if (ring == nullptr)
       {
         ring = new OGRLinearRing;
         auto *line = itsLines.front();
@@ -507,7 +507,7 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
         {
           normalize_ring(ring);
           exterior.push_back(ring);
-          ring = NULL;
+          ring = nullptr;
         }
       }
     }

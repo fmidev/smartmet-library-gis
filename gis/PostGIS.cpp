@@ -12,7 +12,7 @@ namespace PostGIS
  * \brief Fetch a shape from the database
  *
  * \param theName "schema.table"
- * \param theSR NULL, if original SR in database is desired
+ * \param theSR nullptr, if original SR in database is desired
  */
 // ----------------------------------------------------------------------
 
@@ -40,14 +40,14 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
 
   // Establish coordinate transformation
 
-  OGRCoordinateTransformation* transformation = NULL;
+  OGRCoordinateTransformation* transformation = nullptr;
   if (theSR) transformation = OGRCreateCoordinateTransformation(layer->GetSpatialRef(), theSR);
 
   // Build the result. Note: SR objects are reference counted
 
   OGRGeometryCollection* out = new OGRGeometryCollection;
   // Note: We clone the input SR since we have no lifetime guarantees for it
-  if (theSR != NULL)
+  if (theSR != nullptr)
     out->assignSpatialReference(theSR->Clone());
   else
     out->assignSpatialReference(layer->GetSpatialRef());
@@ -57,11 +57,11 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
   OGRFeature* feature;
 
   layer->ResetReading();
-  while ((feature = layer->GetNextFeature()) != NULL)
+  while ((feature = layer->GetNextFeature()) != nullptr)
   {
     // owned by feature
     OGRGeometry* geometry = feature->GetGeometryRef();
-    if (geometry != NULL)
+    if (geometry != nullptr)
     {
       if (!transformation)
         out->addGeometry(geometry);  // clones geometry
@@ -87,7 +87,7 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
 /*!
  * \brief Fetch a shape from the database along with associated attributes
  *
- * \param theSR NULL, if original SR in database is desired
+ * \param theSR nullptr, if original SR in database is desired
  * \param theName "schema.table"
  * \param theFieldNames names of the fileds to be fetched
  * \return Features return value contains geometries and related attributes
@@ -119,7 +119,7 @@ Features read(OGRSpatialReference* theSR,
   }
 
   // Establish coordinate transformation
-  OGRCoordinateTransformation* transformation = NULL;
+  OGRCoordinateTransformation* transformation = nullptr;
   if (theSR) transformation = OGRCreateCoordinateTransformation(layer->GetSpatialRef(), theSR);
 
   // This is owned by us
@@ -127,12 +127,12 @@ Features read(OGRSpatialReference* theSR,
   OGRFeature* feature;
 
   layer->ResetReading();
-  while ((feature = layer->GetNextFeature()) != NULL)
+  while ((feature = layer->GetNextFeature()) != nullptr)
   {
     FeaturePtr ret_item(new Feature);
     // owned by feature
     OGRGeometry* geometry = feature->GetGeometryRef();
-    if (geometry != NULL)
+    if (geometry != nullptr)
     {
       if (!transformation)
       {
@@ -149,7 +149,7 @@ Features read(OGRSpatialReference* theSR,
     }
     else
     {
-      ret_item->geom = NULL;
+      ret_item->geom = nullptr;
     }
 
     // add attribute fields

@@ -70,7 +70,7 @@ void clip_to_edges(double &x1, double &y1, double x2, double y2, const Box &theB
 
 void clip_point(const OGRPoint *theGeom, ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == NULL) return;
+  if (theGeom == nullptr) return;
 
   double x = theGeom->getX();
   double y = theGeom->getY();
@@ -91,7 +91,7 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
 {
   int n = theGeom->getNumPoints();
 
-  if (theGeom == NULL || n < 1) return false;
+  if (theGeom == nullptr || n < 1) return false;
 
   // For shorthand code
 
@@ -321,7 +321,7 @@ void clip_polygon_to_linestrings(const OGRPolygon *theGeom,
                                  Fmi::ClipParts &theParts,
                                  const Box &theBox)
 {
-  if (theGeom == NULL || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty()) return;
 
   // Clip the exterior first to see what's going on
 
@@ -396,7 +396,7 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
                               Fmi::ClipParts &theParts,
                               const Box &theBox)
 {
-  if (theGeom == NULL || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty()) return;
 
   // Clip the exterior first to see what's going on
 
@@ -493,7 +493,7 @@ void clip_polygon(const OGRPolygon *theGeom,
 
 void clip_linestring(const OGRLineString *theGeom, Fmi::ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == NULL || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty()) return;
 
   // If everything was in, just clone the original
 
@@ -509,7 +509,7 @@ void clip_linestring(const OGRLineString *theGeom, Fmi::ClipParts &theParts, con
 
 void clip_multipoint(const OGRMultiPoint *theGeom, ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == NULL || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty()) return;
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     clip_point(static_cast<const OGRPoint *>(theGeom->getGeometryRef(i)), theParts, theBox);
@@ -524,7 +524,7 @@ void clip_multipoint(const OGRMultiPoint *theGeom, ClipParts &theParts, const Bo
 
 void clip_multilinestring(const OGRMultiLineString *theGeom, ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == NULL || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty()) return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -544,7 +544,7 @@ void clip_multipolygon(const OGRMultiPolygon *theGeom,
                        const Box &theBox,
                        bool keep_polygons)
 {
-  if (theGeom == NULL || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty()) return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -573,7 +573,7 @@ void clip_geometrycollection(const OGRGeometryCollection *theGeom,
                              const Box &theBox,
                              bool keep_polygons)
 {
-  if (theGeom == NULL || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty()) return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {

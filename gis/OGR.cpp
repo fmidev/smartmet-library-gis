@@ -43,7 +43,7 @@ std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom)
 /*!
  * \brief Convert GEOS geometry to OGR
  *
- * The spatial reference may be NULL for createFromWkb.
+ * The spatial reference may be nullptr for createFromWkb.
  */
 // ----------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ OGRGeometry* Fmi::OGR::importFromGeos(const geos::geom::Geometry& theGeom,
 
   unsigned char* cwkb = reinterpret_cast<unsigned char*>(const_cast<char*>(wkb.c_str()));
 
-  OGRGeometry* ogeom = NULL;
+  OGRGeometry* ogeom = nullptr;
   OGRErr err = OGRGeometryFactory::createFromWkb(cwkb, theSR, &ogeom);
 
   if (err != OGRERR_NONE)
@@ -150,7 +150,7 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
 
   OGRCoordinateTransformation* pCT = OGRCreateCoordinateTransformation(&sourceSR, &targetSR);
 
-  if (pCT == NULL)
+  if (pCT == nullptr)
     throw std::runtime_error("OGRCreateCoordinateTransformation function call failed");
 
   // transform to EPSG:3395 geometry
@@ -196,7 +196,7 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
 
   if (!theGeom)
   {
-    throw std::runtime_error("ExpandGeometry failed: theGeom is NULL!");
+    throw std::runtime_error("ExpandGeometry failed: theGeom is nullptr!");
     return ret;
   }
 

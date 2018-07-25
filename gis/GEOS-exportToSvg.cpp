@@ -85,7 +85,7 @@ void writePointSVG(std::string& out, const Coordinate* geom, const char* format)
 
 void writeLinearRingSVG(std::string& out, const LinearRing* geom, const char* format)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
   // Bizarre: n is unsigned long but getting coordinate uses int
   for (unsigned long i = 0, n = geom->getNumPoints(); i < n - 1; ++i)
   {
@@ -108,7 +108,7 @@ void writeLinearRingSVG(std::string& out, const LinearRing* geom, const char* fo
 
 void writeLineStringSVG(std::string& out, const LineString* geom, const char* format)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
 
   unsigned long n = geom->getNumPoints();
   for (unsigned long i = 0; i < n - 1; ++i)
@@ -139,7 +139,7 @@ void writeLineStringSVG(std::string& out, const LineString* geom, const char* fo
 
 void writePolygonSVG(std::string& out, const Polygon* geom, const char* format)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
 
   writeLineStringSVG(out, geom->getExteriorRing(), format);
   for (size_t i = 0, n = geom->getNumInteriorRing(); i < n; ++i)
@@ -156,7 +156,7 @@ void writePolygonSVG(std::string& out, const Polygon* geom, const char* format)
 
 void writeMultiPointSVG(std::string& out, const MultiPoint* geom, const char* format)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
 
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
   {
@@ -173,7 +173,7 @@ void writeMultiPointSVG(std::string& out, const MultiPoint* geom, const char* fo
 
 void writeMultiLineStringSVG(std::string& out, const MultiLineString* geom, const char* format)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     writeLineStringSVG(out, dynamic_cast<const LineString*>(geom->getGeometryN(i)), format);
 }
@@ -186,7 +186,7 @@ void writeMultiLineStringSVG(std::string& out, const MultiLineString* geom, cons
 
 void writeMultiPolygonSVG(std::string& out, const MultiPolygon* geom, const char* format)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     writePolygonSVG(out, dynamic_cast<const Polygon*>(geom->getGeometryN(i)), format);
 }
@@ -201,7 +201,7 @@ void writeGeometryCollectionSVG(std::string& out,
                                 const GeometryCollection* geom,
                                 const char* format)
 {
-  if (geom == NULL || geom->isEmpty()) return;
+  if (geom == nullptr || geom->isEmpty()) return;
   for (size_t i = 0, n = geom->getNumGeometries(); i < n; ++i)
     writeSVG(out, geom->getGeometryN(i), format);
 }

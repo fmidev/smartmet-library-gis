@@ -47,7 +47,7 @@ void writeSVG(std::string &string, const OGRGeometry *geom, const Box &box, cons
 
 void writePointSVG(std::string &out, const OGRPoint *geom, const Box &box, const char *format)
 {
-  if (geom != NULL)
+  if (geom != nullptr)
   {
     double x = geom->getX();
     double y = geom->getY();
@@ -67,7 +67,7 @@ void writeLinearRingSVG(std::string &out,
                         const Box &box,
                         const char *format)
 {
-  if (geom == NULL || geom->IsEmpty()) return;
+  if (geom == nullptr || geom->IsEmpty()) return;
 
   // Note: Loop terminates before last, OGR rings are always explicitly closed
   //       by duplicating the coordinates but we can just use 'Z'
@@ -116,7 +116,7 @@ void writeLineStringSVG(std::string &out,
                         const Box &box,
                         const char *format)
 {
-  if (geom == NULL || geom->IsEmpty()) return;
+  if (geom == nullptr || geom->IsEmpty()) return;
 
   // Output the first point immediately so we don't have to test
   // for i==0 in the inner loop
@@ -168,7 +168,7 @@ void writeLineStringSVG(std::string &out,
 
 void writePolygonSVG(std::string &out, const OGRPolygon *geom, const Box &box, const char *format)
 {
-  if (geom == NULL || geom->IsEmpty()) return;
+  if (geom == nullptr || geom->IsEmpty()) return;
 
   writeLinearRingSVG(out, geom->getExteriorRing(), box, format);
   for (int i = 0, n = geom->getNumInteriorRings(); i < n; ++i)
@@ -188,7 +188,7 @@ void writeMultiPointSVG(std::string &out,
                         const Box &box,
                         const char *format)
 {
-  if (geom == NULL || geom->IsEmpty()) return;
+  if (geom == nullptr || geom->IsEmpty()) return;
 
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
   {
@@ -207,7 +207,7 @@ void writeMultiLineStringSVG(std::string &out,
                              const Box &box,
                              const char *format)
 {
-  if (geom == NULL || geom->IsEmpty()) return;
+  if (geom == nullptr || geom->IsEmpty()) return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     writeLineStringSVG(
         out, static_cast<const OGRLineString *>(geom->getGeometryRef(i)), box, format);
@@ -224,7 +224,7 @@ void writeMultiPolygonSVG(std::string &out,
                           const Box &box,
                           const char *format)
 {
-  if (geom == NULL || geom->IsEmpty()) return;
+  if (geom == nullptr || geom->IsEmpty()) return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     writePolygonSVG(out, static_cast<const OGRPolygon *>(geom->getGeometryRef(i)), box, format);
 }
@@ -240,7 +240,7 @@ void writeGeometryCollectionSVG(std::string &out,
                                 const Box &box,
                                 const char *format)
 {
-  if (geom == NULL || geom->IsEmpty()) return;
+  if (geom == nullptr || geom->IsEmpty()) return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     writeSVG(out, geom->getGeometryRef(i), box, format);
 }
