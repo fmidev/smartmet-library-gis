@@ -1,7 +1,6 @@
 #include "Box.h"
 #include "ClipParts.h"
 #include "OGR.h"
-#include <boost/foreach.hpp>
 #include <list>
 #include <stdexcept>
 

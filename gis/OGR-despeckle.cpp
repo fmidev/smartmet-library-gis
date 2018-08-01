@@ -1,5 +1,4 @@
 #include "OGR.h"
-#include <boost/foreach.hpp>
 #include <boost/math/constants/constants.hpp>
 #include <stdexcept>
 

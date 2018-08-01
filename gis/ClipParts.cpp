@@ -1,7 +1,6 @@
 #include "ClipParts.h"
 #include "Box.h"
 #include "OGR.h"  // TODO: REMOVE!
-#include <boost/foreach.hpp>
 #include <cassert>
 
 // ----------------------------------------------------------------------
@@ -14,11 +13,11 @@
 
 Fmi::ClipParts::~ClipParts()
 {
-  BOOST_FOREACH (auto *ptr, itsPolygons)
+  for (auto *ptr : itsPolygons)
     delete ptr;
-  BOOST_FOREACH (auto *ptr, itsLines)
+  for (auto *ptr : itsLines)
     delete ptr;
-  BOOST_FOREACH (auto *ptr, itsPoints)
+  for (auto *ptr : itsPoints)
     delete ptr;
 }
 
@@ -81,11 +80,11 @@ void Fmi::ClipParts::reconnect()
 
 void Fmi::ClipParts::release(ClipParts &theParts)
 {
-  BOOST_FOREACH (auto *ptr, itsPolygons)
+  for (auto *ptr : itsPolygons)
     theParts.add(ptr);
-  BOOST_FOREACH (auto *ptr, itsLines)
+  for (auto *ptr : itsLines)
     theParts.add(ptr);
-  BOOST_FOREACH (auto *ptr, itsPoints)
+  for (auto *ptr : itsPoints)
     theParts.add(ptr);
 
   clear();
@@ -183,7 +182,7 @@ OGRGeometry *Fmi::ClipParts::internalBuild() const
   if (!itsPolygons.empty() && itsLines.empty() && itsPoints.empty())
   {
     auto *geom = new OGRMultiPolygon;
-    BOOST_FOREACH (auto *ptr, itsPolygons)
+    for (auto *ptr : itsPolygons)
       geom->addGeometryDirectly(ptr);
     return geom;
   }
@@ -191,7 +190,7 @@ OGRGeometry *Fmi::ClipParts::internalBuild() const
   if (!itsLines.empty() && itsPolygons.empty() && itsPoints.empty())
   {
     auto *geom = new OGRMultiLineString;
-    BOOST_FOREACH (auto *ptr, itsLines)
+    for (auto *ptr : itsLines)
       geom->addGeometryDirectly(ptr);
     return geom;
   }
@@ -199,7 +198,7 @@ OGRGeometry *Fmi::ClipParts::internalBuild() const
   if (!itsPoints.empty() && itsLines.empty() && itsPolygons.empty())
   {
     auto *geom = new OGRMultiPoint;
-    BOOST_FOREACH (auto *ptr, itsPoints)
+    for (auto *ptr : itsPoints)
       geom->addGeometryDirectly(ptr);
     return geom;
   }
@@ -218,7 +217,7 @@ OGRGeometry *Fmi::ClipParts::internalBuild() const
     else
     {
       auto *tmp = new OGRMultiPolygon;
-      BOOST_FOREACH (auto *ptr, itsPolygons)
+      for (auto *ptr : itsPolygons)
         tmp->addGeometryDirectly(ptr);
       geom->addGeometryDirectly(tmp);
     }
@@ -232,7 +231,7 @@ OGRGeometry *Fmi::ClipParts::internalBuild() const
     else
     {
       auto *tmp = new OGRMultiLineString;
-      BOOST_FOREACH (auto *ptr, itsLines)
+      for (auto *ptr : itsLines)
         tmp->addGeometryDirectly(ptr);
       geom->addGeometryDirectly(tmp);
     }
@@ -246,7 +245,7 @@ OGRGeometry *Fmi::ClipParts::internalBuild() const
     else
     {
       auto *tmp = new OGRMultiPoint;
-      BOOST_FOREACH (auto *ptr, itsPoints)
+      for (auto *ptr : itsPoints)
         tmp->addGeometryDirectly(ptr);
       geom->addGeometryDirectly(tmp);
     }
@@ -516,7 +515,7 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
   // Build the result polygons
 
   std::list<OGRPolygon *> polygons;
-  BOOST_FOREACH (auto *ring, exterior)
+  for (auto *ring : exterior)
   {
     OGRPolygon *poly = new OGRPolygon;
     poly->addRingDirectly(ring);
@@ -525,7 +524,7 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
 
   // Attach holes to polygons
 
-  BOOST_FOREACH (auto *hole, itsPolygons)
+  for (auto *hole : itsPolygons)
   {
     if (polygons.size() == 1)
       polygons.front()->addRing(hole->getExteriorRing());
@@ -533,7 +532,7 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
     {
       OGRPoint point;
       hole->getExteriorRing()->getPoint(0, &point);
-      BOOST_FOREACH (auto *poly, polygons)
+      for (auto *poly : polygons)
       {
         if (poly->getExteriorRing()->isPointInRing(&point, false))
         {
