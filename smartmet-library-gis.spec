@@ -65,6 +65,7 @@ FMI GIS library development files
 %changelog
 * Wed Aug  1 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.8.1-2.fmi
 - Enabled fractional precision when converting OGR geometries to SVG
+- Fixed code never to close linestrings even if rounding would close them
 
 * Wed Aug  1 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.8.1-1.fmi
 - Use C++11 for-loops instead of BOOST_FOREACH

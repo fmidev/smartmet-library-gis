@@ -119,10 +119,6 @@ void writeLineStringSVG(
 {
   if (geom == nullptr || geom->IsEmpty()) return;
 
-  // Save the first point for closure tests
-  const double x0 = geom->getX(0);
-  const double y0 = geom->getY(0);
-
   // Output the first point immediately so we don't have to test
   // for i==0 in the inner loop
 
@@ -142,23 +138,16 @@ void writeLineStringSVG(
     x = geom->getX(i);
     y = geom->getY(i);
 
-    // Close with Z if possible, but only if the exact original coordinates match.
-    // In the extreme case we might get "M<num> <num>Z"
-    if (i == n - 1 && x == x0 && y == y0)
-      out += 'Z';
-    else
+    box.transform(x, y);
+
+    const double new_rx = std::round(x * rfactor);
+    const double new_ry = std::round(y * rfactor);
+
+    if (new_rx != previous_rx || new_ry != previous_ry)
     {
-      box.transform(x, y);
-
-      const double new_rx = std::round(x * rfactor);
-      const double new_ry = std::round(y * rfactor);
-
-      if (new_rx != previous_rx || new_ry != previous_ry)
-      {
-        out += ' ' + pretty(x, format) + ' ' + pretty(y, format);
-        previous_rx = new_rx;
-        previous_ry = new_ry;
-      }
+      out += ' ' + pretty(x, format) + ' ' + pretty(y, format);
+      previous_rx = new_rx;
+      previous_ry = new_ry;
     }
   }
 }

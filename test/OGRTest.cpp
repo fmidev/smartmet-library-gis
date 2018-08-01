@@ -337,50 +337,6 @@ void exportToSvg_wiki_examples()
 }
 
 // ----------------------------------------------------------------------
-// We prefer using 'Z' when linestrings are closed
-
-void exportToSvg_closing_paths()
-{
-  using namespace Fmi;
-  using Fmi::Box;
-  using OGR::exportToSvg;
-
-  // Ref: http://en.wikipedia.org/wiki/Well-known_text
-
-  char* linestring = "LINESTRING (30 10, 10 30, 40 40, 30 10)";
-  char* multilinestring1 =
-      "MULTILINESTRING ((10 10, 20 20, 10 40, 10 10),(40 40, 30 30, 40 20, 30 10))";
-  char* multilinestring2 =
-      "MULTILINESTRING ((10 10, 20 20, 10 40),(40 40, 30 30, 40 20, 30 10, 40 40))";
-
-  Box box = Box::identity();  // identity transformation
-
-  OGRGeometry* geom;
-  {
-    OGRGeometryFactory::createFromWkt(&linestring, NULL, &geom);
-    string result = exportToSvg(*geom, box, precision);
-    string ok = "M30 10 10 30 40 40Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
-  }
-
-  {
-    OGRGeometryFactory::createFromWkt(&multilinestring1, NULL, &geom);
-    string result = exportToSvg(*geom, box, precision);
-    string ok = "M10 10 20 20 10 40ZM40 40 30 30 40 20 30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
-  }
-
-  {
-    OGRGeometryFactory::createFromWkt(&multilinestring2, NULL, &geom);
-    string result = exportToSvg(*geom, box, precision);
-    string ok = "M10 10 20 20 10 40M40 40 30 30 40 20 30 10Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
-  }
-
-  TEST_PASSED();
-}
-
-// ----------------------------------------------------------------------
 
 void exportToSvg_precision()
 {
@@ -1034,7 +990,6 @@ class tests : public tframe::tests
     TEST(exportToWkt_spatialreference);
     TEST(exportToSvg_precision);
     TEST(exportToSvg_wiki_examples);
-    TEST(exportToSvg_closing_paths);
     TEST(lineclip);
     TEST(polyclip);
     TEST(despeckle);
