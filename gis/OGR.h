@@ -16,6 +16,7 @@ std::string exportToWkt(const OGRSpatialReference& theSRS);
 std::string exportToWkt(const OGRGeometry& theGeom);
 
 std::string exportToSvg(const OGRGeometry& theGeom, const Box& theBox, int thePrecision = 1);
+std::string exportToSvg(const OGRGeometry& theGeom, const Box& theBox, double thePrecision);
 
 // We would prefert to use a const reference here but const is
 // not possible due to SR reference counting

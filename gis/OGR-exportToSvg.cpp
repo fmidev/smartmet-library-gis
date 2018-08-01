@@ -37,7 +37,11 @@ std::string pretty(double num, const char *format)
 
 // Forward declaration needed since two functions call each other
 
-void writeSVG(std::string &string, const OGRGeometry *geom, const Box &box, const char *format);
+void writeSVG(std::string &string,
+              const OGRGeometry *geom,
+              const Box &box,
+              double rfactor,
+              const char *format);
 
 // ----------------------------------------------------------------------
 /*!
@@ -62,10 +66,8 @@ void writePointSVG(std::string &out, const OGRPoint *geom, const Box &box, const
  */
 // ----------------------------------------------------------------------
 
-void writeLinearRingSVG(std::string &out,
-                        const OGRLinearRing *geom,
-                        const Box &box,
-                        const char *format)
+void writeLinearRingSVG(
+    std::string &out, const OGRLinearRing *geom, const Box &box, double rfactor, const char *format)
 {
   if (geom == nullptr || geom->IsEmpty()) return;
 
@@ -79,26 +81,27 @@ void writeLinearRingSVG(std::string &out,
   double y = geom->getY(0);
   box.transform(x, y);
 
-  std::string previous_x = pretty(x, format);
-  std::string previous_y = pretty(y, format);
+  double previous_rx = std::round(x * rfactor);
+  double previous_ry = std::round(y * rfactor);
 
-  out += 'M' + previous_x + ' ' + previous_y;
+  out += 'M' + pretty(x, format) + ' ' + pretty(y, format);
 
-  int n = geom->getNumPoints();
+  const int n = geom->getNumPoints();
 
   for (int i = 1; i < n - 1; ++i)
   {
     x = geom->getX(i);
     y = geom->getY(i);
     box.transform(x, y);
-    std::string sx = pretty(x, format);
-    std::string sy = pretty(y, format);
 
-    if (sx != previous_x || sy != previous_y)
+    const double new_rx = std::round(x * rfactor);
+    const double new_ry = std::round(y * rfactor);
+
+    if (new_rx != previous_rx || new_ry != previous_ry)
     {
-      out += ' ' + sx + ' ' + sy;
-      previous_x = sx;
-      previous_y = sy;
+      out += ' ' + pretty(x, format) + ' ' + pretty(y, format);
+      previous_rx = new_rx;
+      previous_ry = new_ry;
     }
   }
 
@@ -111,12 +114,14 @@ void writeLinearRingSVG(std::string &out,
  */
 // ----------------------------------------------------------------------
 
-void writeLineStringSVG(std::string &out,
-                        const OGRLineString *geom,
-                        const Box &box,
-                        const char *format)
+void writeLineStringSVG(
+    std::string &out, const OGRLineString *geom, const Box &box, double rfactor, const char *format)
 {
   if (geom == nullptr || geom->IsEmpty()) return;
+
+  // Save the first point for closure tests
+  const double x0 = geom->getX(0);
+  const double y0 = geom->getY(0);
 
   // Output the first point immediately so we don't have to test
   // for i==0 in the inner loop
@@ -125,36 +130,34 @@ void writeLineStringSVG(std::string &out,
   double y = geom->getY(0);
   box.transform(x, y);
 
-  std::string previous_x = pretty(x, format);
-  std::string previous_y = pretty(y, format);
+  double previous_rx = std::round(x * rfactor);
+  double previous_ry = std::round(y * rfactor);
 
-  out += 'M' + previous_x + ' ' + previous_y;
+  out += 'M' + pretty(x, format) + ' ' + pretty(y, format);
 
-  // Save the first point for closure tests
-  double x0 = geom->getX(0);
-  double y0 = geom->getY(0);
-
-  int n = geom->getNumPoints();
+  const int n = geom->getNumPoints();
 
   for (int i = 1; i < n; ++i)
   {
-    double x = geom->getX(i);
-    double y = geom->getY(i);
-    box.transform(x, y);
+    x = geom->getX(i);
+    y = geom->getY(i);
 
-    // Close with Z if possible. In the extreme case we might get "M<num> <num>Z"
+    // Close with Z if possible, but only if the exact original coordinates match.
+    // In the extreme case we might get "M<num> <num>Z"
     if (i == n - 1 && x == x0 && y == y0)
       out += 'Z';
     else
     {
-      std::string sx = pretty(x, format);
-      std::string sy = pretty(y, format);
+      box.transform(x, y);
 
-      if (sx != previous_x || sy != previous_y)
+      const double new_rx = std::round(x * rfactor);
+      const double new_ry = std::round(y * rfactor);
+
+      if (new_rx != previous_rx || new_ry != previous_ry)
       {
-        out += ' ' + sx + ' ' + sy;
-        previous_x = sx;
-        previous_y = sy;
+        out += ' ' + pretty(x, format) + ' ' + pretty(y, format);
+        previous_rx = new_rx;
+        previous_ry = new_ry;
       }
     }
   }
@@ -166,14 +169,15 @@ void writeLineStringSVG(std::string &out,
  */
 // ----------------------------------------------------------------------
 
-void writePolygonSVG(std::string &out, const OGRPolygon *geom, const Box &box, const char *format)
+void writePolygonSVG(
+    std::string &out, const OGRPolygon *geom, const Box &box, double rfactor, const char *format)
 {
   if (geom == nullptr || geom->IsEmpty()) return;
 
-  writeLinearRingSVG(out, geom->getExteriorRing(), box, format);
+  writeLinearRingSVG(out, geom->getExteriorRing(), box, rfactor, format);
   for (int i = 0, n = geom->getNumInteriorRings(); i < n; ++i)
   {
-    writeLinearRingSVG(out, geom->getInteriorRing(i), box, format);
+    writeLinearRingSVG(out, geom->getInteriorRing(i), box, rfactor, format);
   }
 }
 
@@ -205,12 +209,13 @@ void writeMultiPointSVG(std::string &out,
 void writeMultiLineStringSVG(std::string &out,
                              const OGRMultiLineString *geom,
                              const Box &box,
+                             double rfactor,
                              const char *format)
 {
   if (geom == nullptr || geom->IsEmpty()) return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     writeLineStringSVG(
-        out, static_cast<const OGRLineString *>(geom->getGeometryRef(i)), box, format);
+        out, static_cast<const OGRLineString *>(geom->getGeometryRef(i)), box, rfactor, format);
 }
 
 // ----------------------------------------------------------------------
@@ -222,11 +227,13 @@ void writeMultiLineStringSVG(std::string &out,
 void writeMultiPolygonSVG(std::string &out,
                           const OGRMultiPolygon *geom,
                           const Box &box,
+                          double rfactor,
                           const char *format)
 {
   if (geom == nullptr || geom->IsEmpty()) return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    writePolygonSVG(out, static_cast<const OGRPolygon *>(geom->getGeometryRef(i)), box, format);
+    writePolygonSVG(
+        out, static_cast<const OGRPolygon *>(geom->getGeometryRef(i)), box, rfactor, format);
 }
 
 // ----------------------------------------------------------------------
@@ -238,11 +245,12 @@ void writeMultiPolygonSVG(std::string &out,
 void writeGeometryCollectionSVG(std::string &out,
                                 const OGRGeometryCollection *geom,
                                 const Box &box,
+                                double rfactor,
                                 const char *format)
 {
   if (geom == nullptr || geom->IsEmpty()) return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    writeSVG(out, geom->getGeometryRef(i), box, format);
+    writeSVG(out, geom->getGeometryRef(i), box, rfactor, format);
 }
 
 // ----------------------------------------------------------------------
@@ -254,7 +262,8 @@ void writeGeometryCollectionSVG(std::string &out,
  */
 // ----------------------------------------------------------------------
 
-void writeSVG(std::string &out, const OGRGeometry *geom, const Box &box, const char *format)
+void writeSVG(
+    std::string &out, const OGRGeometry *geom, const Box &box, double rfactor, const char *format)
 {
   OGRwkbGeometryType id = geom->getGeometryType();
 
@@ -265,26 +274,29 @@ void writeSVG(std::string &out, const OGRGeometry *geom, const Box &box, const c
       return writePointSVG(out, static_cast<const OGRPoint *>(geom), box, format);
     case wkbLineString:
     case wkbLineString25D:
-      return writeLineStringSVG(out, static_cast<const OGRLineString *>(geom), box, format);
+      return writeLineStringSVG(
+          out, static_cast<const OGRLineString *>(geom), box, rfactor, format);
     case wkbLinearRing:
-      return writeLinearRingSVG(out, static_cast<const OGRLinearRing *>(geom), box, format);
+      return writeLinearRingSVG(
+          out, static_cast<const OGRLinearRing *>(geom), box, rfactor, format);
     case wkbPolygon:
     case wkbPolygon25D:
-      return writePolygonSVG(out, static_cast<const OGRPolygon *>(geom), box, format);
+      return writePolygonSVG(out, static_cast<const OGRPolygon *>(geom), box, rfactor, format);
     case wkbMultiPoint:
     case wkbMultiPoint25D:
       return writeMultiPointSVG(out, static_cast<const OGRMultiPoint *>(geom), box, format);
     case wkbMultiLineString:
     case wkbMultiLineString25D:
       return writeMultiLineStringSVG(
-          out, static_cast<const OGRMultiLineString *>(geom), box, format);
+          out, static_cast<const OGRMultiLineString *>(geom), box, rfactor, format);
     case wkbMultiPolygon:
     case wkbMultiPolygon25D:
-      return writeMultiPolygonSVG(out, static_cast<const OGRMultiPolygon *>(geom), box, format);
+      return writeMultiPolygonSVG(
+          out, static_cast<const OGRMultiPolygon *>(geom), box, rfactor, format);
     case wkbGeometryCollection:
     case wkbGeometryCollection25D:
       return writeGeometryCollectionSVG(
-          out, static_cast<const OGRGeometryCollection *>(geom), box, format);
+          out, static_cast<const OGRGeometryCollection *>(geom), box, rfactor, format);
     case wkbUnknown:
       throw std::runtime_error(
           "Encountered an unknown geometry component in OGR to SVG conversion");
@@ -296,6 +308,10 @@ void writeSVG(std::string &out, const OGRGeometry *geom, const Box &box, const c
 // ----------------------------------------------------------------------
 /*!
  * \brief Convert the geometry to a SVG string
+ *
+ * Note: This is the original API. The one using double enables fractional
+ * precision and hence possibly better reduction in SVG size. For example,
+ * a precision of 0.5 implies an accuracy of 10**(-0.5) = 0.316
  */
 // ----------------------------------------------------------------------
 
@@ -304,11 +320,28 @@ std::string Fmi::OGR::exportToSvg(const OGRGeometry &theGeom, const Box &theBox,
   // Actual number of decimals to use is automatically selected if
   // no precision is given or it is negative.
 
-  int decimals = (thePrecision < 0 ? 1 : thePrecision);
+  double precision = (thePrecision < 0 ? 1 : thePrecision);
+  return exportToSvg(theGeom, theBox, precision);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Convert the geometry to a SVG string
+ */
+// ----------------------------------------------------------------------
+
+std::string Fmi::OGR::exportToSvg(const OGRGeometry &theGeom,
+                                  const Box &theBox,
+                                  double thePrecision)
+{
+  int decimals = std::ceil(thePrecision);
+  if (decimals < 0) decimals = 0;
+
+  double rfactor = pow(10.0, thePrecision);
 
   std::string format = "%." + fmt::sprintf("%d", decimals) + "f";
 
   std::string out;
-  writeSVG(out, &theGeom, theBox, format.c_str());
+  writeSVG(out, &theGeom, theBox, rfactor, format.c_str());
   return out;
 }
