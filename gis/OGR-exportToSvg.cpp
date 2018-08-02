@@ -297,25 +297,6 @@ void writeSVG(
 // ----------------------------------------------------------------------
 /*!
  * \brief Convert the geometry to a SVG string
- *
- * Note: This is the original API. The one using double enables fractional
- * precision and hence possibly better reduction in SVG size. For example,
- * a precision of 0.5 implies an accuracy of 10**(-0.5) = 0.316
- */
-// ----------------------------------------------------------------------
-
-std::string Fmi::OGR::exportToSvg(const OGRGeometry &theGeom, const Box &theBox, int thePrecision)
-{
-  // Actual number of decimals to use is automatically selected if
-  // no precision is given or it is negative.
-
-  double precision = (thePrecision < 0 ? 1 : thePrecision);
-  return exportToSvg(theGeom, theBox, precision);
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Convert the geometry to a SVG string
  */
 // ----------------------------------------------------------------------
 
@@ -323,12 +304,12 @@ std::string Fmi::OGR::exportToSvg(const OGRGeometry &theGeom,
                                   const Box &theBox,
                                   double thePrecision)
 {
-  int decimals = std::ceil(thePrecision);
-  if (decimals < 0) decimals = 0;
+  // For backwards compatibility
+  const double precision = std::max(0.0, thePrecision);
 
-  double rfactor = pow(10.0, thePrecision);
-
-  std::string format = "%." + fmt::sprintf("%d", decimals) + "f";
+  const int decimals = std::ceil(precision);
+  const double rfactor = pow(10.0, precision);
+  const std::string format = "%." + fmt::sprintf("%d", decimals) + "f";
 
   std::string out;
   writeSVG(out, &theGeom, theBox, rfactor, format.c_str());
