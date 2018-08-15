@@ -54,5 +54,8 @@ boost::optional<double> gridNorth(OGRCoordinateTransformation& theTransformation
                                   double theLon,
                                   double theLat);
 
+// Create OGRGeometry from WKT-string, if theEPSGNumber > 0 assign spatial reference to geometry
+OGRGeometry* createFromWkt(const std::string& wktString, unsigned int theEPSGNumber = 0);
+
 }  // namespace OGR
 }  // namespace Fmi

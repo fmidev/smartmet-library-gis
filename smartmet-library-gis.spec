@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 18.8.2
+Version: 18.8.15
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -63,6 +63,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Aug 15 2018 Anssi Reponen <anssi.reponen@fmi.fi> - 18.8.15-1.fmi
+- Added createFromWkt-function for creating OGRGeometry* from WKT-string
+- Added some documentation for existing functions
+
 * Thu Aug  2 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.8.2-1.fmi
 - Deprecated old OGR exportToSvg API immediately to avoid overload ambiguities
 

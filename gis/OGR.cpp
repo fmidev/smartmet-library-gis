@@ -67,6 +67,56 @@ OGRGeometry* Fmi::OGR::importFromGeos(const geos::geom::Geometry& theGeom,
   return ogeom;
 }
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief Create OGRGeometry from WKT-string
+ * \param wktString String of WKT-format
+ * \param theEPSGNumber EPSG code
+ *
+ *  The spatial reference is assigned to geometry if theEPSGNumber > 0
+ *
+ */
+// ----------------------------------------------------------------------
+
+OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
+                                     unsigned int theEPSGNumber /* = 0 */)
+{
+  OGRGeometry* geom = nullptr;
+  char* pszWKT(const_cast<char*>(wktString.c_str()));
+  OGRErr err = OGRGeometryFactory::createFromWkt(&pszWKT, NULL, &geom);
+  if (err != OGRERR_NONE)
+  {
+    std::string errStr = "Failed to create OGRGeometry from WKT " + wktString + "";
+    if (err == OGRERR_NOT_ENOUGH_DATA) errStr += " OGRErr: OGRERR_NOT_ENOUGH_DATA";
+    if (err == OGRERR_UNSUPPORTED_GEOMETRY_TYPE)
+      errStr += " OGRErr: OGRERR_UNSUPPORTED_GEOMETRY_TYPE";
+    if (err == OGRERR_CORRUPT_DATA) errStr += " OGRErr: OGRERR_CORRUPT_DATA";
+
+    throw std::runtime_error(errStr);
+  }
+
+  if (theEPSGNumber > 0)
+  {
+    OGRSpatialReference srs;
+    srs.importFromEPSGA(theEPSGNumber);
+    geom->assignSpatialReference(srs.Clone());
+  }
+
+  return geom;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Create OGRGeometry from list of coordinate points
+ * \param theCoordinates List of coordinate points
+ * \param theGeometryType Geometry type to be created from coordinate points
+ * \param theEPSGNumber EPSG code
+ *
+ *  POINT, LINESTRING and POLYGON geometries are supported
+ *
+ */
+// ----------------------------------------------------------------------
+
 OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
                                          OGRwkbGeometryType theGeometryType,
                                          unsigned int theEPSGNumber)
@@ -117,7 +167,7 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
 
 static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters)
 {
-  OGRGeometry* ret(0);
+  OGRGeometry* ret = nullptr;
 
   boost::scoped_ptr<OGRGeometry> tmp_geom;
   tmp_geom.reset(theGeom->clone());
@@ -190,9 +240,19 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
   return ret;
 }
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief Expand the geometry by theRadiusInMeters meters
+ * \param theGeom The geometry to be expanded
+ * \param theRadiusInMeters Amount of meters to expand the geometry
+ * \return The expanded geometry
+ *
+ */
+// ----------------------------------------------------------------------
+
 OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters)
 {
-  OGRGeometry* ret(0);
+  OGRGeometry* ret = nullptr;
 
   if (!theGeom)
   {
