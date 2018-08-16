@@ -17,11 +17,11 @@ BuildRequires: boost-devel
 BuildRequires: fmt-devel
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.7.30
+BuildRequires: smartmet-library-macgyver-devel >= 18.8.4
 Requires: fmt
 Requires: gdal >= 1.11.4
 Requires: geos >= 3.5.0
-Requires: smartmet-library-macgyver >= 18.7.30
+Requires: smartmet-library-macgyver >= 18.8.4
 Requires: postgis < 2.1
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
