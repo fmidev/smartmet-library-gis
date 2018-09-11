@@ -37,11 +37,8 @@ std::string pretty(double num, const char *format)
 
 // Forward declaration needed since two functions call each other
 
-void writeSVG(std::string &string,
-              const OGRGeometry *geom,
-              const Box &box,
-              double rfactor,
-              const char *format);
+void writeSVG(
+    std::string &out, const OGRGeometry *geom, const Box &box, double rfactor, const char *format);
 
 // ----------------------------------------------------------------------
 /*!
