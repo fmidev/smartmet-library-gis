@@ -62,7 +62,7 @@ class DEM::Impl
   // Note: We want the DEM level with largest tiles (most accurate) first.
   // However, we may skip levels which are of too good resolution for speed
   // and to avoid noise in rendered images.
-  typedef std::map<std::size_t, SrtmMatrix, std::greater<std::size_t>> SrtmMatrices;
+  using SrtmMatrices = std::map<std::size_t, SrtmMatrix, std::greater<std::size_t>>;
   SrtmMatrices itsMatrices;
 };
 

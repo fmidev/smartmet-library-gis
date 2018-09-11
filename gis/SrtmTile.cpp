@@ -11,14 +11,14 @@
 // Filename structure for HGT files (for example S89E172.hgt)
 boost::regex hgt_filename_regex("(N|S)[0-9]{2}(E|W)[0-9]{3}\\.hgt");
 
-typedef boost::interprocess::file_mapping FileMapping;
-typedef boost::interprocess::mapped_region MappedRegion;
+using FileMapping = boost::interprocess::file_mapping;
+using MappedRegion = boost::interprocess::mapped_region;
 
-typedef boost::shared_mutex MutexType;
-typedef boost::shared_lock<MutexType> ReadLock;
-typedef boost::unique_lock<MutexType> WriteLock;
-typedef boost::upgrade_lock<MutexType> UpgradeReadLock;
-typedef boost::upgrade_to_unique_lock<MutexType> UpgradeWriteLock;
+using MutexType = boost::shared_mutex;
+using ReadLock = boost::shared_lock<MutexType>;
+using WriteLock = boost::unique_lock<MutexType>;
+using UpgradeReadLock = boost::upgrade_lock<MutexType>;
+using UpgradeWriteLock = boost::upgrade_to_unique_lock<MutexType>;
 
 namespace Fmi
 {
