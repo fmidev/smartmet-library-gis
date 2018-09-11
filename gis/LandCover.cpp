@@ -101,7 +101,7 @@ LandCover::Type LandCover::Impl::coverType(double lon, double lat) const
   for (const auto& size_matrix : itsMatrices)
   {
     double value = size_matrix.second.value(lon, lat);
-    if (!isnan(value) && (value != SrtmMatrix::missing))
+    if (!std::isnan(value) && (value != SrtmMatrix::missing))
     {
       covertype = Type(value);
       if (covertype != LandCover::NoData) return covertype;

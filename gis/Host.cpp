@@ -48,7 +48,7 @@ std::string Host::dataSource() const
 OGRDataSourcePtr Host::connect() const
 {
   OGRSFDriver* driver(OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("PostgreSQL"));
-  if (!driver) throw std::runtime_error("PostgreSQL driver not installed!");
+  if (driver == nullptr) throw std::runtime_error("PostgreSQL driver not installed!");
 
   auto src = dataSource();
 

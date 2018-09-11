@@ -75,7 +75,7 @@ OGRPolygon *despeckle_polygon(const OGRPolygon *theGeom, double theLimit, bool t
 
 OGRLineString *despeckle_linestring(const OGRLineString *theGeom, double theLimit, bool theGeogFlag)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
   return static_cast<OGRLineString *>(theGeom->clone());
 }
@@ -88,7 +88,7 @@ OGRLineString *despeckle_linestring(const OGRLineString *theGeom, double theLimi
 
 OGRPoint *despeckle_point(const OGRPoint *theGeom, double theLimit, bool theGeogFlag)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
   return static_cast<OGRPoint *>(theGeom->clone());
 }
@@ -101,7 +101,7 @@ OGRPoint *despeckle_point(const OGRPoint *theGeom, double theLimit, bool theGeog
 
 OGRMultiPoint *despeckle_multipoint(const OGRMultiPoint *theGeom, double theLimit, bool theGeogFlag)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
   return static_cast<OGRMultiPoint *>(theGeom->clone());
 }
@@ -116,7 +116,7 @@ OGRMultiLineString *despeckle_multilinestring(const OGRMultiLineString *theGeom,
                                               double theLimit,
                                               bool theGeogFlag)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
   ;
 
   return static_cast<OGRMultiLineString *>(theGeom->clone());
@@ -132,7 +132,7 @@ OGRMultiPolygon *despeckle_multipolygon(const OGRMultiPolygon *theGeom,
                                         double theLimit,
                                         bool theGeogFlag)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
   OGRMultiPolygon *out = new OGRMultiPolygon();
 
@@ -140,10 +140,10 @@ OGRMultiPolygon *despeckle_multipolygon(const OGRMultiPolygon *theGeom,
   {
     auto *geom = despeckle_polygon(
         static_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)), theLimit, theGeogFlag);
-    if (geom) out->addGeometryDirectly(geom);
+    if (geom != nullptr) out->addGeometryDirectly(geom);
   }
 
-  if (!out->IsEmpty()) return out;
+  if (out->IsEmpty() == 0) return out;
 
   delete out;
   return nullptr;
@@ -163,7 +163,7 @@ OGRGeometryCollection *despeckle_geometrycollection(const OGRGeometryCollection 
                                                     double theLimit,
                                                     bool theGeogFlag)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
   OGRGeometryCollection *out = new OGRGeometryCollection;
 
@@ -173,7 +173,7 @@ OGRGeometryCollection *despeckle_geometrycollection(const OGRGeometryCollection 
     if (geom != nullptr) out->addGeometryDirectly(geom);
   }
 
-  if (!out->IsEmpty()) return out;
+  if (out->IsEmpty() == 0) return out;
 
   delete out;
   return nullptr;
@@ -244,7 +244,7 @@ OGRGeometry *Fmi::OGR::despeckle(const OGRGeometry &theGeom, double theAreaLimit
   // does it in the native system and hence would produce square degrees.
 
   OGRSpatialReference *crs = theGeom.getSpatialReference();
-  bool geographic = (crs ? crs->IsGeographic() : false);
+  bool geographic = (crs != nullptr ? crs->IsGeographic() : false);
 
   // Actual despeckling
 

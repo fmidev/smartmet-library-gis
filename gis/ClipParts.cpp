@@ -283,7 +283,7 @@ void reverse_points(OGRLineString *line, int start, int end)
 
 void normalize_ring(OGRLinearRing *ring)
 {
-  if (ring->IsEmpty()) return;
+  if (ring->IsEmpty() != 0) return;
 
   // Find the "smallest" coordinate
 
@@ -502,7 +502,7 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
         // Couldn't find a matching best line. Either close the ring or move to next corner.
         ring->addPoint(x2, y2);
 
-        if (ring->get_IsClosed())
+        if (ring->get_IsClosed() != 0)
         {
           normalize_ring(ring);
           exterior.push_back(ring);
@@ -534,7 +534,7 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
       hole->getExteriorRing()->getPoint(0, &point);
       for (auto *poly : polygons)
       {
-        if (poly->getExteriorRing()->isPointInRing(&point, false))
+        if (poly->getExteriorRing()->isPointInRing(&point, false) != 0)
         {
           poly->addRing(hole->getExteriorRing());
           break;

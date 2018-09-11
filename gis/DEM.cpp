@@ -103,13 +103,13 @@ double DEM::Impl::elevation(double lon, double lat) const
   for (const auto& size_matrix : itsMatrices)
   {
     value = size_matrix.second.value(lon, lat);
-    if (!isnan(value) && (value != SrtmMatrix::missing)) return value;
+    if (!std::isnan(value) && (value != SrtmMatrix::missing)) return value;
   }
 
   // Now value is either NaN to indicate a value at sea or
   // the missing value -32768, which we convert to NaN
 
-  if (isnan(value))
+  if (std::isnan(value))
     return 0;
   else
     return std::numeric_limits<double>::quiet_NaN();
@@ -153,14 +153,14 @@ double DEM::Impl::elevation(double lon, double lat, double resolution) const
   while (it != itsMatrices.end())
   {
     value = it->second.value(lon, lat);
-    if (!isnan(value) && (value != SrtmMatrix::missing)) return value;
+    if (!std::isnan(value) && (value != SrtmMatrix::missing)) return value;
     ++it;
   }
 
   // Now value is either NaN to indicate a value at sea or
   // the missing value -32768, which we convert to NaN
 
-  if (isnan(value))
+  if (std::isnan(value))
     return 0;
   else
     return std::numeric_limits<double>::quiet_NaN();

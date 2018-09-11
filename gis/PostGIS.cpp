@@ -26,7 +26,8 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
 
   // Fetch the layer, which is owned by the data source
   OGRLayer* layer = theConnection->GetLayerByName(theName.c_str());
-  if (!layer) throw std::runtime_error("Failed to read '" + theName + "' from the database");
+  if (layer == nullptr)
+    throw std::runtime_error("Failed to read '" + theName + "' from the database");
 
   // Establish the filter
 
@@ -41,7 +42,8 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
   // Establish coordinate transformation
 
   OGRCoordinateTransformation* transformation = nullptr;
-  if (theSR) transformation = OGRCreateCoordinateTransformation(layer->GetSpatialRef(), theSR);
+  if (theSR != nullptr)
+    transformation = OGRCreateCoordinateTransformation(layer->GetSpatialRef(), theSR);
 
   // Build the result. Note: SR objects are reference counted
 
@@ -63,7 +65,7 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
     OGRGeometry* geometry = feature->GetGeometryRef();
     if (geometry != nullptr)
     {
-      if (!transformation)
+      if (transformation == nullptr)
         out->addGeometry(geometry);  // clones geometry
       else
       {
@@ -75,7 +77,7 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
     OGRFeature::DestroyFeature(feature);
   }
 
-  if (transformation)
+  if (transformation != nullptr)
   {
     OCTDestroyCoordinateTransformation(transformation);
   }
@@ -106,7 +108,8 @@ Features read(OGRSpatialReference* theSR,
 
   // Fetch the layer, which is owned by the data source
   OGRLayer* layer = theConnection->GetLayerByName(theName.c_str());
-  if (!layer) throw std::runtime_error("Failed to read '" + theName + "' from the database");
+  if (layer == nullptr)
+    throw std::runtime_error("Failed to read '" + theName + "' from the database");
 
   // Establish the filter
 
@@ -120,7 +123,8 @@ Features read(OGRSpatialReference* theSR,
 
   // Establish coordinate transformation
   OGRCoordinateTransformation* transformation = nullptr;
-  if (theSR) transformation = OGRCreateCoordinateTransformation(layer->GetSpatialRef(), theSR);
+  if (theSR != nullptr)
+    transformation = OGRCreateCoordinateTransformation(layer->GetSpatialRef(), theSR);
 
   // This is owned by us
 
@@ -134,7 +138,7 @@ Features read(OGRSpatialReference* theSR,
     OGRGeometry* geometry = feature->GetGeometryRef();
     if (geometry != nullptr)
     {
-      if (!transformation)
+      if (transformation == nullptr)
       {
         ret_item->geom.reset(geometry->clone());
       }
@@ -161,7 +165,7 @@ Features read(OGRSpatialReference* theSR,
       std::string fieldname(poFieldDefn->GetNameRef());
 
       if (theFieldNames.find(fieldname) == theFieldNames.end()) continue;
-      if (!feature->IsFieldSet(iField))
+      if (feature->IsFieldSet(iField) == 0)
       {
         ret_item->attributes.insert(make_pair(fieldname, ""));
         continue;
@@ -199,7 +203,7 @@ Features read(OGRSpatialReference* theSR,
     ret.push_back(ret_item);
   }
 
-  if (transformation)
+  if (transformation != nullptr)
   {
     OCTDestroyCoordinateTransformation(transformation);
   }
