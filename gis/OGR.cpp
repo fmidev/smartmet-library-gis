@@ -83,7 +83,7 @@ OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
 {
   OGRGeometry* geom = nullptr;
   char* pszWKT(const_cast<char*>(wktString.c_str()));
-  OGRErr err = OGRGeometryFactory::createFromWkt(&pszWKT, NULL, &geom);
+  OGRErr err = OGRGeometryFactory::createFromWkt(&pszWKT, nullptr, &geom);
   if (err != OGRERR_NONE)
   {
     std::string errStr = "Failed to create OGRGeometry from WKT " + wktString + "";
