@@ -26,14 +26,13 @@ namespace
 
 std::list<boost::filesystem::path> find_hgt_files(const std::string& path)
 {
-  using namespace boost::filesystem;
-
-  if (!is_directory(path)) throw std::runtime_error("Not a directory: '" + path + "'");
+  if (!boost::filesystem::is_directory(path))
+    throw std::runtime_error("Not a directory: '" + path + "'");
 
   std::list<boost::filesystem::path> files;
 
-  recursive_directory_iterator end_dir;
-  for (recursive_directory_iterator it(path); it != end_dir; ++it)
+  boost::filesystem::recursive_directory_iterator end_dir;
+  for (boost::filesystem::recursive_directory_iterator it(path); it != end_dir; ++it)
   {
     if (is_regular_file(it->status()) && SrtmTile::valid_path(it->path().string()) &&
         SrtmTile::valid_size(it->path().string()))
