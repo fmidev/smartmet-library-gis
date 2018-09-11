@@ -30,7 +30,7 @@ class SrtmMatrix::Impl
  */
 // ----------------------------------------------------------------------
 
-SrtmMatrix::Impl::Impl() : itsTiles()
+SrtmMatrix::Impl::Impl()
 {
   itsTiles.resize(360 * 180);  // 1x1 degree tiles covering the world
 }
