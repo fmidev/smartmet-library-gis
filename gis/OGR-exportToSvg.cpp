@@ -28,10 +28,8 @@ std::string pretty(double num, const char *format)
 
   ret.resize(pos);
 
-  if (ret != "-0")
-    return ret;
-  else
-    return "0";
+  if (ret != "-0") return ret;
+  return "0";
 }
 }  // namespace
 

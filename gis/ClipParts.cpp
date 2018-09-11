@@ -169,12 +169,9 @@ OGRGeometry *Fmi::ClipParts::internalBuild() const
   // Simplify to LineString, Polygon or Point if possible
   if (n == 1)
   {
-    if (itsPolygons.size() == 1)
-      return itsPolygons.front();
-    else if (itsLines.size() == 1)
-      return itsLines.front();
-    else
-      return itsPoints.front();
+    if (itsPolygons.size() == 1) return itsPolygons.front();
+    if (itsLines.size() == 1) return itsLines.front();
+    return itsPoints.front();
   }
 
   // Simplify to MultiLineString, MultiPolygon or MultiPoint if possible

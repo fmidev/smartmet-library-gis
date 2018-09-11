@@ -109,10 +109,8 @@ double DEM::Impl::elevation(double lon, double lat) const
   // Now value is either NaN to indicate a value at sea or
   // the missing value -32768, which we convert to NaN
 
-  if (std::isnan(value))
-    return 0;
-  else
-    return std::numeric_limits<double>::quiet_NaN();
+  if (std::isnan(value)) return 0;
+  return std::numeric_limits<double>::quiet_NaN();
 }
 
 // ----------------------------------------------------------------------
@@ -160,10 +158,8 @@ double DEM::Impl::elevation(double lon, double lat, double resolution) const
   // Now value is either NaN to indicate a value at sea or
   // the missing value -32768, which we convert to NaN
 
-  if (std::isnan(value))
-    return 0;
-  else
-    return std::numeric_limits<double>::quiet_NaN();
+  if (std::isnan(value)) return 0;
+  return std::numeric_limits<double>::quiet_NaN();
 }
 
 // ----------------------------------------------------------------------
@@ -214,10 +210,8 @@ double DEM::elevation(double lon, double lat, double resolution) const
 
   if (resolution < 0) throw std::runtime_error("Desired DEM resolution cannot be negative");
 
-  if (resolution == 0)
-    return impl->elevation(lon, lat);
-  else
-    return impl->elevation(lon, lat, resolution);
+  if (resolution == 0) return impl->elevation(lon, lat);
+  return impl->elevation(lon, lat, resolution);
 }
 
 }  // namespace Fmi
