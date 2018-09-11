@@ -43,7 +43,7 @@ bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return false;
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
-    if (inside(static_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)), theX, theY))
+    if (inside(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)), theX, theY))
       return true;
   }
   return false;
@@ -109,16 +109,16 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
       if (strcmp(theGeom.getGeometryName(), "LINEARRING") != 0) return false;
     // Fall through
     case wkbLinearRing:
-      return inside(static_cast<const OGRLinearRing *>(&theGeom), theX, theY);
+      return inside(dynamic_cast<const OGRLinearRing *>(&theGeom), theX, theY);
     case wkbPolygon:
     case wkbPolygon25D:
-      return inside(static_cast<const OGRPolygon *>(&theGeom), theX, theY);
+      return inside(dynamic_cast<const OGRPolygon *>(&theGeom), theX, theY);
     case wkbMultiPolygon:
     case wkbMultiPolygon25D:
-      return inside(static_cast<const OGRMultiPolygon *>(&theGeom), theX, theY);
+      return inside(dynamic_cast<const OGRMultiPolygon *>(&theGeom), theX, theY);
     case wkbGeometryCollection:
     case wkbGeometryCollection25D:
-      return inside(static_cast<const OGRGeometryCollection *>(&theGeom), theX, theY);
+      return inside(dynamic_cast<const OGRGeometryCollection *>(&theGeom), theX, theY);
     case wkbUnknown:
       throw std::runtime_error(
           "Encountered an unknown geometry component in OGR to SVG conversion");

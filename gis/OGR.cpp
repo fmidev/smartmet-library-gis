@@ -213,7 +213,7 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
                                                            : theRadiusInMeters * 2);
 
   // make the buffer
-  boost::scoped_ptr<OGRPolygon> polygon(static_cast<OGRPolygon*>(tmp_geom->Buffer(radius, 20)));
+  boost::scoped_ptr<OGRPolygon> polygon(dynamic_cast<OGRPolygon*>(tmp_geom->Buffer(radius, 20)));
 
   // get exterior ring of polygon
   // the returned ring pointer is to an internal data object of the OGRPolygon.
@@ -266,7 +266,7 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
   if (theGeom->getGeometryType() == wkbMultiPolygon)
   {
     boost::scoped_ptr<OGRMultiPolygon> multipoly;
-    multipoly.reset(static_cast<OGRMultiPolygon*>(theGeom->clone()));
+    multipoly.reset(dynamic_cast<OGRMultiPolygon*>(theGeom->clone()));
 
     OGRMultiPolygon mpoly;
     int n_geometries(multipoly->getNumGeometries());
