@@ -320,7 +320,7 @@ void clip_polygon_to_linestrings(const OGRPolygon *theGeom,
                                  Fmi::ClipParts &theParts,
                                  const Box &theBox)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
 
   // Clip the exterior first to see what's going on
 
@@ -330,7 +330,7 @@ void clip_polygon_to_linestrings(const OGRPolygon *theGeom,
 
   if (clip_linestring_parts(theGeom->getExteriorRing(), parts, theBox))
   {
-    theParts.add(static_cast<OGRPolygon *>(theGeom->clone()));
+    theParts.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
     return;
   }
 
@@ -395,7 +395,7 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
                               Fmi::ClipParts &theParts,
                               const Box &theBox)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
 
   // Clip the exterior first to see what's going on
 
@@ -405,7 +405,7 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
 
   if (clip_linestring_parts(theGeom->getExteriorRing(), parts, theBox))
   {
-    theParts.add(static_cast<OGRPolygon *>(theGeom->clone()));
+    theParts.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
     return;
   }
 
@@ -423,7 +423,7 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
   }
   else
   {
-    if (!theGeom->getExteriorRing()->isClockwise()) parts.reverseLines();
+    if (theGeom->getExteriorRing()->isClockwise() == 0) parts.reverseLines();
   }
 
   // Must do this to make sure all end points are on the edges
@@ -448,7 +448,7 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
     {
       if (!holeparts.empty())
       {
-        if (hole->isClockwise()) parts.reverseLines();
+        if (hole->isClockwise() != 0) parts.reverseLines();
         holeparts.reconnect();
         holeparts.release(parts);
       }
@@ -492,12 +492,12 @@ void clip_polygon(const OGRPolygon *theGeom,
 
 void clip_linestring(const OGRLineString *theGeom, Fmi::ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
 
   // If everything was in, just clone the original
 
   if (clip_linestring_parts(theGeom, theParts, theBox))
-    theParts.add(static_cast<OGRLineString *>(theGeom->clone()));
+    theParts.add(dynamic_cast<OGRLineString *>(theGeom->clone()));
 }
 
 // ----------------------------------------------------------------------
@@ -508,10 +508,10 @@ void clip_linestring(const OGRLineString *theGeom, Fmi::ClipParts &theParts, con
 
 void clip_multipoint(const OGRMultiPoint *theGeom, ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
-    clip_point(static_cast<const OGRPoint *>(theGeom->getGeometryRef(i)), theParts, theBox);
+    clip_point(dynamic_cast<const OGRPoint *>(theGeom->getGeometryRef(i)), theParts, theBox);
   }
 }
 
@@ -523,12 +523,12 @@ void clip_multipoint(const OGRMultiPoint *theGeom, ClipParts &theParts, const Bo
 
 void clip_multilinestring(const OGRMultiLineString *theGeom, ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     clip_linestring(
-        static_cast<const OGRLineString *>(theGeom->getGeometryRef(i)), theParts, theBox);
+        dynamic_cast<const OGRLineString *>(theGeom->getGeometryRef(i)), theParts, theBox);
   }
 }
 
@@ -543,11 +543,11 @@ void clip_multipolygon(const OGRMultiPolygon *theGeom,
                        const Box &theBox,
                        bool keep_polygons)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
-    clip_polygon(static_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)),
+    clip_polygon(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)),
                  theParts,
                  theBox,
                  keep_polygons);
@@ -572,7 +572,7 @@ void clip_geometrycollection(const OGRGeometryCollection *theGeom,
                              const Box &theBox,
                              bool keep_polygons)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -596,23 +596,23 @@ void clip_geom(const OGRGeometry *theGeom,
   switch (id)
   {
     case wkbPoint:
-      return clip_point(static_cast<const OGRPoint *>(theGeom), theParts, theBox);
+      return clip_point(dynamic_cast<const OGRPoint *>(theGeom), theParts, theBox);
     case wkbLineString:
-      return clip_linestring(static_cast<const OGRLineString *>(theGeom), theParts, theBox);
+      return clip_linestring(dynamic_cast<const OGRLineString *>(theGeom), theParts, theBox);
     case wkbPolygon:
       return clip_polygon(
-          static_cast<const OGRPolygon *>(theGeom), theParts, theBox, keep_polygons);
+          dynamic_cast<const OGRPolygon *>(theGeom), theParts, theBox, keep_polygons);
     case wkbMultiPoint:
-      return clip_multipoint(static_cast<const OGRMultiPoint *>(theGeom), theParts, theBox);
+      return clip_multipoint(dynamic_cast<const OGRMultiPoint *>(theGeom), theParts, theBox);
     case wkbMultiLineString:
       return clip_multilinestring(
-          static_cast<const OGRMultiLineString *>(theGeom), theParts, theBox);
+          dynamic_cast<const OGRMultiLineString *>(theGeom), theParts, theBox);
     case wkbMultiPolygon:
       return clip_multipolygon(
-          static_cast<const OGRMultiPolygon *>(theGeom), theParts, theBox, keep_polygons);
+          dynamic_cast<const OGRMultiPolygon *>(theGeom), theParts, theBox, keep_polygons);
     case wkbGeometryCollection:
       return clip_geometrycollection(
-          static_cast<const OGRGeometryCollection *>(theGeom), theParts, theBox, keep_polygons);
+          dynamic_cast<const OGRGeometryCollection *>(theGeom), theParts, theBox, keep_polygons);
     case wkbLinearRing:
       throw std::runtime_error("Direct clipping of LinearRings is not supported");
     case wkbNone:
@@ -648,7 +648,7 @@ OGRGeometry *Fmi::OGR::lineclip(const OGRGeometry &theGeom, const Box &theBox)
   clip_geom(&theGeom, parts, theBox, keep_polygons);
 
   OGRGeometry *geom = parts.build();
-  if (geom) geom->assignSpatialReference(theGeom.getSpatialReference());
+  if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
   return geom;
 }
 
@@ -668,6 +668,6 @@ OGRGeometry *Fmi::OGR::polyclip(const OGRGeometry &theGeom, const Box &theBox)
   clip_geom(&theGeom, parts, theBox, keep_polygons);
 
   OGRGeometry *geom = parts.build();
-  if (geom) geom->assignSpatialReference(theGeom.getSpatialReference());
+  if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
   return geom;
 }

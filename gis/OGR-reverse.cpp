@@ -19,7 +19,7 @@ OGRGeometry *reverse_winding(const OGRGeometry *theGeom);
 
 OGRLinearRing *reverse_winding(const OGRLinearRing *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
   auto *geom = static_cast<OGRLinearRing *>(theGeom->clone());
   geom->reverseWindingOrder();
@@ -34,14 +34,14 @@ OGRLinearRing *reverse_winding(const OGRLinearRing *theGeom)
 
 OGRMultiPolygon *reverse_winding(const OGRMultiPolygon *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
   OGRMultiPolygon *out = new OGRMultiPolygon();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     auto *geom = reverse_winding(static_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
-    if (geom) out->addGeometryDirectly(geom);
+    if (geom != nullptr) out->addGeometryDirectly(geom);
   }
   return out;
 }
@@ -54,14 +54,14 @@ OGRMultiPolygon *reverse_winding(const OGRMultiPolygon *theGeom)
 
 OGRGeometryCollection *reverse_winding(const OGRGeometryCollection *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
   OGRGeometryCollection *out = new OGRGeometryCollection();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     auto *geom = reverse_winding(theGeom->getGeometryRef(i));
-    if (geom) out->addGeometryDirectly(geom);
+    if (geom != nullptr) out->addGeometryDirectly(geom);
   }
   return out;
 }
@@ -74,7 +74,7 @@ OGRGeometryCollection *reverse_winding(const OGRGeometryCollection *theGeom)
 
 OGRPolygon *reverse_winding(const OGRPolygon *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty()) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
   OGRPolygon *out = new OGRPolygon();
 

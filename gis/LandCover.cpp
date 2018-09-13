@@ -27,17 +27,16 @@ namespace
 
 std::list<boost::filesystem::path> find_hgt_files(const std::string& path)
 {
-  using namespace boost::filesystem;
-
-  if (!is_directory(path)) throw std::runtime_error("Not a directory: '" + path + "'");
+  if (!boost::filesystem::is_directory(path))
+    throw std::runtime_error("Not a directory: '" + path + "'");
 
   std::list<boost::filesystem::path> files;
 
-  recursive_directory_iterator end_dir;
-  for (recursive_directory_iterator it(path); it != end_dir; ++it)
+  boost::filesystem::recursive_directory_iterator end_dir;
+  for (boost::filesystem::recursive_directory_iterator it(path); it != end_dir; ++it)
   {
-    if (is_regular_file(it->status()) && SrtmTile::valid_path(it->path().string()) &&
-        SrtmTile::valid_size(it->path().string()))
+    if (boost::filesystem::is_regular_file(it->status()) &&
+        SrtmTile::valid_path(it->path().string()) && SrtmTile::valid_size(it->path().string()))
     {
       files.push_back(it->path());
     }
@@ -60,7 +59,7 @@ class LandCover::Impl
 
  private:
   // Note: We want the LandCover level with largest tiles (most accurate) first
-  typedef std::map<std::size_t, SrtmMatrix, std::greater<std::size_t>> SrtmMatrices;
+  using SrtmMatrices = std::map<std::size_t, SrtmMatrix, std::greater<std::size_t>>;
   SrtmMatrices itsMatrices;
 };
 
@@ -101,7 +100,7 @@ LandCover::Type LandCover::Impl::coverType(double lon, double lat) const
   for (const auto& size_matrix : itsMatrices)
   {
     double value = size_matrix.second.value(lon, lat);
-    if (!isnan(value) && (value != SrtmMatrix::missing))
+    if (!std::isnan(value) && (value != SrtmMatrix::missing))
     {
       covertype = Type(value);
       if (covertype != LandCover::NoData) return covertype;

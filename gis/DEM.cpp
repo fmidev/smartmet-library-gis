@@ -26,14 +26,13 @@ namespace
 
 std::list<boost::filesystem::path> find_hgt_files(const std::string& path)
 {
-  using namespace boost::filesystem;
-
-  if (!is_directory(path)) throw std::runtime_error("Not a directory: '" + path + "'");
+  if (!boost::filesystem::is_directory(path))
+    throw std::runtime_error("Not a directory: '" + path + "'");
 
   std::list<boost::filesystem::path> files;
 
-  recursive_directory_iterator end_dir;
-  for (recursive_directory_iterator it(path); it != end_dir; ++it)
+  boost::filesystem::recursive_directory_iterator end_dir;
+  for (boost::filesystem::recursive_directory_iterator it(path); it != end_dir; ++it)
   {
     if (is_regular_file(it->status()) && SrtmTile::valid_path(it->path().string()) &&
         SrtmTile::valid_size(it->path().string()))
@@ -62,7 +61,7 @@ class DEM::Impl
   // Note: We want the DEM level with largest tiles (most accurate) first.
   // However, we may skip levels which are of too good resolution for speed
   // and to avoid noise in rendered images.
-  typedef std::map<std::size_t, SrtmMatrix, std::greater<std::size_t>> SrtmMatrices;
+  using SrtmMatrices = std::map<std::size_t, SrtmMatrix, std::greater<std::size_t>>;
   SrtmMatrices itsMatrices;
 };
 
@@ -103,16 +102,14 @@ double DEM::Impl::elevation(double lon, double lat) const
   for (const auto& size_matrix : itsMatrices)
   {
     value = size_matrix.second.value(lon, lat);
-    if (!isnan(value) && (value != SrtmMatrix::missing)) return value;
+    if (!std::isnan(value) && (value != SrtmMatrix::missing)) return value;
   }
 
   // Now value is either NaN to indicate a value at sea or
   // the missing value -32768, which we convert to NaN
 
-  if (isnan(value))
-    return 0;
-  else
-    return std::numeric_limits<double>::quiet_NaN();
+  if (std::isnan(value)) return 0;
+  return std::numeric_limits<double>::quiet_NaN();
 }
 
 // ----------------------------------------------------------------------
@@ -153,17 +150,15 @@ double DEM::Impl::elevation(double lon, double lat, double resolution) const
   while (it != itsMatrices.end())
   {
     value = it->second.value(lon, lat);
-    if (!isnan(value) && (value != SrtmMatrix::missing)) return value;
+    if (!std::isnan(value) && (value != SrtmMatrix::missing)) return value;
     ++it;
   }
 
   // Now value is either NaN to indicate a value at sea or
   // the missing value -32768, which we convert to NaN
 
-  if (isnan(value))
-    return 0;
-  else
-    return std::numeric_limits<double>::quiet_NaN();
+  if (std::isnan(value)) return 0;
+  return std::numeric_limits<double>::quiet_NaN();
 }
 
 // ----------------------------------------------------------------------
@@ -214,10 +209,8 @@ double DEM::elevation(double lon, double lat, double resolution) const
 
   if (resolution < 0) throw std::runtime_error("Desired DEM resolution cannot be negative");
 
-  if (resolution == 0)
-    return impl->elevation(lon, lat);
-  else
-    return impl->elevation(lon, lat, resolution);
+  if (resolution == 0) return impl->elevation(lon, lat);
+  return impl->elevation(lon, lat, resolution);
 }
 
 }  // namespace Fmi

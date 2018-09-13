@@ -83,7 +83,7 @@ OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
 {
   OGRGeometry* geom = nullptr;
   char* pszWKT(const_cast<char*>(wktString.c_str()));
-  OGRErr err = OGRGeometryFactory::createFromWkt(&pszWKT, NULL, &geom);
+  OGRErr err = OGRGeometryFactory::createFromWkt(&pszWKT, nullptr, &geom);
   if (err != OGRERR_NONE)
   {
     std::string errStr = "Failed to create OGRGeometry from WKT " + wktString + "";
@@ -213,7 +213,7 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
                                                            : theRadiusInMeters * 2);
 
   // make the buffer
-  boost::scoped_ptr<OGRPolygon> polygon(static_cast<OGRPolygon*>(tmp_geom->Buffer(radius, 20)));
+  boost::scoped_ptr<OGRPolygon> polygon(dynamic_cast<OGRPolygon*>(tmp_geom->Buffer(radius, 20)));
 
   // get exterior ring of polygon
   // the returned ring pointer is to an internal data object of the OGRPolygon.
@@ -235,7 +235,7 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
   // polygon is simplified to reduce amount of points
   if (exring->getNumPoints() > 1000) ret = poly.SimplifyPreserveTopology(0.001);
 
-  if (!ret) ret = poly.clone();
+  if (ret == nullptr) ret = poly.clone();
 
   return ret;
 }
@@ -254,7 +254,7 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
 {
   OGRGeometry* ret = nullptr;
 
-  if (!theGeom)
+  if (theGeom == nullptr)
   {
     throw std::runtime_error("ExpandGeometry failed: theGeom is nullptr!");
     return ret;
@@ -266,7 +266,7 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
   if (theGeom->getGeometryType() == wkbMultiPolygon)
   {
     boost::scoped_ptr<OGRMultiPolygon> multipoly;
-    multipoly.reset(static_cast<OGRMultiPolygon*>(theGeom->clone()));
+    multipoly.reset(dynamic_cast<OGRMultiPolygon*>(theGeom->clone()));
 
     OGRMultiPolygon mpoly;
     int n_geometries(multipoly->getNumGeometries());
@@ -314,20 +314,20 @@ boost::optional<double> Fmi::OGR::gridNorth(OGRCoordinateTransformation& theTran
   // Actual coordinate
   double x1 = theLon;
   double y1 = theLat;
-  if (!theTransformation.Transform(1, &x1, &y1)) return {};
+  if (theTransformation.Transform(1, &x1, &y1) == 0) return {};
 
   // Move slightly to the north
   double x2 = theLon;
   double y2 = theLat + 0.0001;
   if (y2 < 90)
   {
-    if (!theTransformation.Transform(1, &x2, &y2)) return {};
+    if (theTransformation.Transform(1, &x2, &y2) == 0) return {};
   }
   else
   {
     // move south instead and swap orientation
     y2 = theLat - 0.0001;
-    if (!theTransformation.Transform(1, &x2, &y2)) return {};
+    if (theTransformation.Transform(1, &x2, &y2) == 0) return {};
     std::swap(x1, x2);
     std::swap(y1, y2);
   }

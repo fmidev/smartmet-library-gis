@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 18.8.15
+Version: 18.9.11
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -17,11 +17,11 @@ BuildRequires: boost-devel
 BuildRequires: fmt-devel
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.8.4
+BuildRequires: smartmet-library-macgyver-devel >= 18.9.5
 Requires: fmt
 Requires: gdal >= 1.11.4
 Requires: geos >= 3.5.0
-Requires: smartmet-library-macgyver >= 18.8.4
+Requires: smartmet-library-macgyver >= 18.9.5
 Requires: postgis < 2.1
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
@@ -63,6 +63,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Sep 11 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.9.11-1.fmi
+- Silenced several CodeChecker warnings
+
 * Wed Aug 15 2018 Anssi Reponen <anssi.reponen@fmi.fi> - 18.8.15-1.fmi
 - Added createFromWkt-function for creating OGRGeometry* from WKT-string
 - Added some documentation for existing functions

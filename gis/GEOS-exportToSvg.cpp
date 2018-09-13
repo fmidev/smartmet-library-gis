@@ -14,7 +14,16 @@
 #include <geos/geom/PrecisionModel.h>
 #include <stdexcept>
 
-using namespace geos::geom;
+using geos::geom::Coordinate;
+using geos::geom::Geometry;
+using geos::geom::GeometryCollection;
+using geos::geom::LinearRing;
+using geos::geom::LineString;
+using geos::geom::MultiLineString;
+using geos::geom::MultiPoint;
+using geos::geom::MultiPolygon;
+using geos::geom::Point;
+using geos::geom::Polygon;
 
 namespace
 {
@@ -38,10 +47,8 @@ std::string pretty(double num, const char* format)
 
   ret.resize(pos);
 
-  if (ret != "-0")
-    return ret;
-  else
-    return "0";
+  if (ret != "-0") return ret;
+  return "0";
 }
 }  // namespace
 
