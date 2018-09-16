@@ -146,8 +146,7 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
   else
     return ogrGeom;
 
-  for (CoordinatePoints::const_iterator iter = theCoordinates.begin(); iter != theCoordinates.end();
-       iter++)
+  for (auto iter = theCoordinates.begin(); iter != theCoordinates.end(); iter++)
   {
     if (iter != theCoordinates.begin()) wkt += ", ";
     wkt += fmt::format("%f %f", iter->first, iter->second);
