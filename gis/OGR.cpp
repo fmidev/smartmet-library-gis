@@ -209,8 +209,8 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
   delete pCT;
 
   unsigned int radius =
-      (type == wkbLineString || type == wkbMultiLineString ? theRadiusInMeters
-                                                           : theRadiusInMeters * 2);
+      lround(type == wkbLineString || type == wkbMultiLineString ? theRadiusInMeters
+                                                                 : theRadiusInMeters * 2);
 
   // make the buffer
   boost::scoped_ptr<OGRPolygon> polygon(dynamic_cast<OGRPolygon*>(tmp_geom->Buffer(radius, 20)));
