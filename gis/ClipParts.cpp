@@ -1,6 +1,6 @@
 #include "ClipParts.h"
 #include "Box.h"
-#include "OGR.h"  // TODO: REMOVE!
+#include "OGR.h"
 #include <cassert>
 
 // ----------------------------------------------------------------------
