@@ -44,4 +44,4 @@ Fmi::Box::Box(
  */
 // ----------------------------------------------------------------------
 
-Fmi::Box Fmi::Box::identity() { return Box(0, 1, 1, 0, 1, 1); }
+Fmi::Box Fmi::Box::identity() { return {0, 1, 1, 0, 1, 1}; }
