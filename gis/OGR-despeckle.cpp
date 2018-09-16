@@ -239,7 +239,7 @@ OGRGeometry *Fmi::OGR::despeckle(const OGRGeometry &theGeom, double theAreaLimit
   // does it in the native system and hence would produce square degrees.
 
   OGRSpatialReference *crs = theGeom.getSpatialReference();
-  bool geographic = (crs != nullptr ? crs->IsGeographic() : false);
+  bool geographic = (crs != nullptr ? (crs->IsGeographic() != 0) : false);
 
   // Actual despeckling
 

@@ -221,7 +221,8 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
 
   pCT = OGRCreateCoordinateTransformation(&targetSR, &sourceSR);
 
-  if (!pCT) throw std::runtime_error("OGRCreateCoordinateTransformation function call failed");
+  if (pCT == nullptr)
+    throw std::runtime_error("OGRCreateCoordinateTransformation function call failed");
 
   // convert back to original geometry
   exring->transform(pCT);

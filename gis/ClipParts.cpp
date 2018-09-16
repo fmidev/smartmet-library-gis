@@ -529,7 +529,7 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
       hole->getExteriorRing()->getPoint(0, &point);
       for (auto *poly : polygons)
       {
-        if (poly->getExteriorRing()->isPointInRing(&point, false) != 0)
+        if (poly->getExteriorRing()->isPointInRing(&point, 0) != 0)
         {
           poly->addRing(hole->getExteriorRing());
           break;
