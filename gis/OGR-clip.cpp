@@ -178,7 +178,7 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
             Box::onEdge(pos) && !Box::onSameEdge(prev_pos, pos)  // discard if travels along edge
         )
         {
-          OGRLineString *line = new OGRLineString;
+          auto *line = new OGRLineString;
           line->addPoint(x0, y0);
           line->addPoint(x, y);
           theParts.add(line);
@@ -245,7 +245,7 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
 
           if (start_index < i - 1 || add_start || through_box)
           {
-            OGRLineString *line = new OGRLineString();
+            auto *line = new OGRLineString();
             if (add_start)
             {
               line->addPoint(x0, y0);
@@ -267,7 +267,7 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
             // Nothing to output if we haven't been elsewhere
             if (start_index < i - 1 || add_start)
             {
-              OGRLineString *line = new OGRLineString();
+              auto *line = new OGRLineString();
               if (add_start)
               {
                 line->addPoint(x0, y0);

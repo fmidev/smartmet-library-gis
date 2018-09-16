@@ -52,7 +52,7 @@ OGRPolygon *despeckle_polygon(const OGRPolygon *theGeom, double theLimit, bool t
 
   // We have at least a valid exterior
 
-  OGRPolygon *out = new OGRPolygon;
+  auto *out = new OGRPolygon;
   out->addRingDirectly(dynamic_cast<OGRLinearRing *>(exterior->clone()));
 
   // Remove too small holes too
@@ -134,7 +134,7 @@ OGRMultiPolygon *despeckle_multipolygon(const OGRMultiPolygon *theGeom,
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
-  OGRMultiPolygon *out = new OGRMultiPolygon();
+  auto *out = new OGRMultiPolygon();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -165,7 +165,7 @@ OGRGeometryCollection *despeckle_geometrycollection(const OGRGeometryCollection 
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
-  OGRGeometryCollection *out = new OGRGeometryCollection;
+  auto *out = new OGRGeometryCollection;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {

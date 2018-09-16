@@ -151,7 +151,7 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
   // Now the data is definitely available. Note: data runs from
   // north down, but we index if from bottom up
 
-  std::int16_t *ptr = reinterpret_cast<std::int16_t *>(itsMappedRegion->get_address());
+  auto *ptr = reinterpret_cast<std::int16_t *>(itsMappedRegion->get_address());
   std::int16_t big_endian = ptr[i + (itsSize - j - 1) * itsSize];
   std::int16_t little_endian = ((big_endian >> 8) & 0xff) + (big_endian << 8);
   return little_endian;

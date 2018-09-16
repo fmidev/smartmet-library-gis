@@ -36,7 +36,7 @@ OGRMultiPolygon *reverse_winding(const OGRMultiPolygon *theGeom)
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
-  OGRMultiPolygon *out = new OGRMultiPolygon();
+  auto *out = new OGRMultiPolygon();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -56,7 +56,7 @@ OGRGeometryCollection *reverse_winding(const OGRGeometryCollection *theGeom)
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
-  OGRGeometryCollection *out = new OGRGeometryCollection();
+  auto *out = new OGRGeometryCollection();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -76,7 +76,7 @@ OGRPolygon *reverse_winding(const OGRPolygon *theGeom)
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
-  OGRPolygon *out = new OGRPolygon();
+  auto *out = new OGRPolygon();
 
   auto *exterior = dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone());
   exterior->reverseWindingOrder();
