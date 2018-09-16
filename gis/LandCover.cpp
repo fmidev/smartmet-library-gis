@@ -54,7 +54,7 @@ std::list<boost::filesystem::path> find_hgt_files(const std::string& path)
 class LandCover::Impl
 {
  public:
-  Impl(const std::string& path);
+  explicit Impl(const std::string& path);
   LandCover::Type coverType(double lon, double lat) const;
 
  private:

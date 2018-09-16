@@ -61,7 +61,7 @@ bool SrtmTile::valid_size(const std::string &path)
 class SrtmTile::Impl
 {
  public:
-  Impl(const std::string &path);
+  explicit Impl(const std::string &path);
   const std::string &path() const { return itsPath; }
   std::size_t size() const { return itsSize; }
   int longitude() const { return itsLon; }

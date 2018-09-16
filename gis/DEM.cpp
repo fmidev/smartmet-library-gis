@@ -53,7 +53,7 @@ std::list<boost::filesystem::path> find_hgt_files(const std::string& path)
 class DEM::Impl
 {
  public:
-  Impl(const std::string& path);
+  explicit Impl(const std::string& path);
   double elevation(double lon, double lat) const;
   double elevation(double lon, double lat, double resolution) const;
 
