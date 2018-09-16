@@ -126,7 +126,7 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
   OGRPoint ogrPoint;
   OGRLineString ogrLineString;
   OGRPolygon ogrPolygon;
-  OGRGeometry* ogrGeom = 0;
+  OGRGeometry* ogrGeom = nullptr;
 
   if (theGeometryType == wkbPoint)
   {
@@ -178,7 +178,7 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
 
   OGRSpatialReference sourceSR;
 
-  if (pSR != 0)
+  if (pSR != nullptr)
   {
     sourceSR = *pSR;
   }
