@@ -73,7 +73,7 @@ OGRPolygon *despeckle_polygon(const OGRPolygon *theGeom, double theLimit, bool t
  */
 // ----------------------------------------------------------------------
 
-OGRLineString *despeckle_linestring(const OGRLineString *theGeom, double theLimit, bool theGeogFlag)
+OGRLineString *despeckle_linestring(const OGRLineString *theGeom)
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
@@ -86,7 +86,7 @@ OGRLineString *despeckle_linestring(const OGRLineString *theGeom, double theLimi
  */
 // ----------------------------------------------------------------------
 
-OGRPoint *despeckle_point(const OGRPoint *theGeom, double theLimit, bool theGeogFlag)
+OGRPoint *despeckle_point(const OGRPoint *theGeom)
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
@@ -99,7 +99,7 @@ OGRPoint *despeckle_point(const OGRPoint *theGeom, double theLimit, bool theGeog
  */
 // ----------------------------------------------------------------------
 
-OGRMultiPoint *despeckle_multipoint(const OGRMultiPoint *theGeom, double theLimit, bool theGeogFlag)
+OGRMultiPoint *despeckle_multipoint(const OGRMultiPoint *theGeom)
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
@@ -112,9 +112,7 @@ OGRMultiPoint *despeckle_multipoint(const OGRMultiPoint *theGeom, double theLimi
  */
 // ----------------------------------------------------------------------
 
-OGRMultiLineString *despeckle_multilinestring(const OGRMultiLineString *theGeom,
-                                              double theLimit,
-                                              bool theGeogFlag)
+OGRMultiLineString *despeckle_multilinestring(const OGRMultiLineString *theGeom)
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
   ;
@@ -192,18 +190,15 @@ OGRGeometry *despeckle_geom(const OGRGeometry *theGeom, double theLimit, bool th
   switch (id)
   {
     case wkbPoint:
-      return despeckle_point(dynamic_cast<const OGRPoint *>(theGeom), theLimit, theGeogFlag);
+      return despeckle_point(dynamic_cast<const OGRPoint *>(theGeom));
     case wkbLineString:
-      return despeckle_linestring(
-          dynamic_cast<const OGRLineString *>(theGeom), theLimit, theGeogFlag);
+      return despeckle_linestring(dynamic_cast<const OGRLineString *>(theGeom));
     case wkbPolygon:
       return despeckle_polygon(dynamic_cast<const OGRPolygon *>(theGeom), theLimit, theGeogFlag);
     case wkbMultiPoint:
-      return despeckle_multipoint(
-          dynamic_cast<const OGRMultiPoint *>(theGeom), theLimit, theGeogFlag);
+      return despeckle_multipoint(dynamic_cast<const OGRMultiPoint *>(theGeom));
     case wkbMultiLineString:
-      return despeckle_multilinestring(
-          dynamic_cast<const OGRMultiLineString *>(theGeom), theLimit, theGeogFlag);
+      return despeckle_multilinestring(dynamic_cast<const OGRMultiLineString *>(theGeom));
     case wkbMultiPolygon:
       return despeckle_multipolygon(
           dynamic_cast<const OGRMultiPolygon *>(theGeom), theLimit, theGeogFlag);
