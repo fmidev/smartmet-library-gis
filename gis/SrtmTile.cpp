@@ -1,11 +1,13 @@
-#include "SrtmTile.h"
-#include <macgyver/StringConversion.h>
 #define BOOST_FILESYSTEM_NO_DEPRECATED
+
+#include "SrtmTile.h"
 #include <boost/filesystem/operations.hpp>
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
+#include <boost/move/unique_ptr.hpp>
 #include <boost/regex.hpp>
 #include <boost/thread.hpp>
+#include <macgyver/StringConversion.h>
 #include <stdexcept>
 
 // Filename structure for HGT files (for example S89E172.hgt)
@@ -73,8 +75,8 @@ class SrtmTile::Impl
   int itsLat;
 
   MutexType itsMutex;
-  std::unique_ptr<FileMapping> itsFileMapping;
-  std::unique_ptr<MappedRegion> itsMappedRegion;
+  boost::movelib::unique_ptr<FileMapping> itsFileMapping;
+  boost::movelib::unique_ptr<MappedRegion> itsMappedRegion;
 };
 
 // ----------------------------------------------------------------------
@@ -135,10 +137,11 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
     if (!itsFileMapping)
     {
       // std::cout << "Mapping " << itsPath << std::endl;
-      itsFileMapping.reset(new FileMapping(itsPath.c_str(), boost::interprocess::read_only));
+      itsFileMapping =
+          boost::movelib::make_unique<FileMapping>(itsPath.c_str(), boost::interprocess::read_only);
 
-      itsMappedRegion.reset(new MappedRegion(
-          *itsFileMapping, boost::interprocess::read_only, 0, 2 * itsSize * itsSize));
+      itsMappedRegion = boost::movelib::make_unique<MappedRegion>(
+          *itsFileMapping, boost::interprocess::read_only, 0, 2 * itsSize * itsSize);
 
       // We do not expect any normal access patterns, so disable prefetching
       itsMappedRegion->advise(boost::interprocess::mapped_region::advice_random);
