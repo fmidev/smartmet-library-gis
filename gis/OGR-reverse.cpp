@@ -21,7 +21,7 @@ OGRLinearRing *reverse_winding(const OGRLinearRing *theGeom)
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
-  auto *geom = static_cast<OGRLinearRing *>(theGeom->clone());
+  auto *geom = dynamic_cast<OGRLinearRing *>(theGeom->clone());
   geom->reverseWindingOrder();
   return geom;
 }
@@ -40,7 +40,7 @@ OGRMultiPolygon *reverse_winding(const OGRMultiPolygon *theGeom)
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
-    auto *geom = reverse_winding(static_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
+    auto *geom = reverse_winding(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
     if (geom != nullptr) out->addGeometryDirectly(geom);
   }
   return out;
@@ -78,13 +78,13 @@ OGRPolygon *reverse_winding(const OGRPolygon *theGeom)
 
   OGRPolygon *out = new OGRPolygon();
 
-  auto *exterior = static_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone());
+  auto *exterior = dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone());
   exterior->reverseWindingOrder();
   out->addRingDirectly(exterior);
 
   for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
   {
-    auto *hole = static_cast<OGRLinearRing *>(theGeom->getInteriorRing(i)->clone());
+    auto *hole = dynamic_cast<OGRLinearRing *>(theGeom->getInteriorRing(i)->clone());
     hole->reverseWindingOrder();
     out->addRingDirectly(hole);
   }
@@ -111,13 +111,13 @@ OGRGeometry *reverse_winding(const OGRGeometry *theGeom)
     case wkbLineString:
       return theGeom->clone();
     case wkbLinearRing:
-      return reverse_winding(static_cast<const OGRLinearRing *>(theGeom));
+      return reverse_winding(dynamic_cast<const OGRLinearRing *>(theGeom));
     case wkbPolygon:
-      return reverse_winding(static_cast<const OGRPolygon *>(theGeom));
+      return reverse_winding(dynamic_cast<const OGRPolygon *>(theGeom));
     case wkbMultiPolygon:
-      return reverse_winding(static_cast<const OGRMultiPolygon *>(theGeom));
+      return reverse_winding(dynamic_cast<const OGRMultiPolygon *>(theGeom));
     case wkbGeometryCollection:
-      return reverse_winding(static_cast<const OGRGeometryCollection *>(theGeom));
+      return reverse_winding(dynamic_cast<const OGRGeometryCollection *>(theGeom));
 
     case wkbPoint25D:
     case wkbMultiPoint25D:

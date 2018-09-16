@@ -180,7 +180,7 @@ void writeMultiPointSVG(std::string &out,
 
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
   {
-    writePointSVG(out, static_cast<const OGRPoint *>(geom->getGeometryRef(i)), box, format);
+    writePointSVG(out, dynamic_cast<const OGRPoint *>(geom->getGeometryRef(i)), box, format);
   }
 }
 
@@ -199,7 +199,7 @@ void writeMultiLineStringSVG(std::string &out,
   if (geom == nullptr || geom->IsEmpty() != 0) return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     writeLineStringSVG(
-        out, static_cast<const OGRLineString *>(geom->getGeometryRef(i)), box, rfactor, format);
+        out, dynamic_cast<const OGRLineString *>(geom->getGeometryRef(i)), box, rfactor, format);
 }
 
 // ----------------------------------------------------------------------
@@ -217,7 +217,7 @@ void writeMultiPolygonSVG(std::string &out,
   if (geom == nullptr || geom->IsEmpty() != 0) return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     writePolygonSVG(
-        out, static_cast<const OGRPolygon *>(geom->getGeometryRef(i)), box, rfactor, format);
+        out, dynamic_cast<const OGRPolygon *>(geom->getGeometryRef(i)), box, rfactor, format);
 }
 
 // ----------------------------------------------------------------------
@@ -255,32 +255,32 @@ void writeSVG(
   {
     case wkbPoint:
     case wkbPoint25D:
-      return writePointSVG(out, static_cast<const OGRPoint *>(geom), box, format);
+      return writePointSVG(out, dynamic_cast<const OGRPoint *>(geom), box, format);
     case wkbLineString:
     case wkbLineString25D:
       return writeLineStringSVG(
-          out, static_cast<const OGRLineString *>(geom), box, rfactor, format);
+          out, dynamic_cast<const OGRLineString *>(geom), box, rfactor, format);
     case wkbLinearRing:
       return writeLinearRingSVG(
-          out, static_cast<const OGRLinearRing *>(geom), box, rfactor, format);
+          out, dynamic_cast<const OGRLinearRing *>(geom), box, rfactor, format);
     case wkbPolygon:
     case wkbPolygon25D:
-      return writePolygonSVG(out, static_cast<const OGRPolygon *>(geom), box, rfactor, format);
+      return writePolygonSVG(out, dynamic_cast<const OGRPolygon *>(geom), box, rfactor, format);
     case wkbMultiPoint:
     case wkbMultiPoint25D:
-      return writeMultiPointSVG(out, static_cast<const OGRMultiPoint *>(geom), box, format);
+      return writeMultiPointSVG(out, dynamic_cast<const OGRMultiPoint *>(geom), box, format);
     case wkbMultiLineString:
     case wkbMultiLineString25D:
       return writeMultiLineStringSVG(
-          out, static_cast<const OGRMultiLineString *>(geom), box, rfactor, format);
+          out, dynamic_cast<const OGRMultiLineString *>(geom), box, rfactor, format);
     case wkbMultiPolygon:
     case wkbMultiPolygon25D:
       return writeMultiPolygonSVG(
-          out, static_cast<const OGRMultiPolygon *>(geom), box, rfactor, format);
+          out, dynamic_cast<const OGRMultiPolygon *>(geom), box, rfactor, format);
     case wkbGeometryCollection:
     case wkbGeometryCollection25D:
       return writeGeometryCollectionSVG(
-          out, static_cast<const OGRGeometryCollection *>(geom), box, rfactor, format);
+          out, dynamic_cast<const OGRGeometryCollection *>(geom), box, rfactor, format);
     case wkbUnknown:
       throw std::runtime_error(
           "Encountered an unknown geometry component in OGR to SVG conversion");
