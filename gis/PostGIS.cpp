@@ -47,7 +47,7 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
 
   // Build the result. Note: SR objects are reference counted
 
-  OGRGeometryCollection* out = new OGRGeometryCollection;
+  OGRGeometryCollection* out = new OGRGeometryCollection;  // NOLINT
   // Note: We clone the input SR since we have no lifetime guarantees for it
   if (theSR != nullptr)
     out->assignSpatialReference(theSR->Clone());
