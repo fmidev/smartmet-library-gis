@@ -20,7 +20,7 @@ namespace PostGIS
 {
 // read geometries and attribute fields
 Features read(OGRSpatialReference* theSR,
-              OGRDataSourcePtr theConnection,
+              const OGRDataSourcePtr& theConnection,
               const std::string& theName,
               const std::set<std::string>& theFieldNames,
               const boost::optional<std::string>& theWhereClause = boost::optional<std::string>());
@@ -28,7 +28,7 @@ Features read(OGRSpatialReference* theSR,
 // name = "schema.table"
 OGRGeometryPtr read(
     OGRSpatialReference* theSR,
-    OGRDataSourcePtr theConnection,
+    const OGRDataSourcePtr& theConnection,
     const std::string& theName,
     const boost::optional<std::string>& theWhereClause = boost::optional<std::string>());
 
