@@ -1,7 +1,7 @@
 #include "GEOS.h"
-
 #include <boost/numeric/conversion/cast.hpp>
 #include <fmt/format.h>
+#include <fmt/printf.h>
 #include <geos/geom/Coordinate.h>
 #include <geos/geom/CoordinateSequence.h>
 #include <geos/geom/LineString.h>
