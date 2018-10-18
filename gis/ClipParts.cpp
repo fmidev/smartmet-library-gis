@@ -1,6 +1,6 @@
 #include "ClipParts.h"
 #include "Box.h"
-#include "OGR.h"  // TODO: REMOVE!
+#include "OGR.h"
 #include <cassert>
 
 // ----------------------------------------------------------------------
@@ -323,9 +323,7 @@ void normalize_ring(OGRLinearRing *ring)
 void Fmi::ClipParts::reverseLines()
 {
   std::list<OGRLineString *> new_lines;
-  for (std::list<OGRLineString *>::reverse_iterator it = itsLines.rbegin(), end = itsLines.rend();
-       it != end;
-       ++it)
+  for (auto it = itsLines.rbegin(), end = itsLines.rend(); it != end; ++it)
   {
     OGRLineString *line = *it;
     line->reversePoints();
@@ -361,7 +359,7 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
 
   if (itsLines.empty())
   {
-    OGRLinearRing *ring = new OGRLinearRing;
+    auto *ring = new OGRLinearRing;
     ring->addPoint(theBox.xmin(), theBox.ymin());
     ring->addPoint(theBox.xmin(), theBox.ymax());
     ring->addPoint(theBox.xmax(), theBox.ymax());
@@ -514,7 +512,7 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
   std::list<OGRPolygon *> polygons;
   for (auto *ring : exterior)
   {
-    OGRPolygon *poly = new OGRPolygon;
+    auto *poly = new OGRPolygon;
     poly->addRingDirectly(ring);
     polygons.push_back(poly);
   }
@@ -531,7 +529,7 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
       hole->getExteriorRing()->getPoint(0, &point);
       for (auto *poly : polygons)
       {
-        if (poly->getExteriorRing()->isPointInRing(&point, false) != 0)
+        if (poly->getExteriorRing()->isPointInRing(&point, 0) != 0)
         {
           poly->addRing(hole->getExteriorRing());
           break;

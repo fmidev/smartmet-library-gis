@@ -17,7 +17,7 @@ namespace PostGIS
 // ----------------------------------------------------------------------
 
 OGRGeometryPtr read(OGRSpatialReference* theSR,
-                    OGRDataSourcePtr theConnection,
+                    const OGRDataSourcePtr& theConnection,
                     const std::string& theName,
                     const boost::optional<std::string>& theWhereClause)
 {
@@ -47,7 +47,7 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
 
   // Build the result. Note: SR objects are reference counted
 
-  OGRGeometryCollection* out = new OGRGeometryCollection;
+  auto* out = new OGRGeometryCollection;  // NOLINT
   // Note: We clone the input SR since we have no lifetime guarantees for it
   if (theSR != nullptr)
     out->assignSpatialReference(theSR->Clone());
@@ -96,7 +96,7 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
  */
 // ----------------------------------------------------------------------
 Features read(OGRSpatialReference* theSR,
-              OGRDataSourcePtr theConnection,
+              const OGRDataSourcePtr& theConnection,
               const std::string& theName,
               const std::set<std::string>& theFieldNames,
               const boost::optional<std::string>& theWhereClause)

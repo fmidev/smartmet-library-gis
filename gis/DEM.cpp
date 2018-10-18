@@ -53,7 +53,7 @@ std::list<boost::filesystem::path> find_hgt_files(const std::string& path)
 class DEM::Impl
 {
  public:
-  Impl(const std::string& path);
+  explicit Impl(const std::string& path);
   double elevation(double lon, double lat) const;
   double elevation(double lon, double lat, double resolution) const;
 
@@ -129,11 +129,11 @@ double DEM::Impl::elevation(double lon, double lat, double resolution) const
   // 1201 = 3 seconds = 90 meters
   //  401 = 9 seconds = 270 meters
 
-  std::size_t sizelimit = static_cast<std::size_t>(3600 * 30 / (1000 * resolution));
+  auto sizelimit = static_cast<std::size_t>(3600 * 30 / (1000 * resolution));
 
   // Find the first tileset of sufficient accuracy
 
-  SrtmMatrices::const_iterator it = itsMatrices.begin();
+  auto it = itsMatrices.begin();
 
   while (it != itsMatrices.end())
   {

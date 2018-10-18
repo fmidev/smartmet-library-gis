@@ -126,7 +126,7 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
   OGRPoint ogrPoint;
   OGRLineString ogrLineString;
   OGRPolygon ogrPolygon;
-  OGRGeometry* ogrGeom = 0;
+  OGRGeometry* ogrGeom = nullptr;
 
   if (theGeometryType == wkbPoint)
   {
@@ -146,8 +146,7 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
   else
     return ogrGeom;
 
-  for (CoordinatePoints::const_iterator iter = theCoordinates.begin(); iter != theCoordinates.end();
-       iter++)
+  for (auto iter = theCoordinates.begin(); iter != theCoordinates.end(); iter++)
   {
     if (iter != theCoordinates.begin()) wkt += ", ";
     wkt += fmt::format("%f %f", iter->first, iter->second);
@@ -178,7 +177,7 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
 
   OGRSpatialReference sourceSR;
 
-  if (pSR != 0)
+  if (pSR != nullptr)
   {
     sourceSR = *pSR;
   }
@@ -209,8 +208,8 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
   delete pCT;
 
   unsigned int radius =
-      (type == wkbLineString || type == wkbMultiLineString ? theRadiusInMeters
-                                                           : theRadiusInMeters * 2);
+      lround(type == wkbLineString || type == wkbMultiLineString ? theRadiusInMeters
+                                                                 : theRadiusInMeters * 2);
 
   // make the buffer
   boost::scoped_ptr<OGRPolygon> polygon(dynamic_cast<OGRPolygon*>(tmp_geom->Buffer(radius, 20)));
@@ -222,7 +221,8 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
 
   pCT = OGRCreateCoordinateTransformation(&targetSR, &sourceSR);
 
-  if (!pCT) throw std::runtime_error("OGRCreateCoordinateTransformation function call failed");
+  if (pCT == nullptr)
+    throw std::runtime_error("OGRCreateCoordinateTransformation function call failed");
 
   // convert back to original geometry
   exring->transform(pCT);

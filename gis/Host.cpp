@@ -56,7 +56,7 @@ OGRDataSourcePtr Host::connect() const
 
   if (!ptr) throw std::runtime_error("Failed to open database using source " + dataSource());
 
-  ptr->ExecuteSQL("SET CLIENT_ENCODING TO 'UTF8'", 0, 0);
+  ptr->ExecuteSQL("SET CLIENT_ENCODING TO 'UTF8'", nullptr, nullptr);
   return ptr;
 }
 

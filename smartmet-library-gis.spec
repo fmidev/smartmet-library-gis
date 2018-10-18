@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 18.9.11
+Version: 18.9.29
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -14,14 +14,14 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: fmt-devel
+BuildRequires: fmt-devel >= 5.2.0
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.9.5
-Requires: fmt
+BuildRequires: smartmet-library-macgyver-devel >= 18.9.29
+Requires: fmt >= 5.2.0
 Requires: gdal >= 1.11.4
 Requires: geos >= 3.5.0
-Requires: smartmet-library-macgyver >= 18.9.5
+Requires: smartmet-library-macgyver >= 18.9.29
 Requires: postgis < 2.1
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
@@ -63,6 +63,12 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Sep 17 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.9.17-1.fmi
+- Fixed PostGIS API
+
+* Sun Sep 16 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.9.16-1.fmi
+- Silenced several CodeChecker warnings
+
 * Tue Sep 11 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.9.11-1.fmi
 - Silenced several CodeChecker warnings
 

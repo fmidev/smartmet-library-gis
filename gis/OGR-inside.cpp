@@ -16,7 +16,7 @@ bool inside(const OGRLinearRing *theGeom, double theX, double theY)
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return false;
 
   OGRPoint pt(theX, theY);
-  return theGeom->isPointInRing(&pt, false);
+  return (theGeom->isPointInRing(&pt, 0) != 0);
 }
 
 // ----------------------------------------------------------------------

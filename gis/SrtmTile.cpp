@@ -1,11 +1,13 @@
-#include "SrtmTile.h"
-#include <macgyver/StringConversion.h>
 #define BOOST_FILESYSTEM_NO_DEPRECATED
+
+#include "SrtmTile.h"
 #include <boost/filesystem/operations.hpp>
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
+#include <boost/move/unique_ptr.hpp>
 #include <boost/regex.hpp>
 #include <boost/thread.hpp>
+#include <macgyver/StringConversion.h>
 #include <stdexcept>
 
 // Filename structure for HGT files (for example S89E172.hgt)
@@ -59,7 +61,7 @@ bool SrtmTile::valid_size(const std::string &path)
 class SrtmTile::Impl
 {
  public:
-  Impl(const std::string &path);
+  explicit Impl(const std::string &path);
   const std::string &path() const { return itsPath; }
   std::size_t size() const { return itsSize; }
   int longitude() const { return itsLon; }
@@ -73,8 +75,8 @@ class SrtmTile::Impl
   int itsLat;
 
   MutexType itsMutex;
-  std::unique_ptr<FileMapping> itsFileMapping;
-  std::unique_ptr<MappedRegion> itsMappedRegion;
+  boost::movelib::unique_ptr<FileMapping> itsFileMapping;
+  boost::movelib::unique_ptr<MappedRegion> itsMappedRegion;
 };
 
 // ----------------------------------------------------------------------
@@ -135,10 +137,11 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
     if (!itsFileMapping)
     {
       // std::cout << "Mapping " << itsPath << std::endl;
-      itsFileMapping.reset(new FileMapping(itsPath.c_str(), boost::interprocess::read_only));
+      itsFileMapping =
+          boost::movelib::make_unique<FileMapping>(itsPath.c_str(), boost::interprocess::read_only);
 
-      itsMappedRegion.reset(new MappedRegion(
-          *itsFileMapping, boost::interprocess::read_only, 0, 2 * itsSize * itsSize));
+      itsMappedRegion = boost::movelib::make_unique<MappedRegion>(
+          *itsFileMapping, boost::interprocess::read_only, 0, 2 * itsSize * itsSize);
 
       // We do not expect any normal access patterns, so disable prefetching
       itsMappedRegion->advise(boost::interprocess::mapped_region::advice_random);
@@ -148,7 +151,7 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
   // Now the data is definitely available. Note: data runs from
   // north down, but we index if from bottom up
 
-  std::int16_t *ptr = reinterpret_cast<std::int16_t *>(itsMappedRegion->get_address());
+  auto *ptr = reinterpret_cast<std::int16_t *>(itsMappedRegion->get_address());
   std::int16_t big_endian = ptr[i + (itsSize - j - 1) * itsSize];
   std::int16_t little_endian = ((big_endian >> 8) & 0xff) + (big_endian << 8);
   return little_endian;
