@@ -238,8 +238,8 @@ void expand_geometry()
 
 void exportToSvg_wiki_examples()
 {
-  using Fmi::OGR::exportToSvg;
   using Fmi::Box;
+  using Fmi::OGR::exportToSvg;
 
   // Ref: http://en.wikipedia.org/wiki/Well-known_text
 
@@ -343,8 +343,8 @@ void exportToSvg_wiki_examples()
 void exportToSvg_closing_paths()
 {
   using namespace Fmi;
-  using OGR::exportToSvg;
   using Fmi::Box;
+  using OGR::exportToSvg;
 
   // Ref: http://en.wikipedia.org/wiki/Well-known_text
 
@@ -385,8 +385,8 @@ void exportToSvg_closing_paths()
 
 void exportToSvg_precision()
 {
-  using Fmi::OGR::exportToSvg;
   using Fmi::Box;
+  using Fmi::OGR::exportToSvg;
 
   // Create a new linestring with incremental coordinates
 
@@ -409,9 +409,9 @@ void exportToSvg_precision()
 void lineclip()
 {
   using namespace Fmi;
+  using Fmi::Box;
   using OGR::exportToWkt;
   using OGR::lineclip;
-  using Fmi::Box;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
@@ -459,7 +459,8 @@ void lineclip()
        "MULTILINESTRING ((0 5,5 5,5 0),(1 0,3 1,3 3,0 0))"},
       // Triangle at two corners and one edge
       {
-          "POLYGON ((0 0,5 10,10 0,0 0))", "LINESTRING (0 0,5 10,10 0)",
+          "POLYGON ((0 0,5 10,10 0,0 0))",
+          "LINESTRING (0 0,5 10,10 0)",
       },
       // Same triangle with another starting point
       {"POLYGON ((5 10,0 0,10 0,5 10))", "LINESTRING (10 0,5 10,0 0)"},
@@ -524,7 +525,8 @@ void lineclip()
       {"POLYGON ((-5 5,0 7,0 3,-5 5))", "GEOMETRYCOLLECTION EMPTY"},
       // One point inside
       {
-          "POLYGON ((5 5,-5 0,-5 10,5 5))", "LINESTRING (0.0 7.5,5 5,0.0 2.5)",
+          "POLYGON ((5 5,-5 0,-5 10,5 5))",
+          "LINESTRING (0.0 7.5,5 5,0.0 2.5)",
       },
       {"POLYGON ((5 0,-5 0,-5 10,5 0))", "LINESTRING (0 5,5 0)"},
       {"POLYGON((10 0,-10 0,-10 10,10 0))", "LINESTRING (0 5,10 0)"},
@@ -534,15 +536,18 @@ void lineclip()
       {"POLYGON ((5 5,-5 -5,-5 15,5 5))", "LINESTRING (0 10,5 5,0 0)"},
       {"POLYGON ((10 5,-10 -5,-10 15,10 5))", "LINESTRING (0 10,10 5,0 0)"},
       {
-          "POLYGON ((5 0,-5 0,-5 20,5 0))", "LINESTRING (0 10,5 0)",
+          "POLYGON ((5 0,-5 0,-5 20,5 0))",
+          "LINESTRING (0 10,5 0)",
       },
       {"POLYGON ((10 0,-10 0,-10 20,10 0))", "LINESTRING (0 10,10 0)"},
       {
-          "POLYGON ((5 5,-10 5,0 15,5 5))", "LINESTRING (2.5 10.0,5 5,0 5)",
+          "POLYGON ((5 5,-10 5,0 15,5 5))",
+          "LINESTRING (2.5 10.0,5 5,0 5)",
       },
       {"POLYGON ((5 5,-5 -5,0 15,5 5))", "LINESTRING (2.5 10.0,5 5,0 0)"},
       {
-          "POLYGON ((5 5,-15 -20,-15 30,5 5))", "LINESTRING (1 10,5 5,1 0)",
+          "POLYGON ((5 5,-15 -20,-15 30,5 5))",
+          "LINESTRING (1 10,5 5,1 0)",
       },
       // Two points inside
       {"POLYGON ((5 7,5 3,-5 5,5 7))", "LINESTRING (0 6,5 7,5 3,0 4)"},
@@ -592,14 +597,13 @@ void lineclip()
 void polyclip()
 {
   using namespace Fmi;
+  using Fmi::Box;
   using OGR::exportToWkt;
   using OGR::lineclip;
-  using Fmi::Box;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
   int ntests = 67;
-
   char* mytests[67][2] = {
       // inside
       {"LINESTRING (1 1,1 9,9 9,9 1)", "LINESTRING (1 1,1 9,9 9,9 1)"},
@@ -642,11 +646,13 @@ void polyclip()
        "POLYGON ((0 0,0 5,5 5,5 0,1 0,3 1,3 3,0 0))"},
       // Triangle at two corners and one edge
       {
-          "POLYGON ((0 0,5 10,10 0,0 0))", "POLYGON ((0 0,5 10,10 0,0 0))",
+          "POLYGON ((0 0,5 10,10 0,0 0))",
+          "POLYGON ((0 0,5 10,10 0,0 0))",
       },
       // Same triangle with another starting point
       {
-          "POLYGON ((5 10,10 0,0 0,5 10))", "POLYGON ((0 0,5 10,10 0,0 0))",
+          "POLYGON ((5 10,10 0,0 0,5 10))",
+          "POLYGON ((0 0,5 10,10 0,0 0))",
       },
       // Triangle intersection at corner and edge
       {"POLYGON ((-5 -5,5 5,5 -5,-5 -5))", "POLYGON ((0 0,5 5,5 0,0 0))"},
@@ -756,9 +762,9 @@ void polyclip()
 void clip_spike()
 {
   using namespace Fmi;
+  using Fmi::Box;
   using OGR::exportToWkt;
   using OGR::lineclip;
-  using Fmi::Box;
 
   Box box(11000000, 0, 11250000, 250000, 100, 100);  // last two are irrelevant
 
@@ -792,9 +798,9 @@ void clip_spike()
 void despeckle()
 {
   using namespace Fmi;
-  using OGR::exportToWkt;
-  using OGR::despeckle;
   using Fmi::Box;
+  using OGR::despeckle;
+  using OGR::exportToWkt;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
@@ -840,9 +846,9 @@ void despeckle()
 void despeckle_geography()
 {
   using namespace Fmi;
-  using OGR::exportToWkt;
-  using OGR::despeckle;
   using Fmi::Box;
+  using OGR::despeckle;
+  using OGR::exportToWkt;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
