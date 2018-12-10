@@ -381,6 +381,14 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_exterior)
   // inside the exterior ring unless there have been sliver
   // polygons, in which case we may have created a polygon.
 
+#if 0
+  std::cout << "Reconnecting polygons:\n"
+            << "\tpolys = " << itsPolygons.size() << "\n"
+            << "\tlines = " << itsLines.size() << "\n"
+            << "\tpoints = " << itsPoints.size() << "\n"
+            << "\tadd_ext = " << add_exterior << std::endl;
+#endif
+
   if (add_exterior)
   {
     auto *ring = make_ring(theBox);

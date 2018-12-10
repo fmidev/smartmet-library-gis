@@ -68,6 +68,7 @@ FMI GIS library development files
 %changelog
 * Mon Dec 10 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.12.10-1.fmi
 - Fixed polygon clipping to handle sliver polygons whose intersection coordinates are equal
+- Fixed polygon clipping to handle more special cases
 
 * Mon Sep 17 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.9.17-1.fmi
 - Fixed PostGIS API

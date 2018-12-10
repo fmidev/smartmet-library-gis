@@ -595,8 +595,8 @@ void polyclip()
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
-  int ntests = 67;
-  char* mytests[67][2] = {
+  int ntests = 69;
+  char* mytests[69][2] = {
       // inside
       {"LINESTRING (1 1,1 9,9 9,9 1)", "LINESTRING (1 1,1 9,9 9,9 1)"},
       // outside
@@ -632,7 +632,7 @@ void polyclip()
       {"POLYGON ((-1 -1,-1 5,5 5,5 -1,-1 -1))", "POLYGON ((0 0,0 5,5 5,5 0,0 0))"},
       // polygon with hole cuts the rectangle
       {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (3 3,4 4,4 2,3 3))",
-       "POLYGON ((0 0,0 5,5 5,5 0,0 0),(3 3,4 4,4 2,3 3))"},
+       "POLYGON ((0 0,0 5,5 5,5 0,0 0),(3 3,4 2,4 4,3 3))"},
       // rectangle cuts both the polygon and the hole
       {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (-1 -1,3 1,3 3,-1 -1))",
        "POLYGON ((0 0,0 5,5 5,5 0,1 0,3 1,3 3,0 0))"},
@@ -715,9 +715,13 @@ void polyclip()
        "POLYGON ((0 0,0 10,10 10,10 0,0 0))"},
       // Surround the rectangle, hole outside rectangle but shares edge
       {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(0 5,-1 5,-1 6,0 6,0 5))",
-       "POLYGON ((0 0,0 10,10 10,10 0,0 0))"}
-
-  };
+       "POLYGON ((0 0,0 10,10 10,10 0,0 0))"},
+      // Polygon with hole, box intersects both
+      {"POLYGON ((-5 1,-5 9,5 9,5 1,-5 1),(-4 8,-4 2,4 2,4 8,-4 8)))",
+       "POLYGON ((0 1,0 2,4 2,4 8,0 8,0 9,5 9,5 1,0 1))"},
+      // Polygon with hole, box intersects both - variant 2
+      {"POLYGON ((-15 1,-15 15,15 15,15 1,-5 1),(-1 3,-1 2,1 2,1 3,-1 3))",
+       "POLYGON ((0 1,0 2,1 2,1 3,0 3,0 10,10 10,10 1,0 1))"}};
 
   for (int test = 0; test < ntests; ++test)
   {
