@@ -302,6 +302,7 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
           add_start = false;
         }
         line->addSubLineString(&g, start_index, i - 1);
+
         theParts.add(line);
       }
     }
@@ -417,11 +418,14 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
     return;
   }
 
-  if (parts.empty())
-  {
-    // std::cout << "No exterior intersections!" << std::endl;
-  }
-  else
+  // If the exterior does not intersect the bounding box at all, it must
+  // be surrounding the bbox. The exterior is thus shrunk into the bbox.
+  // Any hole in it remains a hole, except when it intersects the bbox, in
+  // which case it becomes part of the exterior.
+
+  bool exterior_intersects = !parts.empty();
+
+  if (exterior_intersects)
   {
     if (theGeom->getExteriorRing()->isClockwise() == 0) parts.reverseLines();
   }
@@ -434,12 +438,16 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
   // - Clipped ones become part of the exterior
   // - Intact ones become holes in new polygons formed by exterior parts
 
+  int clipped = 0;
+  int intact = 0;
+
   for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
   {
     Fmi::ClipParts holeparts;
     auto *hole = theGeom->getInteriorRing(i);
     if (clip_linestring_parts(hole, holeparts, theBox))
     {
+      ++intact;
       auto *poly = new OGRPolygon;
       poly->addRing(const_cast<OGRLinearRing *>(hole));  // clones
       parts.add(poly);
@@ -448,7 +456,8 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
     {
       if (!holeparts.empty())
       {
-        if (hole->isClockwise() != 0) parts.reverseLines();
+        ++clipped;
+        if (hole->isClockwise()) parts.reverseLines();
         holeparts.reconnect();
         holeparts.release(parts);
       }
@@ -463,7 +472,11 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
     }
   }
 
-  parts.reconnectPolygons(theBox);
+  // Must now add the bbox as the new exterior if neither the exterior nor any
+  // of the holes intersected the box, and the holes need an exterior.
+  bool add_exterior = (!exterior_intersects && clipped == 0);
+
+  parts.reconnectPolygons(theBox, add_exterior);
   parts.release(theParts);
 }
 
@@ -669,5 +682,6 @@ OGRGeometry *Fmi::OGR::polyclip(const OGRGeometry &theGeom, const Box &theBox)
 
   OGRGeometry *geom = parts.build();
   if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
+
   return geom;
 }

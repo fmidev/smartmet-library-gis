@@ -23,6 +23,9 @@ Requires: gdal >= 1.11.4
 Requires: geos >= 3.5.0
 Requires: smartmet-library-macgyver >= 18.9.29
 Requires: postgis < 2.1
+Requires: boost-filesystem
+Requires: boost-regex
+Requires: boost-thread
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20

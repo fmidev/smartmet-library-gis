@@ -340,8 +340,9 @@ void exportToSvg_wiki_examples()
 
 void exportToSvg_precision()
 {
+  using namespace Fmi;
   using Fmi::Box;
-  using Fmi::OGR::exportToSvg;
+  using OGR::exportToSvg;
 
   // Create a new linestring with incremental coordinates
 
@@ -595,7 +596,6 @@ void polyclip()
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
   int ntests = 67;
-
   char* mytests[67][2] = {
       // inside
       {"LINESTRING (1 1,1 9,9 9,9 1)", "LINESTRING (1 1,1 9,9 9,9 1)"},
@@ -745,6 +745,42 @@ void polyclip()
       TEST_FAILED("Input   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
                   "\n\tGot     : " + ret);
   }
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+void clip_spike()
+{
+  using namespace Fmi;
+  using Fmi::Box;
+  using OGR::exportToWkt;
+  using OGR::lineclip;
+
+  Box box(11000000, 0, 11250000, 250000, 100, 100);  // last two are irrelevant
+
+  char* wkt = "POLYGON ((11076289 55660,11131949 55660,11131949 -1e-100,11076289 55660))";
+  std::string ok = "POLYGON ((11131949 0,11076289 55660,11131949 55660,11131949 0))";
+
+  OGRGeometry* input;
+  OGRGeometry* output;
+
+  try
+  {
+    auto err = OGRGeometryFactory::createFromWkt(&wkt, NULL, &input);
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+  }
+  catch (...)
+  {
+    TEST_FAILED("Failed to parse WKT for testing: " + std::string(wkt));
+  }
+  output = OGR::polyclip(*input, box);
+  string ret = exportToWkt(*output);
+  OGRGeometryFactory::destroyGeometry(input);
+  OGRGeometryFactory::destroyGeometry(output);
+  if (ret != ok)
+    TEST_FAILED("Input   : " + std::string(wkt) + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
 
   TEST_PASSED();
 }
@@ -996,6 +1032,7 @@ class tests : public tframe::tests
     TEST(despeckle_geography);
     TEST(expand_geometry);
     TEST(grid_north);
+    TEST(clip_spike);
   }
 
 };  // class tests
