@@ -64,7 +64,7 @@ double metric_area(const OGRLineString *theGeom)
 
   area += theGeom->getX(npoints - 1) * (theGeom->getY(0) - theGeom->getY(npoints - 2));
 
-  return std::abs(area);
+  return 0.5 * std::abs(area);
 }
 
 // ----------------------------------------------------------------------
