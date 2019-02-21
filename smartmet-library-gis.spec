@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 18.12.10
+Version: 19.2.21
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -66,6 +66,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Feb 21 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.2.21-1.fmi
+- Despeckling now applies to closed linestrings too to help remove small closed pressure curves
+
 * Mon Dec 10 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.12.10-1.fmi
 - Fixed polygon clipping to handle sliver polygons whose intersection coordinates are equal
 - Fixed polygon clipping to handle more special cases
