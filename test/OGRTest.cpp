@@ -340,8 +340,9 @@ void exportToSvg_wiki_examples()
 
 void exportToSvg_precision()
 {
+  using namespace Fmi;
   using Fmi::Box;
-  using Fmi::OGR::exportToSvg;
+  using OGR::exportToSvg;
 
   // Create a new linestring with incremental coordinates
 
@@ -594,9 +595,8 @@ void polyclip()
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
-  int ntests = 67;
-
-  char* mytests[67][2] = {
+  int ntests = 69;
+  char* mytests[69][2] = {
       // inside
       {"LINESTRING (1 1,1 9,9 9,9 1)", "LINESTRING (1 1,1 9,9 9,9 1)"},
       // outside
@@ -632,7 +632,7 @@ void polyclip()
       {"POLYGON ((-1 -1,-1 5,5 5,5 -1,-1 -1))", "POLYGON ((0 0,0 5,5 5,5 0,0 0))"},
       // polygon with hole cuts the rectangle
       {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (3 3,4 4,4 2,3 3))",
-       "POLYGON ((0 0,0 5,5 5,5 0,0 0),(3 3,4 4,4 2,3 3))"},
+       "POLYGON ((0 0,0 5,5 5,5 0,0 0),(3 3,4 2,4 4,3 3))"},
       // rectangle cuts both the polygon and the hole
       {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (-1 -1,3 1,3 3,-1 -1))",
        "POLYGON ((0 0,0 5,5 5,5 0,1 0,3 1,3 3,0 0))"},
@@ -715,9 +715,13 @@ void polyclip()
        "POLYGON ((0 0,0 10,10 10,10 0,0 0))"},
       // Surround the rectangle, hole outside rectangle but shares edge
       {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(0 5,-1 5,-1 6,0 6,0 5))",
-       "POLYGON ((0 0,0 10,10 10,10 0,0 0))"}
-
-  };
+       "POLYGON ((0 0,0 10,10 10,10 0,0 0))"},
+      // Polygon with hole, box intersects both
+      {"POLYGON ((-5 1,-5 9,5 9,5 1,-5 1),(-4 8,-4 2,4 2,4 8,-4 8)))",
+       "POLYGON ((0 1,0 2,4 2,4 8,0 8,0 9,5 9,5 1,0 1))"},
+      // Polygon with hole, box intersects both - variant 2
+      {"POLYGON ((-15 1,-15 15,15 15,15 1,-5 1),(-1 3,-1 2,1 2,1 3,-1 3))",
+       "POLYGON ((0 1,0 2,1 2,1 3,0 3,0 10,10 10,10 1,0 1))"}};
 
   for (int test = 0; test < ntests; ++test)
   {
@@ -745,6 +749,42 @@ void polyclip()
       TEST_FAILED("Input   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
                   "\n\tGot     : " + ret);
   }
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+void clip_spike()
+{
+  using namespace Fmi;
+  using Fmi::Box;
+  using OGR::exportToWkt;
+  using OGR::lineclip;
+
+  Box box(11000000, 0, 11250000, 250000, 100, 100);  // last two are irrelevant
+
+  char* wkt = "POLYGON ((11076289 55660,11131949 55660,11131949 -1e-100,11076289 55660))";
+  std::string ok = "POLYGON ((11131949 0,11076289 55660,11131949 55660,11131949 0))";
+
+  OGRGeometry* input;
+  OGRGeometry* output;
+
+  try
+  {
+    auto err = OGRGeometryFactory::createFromWkt(&wkt, NULL, &input);
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+  }
+  catch (...)
+  {
+    TEST_FAILED("Failed to parse WKT for testing: " + std::string(wkt));
+  }
+  output = OGR::polyclip(*input, box);
+  string ret = exportToWkt(*output);
+  OGRGeometryFactory::destroyGeometry(input);
+  OGRGeometryFactory::destroyGeometry(output);
+  if (ret != ok)
+    TEST_FAILED("Input   : " + std::string(wkt) + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
 
   TEST_PASSED();
 }
@@ -996,6 +1036,7 @@ class tests : public tframe::tests
     TEST(despeckle_geography);
     TEST(expand_geometry);
     TEST(grid_north);
+    TEST(clip_spike);
   }
 
 };  // class tests

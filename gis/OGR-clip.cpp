@@ -1,6 +1,7 @@
 #include "Box.h"
 #include "ClipParts.h"
 #include "OGR.h"
+#include <iomanip>
 #include <list>
 #include <stdexcept>
 
@@ -302,6 +303,7 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
           add_start = false;
         }
         line->addSubLineString(&g, start_index, i - 1);
+
         theParts.add(line);
       }
     }
@@ -387,7 +389,48 @@ void clip_polygon_to_linestrings(const OGRPolygon *theGeom,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Test whether a hole is inside or outside the clipping box.
+ *
+ * At this point we know the hole does not intersect the clipping box
+ * in a way that would generate any lines. However, it may still touch
+ * the box at a vertex. It is then sufficient to find a point which
+ * is not on the edge of the clipping box to determine whether the hole
+ * is outside or inside the box.
+ */
+// ----------------------------------------------------------------------
+
+bool inside(const OGRLinearRing *theGeom, const Fmi::Box &theBox)
+{
+  int n = theGeom->getNumPoints();
+
+  if (theGeom == nullptr || n < 1) return false;
+
+  for (int i = 0; i < n; ++i)
+  {
+    double x = theGeom->getX(i);
+    double y = theGeom->getY(i);
+
+    Box::Position pos = theBox.position(x, y);
+
+    if (pos == Box::Outside) return false;
+    if (pos == Box::Inside) return true;
+  }
+
+  // Indeterminate answer, should be impossible. We discard the hole
+  // by saying it is not inside.
+
+  return false;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Clip polygon, close clipped ones
+ *
+ * Note: If we enforce exterior to be CW and holes to be CCW
+ *
+ *   - clipped exterior is forced to be CW
+ *   - clipped holes are forced to be CW
+ *   - untouched holes are forced to be CCW, unless discarded for being outside
  */
 // ----------------------------------------------------------------------
 
@@ -417,14 +460,17 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
     return;
   }
 
-  if (parts.empty())
-  {
-    // std::cout << "No exterior intersections!" << std::endl;
-  }
-  else
-  {
-    if (theGeom->getExteriorRing()->isClockwise() == 0) parts.reverseLines();
-  }
+  // If the exterior does not intersect the bounding box at all, it must
+  // be surrounding the bbox. The exterior is thus shrunk into the bbox.
+  // Any hole in it remains a hole, except when it intersects the bbox, in
+  // which case it becomes part of the exterior.
+
+  bool exterior_clipped = !parts.empty();
+
+  bool ext_clockwise = (theGeom->getExteriorRing()->isClockwise() == 1);
+
+  // Force exterior to be clockwise
+  if (!ext_clockwise) parts.reverseLines();
 
   // Must do this to make sure all end points are on the edges
 
@@ -433,37 +479,73 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
   // Handle the holes now:
   // - Clipped ones become part of the exterior
   // - Intact ones become holes in new polygons formed by exterior parts
+  //   if they are completely inside the clipping box, otherwise they
+  //   must be completely outside the clipping box
+  // However, if we find a hole surrounding the clipping box, there is
+  // no output at all.
+
+  int holes_clipped = 0;
+  int holes_inside = 0;
+  int holes_outside = 0;
 
   for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
   {
     Fmi::ClipParts holeparts;
     auto *hole = theGeom->getInteriorRing(i);
+    bool hole_clockwise = (hole->isClockwise() == 1);
+
     if (clip_linestring_parts(hole, holeparts, theBox))
     {
+      ++holes_inside;
       auto *poly = new OGRPolygon;
-      poly->addRing(const_cast<OGRLinearRing *>(hole));  // clones
+      // Force holes to be counter clockwise
+      if (hole_clockwise)
+      {
+        auto *ring = dynamic_cast<OGRLinearRing *>(hole->clone());
+        ring->reverseWindingOrder();
+        poly->addRingDirectly(ring);  // transfers ownership
+      }
+      else
+        poly->addRing(const_cast<OGRLinearRing *>(hole));  // clones
       parts.add(poly);
     }
     else
     {
       if (!holeparts.empty())
       {
-        if (hole->isClockwise() != 0) parts.reverseLines();
+        ++holes_clipped;
+        // Clipped holes change orientation when connecting the edges!!
+        if (hole_clockwise) holeparts.reverseLines();
         holeparts.reconnect();
         holeparts.release(parts);
       }
       else
       {
+        // No intersections with the outside hole, but we may be inside it!
+        ++holes_outside;
         if (Fmi::OGR::inside(*theGeom->getInteriorRing(i), theBox.xmin(), theBox.ymin()))
         {
-          // Box is completely inside the hole, no result is possible
+          // Box is completely inside the hole, the intersection must be empty
           return;
         }
       }
     }
   }
 
-  parts.reconnectPolygons(theBox);
+#if 0
+  std::cout << "Rebuilding:\n"
+            << "\text_intersects = " << exterior_clipped << "\n"
+            << "\text cw = " << ext_clockwise << "\n"
+            << "\tinside = " << holes_inside << "\n"
+            << "\toutside = " << holes_outside << "\n"
+            << "\tclipped = " << holes_clipped << std::endl;
+#endif
+
+  // Must now add the bbox as the new exterior if neither the exterior nor any
+  // of the holes intersected the box, and the holes need an exterior.
+  bool add_exterior = (!exterior_clipped && holes_clipped == 0);
+
+  parts.reconnectPolygons(theBox, add_exterior);
   parts.release(theParts);
 }
 
@@ -669,5 +751,6 @@ OGRGeometry *Fmi::OGR::polyclip(const OGRGeometry &theGeom, const Box &theBox)
 
   OGRGeometry *geom = parts.build();
   if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
+
   return geom;
 }

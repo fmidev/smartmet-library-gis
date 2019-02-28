@@ -18,7 +18,7 @@ class ClipParts
 
   OGRGeometry *build();
 
-  void reconnectPolygons(const Box &theBox);
+  void reconnectPolygons(const Box &theBox, bool add_exterior);
 
   void reverseLines();
   void reconnect();

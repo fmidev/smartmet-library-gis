@@ -5,6 +5,23 @@
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Build a ring out of the bbox
+ */
+// ----------------------------------------------------------------------
+
+OGRLinearRing *make_ring(const Fmi::Box &theBox)
+{
+  OGRLinearRing *ring = new OGRLinearRing;
+  ring->addPoint(theBox.xmin(), theBox.ymin());
+  ring->addPoint(theBox.xmin(), theBox.ymax());
+  ring->addPoint(theBox.xmax(), theBox.ymax());
+  ring->addPoint(theBox.xmax(), theBox.ymin());
+  ring->addPoint(theBox.xmin(), theBox.ymin());
+  return ring;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Destructor must delete all objects left behind in case of throw
  *
  * Normally build succeeds and clears the containers
@@ -34,13 +51,6 @@ Fmi::ClipParts::~ClipParts()
  *   Input:   POLYGON ((5 10,0 0,10 0,5 10))
  *   Output:  MULTILINESTRING ((5 10,0 0),(10 0,5 10))
  *   Desired: LINESTRING (10 0,5 10,0 0)
- *
- * TODO: If there is a very sharp spike from inside the rectangle
- *       outside, and then back in, it is possible that the
- *       intersection points at the edge are equal. In this
- *       case we could reconnect the linestrings. The task is
- *       the same we're already doing for the 1st/last linestrings,
- *       we'd just do it for any adjacent pair as well.
  */
 // ----------------------------------------------------------------------
 
@@ -69,7 +79,20 @@ void Fmi::ClipParts::reconnect()
   delete line1;
   itsLines.pop_front();
   itsLines.pop_back();
-  itsLines.push_front(line2);
+
+  // The merge may have closed a linearring if the intersections
+  // have collapsed to a single point. This can happen if there is
+  // a tiny sliver polygon just outside the rectangle, and the
+  // intersection coordinates will be identical.
+
+  if (!line2->get_IsClosed())
+    itsLines.push_front(line2);
+  else
+  {
+    OGRPolygon *poly = new OGRPolygon;
+    poly->addRingDirectly(reinterpret_cast<OGRLinearRing *>(line2));
+    add(poly);
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -348,161 +371,163 @@ void Fmi::ClipParts::reverseLines()
  */
 // ----------------------------------------------------------------------
 
-void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
+void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_exterior)
 {
   // Build the exterior rings first
 
   std::list<OGRLinearRing *> exterior;
 
   // If there are no lines, the rectangle must have been
-  // inside the exterior ring.
+  // inside the exterior ring unless there have been sliver
+  // polygons, in which case we may have created a polygon.
 
-  if (itsLines.empty())
+#if 0
+  std::cout << "Reconnecting polygons:\n"
+            << "\tpolys = " << itsPolygons.size() << "\n"
+            << "\tlines = " << itsLines.size() << "\n"
+            << "\tpoints = " << itsPoints.size() << "\n"
+            << "\tadd_ext = " << add_exterior << std::endl;
+#endif
+
+  if (add_exterior)
   {
-    auto *ring = new OGRLinearRing;
-    ring->addPoint(theBox.xmin(), theBox.ymin());
-    ring->addPoint(theBox.xmin(), theBox.ymax());
-    ring->addPoint(theBox.xmax(), theBox.ymax());
-    ring->addPoint(theBox.xmax(), theBox.ymin());
-    ring->addPoint(theBox.xmin(), theBox.ymin());
+    auto *ring = make_ring(theBox);
     exterior.push_back(ring);
   }
-  else
+
+  // Reconnect all lines into one or more linearrings
+  // using box boundaries if necessary
+
+  OGRLinearRing *ring = NULL;
+
+  while (!itsLines.empty() || ring != NULL)
   {
-    // Reconnect all lines into one or more linearrings
-    // using box boundaries if necessary
-
-    OGRLinearRing *ring = nullptr;
-
-    while (!itsLines.empty() || ring != nullptr)
+    if (ring == NULL)
     {
-      if (ring == nullptr)
-      {
-        ring = new OGRLinearRing;
-        auto *line = itsLines.front();
-        itsLines.pop_front();
-        ring->addSubLineString(line);
-        delete line;
-      }
+      ring = new OGRLinearRing;
+      auto *line = itsLines.front();
+      itsLines.pop_front();
+      ring->addSubLineString(line);
+      delete line;
+    }
 
-      // Proceed clockwise until the ring can be closed or the
-      // start point of another linestring is encountered.
-      // Always make the choice that is next in clockwise order.
+    // Proceed clockwise until the ring can be closed or the
+    // start point of another linestring is encountered.
+    // Always make the choice that is next in clockwise order.
 
-      int nr = ring->getNumPoints();
-      double x1 = ring->getX(nr - 1);
-      double y1 = ring->getY(nr - 1);
-      double x2 = x1;
-      double y2 = y1;
+    int nr = ring->getNumPoints();
+    double x1 = ring->getX(nr - 1);
+    double y1 = ring->getY(nr - 1);
+    double x2 = x1;
+    double y2 = y1;
 
-      // No linestring to move onto found next - meaning we'd
-      // either move to the next corner or close the current ring.
-      auto best = itsLines.end();
+    // No linestring to move onto found next - meaning we'd
+    // either move to the next corner or close the current ring.
+    auto best = itsLines.end();
 
-      if (y1 == theBox.ymin() && x1 > theBox.xmin())
-      {
-        // On lower edge going left, worst we can do is left corner, closing might be better
+    if (y1 == theBox.ymin() && x1 > theBox.xmin())
+    {
+      // On lower edge going left, worst we can do is left corner, closing might be better
 
-        if (ring->getY(0) == y1 && ring->getX(0) < x1)
-          x2 = ring->getX(0);
-        else
-          x2 = theBox.xmin();
-
-        // Look for a better match from the remaining linestrings.
-
-        for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
-        {
-          double x = (*iter)->getX(0);
-          double y = (*iter)->getY(0);
-          if (y == y1 && x > x2 && x <= x1)  // if not to the right and better than previous best
-          {
-            x2 = x;
-            best = iter;
-          }
-        }
-      }
-      else if (x1 == theBox.xmin() && y1 < theBox.ymax())
-      {
-        // On left edge going up, worst we can do is upper conner, closing might be better
-
-        if (ring->getX(0) == x1 && ring->getY(0) > y1)
-          y2 = ring->getY(0);
-        else
-          y2 = theBox.ymax();
-
-        for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
-        {
-          double x = (*iter)->getX(0);
-          double y = (*iter)->getY(0);
-          if (x == x1 && y > y1 && y <= y2)
-          {
-            y2 = y;
-            best = iter;
-          }
-        }
-      }
-      else if (y1 == theBox.ymax() && x1 < theBox.xmax())
-      {
-        // On top edge going right, worst we can do is right corner, closing might be better
-
-        if (ring->getY(0) == y1 && ring->getX(0) > x1)
-          x2 = ring->getX(0);
-        else
-          x2 = theBox.xmax();
-
-        for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
-        {
-          double x = (*iter)->getX(0);
-          double y = (*iter)->getY(0);
-
-          if (y == y1 && x >= x1 && x <= x2)
-          {
-            x2 = x;
-            best = iter;
-          }
-        }
-      }
+      if (ring->getY(0) == y1 && ring->getX(0) < x1)
+        x2 = ring->getX(0);
       else
+        x2 = theBox.xmin();
+
+      // Look for a better match from the remaining linestrings.
+
+      for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
       {
-        // On right edge going down, worst we can do is bottom corner, closing might be better
-
-        if (ring->getX(0) == x1 && ring->getY(0) < y1)
-          y2 = ring->getY(0);
-        else
-          y2 = theBox.ymin();
-
-        for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
+        double x = (*iter)->getX(0);
+        double y = (*iter)->getY(0);
+        if (y == y1 && x > x2 && x <= x1)  // if not to the right and better than previous best
         {
-          double x = (*iter)->getX(0);
-          double y = (*iter)->getY(0);
-
-          if (x == x2 && y <= y1 && y >= y2)
-          {
-            y2 = y;
-            best = iter;
-          }
+          x2 = x;
+          best = iter;
         }
       }
+    }
+    else if (x1 == theBox.xmin() && y1 < theBox.ymax())
+    {
+      // On left edge going up, worst we can do is upper conner, closing might be better
 
-      if (best != itsLines.end())
-      {
-        // Found a matching linestring to continue to from the same
-        // edge we were studying. Move to it and continue building.
-        ring->addSubLineString(*best);
-        delete *best;
-        itsLines.erase(best);
-      }
+      if (ring->getX(0) == x1 && ring->getY(0) > y1)
+        y2 = ring->getY(0);
       else
-      {
-        // Couldn't find a matching best line. Either close the ring or move to next corner.
-        ring->addPoint(x2, y2);
+        y2 = theBox.ymax();
 
-        if (ring->get_IsClosed() != 0)
+      for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
+      {
+        double x = (*iter)->getX(0);
+        double y = (*iter)->getY(0);
+        if (x == x1 && y > y1 && y <= y2)
         {
-          normalize_ring(ring);
-          exterior.push_back(ring);
-          ring = nullptr;
+          y2 = y;
+          best = iter;
         }
+      }
+    }
+    else if (y1 == theBox.ymax() && x1 < theBox.xmax())
+    {
+      // On top edge going right, worst we can do is right corner, closing might be better
+
+      if (ring->getY(0) == y1 && ring->getX(0) > x1)
+        x2 = ring->getX(0);
+      else
+        x2 = theBox.xmax();
+
+      for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
+      {
+        double x = (*iter)->getX(0);
+        double y = (*iter)->getY(0);
+
+        if (y == y1 && x >= x1 && x <= x2)
+        {
+          x2 = x;
+          best = iter;
+        }
+      }
+    }
+    else
+    {
+      // On right edge going down, worst we can do is bottom corner, closing might be better
+
+      if (ring->getX(0) == x1 && ring->getY(0) < y1)
+        y2 = ring->getY(0);
+      else
+        y2 = theBox.ymin();
+
+      for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
+      {
+        double x = (*iter)->getX(0);
+        double y = (*iter)->getY(0);
+
+        if (x == x2 && y <= y1 && y >= y2)
+        {
+          y2 = y;
+          best = iter;
+        }
+      }
+    }
+
+    if (best != itsLines.end())
+    {
+      // Found a matching linestring to continue to from the same
+      // edge we were studying. Move to it and continue building.
+      ring->addSubLineString(*best);
+      delete *best;
+      itsLines.erase(best);
+    }
+    else
+    {
+      // Couldn't find a matching best line. Either close the ring or move to next corner.
+      ring->addPoint(x2, y2);
+
+      if (ring->get_IsClosed())
+      {
+        normalize_ring(ring);
+        exterior.push_back(ring);
+        ring = NULL;
       }
     }
   }
@@ -515,6 +540,13 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox)
     auto *poly = new OGRPolygon;
     poly->addRingDirectly(ring);
     polygons.push_back(poly);
+  }
+
+  // Make exterior from one polygon, this can happen if there's been a sliver
+  if (polygons.empty() && itsPolygons.size() == 1)
+  {
+    polygons.push_back(itsPolygons.front());
+    itsPolygons.pop_front();
   }
 
   // Attach holes to polygons
