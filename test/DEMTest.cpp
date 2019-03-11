@@ -1,3 +1,4 @@
+#include "TestDefs.h"
 #include "DEM.h"
 #include <regression/tframe.h>
 using namespace std;
@@ -15,7 +16,7 @@ namespace Tests
 
 void elevation()
 {
-  Fmi::DEM dem("/smartmet/share/gis/rasters/viewfinder");
+  Fmi::DEM dem(GIS_VIEWFINDER);
 
   std::string expected, value;
 
@@ -111,7 +112,7 @@ void elevation()
 
 void resolution()
 {
-  Fmi::DEM dem("/smartmet/share/gis/rasters/viewfinder");
+  Fmi::DEM dem(GIS_VIEWFINDER);
 
   std::string expected, value;
 

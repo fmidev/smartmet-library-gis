@@ -10,7 +10,7 @@ EXTRAFLAGS = -Werror -pedantic -Wpointer-arith -Wcast-qual \
 
 DIFFICULTFLAGS = -Weffc++ -Wunreachable-code -Wredundant-decls
 
-CC = g++
+CXX = g++
 CFLAGS = -DUNIX -O0 -g $(MAINFLAGS) -Wno-write-strings
 
 INCLUDES = \
@@ -18,6 +18,11 @@ INCLUDES = \
 	-I /usr/include/smartmet
 
 LIBS = ../libsmartmet-gis.so -lboost_filesystem -lboost_regex -lgeos -lgdal
+
+# Testdata directories
+GIS_RASTERS_DIR = $(shell test -d /usr/share/smartmet/test/data/gis/rasters && echo /usr/share/smartmet/test/data/gis/rasters || echo /usr/share/smartmet/test/data/gis/rasters )
+GIS_VIEWFINDER = $(GIS_RASTERS_DIR)/viewfinder
+GIS_GLOBCOVER = $(GIS_RASTERS_DIR)/globcover
 
 all: $(PROG)
 clean:
@@ -33,4 +38,4 @@ test: $(PROG)
 		for i in *.err ; do echo `basename $$i .err`; done ; rm -f *.err ; false ) 
 
 $(PROG) : % : %.cpp ../libsmartmet-gis.so
-	$(CC) $(CFLAGS) -o $@ $@.cpp $(INCLUDES) $(LIBS)
+	$(CXX) $(CFLAGS) -DGIS_VIEWFINDER=\"$(GIS_VIEWFINDER)\" -DGIS_GLOBCOVER=\"$(GIS_GLOBCOVER)\" -o $@ $@.cpp $(INCLUDES) $(LIBS)

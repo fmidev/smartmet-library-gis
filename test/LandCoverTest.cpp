@@ -1,3 +1,4 @@
+#include "TestDefs.h"
 #include "LandCover.h"
 #include <boost/lexical_cast.hpp>
 #include <regression/tframe.h>
@@ -16,7 +17,7 @@ namespace Tests
 
 void landtype()
 {
-  Fmi::LandCover cover("/smartmet/share/gis/rasters/globcover");
+  Fmi::LandCover cover(GIS_GLOBCOVER);
 
   Fmi::LandCover::Type value;
 
@@ -117,7 +118,7 @@ void landtype()
 
 void isopenwater()
 {
-  Fmi::LandCover cover("/smartmet/share/gis/rasters/globcover");
+  Fmi::LandCover cover(GIS_GLOBCOVER);
 
   // At sea
   if (!cover.isOpenWater(cover.coverType(25, 60)))
