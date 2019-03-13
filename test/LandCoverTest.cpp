@@ -1,5 +1,5 @@
-#include "TestDefs.h"
 #include "LandCover.h"
+#include "TestDefs.h"
 #include <boost/lexical_cast.hpp>
 #include <regression/tframe.h>
 using namespace std;
@@ -37,16 +37,20 @@ void landtype()
   if (value != Fmi::LandCover::Urban)
     TEST_FAILED("Expected type Urban at Helsinki, not " + boost::lexical_cast<std::string>(value));
 
-  // Ruka
+    // Ruka
+#if GIS_SMALLTESTDATA == 0
   value = cover.coverType(29.1507, 66.1677);
   if (value != Fmi::LandCover::Urban)
     TEST_FAILED("Expected type Urban at Ruka, not " + boost::lexical_cast<std::string>(value));
+#endif
 
-  // Matterhorn
+    // Matterhorn
+#if GIS_SMALLTESTDATA == 0
   value = cover.coverType(7.6583, 45.9764);
   if (value != Fmi::LandCover::MosaicVegetation)
     TEST_FAILED("Expected type MosaicVegetation at Matterhorn, not " +
                 boost::lexical_cast<std::string>(value));
+#endif
 
 #if 0	
 	// DATA DOES NOT REACH THE SOUTH POLE
@@ -80,11 +84,13 @@ void landtype()
   if (value != Fmi::LandCover::Sea)
     TEST_FAILED("Expected type Sea at 180,0, not " + boost::lexical_cast<std::string>(value));
 
+#if GIS_SMALLTESTDATA == 0
   // Alanya had rounding issue with coordinates
   value = cover.coverType(31.99982, 36.543750000000003);
   if (value != Fmi::LandCover::MosaicForest)
     TEST_FAILED("Expected type MosaicForest at Alanya, not " +
                 boost::lexical_cast<std::string>(value));
+#endif
 
 #if 0
 	// Chukotskiy
@@ -93,6 +99,7 @@ void landtype()
 	  TEST_FAILED("Expected type Lakes at 179.999,67, not "+boost::lexical_cast<std::string>(value));
 #endif
 
+#if GIS_SMALLTESTDATA == 0
   value = cover.coverType(-179.999, 67);
   if (value != Fmi::LandCover::Lakes)
     TEST_FAILED("Expected type Lakes at -179.999,67, not " +
@@ -110,6 +117,7 @@ void landtype()
   value = cover.coverType(31.6, 60.8);
   if (value != Fmi::LandCover::Lakes)
     TEST_FAILED("Expected type Lakes at Ladoga, not " + boost::lexical_cast<std::string>(value));
+#endif
 
   TEST_PASSED();
 }
