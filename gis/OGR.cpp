@@ -23,6 +23,36 @@ std::string Fmi::OGR::exportToWkt(const OGRSpatialReference& theSRS)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Export OGR spatial reference to WKT
+ */
+// ----------------------------------------------------------------------
+
+std::string Fmi::OGR::exportToPrettyWkt(const OGRSpatialReference& theSRS)
+{
+  char* out;
+  theSRS.exportToPrettyWkt(&out);
+  std::string ret = out;
+  OGRFree(out);
+  return ret;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Export OGR spatial reference to PROJ
+ */
+// ----------------------------------------------------------------------
+
+std::string Fmi::OGR::exportToProj(const OGRSpatialReference& theSRS)
+{
+  char* out;
+  theSRS.exportToProj4(&out);
+  std::string ret = out;
+  OGRFree(out);
+  return ret;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Export OGR geometry to WKT
  *
  * This is a convenience method since the OGR API is not being

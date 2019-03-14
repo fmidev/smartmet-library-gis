@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 19.3.5
+Version: 19.3.14
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -75,6 +75,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Mar 14 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.3.14-1.fmi
+- Added exportToPrettyWkt and exportToProj functions for spatial references
+
 * Tue Mar  5 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.3.5-1.fmi
 - Added explicit dependencies on PROJ.4 since GDAL may not require it
 
