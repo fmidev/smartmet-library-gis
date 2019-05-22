@@ -1,6 +1,6 @@
-#include "TestDefs.h"
 #include "Box.h"
 #include "OGR.h"
+#include "TestDefs.h"
 #include <gdal/ogr_geometry.h>
 #include <regression/tframe.h>
 
@@ -22,6 +22,49 @@ void exportToWkt_spatialreference()
 
   if (result.substr(0, 15) != "GEOGCS[\"WGS 84\"")
     TEST_FAILED("Failed to export WGS84 spatial reference as WKT");
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+void exportToProj()
+{
+  {
+    std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
+    OGRErr err = srs->SetFromUserInput("WGS84");
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+
+    std::string result = Fmi::OGR::exportToProj(*srs);
+
+    if (result != "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs ")
+      TEST_FAILED("Failed to export WGS84 spatial reference as PROJ, got '" + result + "'");
+  }
+
+  {
+    std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
+    OGRErr err = srs->SetFromUserInput("+proj=latlong +datum=WGS84");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference +proj=latlong +datum=WGS84");
+
+    std::string result = Fmi::OGR::exportToProj(*srs);
+
+    if (result != "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs ")
+      TEST_FAILED("Failed to export +proj=latlong +datum=WGS84 spatial reference as PROJ, got '" +
+                  result + "'");
+  }
+
+  {
+    std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
+    OGRErr err = srs->SetFromUserInput("+init=epsg:4326");
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
+
+    std::string result = Fmi::OGR::exportToProj(*srs);
+
+    if (result != "+proj=longlat +datum=WGS84 +no_defs ")
+      TEST_FAILED("Failed to export +init=epsg:4326 spatial reference as PROJ, got '" + result +
+                  "'");
+  }
 
   TEST_PASSED();
 }
@@ -1031,6 +1074,7 @@ class tests : public tframe::tests
     TEST(exportToWkt_spatialreference);
     TEST(exportToSvg_precision);
     TEST(exportToSvg_wiki_examples);
+    TEST(exportToProj);
     TEST(lineclip);
     TEST(polyclip);
     TEST(despeckle);
