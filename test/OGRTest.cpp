@@ -66,6 +66,25 @@ void exportToProj()
                   "'");
   }
 
+  {
+    std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
+    OGRErr err = srs->SetFromUserInput("+init=epsg:4326");
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
+
+    std::string result = Fmi::OGR::exportToProj(*srs);
+
+    // Second construction
+    err = srs->SetFromUserInput(result.c_str());
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create secondary spatial reference from +init=epsg:4326");
+
+    result = Fmi::OGR::exportToProj(*srs);
+
+    if (result != "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs ")
+      TEST_FAILED("Failed to export +init=epsg:4326 spatial reference as PROJ, got '" + result +
+                  "'");
+  }
+
   TEST_PASSED();
 }
 
