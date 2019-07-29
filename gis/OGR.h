@@ -12,6 +12,8 @@ class Box;
 namespace OGR
 {
 std::string exportToWkt(const OGRSpatialReference& theSRS);
+std::string exportToPrettyWkt(const OGRSpatialReference& theSRS);
+std::string exportToProj(const OGRSpatialReference& theSRS);
 
 std::string exportToWkt(const OGRGeometry& theGeom);
 

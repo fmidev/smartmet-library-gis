@@ -1,3 +1,4 @@
+#include "TestDefs.h"
 #include "GEOS.h"
 #include <geos/io/WKTReader.h>
 #include <regression/tframe.h>

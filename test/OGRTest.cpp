@@ -1,3 +1,4 @@
+#include "TestDefs.h"
 #include "Box.h"
 #include "OGR.h"
 #include <gdal/ogr_geometry.h>

@@ -4,3 +4,9 @@ obj/
 libsmartmet-gis.so
 *Test
 compile_commands.json
+dist/
+.circleci/tmp.*
+.cproject
+/.project
+/*.so
+.settings/

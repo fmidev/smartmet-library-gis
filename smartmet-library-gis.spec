@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 19.2.21
+Version: 19.3.14
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -21,6 +21,8 @@ BuildRequires: smartmet-library-macgyver-devel >= 18.11.24
 Requires: fmt >= 5.2.0
 Requires: gdal >= 1.11.4
 Requires: geos >= 3.5.0
+Requires: proj
+Requires: proj-epsg
 Requires: smartmet-library-macgyver >= 18.11.24
 Requires: postgis < 2.1
 Requires: boost-filesystem
@@ -29,6 +31,13 @@ Requires: boost-thread
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
+#TestRequires: boost-devel
+#TestRequires: make
+#TestRequires: gcc-c++
+#TestRequires: gdal-devel
+#TestRequires: geos-devel
+#TestRequires: smartmet-test-data-gis
+#TestRequires: smartmet-library-regression
 
 %description
 FMI GIS library
@@ -66,6 +75,12 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Mar 14 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.3.14-1.fmi
+- Added exportToPrettyWkt and exportToProj functions for spatial references
+
+* Tue Mar  5 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.3.5-1.fmi
+- Added explicit dependencies on PROJ.4 since GDAL may not require it
+
 * Thu Feb 21 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.2.21-1.fmi
 - Despeckling now applies to closed linestrings too to help remove small closed pressure curves
 
