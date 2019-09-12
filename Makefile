@@ -44,7 +44,7 @@ ifeq ($(CXX), clang++)
 
 else
 
- FLAGS = -std=c++11 -fdiagnostics-color=always -fPIC -MD -Wall -W -Wno-unused-parameter
+ FLAGS = -std=c++11 -fdiagnostics-color=always -fPIC -MD -Wall -W -Wno-unused-parameter -Wnon-virtual-dtor
 
  FLAGS_DEBUG = \
 	-Wcast-align \
