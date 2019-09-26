@@ -62,7 +62,9 @@ void exportToProj()
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
-    if (result != "+proj=longlat +datum=WGS84 +no_defs ")
+    // Result seems to depend on PROJ.4 version
+    if (result != "+proj=longlat +datum=WGS84 +no_defs " &&
+        result != "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs")
       TEST_FAILED("Failed to export +init=epsg:4326 spatial reference as PROJ, got '" + result +
                   "'");
   }
