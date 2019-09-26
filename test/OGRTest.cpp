@@ -34,17 +34,20 @@ void expand_geometry()
   char* point = "POINT (24.9459 60.1921)";
   char* linestring = "LINESTRING (24.9459 60.1921, 24.9859 60.2921)";
 
-  OGRGeometry* geom;
+  OGRGeometry* input_geom;
+  OGRGeometry* output_geom;
 
   OGRSpatialReference srs;
   srs.importFromEPSGA(4326);
 
-  OGRGeometryFactory::createFromWkt(&point, &srs, &geom);
+  OGRGeometryFactory::createFromWkt(&point, &srs, &input_geom);
   // circle around helsinki coordinates  with 1 km radius
-  geom = Fmi::OGR::expandGeometry(geom, 1000);
+  output_geom = Fmi::OGR::expandGeometry(input_geom, 1000);
 
-  std::string result = Fmi::OGR::exportToWkt(*geom);
-
+  std::string result = Fmi::OGR::exportToWkt(*output_geom);
+  OGRGeometryFactory::destroyGeometry(output_geom);
+  OGRGeometryFactory::destroyGeometry(input_geom);
+  
   std::string ok =
       "POLYGON ((24.963866305682387 60.192099999998732,24.963810921557922 "
       "60.191398112406056,24.963645110646066 60.190700537264313,24.963369895226226 "
@@ -91,9 +94,12 @@ void expand_geometry()
   if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
 
   // expand circle another 1 km
-  geom = Fmi::OGR::expandGeometry(geom, 1000);
+  OGRGeometryFactory::createFromWkt(&point, &srs, &input_geom);
+  output_geom = Fmi::OGR::expandGeometry(input_geom, 1000);
 
-  result = Fmi::OGR::exportToWkt(*geom);
+  result = Fmi::OGR::exportToWkt(*output_geom);
+  OGRGeometryFactory::destroyGeometry(output_geom);
+  OGRGeometryFactory::destroyGeometry(input_geom);
 
   ok = "POLYGON ((24.981818759994205 60.19245120891479,24.981818759994205 "
        "60.19174878730977,24.981763375869743 60.191046892182072,24.981652693019107 "
@@ -179,13 +185,16 @@ void expand_geometry()
 
   if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
 
-  OGRGeometryFactory::createFromWkt(&linestring, &srs, &geom);
+  OGRGeometryFactory::createFromWkt(&linestring, &srs, &input_geom);
 
   // expand line by 1 km
-  geom = Fmi::OGR::expandGeometry(geom, 1000);
+  output_geom = Fmi::OGR::expandGeometry(input_geom, 1000);
 
-  result = Fmi::OGR::exportToWkt(*geom);
+  result = Fmi::OGR::exportToWkt(*output_geom);
 
+  OGRGeometryFactory::destroyGeometry(output_geom);
+  OGRGeometryFactory::destroyGeometry(input_geom);
+  
   ok = "POLYGON ((24.977089374263791 60.292969736329617,24.977254003888774 "
        "60.293310191711598,24.977471938954867 60.293643182517485,24.97774183581992 "
        "60.293966656007932,24.978062030480004 60.294278618173763,24.978430548828566 "
@@ -262,6 +271,7 @@ void exportToSvg_wiki_examples()
   {
     OGRGeometryFactory::createFromWkt(&point, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
+    OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 10";
     if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
@@ -269,6 +279,7 @@ void exportToSvg_wiki_examples()
   {
     OGRGeometryFactory::createFromWkt(&linestring, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
+    OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 10 10 30 40 40";
     if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
@@ -276,6 +287,7 @@ void exportToSvg_wiki_examples()
   {
     OGRGeometryFactory::createFromWkt(&polygon1, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
+    OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 10 40 40 20 40 10 20Z";
     if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
@@ -283,6 +295,7 @@ void exportToSvg_wiki_examples()
   {
     OGRGeometryFactory::createFromWkt(&polygon2, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
+    OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M35 10 45 45 15 40 10 20ZM20 30 35 35 30 20Z";
     if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
@@ -290,6 +303,7 @@ void exportToSvg_wiki_examples()
   {
     OGRGeometryFactory::createFromWkt(&multipoint1, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
+    OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M10 40M40 30M20 20M30 10";
     if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
@@ -297,6 +311,7 @@ void exportToSvg_wiki_examples()
   {
     OGRGeometryFactory::createFromWkt(&multipoint2, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
+    OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M10 40M40 30M20 20M30 10";
     if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
@@ -304,6 +319,7 @@ void exportToSvg_wiki_examples()
   {
     OGRGeometryFactory::createFromWkt(&multilinestring, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
+    OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M10 10 20 20 10 40M40 40 30 30 40 20 30 10";
     if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
@@ -311,6 +327,7 @@ void exportToSvg_wiki_examples()
   {
     OGRGeometryFactory::createFromWkt(&multipolygon1, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
+    OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 20 45 40 10 40ZM15 5 40 10 10 20 5 10Z";
     if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
@@ -320,6 +337,7 @@ void exportToSvg_wiki_examples()
 	{
 	  OGRGeometryFactory::createFromWkt(&multipolygon2,NULL,&geom);
 	  string result = exportToSvg(*geom, box, precision);
+	  OGRGeometryFactory::destroyGeometry(geom);
 	  string ok = "M40 40 20 45 45 30ZM20 35 10 30 10 10 30 5 45 20ZM30 20 20 15 20 25Z";
 	  if(result != ok)
 		TEST_FAILED("Expected: "+ok+"\n\tObtained: "+result);
@@ -330,6 +348,7 @@ void exportToSvg_wiki_examples()
   {
     OGRGeometryFactory::createFromWkt(&multipolygon2, NULL, &geom);
     string result = exportToSvg(*geom, box, 0);
+    OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M40 40 20 45 45 30ZM20 35 10 30 10 10 30 5 45 20ZM30 20 20 15 20 25Z";
     if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
@@ -355,44 +374,54 @@ void exportToSvg_precision()
     line->addPoint(x, y);
   }
 
-  {
-    string ok =
-        "M-0.10 -0.09 -0.08 -0.07 -0.06 -0.05 -0.04 -0.03 -0.02 -0.01 0 0.01 0.02 0.03 0.04 0.05 "
-        "0.06 0.07 0.08 0.09 0.10 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.20 0.21 0.22 0.23 "
-        "0.24 0.25 0.26 0.27 0.28 0.29 0.30 0.31 0.32 0.33 0.34 0.35 0.36 0.37 0.38 0.39 0.40 0.41 "
-        "0.42 0.43 0.44 0.45 0.46 0.47 0.48 0.49 0.50 0.51 0.52 0.53 0.54 0.55 0.56 0.57 0.58 0.59 "
-        "0.60 0.61 0.62 0.63 0.64 0.65 0.66 0.67 0.68 0.69 0.70 0.71 0.72 0.73 0.74 0.75 0.76 0.77 "
-        "0.78 0.79 0.80 0.81 0.82 0.83 0.84 0.85 0.86 0.87 0.88 0.89 0.90 0.91 0.92 0.93 0.94 0.95 "
-        "0.96 0.97 0.98 0.99";
-    string result = exportToSvg(*line, Box::identity(), 2.0);
-    if (result != ok) TEST_FAILED("Precision 2:\n\tExpected: " + ok + "\n\tObtained: " + result);
-  }
+  try
+    {
+      {
+	string ok =
+	  "M-0.10 -0.09 -0.08 -0.07 -0.06 -0.05 -0.04 -0.03 -0.02 -0.01 0 0.01 0.02 0.03 0.04 0.05 "
+	  "0.06 0.07 0.08 0.09 0.10 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.20 0.21 0.22 0.23 "
+	  "0.24 0.25 0.26 0.27 0.28 0.29 0.30 0.31 0.32 0.33 0.34 0.35 0.36 0.37 0.38 0.39 0.40 0.41 "
+	  "0.42 0.43 0.44 0.45 0.46 0.47 0.48 0.49 0.50 0.51 0.52 0.53 0.54 0.55 0.56 0.57 0.58 0.59 "
+	  "0.60 0.61 0.62 0.63 0.64 0.65 0.66 0.67 0.68 0.69 0.70 0.71 0.72 0.73 0.74 0.75 0.76 0.77 "
+	  "0.78 0.79 0.80 0.81 0.82 0.83 0.84 0.85 0.86 0.87 0.88 0.89 0.90 0.91 0.92 0.93 0.94 0.95 "
+	  "0.96 0.97 0.98 0.99";
+	string result = exportToSvg(*line, Box::identity(), 2.0);
+	if (result != ok) TEST_FAILED("Precision 2:\n\tExpected: " + ok + "\n\tObtained: " + result);
+      }
 
-  {
-    string ok =
-        "M-0.1 -0.1 0 0 0 0.1 0.1 0.1 0.1 0.1 0.2 0.2 0.2 0.2 0.3 0.3 0.3 0.3 0.4 0.4 0.4 0.5 0.5 "
-        "0.5 0.5 0.6 0.6 0.6 0.6 0.7 0.7 0.7 0.7 0.8 0.8 0.8 0.8 0.8 0.9 0.9 0.9 0.9 1 1";
-    string result = exportToSvg(*line, Box::identity(), 1.0);
-    if (result != ok) TEST_FAILED("Precision 1:\n\tExpected: " + ok + "\n\tObtained: " + result);
-  }
+      {
+	string ok =
+	  "M-0.1 -0.1 0 0 0 0.1 0.1 0.1 0.1 0.1 0.2 0.2 0.2 0.2 0.3 0.3 0.3 0.3 0.4 0.4 0.4 0.5 0.5 "
+	  "0.5 0.5 0.6 0.6 0.6 0.6 0.7 0.7 0.7 0.7 0.8 0.8 0.8 0.8 0.8 0.9 0.9 0.9 0.9 1 1";
+	string result = exportToSvg(*line, Box::identity(), 1.0);
+	if (result != ok) TEST_FAILED("Precision 1:\n\tExpected: " + ok + "\n\tObtained: " + result);
+      }
 
-  {
-    string ok = "M-0.1 -0.1 -0.1 -0.1 0.1 0.1 0.3 0.3 0.5 0.5 0.7 0.7 0.9 0.9";
-    string result = exportToSvg(*line, Box::identity(), 0.7);
-    if (result != ok) TEST_FAILED("Precision 0.7:\n\tExpected: " + ok + "\n\tObtained: " + result);
-  }
+      {
+	string ok = "M-0.1 -0.1 -0.1 -0.1 0.1 0.1 0.3 0.3 0.5 0.5 0.7 0.7 0.9 0.9";
+	string result = exportToSvg(*line, Box::identity(), 0.7);
+	if (result != ok) TEST_FAILED("Precision 0.7:\n\tExpected: " + ok + "\n\tObtained: " + result);
+      }
 
-  {
-    string ok = "M-0.1 -0.1 0.2 0.2 0.5 0.5 0.8 0.8";
-    string result = exportToSvg(*line, Box::identity(), 0.5);
-    if (result != ok) TEST_FAILED("Precision 0.5:\n\tExpected: " + ok + "\n\tObtained: " + result);
-  }
+      {
+	string ok = "M-0.1 -0.1 0.2 0.2 0.5 0.5 0.8 0.8";
+	string result = exportToSvg(*line, Box::identity(), 0.5);
+	if (result != ok) TEST_FAILED("Precision 0.5:\n\tExpected: " + ok + "\n\tObtained: " + result);
+      }
 
-  {
-    string ok = "M-0.1 -0.1 0.4 0.4";
-    string result = exportToSvg(*line, Box::identity(), 0.1);
-    if (result != ok) TEST_FAILED("Precision 0.1:\n\tExpected: " + ok + "\n\tObtained: " + result);
-  }
+      {
+	string ok = "M-0.1 -0.1 0.4 0.4";
+	string result = exportToSvg(*line, Box::identity(), 0.1);
+	if (result != ok) TEST_FAILED("Precision 0.1:\n\tExpected: " + ok + "\n\tObtained: " + result);
+      }
+    }
+  catch(...)
+    {
+      OGRGeometryFactory::destroyGeometry(line);
+      throw;
+    }
+
+  OGRGeometryFactory::destroyGeometry(line);
 
   TEST_PASSED();
 }
