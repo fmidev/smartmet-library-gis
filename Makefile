@@ -87,7 +87,6 @@ CFLAGS_PROFILE = $(DEFINES) $(FLAGS) $(FLAGS_PROFILE) -DNDEBUG -O2 -g -pg
 LIBS = -L$(libdir) \
 	-lsmartmet-macgyver \
 	-lboost_filesystem \
-	-lboost_regex \
 	-lboost_thread \
 	-lgeos \
 	-lgdal \
