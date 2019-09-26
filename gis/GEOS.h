@@ -1,7 +1,14 @@
 #pragma once
 
-#include <geos/geom/Geometry.h>
 #include <string>
+
+namespace geos
+{
+  namespace geom
+  {
+    class Geometry;
+  }
+}
 
 namespace Fmi
 {
