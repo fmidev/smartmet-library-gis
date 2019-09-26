@@ -296,7 +296,7 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
       if (!go_outside &&                       // meaning data ended
           (start_index < i - 1 || add_start))  // meaning something has to be generated
       {
-        OGRLineString *line = new OGRLineString();
+        auto *line = new OGRLineString();
         if (add_start)
         {
           line->addPoint(x0, y0);

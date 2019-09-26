@@ -3,19 +3,34 @@
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/variant.hpp>
-#include <gdal/ogr_geometry.h>
-#include <gdal/ogrsf_frmts.h>
-#include <geos/geom/Geometry.h>
+#include <gdal/gdal_version.h>
 #include <map>
+#include <vector>
 
-typedef boost::shared_ptr<geos::geom::Geometry> GeometryPtr;
+class OGRGeometry;
 
-typedef boost::shared_ptr<OGRGeometry> OGRGeometryPtr;
-typedef boost::shared_ptr<OGRDataSource> OGRDataSourcePtr;
+namespace geos
+{
+  namespace geom
+  {
+    class Geometry;
+  }
+}
+
+using GeometryPtr = boost::shared_ptr<geos::geom::Geometry> ;
+using OGRGeometryPtr = boost::shared_ptr<OGRGeometry> ;
+
+#if GDAL_VERSION_MAJOR < 2
+class OGRDataSource;
+using GDALDataPtr = boost::shared_ptr<OGRDataSource>;
+#else
+class GDALDataset;
+using GDALDataPtr = boost::shared_ptr<GDALDataset>;
+#endif
 
 namespace Fmi
 {
-typedef boost::variant<int, double, std::string, boost::posix_time::ptime> Attribute;
+using Attribute = boost::variant<int, double, std::string, boost::posix_time::ptime>;
 
 struct Feature
 {
@@ -23,7 +38,7 @@ struct Feature
   std::map<std::string, Attribute> attributes;
 };
 
-typedef boost::shared_ptr<Feature> FeaturePtr;
+using FeaturePtr = boost::shared_ptr<Feature>;
 
-typedef std::vector<FeaturePtr> Features;
+using Features = std::vector<FeaturePtr>;
 }  // namespace Fmi

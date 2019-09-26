@@ -4,11 +4,11 @@
 #include "SrtmMatrix.h"
 #include "SrtmTile.h"
 #include <boost/filesystem/operations.hpp>
-#include <boost/regex.hpp>
 #include <fmt/format.h>
 #include <cmath>
 #include <limits>
 #include <list>
+#include <map>
 #include <stdexcept>
 #include <string>
 

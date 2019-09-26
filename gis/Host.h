@@ -24,7 +24,7 @@ class Host
        const std::string& thePassword,
        int thePort = 5432);
 
-  OGRDataSourcePtr connect() const;
+  GDALDataPtr connect() const;
 
  private:
   std::string dataSource() const;

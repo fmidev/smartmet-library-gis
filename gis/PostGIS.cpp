@@ -17,7 +17,7 @@ namespace PostGIS
 // ----------------------------------------------------------------------
 
 OGRGeometryPtr read(OGRSpatialReference* theSR,
-                    const OGRDataSourcePtr& theConnection,
+                    const GDALDataPtr& theConnection,
                     const std::string& theName,
                     const boost::optional<std::string>& theWhereClause)
 {
@@ -96,7 +96,7 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
  */
 // ----------------------------------------------------------------------
 Features read(OGRSpatialReference* theSR,
-              const OGRDataSourcePtr& theConnection,
+              const GDALDataPtr& theConnection,
               const std::string& theName,
               const std::set<std::string>& theFieldNames,
               const boost::optional<std::string>& theWhereClause)

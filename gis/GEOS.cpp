@@ -1,4 +1,5 @@
 #include "GEOS.h"
+#include <geos/geom/Geometry.h>
 #include <geos/io/WKBWriter.h>
 #include <sstream>
 #include <stdexcept>

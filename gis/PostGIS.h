@@ -10,6 +10,7 @@
 #include "Host.h"
 #include "Types.h"
 #include <boost/optional.hpp>
+#include <set>
 #include <string>
 
 class OGRSpatialReference;
@@ -20,7 +21,7 @@ namespace PostGIS
 {
 // read geometries and attribute fields
 Features read(OGRSpatialReference* theSR,
-              const OGRDataSourcePtr& theConnection,
+              const GDALDataPtr& theConnection,
               const std::string& theName,
               const std::set<std::string>& theFieldNames,
               const boost::optional<std::string>& theWhereClause = boost::optional<std::string>());
@@ -28,7 +29,7 @@ Features read(OGRSpatialReference* theSR,
 // name = "schema.table"
 OGRGeometryPtr read(
     OGRSpatialReference* theSR,
-    const OGRDataSourcePtr& theConnection,
+    const GDALDataPtr& theConnection,
     const std::string& theName,
     const boost::optional<std::string>& theWhereClause = boost::optional<std::string>());
 
