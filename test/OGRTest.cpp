@@ -29,6 +29,82 @@ void exportToWkt_spatialreference()
 
 // ----------------------------------------------------------------------
 
+void exportToProj()
+{
+  {
+    std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
+    OGRErr err = srs->SetFromUserInput("WGS84");
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+
+    std::string result = Fmi::OGR::exportToProj(*srs);
+
+    if (result != "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs ")
+      TEST_FAILED("Failed to export WGS84 spatial reference as PROJ, got '" + result + "'");
+  }
+
+  {
+    std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
+    OGRErr err = srs->SetFromUserInput("+proj=latlong +datum=WGS84");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference +proj=latlong +datum=WGS84");
+
+    std::string result = Fmi::OGR::exportToProj(*srs);
+
+    if (result != "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs ")
+      TEST_FAILED("Failed to export +proj=latlong +datum=WGS84 spatial reference as PROJ, got '" +
+                  result + "'");
+  }
+
+  {
+    std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
+    OGRErr err = srs->SetFromUserInput("+init=epsg:4326");
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
+
+    std::string result = Fmi::OGR::exportToProj(*srs);
+
+    if (result != "+proj=longlat +datum=WGS84 +no_defs ")
+      TEST_FAILED("Failed to export +init=epsg:4326 spatial reference as PROJ, got '" + result +
+                  "'");
+  }
+
+  {
+    std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
+    OGRErr err = srs->SetFromUserInput("+init=epsg:4326");
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
+
+    std::string result = Fmi::OGR::exportToProj(*srs);
+
+    // Second construction
+    err = srs->SetFromUserInput(result.c_str());
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create secondary spatial reference from +init=epsg:4326");
+
+    result = Fmi::OGR::exportToProj(*srs);
+
+    if (result != "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs ")
+      TEST_FAILED("Failed to export +init=epsg:4326 spatial reference as PROJ, got '" + result +
+                  "'");
+  }
+
+  {
+    std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
+    OGRErr err = srs->SetFromUserInput("+init=epsg:2393");
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference +init=epsg:2393");
+
+    std::string result = Fmi::OGR::exportToProj(*srs);
+
+    if (result !=
+        "+proj=tmerc +lat_0=0 +lon_0=27 +k=1 +x_0=3500000 +y_0=0 +ellps=intl "
+        "+towgs84=-96.062,-82.428,-121.753,4.801,0.345,-1.376,1.496 +units=m +no_defs ")
+      TEST_FAILED("Failed to export +init=epsg:2393 spatial reference as PROJ, got '" + result +
+                  "'");
+  }
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
 void expand_geometry()
 {
   // point Helsinki
@@ -1070,6 +1146,7 @@ class tests : public tframe::tests
     TEST(exportToWkt_spatialreference);
     TEST(exportToSvg_precision);
     TEST(exportToSvg_wiki_examples);
+    TEST(exportToProj);
     TEST(lineclip);
     TEST(polyclip);
     TEST(despeckle);
