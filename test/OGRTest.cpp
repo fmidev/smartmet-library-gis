@@ -46,7 +46,7 @@ void expand_geometry()
   output_geom = Fmi::OGR::expandGeometry(input_geom, 1000);
 
   std::string result = Fmi::OGR::exportToWkt(*output_geom);
-  OGRGeometryFactory::destroyGeometry(output_geom);
+  // OGRGeometryFactory::destroyGeometry(output_geom); needed in the next test
   OGRGeometryFactory::destroyGeometry(input_geom);
 
   std::string ok =
@@ -95,12 +95,11 @@ void expand_geometry()
   if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
 
   // expand circle another 1 km
-  OGRGeometryFactory::createFromWkt(&point, &srs, &input_geom);
-  output_geom = Fmi::OGR::expandGeometry(input_geom, 1000);
+  OGRGeometry* output_geom2 = Fmi::OGR::expandGeometry(output_geom, 1000);
 
-  result = Fmi::OGR::exportToWkt(*output_geom);
+  result = Fmi::OGR::exportToWkt(*output_geom2);
   OGRGeometryFactory::destroyGeometry(output_geom);
-  OGRGeometryFactory::destroyGeometry(input_geom);
+  OGRGeometryFactory::destroyGeometry(output_geom2);
 
   ok = "POLYGON ((24.981818759994205 60.19245120891479,24.981818759994205 "
        "60.19174878730977,24.981763375869743 60.191046892182072,24.981652693019107 "
@@ -1067,6 +1066,7 @@ class tests : public tframe::tests
   // Main test suite
   void test()
   {
+    TEST(expand_geometry);
     TEST(exportToWkt_spatialreference);
     TEST(exportToSvg_precision);
     TEST(exportToSvg_wiki_examples);
@@ -1074,7 +1074,6 @@ class tests : public tframe::tests
     TEST(polyclip);
     TEST(despeckle);
     TEST(despeckle_geography);
-    TEST(expand_geometry);
     TEST(grid_north);
     TEST(clip_spike);
   }
