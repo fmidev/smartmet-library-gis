@@ -1,6 +1,6 @@
 PROG = $(patsubst %.cpp,%,$(wildcard *Test.cpp))
 
-MAINFLAGS = -std=c++11 -Wall -W -Wno-unused-parameter
+FLAGS = -std=c++11 -Wall -W -Wno-unused-parameter
 
 EXTRAFLAGS = -Werror -pedantic -Wpointer-arith -Wcast-qual \
 	-Wcast-align -Wconversion -Winline \
@@ -10,14 +10,21 @@ EXTRAFLAGS = -Werror -pedantic -Wpointer-arith -Wcast-qual \
 
 DIFFICULTFLAGS = -Weffc++ -Wunreachable-code -Wredundant-decls
 
+ifeq ($(TSAN), yes)
+  FLAGS += -fsanitize=thread
+endif
+ifeq ($(ASAN), yes)
+  FLAGS += -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=undefined -fsanitize-address-use-after-scope
+endif
+
 CXX = g++
-CFLAGS = -DUNIX -O0 -g $(MAINFLAGS) -Wno-write-strings
+CFLAGS = -DUNIX -O0 -g $(FLAGS) -Wno-write-strings
 
 INCLUDES = \
 	-I ../gis \
 	-I /usr/include/smartmet
 
-LIBS = ../libsmartmet-gis.so -lboost_filesystem -lboost_regex -lgeos -lgdal
+LIBS = ../libsmartmet-gis.so -lboost_filesystem -lgeos -lgdal
 
 # Testdata directories
 GIS_RASTERS_DIR = $(shell test -d /usr/share/smartmet/test/data/gis/rasters && echo /usr/share/smartmet/test/data/gis/rasters || echo /smartmet/share/gis/rasters )

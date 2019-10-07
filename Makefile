@@ -28,6 +28,9 @@ objdir = obj
 
 DEFINES = -DUNIX -D_REENTRANT
 
+-include $(HOME)/.smartmet.mk
+GCC_DIAG_COLOR ?= always
+
 ifeq ($(CXX), clang++)
 
  FLAGS = \
@@ -44,7 +47,7 @@ ifeq ($(CXX), clang++)
 
 else
 
- FLAGS = -std=c++11 -fdiagnostics-color=always -fPIC -MD -Wall -W -Wno-unused-parameter
+ FLAGS = -std=c++11 -fdiagnostics-color=$(GCC_DIAG_COLOR) -fPIC -MD -Wall -W -Wno-unused-parameter -Wnon-virtual-dtor
 
  FLAGS_DEBUG = \
 	-Wcast-align \
@@ -67,6 +70,14 @@ else
 
 endif
 
+ifeq ($(TSAN), yes)
+  FLAGS += -fsanitize=thread
+endif
+ifeq ($(ASAN), yes)
+  FLAGS += -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=undefined -fsanitize-address-use-after-scope
+endif
+
+
 # Compile options in detault, debug and profile modes
 
 CFLAGS         = $(DEFINES) $(FLAGS) $(FLAGS_RELEASE) -DNDEBUG -O2 -g
@@ -76,7 +87,6 @@ CFLAGS_PROFILE = $(DEFINES) $(FLAGS) $(FLAGS_PROFILE) -DNDEBUG -O2 -g -pg
 LIBS = -L$(libdir) \
 	-lsmartmet-macgyver \
 	-lboost_filesystem \
-	-lboost_regex \
 	-lboost_thread \
 	-lgeos \
 	-lgdal \

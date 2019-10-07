@@ -5,13 +5,9 @@
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/move/unique_ptr.hpp>
-#include <boost/regex.hpp>
 #include <boost/thread.hpp>
 #include <macgyver/StringConversion.h>
 #include <stdexcept>
-
-// Filename structure for HGT files (for example S89E172.hgt)
-boost::regex hgt_filename_regex("(N|S)[0-9]{2}(E|W)[0-9]{3}\\.hgt");
 
 using FileMapping = boost::interprocess::file_mapping;
 using MappedRegion = boost::interprocess::mapped_region;
@@ -33,7 +29,13 @@ namespace Fmi
 bool SrtmTile::valid_path(const std::string &path)
 {
   boost::filesystem::path p(path);
-  return boost::regex_match(p.filename().string(), hgt_filename_regex);
+
+  // Avoid locale locs by not using regex here
+  auto name = p.filename().string();
+  return (name.size() == 1 + 2 + 1 + 3 + 4 && (name[0] == 'N' || name[0] == 'S') &&
+          std::isdigit(name[1]) && std::isdigit(name[2]) && (name[3] == 'E' || name[3] == 'W') &&
+          std::isdigit(name[4]) && std::isdigit(name[5]) && std::isdigit(name[6]) &&
+          name[7] == '.' && name[8] == 'h' && name[9] == 'g' && name[10] == 't');
 }
 
 // ----------------------------------------------------------------------
@@ -153,7 +155,7 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
 
   auto *ptr = reinterpret_cast<std::int16_t *>(itsMappedRegion->get_address());
   std::int16_t big_endian = ptr[i + (itsSize - j - 1) * itsSize];
-  std::int16_t little_endian = ((big_endian >> 8) & 0xff) + (big_endian << 8);
+  std::int16_t little_endian = ((big_endian >> 8) & 0xff) + ((big_endian & 0xff) << 8);
   return little_endian;
 }
 

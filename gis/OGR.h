@@ -1,9 +1,18 @@
 #pragma once
 #include <boost/optional.hpp>
 #include <gdal/ogr_geometry.h>
-#include <geos/geom/Geometry.h>
 #include <list>
 #include <string>
+
+// cannot forward declare OGR similarly since OGRwkbGeometryType is an enum
+
+namespace geos
+{
+  namespace geom
+  {
+    class Geometry;
+  }
+}
 
 namespace Fmi
 {

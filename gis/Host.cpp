@@ -1,6 +1,10 @@
 #include "Host.h"
 #include <fmt/format.h>
 #include <stdexcept>
+#include <gdal/gdal_version.h>
+#include <gdal/ogrsf_frmts.h>
+#include <gdal/gdal_version.h>
+
 
 namespace Fmi
 {
@@ -45,14 +49,23 @@ std::string Host::dataSource() const
  */
 // ----------------------------------------------------------------------
 
-OGRDataSourcePtr Host::connect() const
+GDALDataPtr Host::connect() const
 {
-  OGRSFDriver* driver(OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("PostgreSQL"));
+#if GDAL_VERSION_MAJOR < 2  
+  auto * driver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("PostgreSQL");
+#else
+  auto * driver = GetGDALDriverManager()->GetDriverByName("PostgreSQL");
+#endif  
   if (driver == nullptr) throw std::runtime_error("PostgreSQL driver not installed!");
 
   auto src = dataSource();
 
-  auto ptr = OGRDataSourcePtr(driver->Open(src.c_str()));
+#if GDAL_VERSION_MAJOR < 2
+  auto ptr = GDALDataPtr(driver->Open(src.c_str()));
+#else
+  GDALOpenInfo info(src.c_str(), GA_ReadOnly);
+  auto ptr = GDALDataPtr(driver->pfnOpen(&info));
+#endif  
 
   if (!ptr) throw std::runtime_error("Failed to open database using source " + dataSource());
 
