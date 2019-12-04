@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 19.9.26
+Version: 19.12.4
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -17,13 +17,13 @@ BuildRequires: boost-devel
 BuildRequires: fmt-devel >= 5.2.0
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 19.9.26
+BuildRequires: smartmet-library-macgyver-devel >= 19.12.4
 Requires: fmt >= 5.2.0
-Requires: gdal >= 1.11.4
+Requires: gdal-libs
 Requires: geos >= 3.5.0
 Requires: proj
 Requires: proj-epsg
-Requires: smartmet-library-macgyver >= 19.9.26
+Requires: smartmet-library-macgyver >= 19.12.4
 Requires: postgis
 Requires: boost-filesystem
 Requires: boost-thread
@@ -74,6 +74,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Dec  4 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.4-1.fmi
+- Use -fno-omit-frame-pointer for a better profiling and debugging experience                                                                               - Fixed dependency to be on gdal-libs instead of gdal        
+
 * Thu Sep 26 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.9.26-1.fmi
 - Added support for GDAL 2
 - Avoid regex use to avoid locale locks
