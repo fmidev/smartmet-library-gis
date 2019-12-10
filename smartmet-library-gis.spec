@@ -16,11 +16,11 @@ BuildRequires: make
 BuildRequires: boost-devel
 BuildRequires: fmt-devel >= 5.2.0
 BuildRequires: gdal30-devel
-BuildRequires: geos-devel
+BuildRequires: geos38-devel
 BuildRequires: smartmet-library-macgyver-devel >= 19.9.26
 Requires: fmt >= 5.2.0
 Requires: gdal30-libs
-Requires: geos >= 3.5.0
+Requires: geos38
 Requires: proj62
 Requires: smartmet-library-macgyver >= 19.9.26
 Requires: postgis
@@ -74,7 +74,7 @@ FMI GIS library development files
 
 %changelog
 * Tue Dec 10 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.10-1.fmi
-- Switch to GDAL 3.0
+- Switch to GDAL 3.0 and GEOS 3.8
 
 * Thu Sep 26 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.9.26-1.fmi
 - Added support for GDAL 2

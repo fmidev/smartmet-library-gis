@@ -1,6 +1,6 @@
 PROG = $(patsubst %.cpp,%,$(wildcard *Test.cpp))
 
-FLAGS = -std=c++11 -Wall -W -Wno-unused-parameter
+FLAGS = -std=c++11 -Wall -W -Wno-unused-parameter -DUSE_UNSTABLE_GEOS_CPP_API
 
 EXTRAFLAGS = -Werror -pedantic -Wpointer-arith -Wcast-qual \
 	-Wcast-align -Wconversion -Winline \
@@ -21,10 +21,15 @@ CXX = g++
 CFLAGS = -DUNIX -O0 -g $(FLAGS) -Wno-write-strings
 
 INCLUDES = \
-	-I ../gis \
-	-I /usr/include/smartmet
+	-I../gis \
+	-I/usr/include/smartmet \
+	-I/usr/gdal30/include \
+	-I/usr/geos38/include
 
-LIBS = ../libsmartmet-gis.so -lboost_filesystem -lgeos -lgdal
+LIBS = ../libsmartmet-gis.so \
+	-L/usr/gdal30/lib `pkg-config --libs gdal30` \
+	-L/usr/geos38/lib64 -lgeos \
+	-lboost_filesystem
 
 # Testdata directories
 GIS_RASTERS_DIR = $(shell test -d /usr/share/smartmet/test/data/gis/rasters && echo /usr/share/smartmet/test/data/gis/rasters || echo /smartmet/share/gis/rasters )
