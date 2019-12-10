@@ -697,16 +697,7 @@ void clip_geom(const OGRGeometry *theGeom,
           dynamic_cast<const OGRGeometryCollection *>(theGeom), theParts, theBox, keep_polygons);
     case wkbLinearRing:
       throw std::runtime_error("Direct clipping of LinearRings is not supported");
-    case wkbNone:
-      throw std::runtime_error("Encountered a 'none' geometry component when clipping polygons");
-    case wkbUnknown:
-    case wkbPoint25D:
-    case wkbLineString25D:
-    case wkbPolygon25D:
-    case wkbMultiLineString25D:
-    case wkbMultiPoint25D:
-    case wkbMultiPolygon25D:
-    case wkbGeometryCollection25D:
+    default:
       throw std::runtime_error("Encountered an unknown geometry component when clipping polygons");
   }
 }

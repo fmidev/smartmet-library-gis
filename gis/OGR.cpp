@@ -17,7 +17,7 @@ std::string Fmi::OGR::exportToWkt(const OGRSpatialReference& theSRS)
   char* out;
   theSRS.exportToWkt(&out);
   std::string ret = out;
-  OGRFree(out);
+  CPLFree(out);
   return ret;
 }
 
@@ -32,7 +32,7 @@ std::string Fmi::OGR::exportToPrettyWkt(const OGRSpatialReference& theSRS)
   char* out;
   theSRS.exportToPrettyWkt(&out);
   std::string ret = out;
-  OGRFree(out);
+  CPLFree(out);
   return ret;
 }
 
@@ -47,7 +47,7 @@ std::string Fmi::OGR::exportToProj(const OGRSpatialReference& theSRS)
   char* out;
   theSRS.exportToProj4(&out);
   std::string ret = out;
-  OGRFree(out);
+  CPLFree(out);
   return ret;
 }
 
@@ -65,7 +65,7 @@ std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom)
   char* out;
   theGeom.exportToWkt(&out);
   std::string ret = out;
-  OGRFree(out);
+  CPLFree(out);
   return ret;
 }
 
@@ -112,8 +112,7 @@ OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
                                      unsigned int theEPSGNumber /* = 0 */)
 {
   OGRGeometry* geom = nullptr;
-  char* pszWKT(const_cast<char*>(wktString.c_str()));
-  OGRErr err = OGRGeometryFactory::createFromWkt(&pszWKT, nullptr, &geom);
+  OGRErr err = OGRGeometryFactory::createFromWkt(wktString.c_str(), nullptr, &geom);
   if (err != OGRERR_NONE)
   {
     std::string errStr = "Failed to create OGRGeometry from WKT " + wktString + "";
@@ -183,7 +182,7 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
   }
   wkt += (theGeometryType == wkbPolygon ? "))" : ")");
 
-  char* pBuff(const_cast<char*>(wkt.c_str()));
+  const char* pBuff = wkt.c_str();
 
   ogrGeom->importFromWkt(&pBuff);
 

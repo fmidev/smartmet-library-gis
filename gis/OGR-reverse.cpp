@@ -1,5 +1,5 @@
 #include "OGR.h"
-#include <gdal/ogr_geometry.h>
+#include <ogr_geometry.h>
 #include <stdexcept>
 
 // Unfortunately reversing OGR rings cannot be done directly in the
@@ -119,22 +119,13 @@ OGRGeometry *reverse_winding(const OGRGeometry *theGeom)
     case wkbGeometryCollection:
       return reverse_winding(dynamic_cast<const OGRGeometryCollection *>(theGeom));
 
-    case wkbPoint25D:
-    case wkbMultiPoint25D:
-    case wkbMultiLineString25D:
-    case wkbMultiPolygon25D:
-    case wkbLineString25D:
-    case wkbGeometryCollection25D:
-    case wkbPolygon25D:
-      throw std::runtime_error(
-          "25D components not supported when reversing OGR geometry winding orders");
-    case wkbUnknown:
-      throw std::runtime_error(
-          "Encountered an unknown geometry component while changing winding order of an OGR "
-          "geometry");
     case wkbNone:
       throw std::runtime_error(
           "Encountered a 'none' geometry component while changing winding order of an OGR "
+          "geometry");
+    default:
+      throw std::runtime_error(
+          "Encountered an unknown geometry component while changing winding order of an OGR "
           "geometry");
   }
 

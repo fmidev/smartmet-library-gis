@@ -2,7 +2,7 @@
 #include "OGR.h"
 #include <fmt/format.h>
 #include <fmt/printf.h>
-#include <gdal/ogr_geometry.h>
+#include <ogr_geometry.h>
 #include <stdexcept>
 
 using Fmi::Box;
@@ -282,11 +282,9 @@ void writeSVG(
     case wkbGeometryCollection25D:
       return writeGeometryCollectionSVG(
           out, dynamic_cast<const OGRGeometryCollection *>(geom), box, rfactor, format);
-    case wkbUnknown:
+    default:
       throw std::runtime_error(
           "Encountered an unknown geometry component in OGR to SVG conversion");
-    case wkbNone:
-      throw std::runtime_error("Encountered a 'none' geometry component in OGR to SVG conversion");
   }
 }
 

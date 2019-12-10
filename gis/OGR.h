@@ -1,6 +1,6 @@
 #pragma once
 #include <boost/optional.hpp>
-#include <gdal/ogr_geometry.h>
+#include <ogr_geometry.h>
 #include <list>
 #include <string>
 

@@ -268,14 +268,7 @@ OGRGeometry *despeckle_geom(const OGRGeometry *theGeom, double theLimit, bool th
     case wkbNone:
       throw std::runtime_error(
           "Encountered a 'none' geometry component when despeckling a geometry");
-    case wkbUnknown:
-    case wkbPoint25D:
-    case wkbLineString25D:
-    case wkbPolygon25D:
-    case wkbMultiLineString25D:
-    case wkbMultiPoint25D:
-    case wkbMultiPolygon25D:
-    case wkbGeometryCollection25D:
+    default:
       throw std::runtime_error("Encountered an unknown geometry component when clipping polygons");
   }
 

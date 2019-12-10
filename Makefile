@@ -26,7 +26,7 @@ objdir = obj
 
 # Compiler options
 
-DEFINES = -DUNIX -D_REENTRANT
+DEFINES = -DUNIX -D_REENTRANT -DUSE_UNSTABLE_GEOS_CPP_API
 
 -include $(HOME)/.smartmet.mk
 GCC_DIAG_COLOR ?= always
@@ -43,7 +43,10 @@ ifeq ($(CXX), clang++)
 
  INCLUDES = \
 	-isystem $(includedir) \
-	-isystem $(includedir)/smartmet
+	-isystem $(includedir)/smartmet \
+	-isystem $(PREFIX)/gdal30/include
+
+# Broken, shows /usr/include/gdal30 instead:	`pkg-config --cflags gdal30`
 
 else
 
@@ -66,7 +69,10 @@ else
 
  INCLUDES = \
 	-I$(includedir) \
-	-I$(includedir)/smartmet
+	-I$(includedir)/smartmet \
+	-I$(PREFIX)/gdal30/include
+
+# Broken, shows /usr/include/gdal30 instead:	`pkg-config --cflags gdal30`
 
 endif
 
@@ -84,12 +90,12 @@ CFLAGS         = $(DEFINES) $(FLAGS) $(FLAGS_RELEASE) -DNDEBUG -O2 -g
 CFLAGS_DEBUG   = $(DEFINES) $(FLAGS) $(FLAGS_DEBUG)   -Werror  -Og -g
 CFLAGS_PROFILE = $(DEFINES) $(FLAGS) $(FLAGS_PROFILE) -DNDEBUG -O2 -g -pg
 
-LIBS = -L$(libdir) \
+LIBS = -L$(libdir) -L$(PREFIX)/gdal30/lib \
 	-lsmartmet-macgyver \
 	-lboost_filesystem \
 	-lboost_thread \
 	-lgeos \
-	-lgdal \
+	`pkg-config --libs gdal30` \
 	-lfmt
 
 # What to install

@@ -1,5 +1,5 @@
 #include "OGR.h"
-#include <gdal/ogr_geometry.h>
+#include <ogr_geometry.h>
 #include <stdexcept>
 
 // Forward declaration needed since two functions call each other
@@ -119,11 +119,9 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
     case wkbGeometryCollection:
     case wkbGeometryCollection25D:
       return inside(dynamic_cast<const OGRGeometryCollection *>(&theGeom), theX, theY);
-    case wkbUnknown:
+    default:
       throw std::runtime_error(
           "Encountered an unknown geometry component in OGR to SVG conversion");
-    case wkbNone:
-      throw std::runtime_error("Encountered a 'none' geometry component in OGR to SVG conversion");
   }
 
   // NOT REACHED
