@@ -76,8 +76,14 @@ FMI GIS library development files
 * Wed Feb  5 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.2.5-1.fmi
 - Fixed gridNorth to work with GDAL 3
 
+* Wed Jan 29 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.1.29-1.fmi
+- Added OGR::transform to scale the geometry to pixel coordinates
+
 * Tue Dec 10 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.10-1.fmi
 - Switch to GDAL 3.0 and GEOS 3.8
+
+* Wed Dec  4 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.4-1.fmi
+- Use -fno-omit-frame-pointer for a better profiling and debugging experience                                                                             - Fixed dependency to be on gdal-libs instead of gdal        
 
 * Thu Sep 26 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.9.26-1.fmi
 - Added support for GDAL 2

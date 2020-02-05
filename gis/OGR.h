@@ -8,11 +8,11 @@
 
 namespace geos
 {
-  namespace geom
-  {
-    class Geometry;
-  }
+namespace geom
+{
+class Geometry;
 }
+}  // namespace geos
 
 namespace Fmi
 {
@@ -31,6 +31,9 @@ std::string exportToSvg(const OGRGeometry& theGeom, const Box& theBox, double th
 // We would prefert to use a const reference here but const is
 // not possible due to SR reference counting
 OGRGeometry* importFromGeos(const geos::geom::Geometry& theGeom, OGRSpatialReference* theSR);
+
+// Transform to box
+void transform(OGRGeometry& theGeom, const Box& theBox);
 
 // Clip to rectangle, polygons may break into polylines
 OGRGeometry* lineclip(const OGRGeometry& theGeom, const Box& theBox);
