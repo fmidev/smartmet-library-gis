@@ -343,23 +343,34 @@ boost::optional<double> Fmi::OGR::gridNorth(OGRCoordinateTransformation& theTran
   // Actual coordinate
   double x1 = theLon;
   double y1 = theLat;
-  if (theTransformation.Transform(1, &x1, &y1) == 0) return {};
 
   // Move slightly to the north
   double x2 = theLon;
   double y2 = theLat + 0.0001;
-  if (y2 < 90)
+
+  // Swap orientation if necessary near the north pole
+  if (y2 >= 90)
   {
-    if (theTransformation.Transform(1, &x2, &y2) == 0) return {};
+    y2 = theLat;
+    y1 = theLat - 0.0001;
   }
-  else
+
+  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1) std::swap(x1, y1);
+  if (theTransformation.Transform(1, &x1, &y1) == 0) return {};
+  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1) std::swap(x1, y1);
+
+  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1) std::swap(x2, y2);
+  if (theTransformation.Transform(1, &x2, &y2) == 0) return {};
+  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1) std::swap(x2, y2);
+
+#if GDAL_VERSION_MAJOR > 1
+  if (theTransformation.GetTargetCS()->EPSGTreatsAsLatLong() == 0 &&
+      theTransformation.GetTargetCS()->EPSGTreatsAsNorthingEasting() == 0)
   {
-    // move south instead and swap orientation
-    y2 = theLat - 0.0001;
-    if (theTransformation.Transform(1, &x2, &y2) == 0) return {};
-    std::swap(x1, x2);
-    std::swap(y1, y2);
+    std::swap(x1, y1);
+    std::swap(x2, y2);
   }
+#endif
 
   // Calculate the azimuth. Note that for us angle 0 is up and not to increasing x
   // as in normal math, hence we have rotated the system by swapping dx and dy in atan2

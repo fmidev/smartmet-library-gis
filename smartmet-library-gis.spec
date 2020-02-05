@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 19.12.10
+Version: 20.2.5
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -17,12 +17,12 @@ BuildRequires: boost-devel
 BuildRequires: fmt-devel >= 5.2.0
 BuildRequires: gdal30-devel
 BuildRequires: geos38-devel
-BuildRequires: smartmet-library-macgyver-devel >= 19.9.26
+BuildRequires: smartmet-library-macgyver-devel >= 20.1.15
 Requires: fmt >= 5.2.0
 Requires: gdal30-libs
 Requires: geos38
 Requires: proj62
-Requires: smartmet-library-macgyver >= 19.9.26
+Requires: smartmet-library-macgyver >= 20.1.15
 Requires: postgis
 Requires: boost-filesystem
 Requires: boost-thread
@@ -73,6 +73,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Feb  5 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.2.5-1.fmi
+- Fixed gridNorth to work with GDAL 3
+
 * Tue Dec 10 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.10-1.fmi
 - Switch to GDAL 3.0 and GEOS 3.8
 
