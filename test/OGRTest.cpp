@@ -969,164 +969,204 @@ void despeckle_geography()
 
 // ----------------------------------------------------------------------
 
-void grid_north()
+void grid_north_wgs84()
 {
   std::unique_ptr<OGRSpatialReference> wgs84(new OGRSpatialReference);
   OGRErr err = wgs84->SetFromUserInput("WGS84");
   if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
 
   // For latlon itself north is always at 0
-  {
-    std::unique_ptr<OGRCoordinateTransformation> trans(
-        OGRCreateCoordinateTransformation(wgs84.get(), wgs84.get()));
+  std::unique_ptr<OGRCoordinateTransformation> trans(
+      OGRCreateCoordinateTransformation(wgs84.get(), wgs84.get()));
 
-    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
-    if (!result) TEST_FAILED("Failed to establish WGS84 north at 25,60");
-    if (*result != 0)
-      TEST_FAILED("Expecting WGS84 north 0 at 25,60 but got " + std::to_string(*result));
-  }
+  auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+  if (!result) TEST_FAILED("Failed to establish WGS84 north at 25,60");
+  if (*result != 0)
+    TEST_FAILED("Expecting WGS84 north 0 at 25,60 but got " + std::to_string(*result));
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+void grid_north_epsg_3035()
+{
+  std::unique_ptr<OGRSpatialReference> wgs84(new OGRSpatialReference);
+  OGRErr err = wgs84->SetFromUserInput("WGS84");
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
 
   // EPSG:3035 ETRS-LAEA
-  {
-    std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
-    err = epsg->SetFromUserInput("EPSG:3035");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference EPSG:3035");
+  std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
+  err = epsg->SetFromUserInput("EPSG:3035");
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference EPSG:3035");
 
-    std::unique_ptr<OGRCoordinateTransformation> trans(
-        OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
+  std::unique_ptr<OGRCoordinateTransformation> trans(
+      OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
 
-    // Helsinki
-    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
-    auto expected = -12.762637;
-    if (!result) TEST_FAILED("Failed to establish EPSG:3035 north at 25,60");
-    if (std::abs(*result - expected) > 0.0001)
-      TEST_FAILED("Expecting EPSG:3035 north " + std::to_string(expected) + " at 25,60 but got " +
-                  std::to_string(*result));
+  // Helsinki
+  auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+  auto expected = -12.762637;
+  if (!result) TEST_FAILED("Failed to establish EPSG:3035 north at 25,60");
+  if (std::abs(*result - expected) > 0.0001)
+    TEST_FAILED("Expecting EPSG:3035 north " + std::to_string(expected) + " at 25,60 but got " +
+                std::to_string(*result));
 
-    // Stockholm
-    result = Fmi::OGR::gridNorth(*trans, 18, 60);
-    expected = -6.815401;
-    if (!result) TEST_FAILED("Failed to establish EPSG:3035 north at 18,60");
-    if (std::abs(*result - expected) > 0.0001)
-      TEST_FAILED("Expecting EPSG:3035 north " + std::to_string(expected) + " at 18,60 but got " +
-                  std::to_string(*result));
-  }
-
-  // EPSG:3034 ETRS-LCC
-  {
-    std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
-    err = epsg->SetFromUserInput("EPSG:3034");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference EPSG:3034");
-
-    std::unique_ptr<OGRCoordinateTransformation> trans(
-        OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
-
-    // Helsinki
-    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
-    auto expected = -11.630724;
-    if (!result) TEST_FAILED("Failed to establish EPSG:3034 north at 25,60");
-    if (std::abs(*result - expected) > 0.0001)
-      TEST_FAILED("Expecting EPSG:3034 north " + std::to_string(expected) + " at 25,60 but got " +
-                  std::to_string(*result));
-
-    // Stockholm
-    result = Fmi::OGR::gridNorth(*trans, 18, 60);
-    expected = -6.203053;
-    if (!result) TEST_FAILED("Failed to establish EPSG:3034 north at 18,60");
-    if (std::abs(*result - expected) > 0.0001)
-      TEST_FAILED("Expecting EPSG:3034 north " + std::to_string(expected) + " at 18,60 but got " +
-                  std::to_string(*result));
-  }
-
-  // Polar stereographic for Scandinavian maps
-  {
-    std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
-    err = epsg->SetFromUserInput(
-        "+proj=stere +lat_0=90 +lat_ts=60 +lon_0=20 +k=1 +x_0=0 +y_0=0 +a=6371220 +b=6371220 "
-        "+units=m +no_defs");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create polar stereographic spatial reference");
-
-    std::unique_ptr<OGRCoordinateTransformation> trans(
-        OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
-
-    // Helsinki
-    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
-    auto expected = -5;
-    if (!result) TEST_FAILED("Failed to establish polster north at 25,60");
-    if (std::abs(*result - expected) > 0.0001)
-      TEST_FAILED("Expecting polster north " + std::to_string(expected) + " at 25,60 but got " +
-                  std::to_string(*result));
-
-    // Stockholm
-    result = Fmi::OGR::gridNorth(*trans, 18, 60);
-    expected = 2;
-    if (!result) TEST_FAILED("Failed to establish polster north at 18,60");
-    if (std::abs(*result - expected) > 0.0001)
-      TEST_FAILED("Expecting polster north " + std::to_string(expected) + " at 18,60 but got " +
-                  std::to_string(*result));
-  }
-
-  // Rotated latlon coordinates used in HIRLAM weather model - PROJ string
-  {
-    std::string tmp =
-        "+proj=ob_tran +o_proj=eqc +o_lon_p=0 +o_lat_p=30 +lon_0=0 +R=6371220 +wktext +over "
-        "+towgs84=0,0,0 +no_defs";
-
-    std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
-    err = epsg->SetFromUserInput(tmp.c_str());
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create rotlatlon spatial reference");
-
-    std::unique_ptr<OGRCoordinateTransformation> trans(
-        OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
-
-    // Helsinki
-    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
-    auto expected = -21.499203;
-    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 25,60");
-    if (std::abs(*result - expected) > 0.0001)
-      TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 25,60 but got " +
-                  std::to_string(*result));
-
-    // Stockholm
-    result = Fmi::OGR::gridNorth(*trans, 18, 60);
-    expected = -15.527667;
-    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 18,60");
-    if (std::abs(*result - expected) > 0.0001)
-      TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 18,60 but got " +
-                  std::to_string(*result));
-  }
-
-  // Rotated latlon coordinates used in HIRLAM weather model - WKT string
-  {
-    std::string tmp =
-        R"(PROJCS["Plate_Carree",GEOGCS["FMI_Sphere",DATUM["FMI_2007",SPHEROID["FMI_Sphere",6371220,0]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["Plate_Carree"],EXTENSION["PROJ4","+proj=ob_tran +o_proj=longlat +o_lon_p=-180 +o_lat_p=30 +a=6371220 +k=1 +wktext"],UNIT["Meter",1]])";
-
-    std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
-    err = epsg->SetFromUserInput(tmp.c_str());
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create rotlatlon spatial reference");
-
-    std::unique_ptr<OGRCoordinateTransformation> trans(
-        OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
-
-    // Helsinki
-    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
-    auto expected = -21.503683;
-    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 25,60");
-    if (std::abs(*result - expected) > 0.0001)
-      TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 25,60 but got " +
-                  std::to_string(*result));
-
-    // Stockholm
-    result = Fmi::OGR::gridNorth(*trans, 18, 60);
-    expected = -15.529383;
-    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 18,60");
-    if (std::abs(*result - expected) > 0.0001)
-      TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 18,60 but got " +
-                  std::to_string(*result));
-  }
+  // Stockholm
+  result = Fmi::OGR::gridNorth(*trans, 18, 60);
+  expected = -6.815401;
+  if (!result) TEST_FAILED("Failed to establish EPSG:3035 north at 18,60");
+  if (std::abs(*result - expected) > 0.0001)
+    TEST_FAILED("Expecting EPSG:3035 north " + std::to_string(expected) + " at 18,60 but got " +
+                std::to_string(*result));
 
   TEST_PASSED();
 }
+
+// ----------------------------------------------------------------------
+
+void grid_north_epsg_3034()
+{
+  std::unique_ptr<OGRSpatialReference> wgs84(new OGRSpatialReference);
+  OGRErr err = wgs84->SetFromUserInput("WGS84");
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+
+  std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
+  err = epsg->SetFromUserInput("EPSG:3034");
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference EPSG:3034");
+
+  std::unique_ptr<OGRCoordinateTransformation> trans(
+      OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
+
+  // Helsinki
+  auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+  auto expected = -11.630724;
+  if (!result) TEST_FAILED("Failed to establish EPSG:3034 north at 25,60");
+  if (std::abs(*result - expected) > 0.0001)
+    TEST_FAILED("Expecting EPSG:3034 north " + std::to_string(expected) + " at 25,60 but got " +
+                std::to_string(*result));
+
+  // Stockholm
+  result = Fmi::OGR::gridNorth(*trans, 18, 60);
+  expected = -6.203053;
+  if (!result) TEST_FAILED("Failed to establish EPSG:3034 north at 18,60");
+  if (std::abs(*result - expected) > 0.0001)
+    TEST_FAILED("Expecting EPSG:3034 north " + std::to_string(expected) + " at 18,60 but got " +
+                std::to_string(*result));
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+void grid_north_smartmet_editor()
+{
+  std::unique_ptr<OGRSpatialReference> wgs84(new OGRSpatialReference);
+  OGRErr err = wgs84->SetFromUserInput("WGS84");
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+
+  std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
+  err = epsg->SetFromUserInput(
+      "+proj=stere +lat_0=90 +lat_ts=60 +lon_0=20 +k=1 +x_0=0 +y_0=0 +a=6371220 +b=6371220 "
+      "+units=m +no_defs");
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create polar stereographic spatial reference");
+
+  std::unique_ptr<OGRCoordinateTransformation> trans(
+      OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
+
+  // Helsinki
+  auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+  auto expected = -5;
+  if (!result) TEST_FAILED("Failed to establish polster north at 25,60");
+  if (std::abs(*result - expected) > 0.0001)
+    TEST_FAILED("Expecting polster north " + std::to_string(expected) + " at 25,60 but got " +
+                std::to_string(*result));
+
+  // Stockholm
+  result = Fmi::OGR::gridNorth(*trans, 18, 60);
+  expected = 2;
+  if (!result) TEST_FAILED("Failed to establish polster north at 18,60");
+  if (std::abs(*result - expected) > 0.0001)
+    TEST_FAILED("Expecting polster north " + std::to_string(expected) + " at 18,60 but got " +
+                std::to_string(*result));
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+void grid_north_rotlatlon_proj()
+{
+  std::unique_ptr<OGRSpatialReference> wgs84(new OGRSpatialReference);
+  OGRErr err = wgs84->SetFromUserInput("WGS84");
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+
+  // Rotated latlon coordinates used in HIRLAM weather model - PROJ string
+  std::string tmp =
+      "+proj=ob_tran +o_proj=eqc +o_lon_p=0 +o_lat_p=30 +lon_0=0 +R=6371220 +wktext +over "
+      "+towgs84=0,0,0 +no_defs";
+
+  std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
+  err = epsg->SetFromUserInput(tmp.c_str());
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create rotlatlon spatial reference");
+
+  std::unique_ptr<OGRCoordinateTransformation> trans(
+      OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
+
+  // Helsinki
+  auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+  auto expected = -21.499203;
+  if (!result) TEST_FAILED("Failed to establish rotlatlon north at 25,60");
+  if (std::abs(*result - expected) > 0.0001)
+    TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 25,60 but got " +
+                std::to_string(*result));
+
+  // Stockholm
+  result = Fmi::OGR::gridNorth(*trans, 18, 60);
+  expected = -15.527667;
+  if (!result) TEST_FAILED("Failed to establish rotlatlon north at 18,60");
+  if (std::abs(*result - expected) > 0.0001)
+    TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 18,60 but got " +
+                std::to_string(*result));
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+void grid_north_rotlatlon_wkt()
+{
+  std::unique_ptr<OGRSpatialReference> wgs84(new OGRSpatialReference);
+  OGRErr err = wgs84->SetFromUserInput("WGS84");
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+
+  // Rotated latlon coordinates used in HIRLAM weather model - WKT string
+  std::string tmp =
+      R"(PROJCS["Plate_Carree",GEOGCS["FMI_Sphere",DATUM["FMI_2007",SPHEROID["FMI_Sphere",6371220,0]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["Plate_Carree"],EXTENSION["PROJ4","+proj=ob_tran +o_proj=longlat +o_lon_p=-180 +o_lat_p=30 +a=6371220 +k=1 +wktext"],UNIT["Meter",1]])";
+
+  std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
+  err = epsg->SetFromUserInput(tmp.c_str());
+  if (err != OGRERR_NONE) TEST_FAILED("Failed to create rotlatlon spatial reference");
+
+  std::unique_ptr<OGRCoordinateTransformation> trans(
+      OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
+
+  // Helsinki
+  auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+  auto expected = -21.503683;
+  if (!result) TEST_FAILED("Failed to establish rotlatlon north at 25,60");
+  if (std::abs(*result - expected) > 0.0001)
+    TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 25,60 but got " +
+                std::to_string(*result));
+
+  // Stockholm
+  result = Fmi::OGR::gridNorth(*trans, 18, 60);
+  expected = -15.529383;
+  if (!result) TEST_FAILED("Failed to establish rotlatlon north at 18,60");
+  if (std::abs(*result - expected) > 0.0001)
+    TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 18,60 but got " +
+                std::to_string(*result));
+
+  TEST_PASSED();
+}  // namespace Tests
 
 // Test driver
 class tests : public tframe::tests
@@ -1145,7 +1185,12 @@ class tests : public tframe::tests
     TEST(polyclip);
     TEST(despeckle);
     TEST(despeckle_geography);
-    TEST(grid_north);
+    TEST(grid_north_wgs84);
+    TEST(grid_north_epsg_3035);
+    TEST(grid_north_epsg_3034);
+    TEST(grid_north_smartmet_editor);
+    TEST(grid_north_rotlatlon_proj);
+    TEST(grid_north_rotlatlon_wkt);
   }
 
 };  // class tests
