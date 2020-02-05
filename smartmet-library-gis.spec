@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.1.29
+Version: 20.2.5
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -74,6 +74,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Feb  5 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.2.5-1.fmi
+- Fixed gridNorth method to work with GDAL versions > 1
+
 * Wed Jan 29 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.1.29-1.fmi
 - Added OGR::transform to scale the geometry to pixel coordinates
 
