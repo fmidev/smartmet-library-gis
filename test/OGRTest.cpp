@@ -1104,7 +1104,37 @@ void grid_north()
                   std::to_string(*result));
   }
 
-  // Rotated latlon coordinates used in HIRLAM weather model
+  // Rotated latlon coordinates used in HIRLAM weather model - PROJ string
+  {
+    std::string tmp =
+        "+proj=ob_tran +o_proj=eqc +o_lon_p=0 +o_lat_p=30 +lon_0=0 +R=6371220 +wktext +over "
+        "+towgs84=0,0,0 +no_defs";
+
+    std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
+    err = epsg->SetFromUserInput(tmp.c_str());
+    if (err != OGRERR_NONE) TEST_FAILED("Failed to create rotlatlon spatial reference");
+
+    std::unique_ptr<OGRCoordinateTransformation> trans(
+        OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
+
+    // Helsinki
+    auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
+    auto expected = -21.499203;
+    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 25,60");
+    if (std::abs(*result - expected) > 0.0001)
+      TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 25,60 but got " +
+                  std::to_string(*result));
+
+    // Stockholm
+    result = Fmi::OGR::gridNorth(*trans, 18, 60);
+    expected = -15.527667;
+    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 18,60");
+    if (std::abs(*result - expected) > 0.0001)
+      TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 18,60 but got " +
+                  std::to_string(*result));
+  }
+
+  // Rotated latlon coordinates used in HIRLAM weather model - WKT string
   {
     std::string tmp =
         R"(PROJCS["Plate_Carree",GEOGCS["FMI_Sphere",DATUM["FMI_2007",SPHEROID["FMI_Sphere",6371220,0]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["Plate_Carree"],EXTENSION["PROJ4","+proj=ob_tran +o_proj=longlat +o_lon_p=-180 +o_lat_p=30 +a=6371220 +k=1 +wktext"],UNIT["Meter",1]])";
