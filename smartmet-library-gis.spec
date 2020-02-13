@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.2.5
+Version: 20.2.13
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -73,6 +73,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Feb 13 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.2.13-1.fmi
+- Hide GDAL dependencies in OGR.h to avoid dependency escalation
+
 * Wed Feb  5 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.2.5-1.fmi
 - Fixed gridNorth to work with GDAL 3
 

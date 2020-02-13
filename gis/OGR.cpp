@@ -4,6 +4,7 @@
 #include <boost/scoped_ptr.hpp>
 #include <fmt/format.h>
 #include <cmath>
+#include <ogr_geometry.h>
 #include <stdexcept>
 
 // ----------------------------------------------------------------------
@@ -147,7 +148,7 @@ OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
 // ----------------------------------------------------------------------
 
 OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
-                                         OGRwkbGeometryType theGeometryType,
+                                         int theGeometryType,
                                          unsigned int theEPSGNumber)
 {
   std::string wkt;
@@ -157,17 +158,19 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
   OGRPolygon ogrPolygon;
   OGRGeometry* ogrGeom = nullptr;
 
-  if (theGeometryType == wkbPoint)
+  auto geomtype = static_cast<OGRwkbGeometryType>(theGeometryType);
+
+  if (geomtype == wkbPoint)
   {
     wkt += "POINT(";
     ogrGeom = &ogrPoint;
   }
-  else if (theGeometryType == wkbLineString || theGeometryType == wkbLinearRing)
+  else if (geomtype == wkbLineString || geomtype == wkbLinearRing)
   {
     wkt += "LINESTRING(";
     ogrGeom = &ogrLineString;
   }
-  else if (theGeometryType == wkbPolygon)
+  else if (geomtype == wkbPolygon)
   {
     wkt += "POLYGON((";
     ogrGeom = &ogrPolygon;
@@ -180,7 +183,7 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
     if (iter != theCoordinates.begin()) wkt += ", ";
     wkt += fmt::format("%f %f", iter->first, iter->second);
   }
-  wkt += (theGeometryType == wkbPolygon ? "))" : ")");
+  wkt += (geomtype == wkbPolygon ? "))" : ")");
 
   const char* pBuff = wkt.c_str();
 

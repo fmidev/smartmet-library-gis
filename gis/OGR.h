@@ -1,8 +1,12 @@
 #pragma once
 #include <boost/optional.hpp>
-#include <ogr_geometry.h>
 #include <list>
 #include <string>
+
+class OGRCoordinateTransformation;
+class OGRGeometry;
+class OGRPolygon;
+class OGRSpatialReference;
 
 // cannot forward declare OGR similarly since OGRwkbGeometryType is an enum
 
@@ -56,8 +60,9 @@ typedef std::list<std::pair<double, double> > CoordinatePoints;
 // OGRGeometry object is constructed from list of coordinates
 // wkbPoint, wkbLineString, wkbLinearRing, wkbPolygon types are supported
 // spatial reference with theEPSGNumber is assigned to the geometry
+
 OGRGeometry* constructGeometry(const CoordinatePoints& theCoordinates,
-                               OGRwkbGeometryType theGeometryType,
+                               int theGeometryType,  // OGRwkbGeometryType
                                unsigned int theEPSGNumber);
 
 // OGRGeometry is expanded by theRadiusInMeters meters
