@@ -22,11 +22,12 @@ CFLAGS = -DUNIX -O0 -g $(FLAGS) -Wno-write-strings
 
 INCLUDES = \
 	-I../gis \
-	-I/usr/include/smartmet \
 	-I/usr/gdal30/include \
-	-I/usr/geos38/include
+	-I/usr/geos38/include \
+	-I/usr/include/smartmet
 
-LIBS = ../libsmartmet-gis.so \
+LIBS = \
+	../libsmartmet-gis.so \
 	-L/usr/gdal30/lib `pkg-config --libs gdal30` \
 	-L/usr/geos38/lib64 -lgeos \
 	-lboost_filesystem

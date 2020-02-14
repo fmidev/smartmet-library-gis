@@ -42,10 +42,10 @@ ifeq ($(CXX), clang++)
 	-Wno-missing-prototypes
 
  INCLUDES = \
-	-isystem $(includedir) \
-	-isystem $(includedir)/smartmet \
 	-isystem $(PREFIX)/gdal30/include \
-	-isystem $(PREFIX)/geos38/include
+	-isystem $(PREFIX)/geos38/include \
+	-isystem $(includedir) \
+	-isystem $(includedir)/smartmet
 
 # Broken, shows /usr/include/gdal30 instead:	`pkg-config --cflags gdal30`
 
@@ -69,10 +69,10 @@ else
  FLAGS_RELEASE = -Wuninitialized
 
  INCLUDES = \
+	-I$(PREFIX)/gdal30/include \
+	-I$(PREFIX)/geos38/include \
 	-I$(includedir) \
 	-I$(includedir)/smartmet \
-	-I$(PREFIX)/gdal30/include \
-	-I$(PREFIX)/geos38/include
 
 # Broken, shows /usr/include/gdal30 instead:	`pkg-config --cflags gdal30`
 
@@ -92,9 +92,10 @@ CFLAGS         = $(DEFINES) $(FLAGS) $(FLAGS_RELEASE) -DNDEBUG -O2 -g
 CFLAGS_DEBUG   = $(DEFINES) $(FLAGS) $(FLAGS_DEBUG)   -Werror  -Og -g
 CFLAGS_PROFILE = $(DEFINES) $(FLAGS) $(FLAGS_PROFILE) -DNDEBUG -O2 -g -pg
 
-LIBS = -L$(libdir) \
+LIBS = \
 	-L$(PREFIX)/gdal30/lib `pkg-config --libs gdal30` \
 	-L$(PREFIX)/geos38/lib64 -lgeos \
+	-L$(libdir) \
 	-lsmartmet-macgyver \
 	-lboost_filesystem \
 	-lboost_thread \
