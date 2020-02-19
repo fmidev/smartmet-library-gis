@@ -233,29 +233,60 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
     throw std::runtime_error("OGRCreateCoordinateTransformation function call failed");
 
   // transform to EPSG:3395 geometry
-  if (tmp_geom->transform(pCT) != OGRERR_NONE) return theGeom->clone();
+  if (tmp_geom->transform(pCT) != OGRERR_NONE)
+    throw std::runtime_error("OGRGeometry::transform() function call failed");
 
   delete pCT;
-
-  unsigned int radius =
-      lround(type == wkbLineString || type == wkbMultiLineString ? theRadiusInMeters
-                                                                 : theRadiusInMeters * 2);
-
-  // make the buffer
-  boost::scoped_ptr<OGRPolygon> polygon(dynamic_cast<OGRPolygon*>(tmp_geom->Buffer(radius, 20)));
-
-  // get exterior ring of polygon
-  // the returned ring pointer is to an internal data object of the OGRPolygon.
-  // It should not be modified or deleted by the application
-  OGRLinearRing* exring(polygon->getExteriorRing());
 
   pCT = OGRCreateCoordinateTransformation(&targetSR, &sourceSR);
 
   if (pCT == nullptr)
     throw std::runtime_error("OGRCreateCoordinateTransformation function call failed");
 
-  // convert back to original geometry
-  exring->transform(pCT);
+  unsigned int radius =
+      lround(type == wkbLineString || type == wkbMultiLineString ? theRadiusInMeters
+                                                                 : theRadiusInMeters * 2);
+  // make the buffer
+  boost::scoped_ptr<OGRPolygon> polygon(dynamic_cast<OGRPolygon*>(tmp_geom->Buffer(radius, 20)));
+
+  if (polygon == nullptr)
+  {
+    if (type == wkbMultiLineString)
+    {
+      // Iterare OGRLineStrings inside OGRMultiLineString  and expand one by one
+      boost::scoped_ptr<OGRMultiLineString> multilinestring;
+      multilinestring.reset(dynamic_cast<OGRMultiLineString*>(tmp_geom->clone()));
+      int n_geometries(multilinestring->getNumGeometries());
+
+      // Expanded geometries are put inside OGRMultiPolygon
+      OGRMultiPolygon mpoly;
+      for (int i = 0; i < n_geometries; i++)
+      {
+        boost::scoped_ptr<OGRGeometry> linestring;
+        linestring.reset(multilinestring->getGeometryRef(i)->Buffer(radius, 20));
+        mpoly.addGeometry(linestring.get());
+      }
+      // Convert back to original geometry
+      if (mpoly.transform(pCT) != OGRERR_NONE)
+        throw std::runtime_error("OGRMultiPolygon::transform() function call failed");
+
+      return mpoly.clone();
+    }
+    else
+    {
+      if (polygon == nullptr)
+        throw std::runtime_error("OGRGeometry::Buffer() function call failed!");
+    }
+  }
+
+  // get exterior ring of polygon
+  // the returned ring pointer is to an internal data object of the OGRPolygon.
+  // It should not be modified or deleted by the application
+  OGRLinearRing* exring(polygon->getExteriorRing());
+
+  // Convert back to original geometry
+  if (exring->transform(pCT) != OGRERR_NONE)
+    throw std::runtime_error("OGRLinearRing::transform() function call failed");
 
   delete pCT;
 
