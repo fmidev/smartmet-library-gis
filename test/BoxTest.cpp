@@ -75,16 +75,37 @@ void wgs_to_epsg2393()
   double y1 = 50;
   double x2 = 40;
   double y2 = 70;
+
+  if (latlon->EPSGTreatsAsLatLong())
+  {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
+
   if (transformation->Transform(1, &x1, &y1) == 0 || transformation->Transform(1, &x2, &y2) == 0)
     TEST_FAILED("Failed to create bbox");
+
+  if (latlon->EPSGTreatsAsLatLong())
+  {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
+
+  // std::cout << fmt::format("\nBBOX = {} {} - {} {}\n", x1, y1, x2, y2);
 
   Fmi::Box box(x1, y1, x2, y2, 100, 200);
 
   {
     double x = 25;
     double y = 60;
+
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,6");
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
+
+    // std::cout << fmt::format("PROJECTED = {} {}\n", x, y);
     box.transform(x, y);
+    // std::cout << fmt::format("PIXEL = {} {}\n", x, y);
 
     if (!TEST_CLOSE(x, 64.6069) || !TEST_CLOSE(y, 108.93))
       TEST_FAILED(
@@ -94,7 +115,10 @@ void wgs_to_epsg2393()
   {
     double x = 26;
     double y = 65;
+
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 68.3769) || !TEST_CLOSE(y, 56.995))
@@ -125,15 +149,28 @@ void epsg4326_to_epsg2393()
   double y1 = 50;
   double x2 = 40;
   double y2 = 70;
+
+  if (latlon->EPSGTreatsAsLatLong())
+  {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
   if (transformation->Transform(1, &x1, &y1) == 0 || transformation->Transform(1, &x2, &y2) == 0)
     TEST_FAILED("Failed to create bbox");
+  if (latlon->EPSGTreatsAsLatLong())
+  {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
 
   Fmi::Box box(x1, y1, x2, y2, 100, 200);
 
   {
     double x = 25;
     double y = 60;
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,6");
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 64.6069) || !TEST_CLOSE(y, 108.93))
@@ -144,7 +181,9 @@ void epsg4326_to_epsg2393()
   {
     double x = 26;
     double y = 65;
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 68.3769) || !TEST_CLOSE(y, 56.995))
@@ -175,15 +214,27 @@ void epsga4326_to_epsg2393()
   double y1 = 50;
   double x2 = 40;
   double y2 = 70;
+  if (latlon->EPSGTreatsAsLatLong())
+  {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
   if (transformation->Transform(1, &x1, &y1) == 0 || transformation->Transform(1, &x2, &y2) == 0)
     TEST_FAILED("Failed to create bbox");
+  if (latlon->EPSGTreatsAsLatLong())
+  {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
 
   Fmi::Box box(x1, y1, x2, y2, 100, 200);
 
   {
     double x = 25;
     double y = 60;
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,6");
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 64.6069) || !TEST_CLOSE(y, 108.93))
@@ -194,7 +245,9 @@ void epsga4326_to_epsg2393()
   {
     double x = 26;
     double y = 65;
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 68.3769) || !TEST_CLOSE(y, 56.995))
@@ -225,15 +278,27 @@ void epsga4326_to_epsga2393()
   double y1 = 50;
   double x2 = 40;
   double y2 = 70;
+  if (latlon->EPSGTreatsAsLatLong())
+  {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
   if (transformation->Transform(1, &x1, &y1) == 0 || transformation->Transform(1, &x2, &y2) == 0)
     TEST_FAILED("Failed to create bbox");
+  if (latlon->EPSGTreatsAsLatLong())
+  {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
 
   Fmi::Box box(x1, y1, x2, y2, 100, 200);
 
   {
     double x = 25;
     double y = 60;
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,6");
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 64.6069) || !TEST_CLOSE(y, 108.93))
@@ -244,7 +309,9 @@ void epsga4326_to_epsga2393()
   {
     double x = 26;
     double y = 65;
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
+    if (latlon->EPSGTreatsAsLatLong()) std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 68.3769) || !TEST_CLOSE(y, 56.995))
@@ -277,15 +344,35 @@ void wgs_to_stere()
   double y1 = 50;
   double x2 = 40;
   double y2 = 70;
+
+  bool swap_input = latlon->EPSGTreatsAsLatLong();
+#if GDAL_MAJOR_VERSION > 1
+  bool swap_output = (swap_input && !stere->EPSGTreatsAsNorthingEasting());
+#else
+  bool swap_output = swap_input;
+#endif
+
+  if (swap_input)
+  {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
   if (transformation->Transform(1, &x1, &y1) == 0 || transformation->Transform(1, &x2, &y2) == 0)
     TEST_FAILED("Failed to create bbox");
+  if (swap_output)
+  {
+    std::swap(x1, y1);
+    std::swap(x2, y2);
+  }
 
   Fmi::Box box(x1, y1, x2, y2, 100, 200);
 
   {
     double x = 25;
     double y = 60;
+    if (swap_input) std::swap(x, y);
     if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,6");
+    if (swap_output) std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 70.0801) || !TEST_CLOSE(y, 105.046))
@@ -296,7 +383,9 @@ void wgs_to_stere()
   {
     double x = 26;
     double y = 65;
+    if (swap_input) std::swap(x, y);
     if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
+    if (swap_output) std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 69.9345) || !TEST_CLOSE(y, 56.8485))
