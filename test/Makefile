@@ -21,10 +21,11 @@ CXX = g++
 CFLAGS = -DUNIX -O0 -g $(FLAGS) -Wno-write-strings
 
 INCLUDES = \
-	-I ../gis \
-	-I /usr/include/smartmet
+	-I../gis \
+	-I/usr/include/smartmet \
+	-I/usr/include/gdal
 
-LIBS = ../libsmartmet-gis.so -lboost_filesystem -lgeos -lgdal
+LIBS = ../libsmartmet-gis.so -lboost_filesystem -lgeos -lgdal -lfmt
 
 # Testdata directories
 GIS_RASTERS_DIR = $(shell test -d /usr/share/smartmet/test/data/gis/rasters && echo /usr/share/smartmet/test/data/gis/rasters || echo /smartmet/share/gis/rasters )
