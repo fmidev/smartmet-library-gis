@@ -34,7 +34,8 @@ LIBS = \
 	../libsmartmet-gis.so \
 	-L/usr/gdal30/lib `pkg-config --libs gdal30` \
 	-L/usr/geos38/lib64 -lgeos \
-	-lboost_filesystem
+	-lboost_filesystem \
+	-lfmt
 
 # Testdata directories
 GIS_RASTERS_DIR = $(shell test -d /usr/share/smartmet/test/data/gis/rasters && echo /usr/share/smartmet/test/data/gis/rasters || echo /smartmet/share/gis/rasters )
