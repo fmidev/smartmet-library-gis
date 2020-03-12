@@ -1,6 +1,10 @@
 PROG = $(patsubst %.cpp,%,$(wildcard *Test.cpp))
 
-FLAGS = -std=c++11 -Wall -W -Wno-unused-parameter -DUSE_UNSTABLE_GEOS_CPP_API
+-include $(HOME)/.smartmet.mk
+GCC_DIAG_COLOR ?= always
+CXX_STD ?= c++11
+
+FLAGS = -std=$(CXX_STD) -Wall -W -Wno-unused-parameter -DUSE_UNSTABLE_GEOS_CPP_API
 
 EXTRAFLAGS = -Werror -pedantic -Wpointer-arith -Wcast-qual \
 	-Wcast-align -Wconversion -Winline \
