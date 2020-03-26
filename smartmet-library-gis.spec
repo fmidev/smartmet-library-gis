@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.2.18
+Version: 20.3.26
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -17,12 +17,12 @@ BuildRequires: boost-devel
 BuildRequires: fmt-devel >= 5.2.0
 BuildRequires: gdal30-devel
 BuildRequires: geos38-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.2.14
+BuildRequires: smartmet-library-macgyver-devel >= 20.3.5
 Requires: fmt >= 5.2.0
 Requires: gdal30-libs
 Requires: geos38
 Requires: proj62
-Requires: smartmet-library-macgyver >= 20.2.14
+Requires: smartmet-library-macgyver >= 20.3.5
 Requires: postgis
 Requires: boost-filesystem
 Requires: boost-thread
@@ -73,6 +73,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Mar 26 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.3.26-1.fmi
+- Repackaged after GDAL/GEOS updates
+
 * Tue Feb 18 2020 Anssi Reponen <anssi.reponen@fmi.fi> - 20.2.18-1.fmi
 - Fixed expanding of MULTILINRSTRING geometry (BRAINSTORM-1757)
 
