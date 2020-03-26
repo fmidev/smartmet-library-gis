@@ -345,11 +345,12 @@ void wgs_to_stere()
   double x2 = 40;
   double y2 = 70;
 
-  bool swap_input = latlon->EPSGTreatsAsLatLong();
-#if GDAL_MAJOR_VERSION > 1
-  bool swap_output = (swap_input && !stere->EPSGTreatsAsNorthingEasting());
+#if GDAL_VERSION_MAJOR > 1
+  bool swap_input = (latlon->EPSGTreatsAsLatLong() || latlon->EPSGTreatsAsNorthingEasting());
+  bool swap_output = (stere->EPSGTreatsAsLatLong() || stere->EPSGTreatsAsNorthingEasting());
 #else
-  bool swap_output = swap_input;
+  bool swap_input = false;
+  bool swap_output = false;
 #endif
 
   if (swap_input)
@@ -371,7 +372,7 @@ void wgs_to_stere()
     double x = 25;
     double y = 60;
     if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,6");
+    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,60");
     if (swap_output) std::swap(x, y);
     box.transform(x, y);
 
