@@ -21,7 +21,6 @@ BuildRequires: smartmet-library-macgyver-devel >= 20.3.5
 Requires: fmt >= 5.2.0
 Requires: gdal30-libs
 Requires: geos38
-Requires: proj62
 Requires: smartmet-library-macgyver >= 20.3.5
 Requires: postgis
 Requires: boost-filesystem
