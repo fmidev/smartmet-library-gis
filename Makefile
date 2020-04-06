@@ -97,7 +97,6 @@ LIBS = \
 	-L$(PREFIX)/gdal30/lib `pkg-config --libs gdal30` \
 	-L$(PREFIX)/geos38/lib64 -lgeos \
 	-L$(libdir) \
-	-lsmartmet-macgyver \
 	-lboost_filesystem \
 	-lboost_thread \
 	-lfmt

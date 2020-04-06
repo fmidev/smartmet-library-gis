@@ -5,6 +5,8 @@
  */
 // ======================================================================
 
+#ifdef UNIX
+
 #pragma once
 
 #include "Host.h"
@@ -35,3 +37,5 @@ OGRGeometryPtr read(
 
 }  // namespace PostGIS
 }  // namespace Fmi
+
+#endif

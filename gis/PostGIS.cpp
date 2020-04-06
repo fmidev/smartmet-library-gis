@@ -1,3 +1,5 @@
+#ifdef UNIX
+
 #include "PostGIS.h"
 #include <ogr_spatialref.h>
 #include <ogrsf_frmts.h>
@@ -212,3 +214,5 @@ Features read(OGRSpatialReference* theSR,
 }
 }  // namespace PostGIS
 }  // namespace Fmi
+
+#endif

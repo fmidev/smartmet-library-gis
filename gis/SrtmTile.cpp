@@ -6,6 +6,7 @@
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/move/unique_ptr.hpp>
 #include <boost/thread.hpp>
+#include <fmt/format.h>
 #include <macgyver/StringConversion.h>
 #include <stdexcept>
 
@@ -103,10 +104,10 @@ SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
   auto name = p.filename().string();
 
   int sign = (name[0] == 'S' ? -1 : 1);
-  itsLat = sign * Fmi::stoi(name.substr(1, 2));
+  itsLat = sign * std::stoi(name.substr(1, 2));
 
   sign = (name[3] == 'W' ? -1 : 1);
-  itsLon = sign * Fmi::stoi(name.substr(4, 3));
+  itsLon = sign * std::stoi(name.substr(4, 3));
 }
 
 // ----------------------------------------------------------------------
@@ -119,8 +120,8 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
 {
   // Sanity checks
   if (i >= itsSize || j >= itsSize)
-    throw std::runtime_error("SrtmFile indexes " + Fmi::to_string(i) + "," + Fmi::to_string(j) +
-                             " is out of range, size of tile is " + Fmi::to_string(itsSize));
+    throw std::runtime_error(
+        fmt::format("SrtmFile indexes {},{} is out of range, size of tile is {}", i, j, itsSize));
 
   // We use lazy initialization to reduce core sizes in case
   // private mapped files are not disabled in core dumps.

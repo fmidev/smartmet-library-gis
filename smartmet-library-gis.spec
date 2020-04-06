@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.3.26
+Version: 20.4.6
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -17,11 +17,9 @@ BuildRequires: boost-devel
 BuildRequires: fmt-devel >= 5.2.0
 BuildRequires: gdal30-devel
 BuildRequires: geos38-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.3.5
 Requires: fmt >= 5.2.0
 Requires: gdal30-libs
 Requires: geos38
-Requires: smartmet-library-macgyver >= 20.3.5
 Requires: postgis
 Requires: boost-filesystem
 Requires: boost-thread
@@ -72,6 +70,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Apr  6 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.6-1.fmi
+- Added SpatialReference and CoordinateTransformation
+- Removed macgyver dependency
+
 * Thu Mar 26 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.3.26-1.fmi
 - Repackaged after GDAL/GEOS updates
 
