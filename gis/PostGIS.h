@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Host.h"
+#include "SpatialReference.h"
 #include "Types.h"
 #include <boost/optional.hpp>
 #include <set>
@@ -22,7 +23,7 @@ namespace Fmi
 namespace PostGIS
 {
 // read geometries and attribute fields
-Features read(OGRSpatialReference* theSR,
+Features read(const Fmi::SpatialReference* theSR,
               const GDALDataPtr& theConnection,
               const std::string& theName,
               const std::set<std::string>& theFieldNames,
@@ -30,7 +31,7 @@ Features read(OGRSpatialReference* theSR,
 
 // name = "schema.table"
 OGRGeometryPtr read(
-    OGRSpatialReference* theSR,
+    const Fmi::SpatialReference* theSR,
     const GDALDataPtr& theConnection,
     const std::string& theName,
     const boost::optional<std::string>& theWhereClause = boost::optional<std::string>());

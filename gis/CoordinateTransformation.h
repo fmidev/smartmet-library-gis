@@ -5,6 +5,7 @@
 
 class OGRSpatialReference;
 class OGRCoordinateTransformation;
+class OGRGeometry;
 
 namespace Fmi
 {
@@ -26,6 +27,7 @@ class CoordinateTransformation
 
   bool Transform(double& x, double& y) const;
   bool Transform(std::vector<double>& x, std::vector<double>& y) const;
+  bool Transform(OGRGeometry& geom) const;
 
   const OGRSpatialReference& GetSourceCS() const;
   const OGRSpatialReference& GetTargetCS() const;

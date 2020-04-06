@@ -2,6 +2,7 @@
 #include "SpatialReference.h"
 #include <gdal_version.h>
 #include <limits>
+#include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 
 namespace Fmi
@@ -75,6 +76,17 @@ bool CoordinateTransformation::Transform(std::vector<double>& x, std::vector<dou
       y[i] = x[i];
     }
   }
+
+  return ok;
+}
+
+bool CoordinateTransformation::Transform(OGRGeometry& geom) const
+{
+  if (itsInputSwapFlag) geom.swapXY();
+
+  bool ok = (geom.transform(itsTransformation.get()) != OGRERR_NONE);
+
+  if (ok && itsOutputSwapFlag) geom.swapXY();
 
   return ok;
 }

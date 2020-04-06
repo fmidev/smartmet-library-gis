@@ -19,7 +19,7 @@ namespace PostGIS
  */
 // ----------------------------------------------------------------------
 
-OGRGeometryPtr read(OGRSpatialReference* theSR,
+OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
                     const GDALDataPtr& theConnection,
                     const std::string& theName,
                     const boost::optional<std::string>& theWhereClause)
@@ -44,40 +44,42 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
 
   auto* out = new OGRGeometryCollection;  // NOLINT
 
-  std::unique_ptr<CoordinateTransformation> transformation;
-  if (theSR != nullptr)
-  {
-    transformation.reset(new CoordinateTransformation(*layer->GetSpatialRef(), *theSR));
-    out->assignSpatialReference(theSR->Clone());
-  }
-  else
-    out->assignSpatialReference(layer->GetSpatialRef());
-
-  // Build the result. Note: SR objects are reference counted
-
   // This is owned by us
-
   OGRFeature* feature;
 
-  layer->ResetReading();
-  while ((feature = layer->GetNextFeature()) != nullptr)
+  if (theSR == nullptr)
   {
-    // owned by feature
-    OGRGeometry* geometry = feature->GetGeometryRef();
-    if (geometry != nullptr)
+    out->assignSpatialReference(layer->GetSpatialRef());
+
+    layer->ResetReading();
+    while ((feature = layer->GetNextFeature()) != nullptr)
     {
-      if (transformation == nullptr)
-        out->addGeometry(geometry);  // clones geometry
-      else
+      // owned by feature
+      OGRGeometry* geometry = feature->GetGeometryRef();
+      if (geometry != nullptr) out->addGeometry(geometry);  // clones geometry
+    }
+  }
+  else
+  {
+    SpatialReference source(*layer->GetSpatialRef());
+    CoordinateTransformation transformation(source, *theSR);
+    out->assignSpatialReference(theSR->get()->Clone());
+
+    layer->ResetReading();
+    while ((feature = layer->GetNextFeature()) != nullptr)
+    {
+      // owned by feature
+      OGRGeometry* geometry = feature->GetGeometryRef();
+      if (geometry != nullptr)
       {
         auto* clone = geometry->clone();
-        clone->transform(transformation->get());
+        transformation.Transform(*clone);
         out->addGeometryDirectly(clone);  // takes ownership
       }
     }
-    OGRFeature::DestroyFeature(feature);
   }
 
+  OGRFeature::DestroyFeature(feature);
   return OGRGeometryPtr(out);
 }
 
@@ -91,7 +93,8 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
  * \return Features return value contains geometries and related attributes
  */
 // ----------------------------------------------------------------------
-Features read(OGRSpatialReference* theSR,
+
+Features read(const Fmi::SpatialReference* theSR,
               const GDALDataPtr& theConnection,
               const std::string& theName,
               const std::set<std::string>& theFieldNames,
@@ -122,7 +125,8 @@ Features read(OGRSpatialReference* theSR,
   std::unique_ptr<CoordinateTransformation> transformation;
 
   if (theSR != nullptr)
-    transformation.reset(new CoordinateTransformation(*layer->GetSpatialRef(), *theSR));
+    transformation.reset(
+        new CoordinateTransformation(SpatialReference(*layer->GetSpatialRef()), *theSR));
 
   // This is owned by us
 
@@ -146,7 +150,7 @@ Features read(OGRSpatialReference* theSR,
         clone->transform(transformation->get());
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
-        ret_item->geom->assignSpatialReference(theSR->Clone());
+        ret_item->geom->assignSpatialReference(theSR->get()->Clone());
       }
     }
     else
