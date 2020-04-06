@@ -8,8 +8,8 @@ namespace Fmi
 {
 bool is_axis_swapped(const OGRSpatialReference& sr)
 {
-#if GDAL_MAJOR_VERSION > 1
-  return (itsSR->EPSGTreatsAsLatLong() || itsSR->EPSGTreatsAsNorthingEasting());
+#if GDAL_VERSION_MAJOR > 1
+  return (sr.EPSGTreatsAsLatLong() || sr.EPSGTreatsAsNorthingEasting());
 #else
   // GDAL1 does not seem to obey EPSGA flags at all
   return false;

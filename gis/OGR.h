@@ -3,7 +3,6 @@
 #include <list>
 #include <string>
 
-class OGRCoordinateTransformation;
 class OGRGeometry;
 class OGRPolygon;
 class OGRSpatialReference;
@@ -20,6 +19,7 @@ class Geometry;
 
 namespace Fmi
 {
+class CoordinateTransformation;
 class Box;
 
 namespace OGR
@@ -69,7 +69,7 @@ OGRGeometry* constructGeometry(const CoordinatePoints& theCoordinates,
 OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters);
 
 // Direction of north in the spatial reference given a WGS84 -> GEOM transformation
-boost::optional<double> gridNorth(OGRCoordinateTransformation& theTransformation,
+boost::optional<double> gridNorth(const CoordinateTransformation& theTransformation,
                                   double theLon,
                                   double theLat);
 

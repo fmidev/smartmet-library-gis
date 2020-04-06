@@ -134,7 +134,7 @@ bool SpatialReference::IsGeographic() const { return itsSR->IsGeographic() != 0;
 
 bool SpatialReference::IsAxisSwapped() const
 {
-#if GDAL_MAJOR_VERSION > 1
+#if GDAL_VERSION_MAJOR > 1
   return (itsSR->EPSGTreatsAsLatLong() || itsSR->EPSGTreatsAsNorthingEasting());
 #else
   // GDAL1 does not seem to obey EPSGA flags at all

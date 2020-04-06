@@ -1,6 +1,7 @@
 #ifdef UNIX
 
 #include "PostGIS.h"
+#include "CoordinateTransformation.h"
 #include <ogr_spatialref.h>
 #include <ogrsf_frmts.h>
 #include <stdexcept>
@@ -41,20 +42,18 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
                                "'");
   }
 
-  // Establish coordinate transformation
-
-  OGRCoordinateTransformation* transformation = nullptr;
-  if (theSR != nullptr)
-    transformation = OGRCreateCoordinateTransformation(layer->GetSpatialRef(), theSR);
-
-  // Build the result. Note: SR objects are reference counted
-
   auto* out = new OGRGeometryCollection;  // NOLINT
-  // Note: We clone the input SR since we have no lifetime guarantees for it
+
+  std::unique_ptr<CoordinateTransformation> transformation;
   if (theSR != nullptr)
+  {
+    transformation.reset(new CoordinateTransformation(*layer->GetSpatialRef(), *theSR));
     out->assignSpatialReference(theSR->Clone());
+  }
   else
     out->assignSpatialReference(layer->GetSpatialRef());
+
+  // Build the result. Note: SR objects are reference counted
 
   // This is owned by us
 
@@ -72,16 +71,11 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
       else
       {
         auto* clone = geometry->clone();
-        clone->transform(transformation);
+        clone->transform(transformation->get());
         out->addGeometryDirectly(clone);  // takes ownership
       }
     }
     OGRFeature::DestroyFeature(feature);
-  }
-
-  if (transformation != nullptr)
-  {
-    OCTDestroyCoordinateTransformation(transformation);
   }
 
   return OGRGeometryPtr(out);
@@ -124,9 +118,11 @@ Features read(OGRSpatialReference* theSR,
   }
 
   // Establish coordinate transformation
-  OGRCoordinateTransformation* transformation = nullptr;
+
+  std::unique_ptr<CoordinateTransformation> transformation;
+
   if (theSR != nullptr)
-    transformation = OGRCreateCoordinateTransformation(layer->GetSpatialRef(), theSR);
+    transformation.reset(new CoordinateTransformation(*layer->GetSpatialRef(), *theSR));
 
   // This is owned by us
 
@@ -147,7 +143,7 @@ Features read(OGRSpatialReference* theSR,
       else
       {
         auto* clone = geometry->clone();
-        clone->transform(transformation);
+        clone->transform(transformation->get());
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
         ret_item->geom->assignSpatialReference(theSR->Clone());
@@ -203,11 +199,6 @@ Features read(OGRSpatialReference* theSR,
     OGRFeature::DestroyFeature(feature);
 
     ret.push_back(ret_item);
-  }
-
-  if (transformation != nullptr)
-  {
-    OCTDestroyCoordinateTransformation(transformation);
   }
 
   return ret;
