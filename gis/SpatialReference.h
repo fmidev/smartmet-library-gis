@@ -22,6 +22,7 @@ class SpatialReference
   SpatialReference(OGRSpatialReference &other);
   SpatialReference(const char *theDesc);
   SpatialReference(const std::string &theDesc);
+  SpatialReference(int epsg);
 
   SpatialReference &operator=(const SpatialReference &other) = delete;
 

@@ -1,4 +1,5 @@
 #include "SpatialReference.h"
+#include <fmt/format.h>
 #include <gdal_version.h>
 #include <ogr_geometry.h>
 
@@ -128,6 +129,13 @@ void SpatialReference::init(const std::string &theSR)
 {
   itsProjStr = theSR;
   itsSR = make_sr(theSR).release();
+}
+
+SpatialReference::SpatialReference(int epsg)
+{
+  itsSR = new OGRSpatialReference();
+  auto err = itsSR->importFromEPSGA(epsg);
+  if (err != OGRERR_NONE) throw std::runtime_error(fmt::format("Unknown EPSG {}", epsg));
 }
 
 bool SpatialReference::IsGeographic() const { return itsSR->IsGeographic() != 0; }
