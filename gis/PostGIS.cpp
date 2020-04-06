@@ -147,7 +147,7 @@ Features read(const Fmi::SpatialReference* theSR,
       else
       {
         auto* clone = geometry->clone();
-        clone->transform(transformation->get());
+        transformation->Transform(*clone);
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
         ret_item->geom->assignSpatialReference(theSR->get()->Clone());
