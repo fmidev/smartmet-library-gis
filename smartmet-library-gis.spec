@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.4.6
+Version: 20.4.7
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -70,6 +70,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Apr  7 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.7-1.fmi
+- Force longlat order for PostGIS geometries
+
 * Mon Apr  6 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.6-1.fmi
 - Added SpatialReference and CoordinateTransformation
 - Removed macgyver dependency
