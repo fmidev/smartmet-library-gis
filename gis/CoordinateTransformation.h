@@ -25,18 +25,18 @@ class CoordinateTransformation
   const OGRCoordinateTransformation& operator*() const;
   OGRCoordinateTransformation* get() const;
 
-  bool Transform(double& x, double& y) const;
-  bool Transform(std::vector<double>& x, std::vector<double>& y) const;
-  bool Transform(OGRGeometry& geom) const;
+  bool transform(double& x, double& y) const;
+  bool transform(std::vector<double>& x, std::vector<double>& y) const;
+  bool transform(OGRGeometry& geom) const;
 
-  const OGRSpatialReference& GetSourceCS() const;
-  const OGRSpatialReference& GetTargetCS() const;
+  const OGRSpatialReference& getSourceCS() const;
+  const OGRSpatialReference& getTargetCS() const;
 
  private:
-  std::shared_ptr<OGRCoordinateTransformation> itsTransformation;
+  std::shared_ptr<OGRCoordinateTransformation> m_transformation;
 
-  bool itsInputSwapFlag = false;   // swap xy before calling GDAL?
-  bool itsOutputSwapFlag = false;  // swap xy after calling GDAL?
+  bool m_swapInput = false;   // swap xy before calling GDAL?
+  bool m_swapOutput = false;  // swap xy after calling GDAL?
 
 };  // class CoordinateTransformation
 

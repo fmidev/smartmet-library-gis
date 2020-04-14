@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.4.7
+Version: 20.4.12
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -70,6 +70,15 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Sun Apr 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.12-1.fmi
+- Added CoordinateMatrix
+- Added BoolMatrix
+- Added CoordinateMatrixAnalysis
+- Improved use of same naming conventions
+
+* Wed Apr  8 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.8-1.fmi
+- Force traditional GIS axis order strategy (lon,lat and east,north)
+
 * Tue Apr  7 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.7-1.fmi
 - Force longlat order for PostGIS geometries
 

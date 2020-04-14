@@ -10,6 +10,13 @@ namespace Fmi
 bool is_axis_swapped(const OGRSpatialReference& sr)
 {
 #if GDAL_VERSION_MAJOR > 1
+
+  if (sr.GetAxisMappingStrategy() == OAMS_TRADITIONAL_GIS_ORDER) return false;
+
+  if (sr.GetAxisMappingStrategy() == OAMS_CUSTOM)
+    return false;  // we do not attempt to figure it out
+
+  // OAMS_AUTHORITY_COMPLIANT
   return (sr.EPSGTreatsAsLatLong() || sr.EPSGTreatsAsNorthingEasting());
 #else
   // GDAL1 does not seem to obey EPSGA flags at all
@@ -19,25 +26,25 @@ bool is_axis_swapped(const OGRSpatialReference& sr)
 
 CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSource,
                                                    const SpatialReference& theTarget)
-    : itsTransformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get())),
-      itsInputSwapFlag(theSource.IsAxisSwapped()),
-      itsOutputSwapFlag(theTarget.IsAxisSwapped())
+    : m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get())),
+      m_swapInput(theSource.isAxisSwapped()),
+      m_swapOutput(theTarget.isAxisSwapped())
 {
 }
 
 CoordinateTransformation::CoordinateTransformation(const OGRSpatialReference& theSource,
                                                    const OGRSpatialReference& theTarget)
-    : itsTransformation(OGRCreateCoordinateTransformation(&theSource, &theTarget)),
-      itsInputSwapFlag(is_axis_swapped(theSource)),
-      itsOutputSwapFlag(is_axis_swapped(theTarget))
+    : m_transformation(OGRCreateCoordinateTransformation(&theSource, &theTarget)),
+      m_swapInput(is_axis_swapped(theSource)),
+      m_swapOutput(is_axis_swapped(theTarget))
 {
 }
 
-bool CoordinateTransformation::Transform(double& x, double& y) const
+bool CoordinateTransformation::transform(double& x, double& y) const
 {
-  if (itsInputSwapFlag) std::swap(x, y);
+  // if (m_swapInput) std::swap(x, y);
 
-  bool ok = (itsTransformation->Transform(1, &x, &y) != 0);
+  bool ok = (m_transformation->Transform(1, &x, &y) != 0);
 
   if (!ok)
   {
@@ -46,11 +53,11 @@ bool CoordinateTransformation::Transform(double& x, double& y) const
     return false;
   }
 
-  if (itsOutputSwapFlag) std::swap(x, y);
+  // if (m_swapOutput) std::swap(x, y);
   return true;
 }
 
-bool CoordinateTransformation::Transform(std::vector<double>& x, std::vector<double>& y) const
+bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<double>& y) const
 {
   if (x.size() != y.size())
     throw std::runtime_error("X- and Y-coordinate vector sizes do not match");
@@ -59,14 +66,14 @@ bool CoordinateTransformation::Transform(std::vector<double>& x, std::vector<dou
     throw std::runtime_error(
         "Cannot do coordinate transformation for empty X- and Y-coordinate vectors");
 
-  if (itsInputSwapFlag) std::swap(x, y);
+  // if (m_swapInput) std::swap(x, y);
 
   int n = static_cast<int>(x.size());
   std::vector<int> flags(n, 0);
 
-  bool ok = (itsTransformation->Transform(n, &x[0], &y[0], nullptr, &flags[0]) != 0);
+  bool ok = (m_transformation->Transform(n, &x[0], &y[0], nullptr, &flags[0]) != 0);
 
-  if (itsOutputSwapFlag) std::swap(x, y);
+  // if (m_swapOutput) std::swap(x, y);
 
   for (std::size_t i = 0; i < flags.size(); i++)
   {
@@ -80,34 +87,34 @@ bool CoordinateTransformation::Transform(std::vector<double>& x, std::vector<dou
   return ok;
 }
 
-bool CoordinateTransformation::Transform(OGRGeometry& geom) const
+bool CoordinateTransformation::transform(OGRGeometry& geom) const
 {
-  if (itsInputSwapFlag) geom.swapXY();
+  // if (m_swapInput) geom.swapXY();
 
-  bool ok = (geom.transform(itsTransformation.get()) != OGRERR_NONE);
+  bool ok = (geom.transform(m_transformation.get()) != OGRERR_NONE);
 
-  if (ok && itsOutputSwapFlag) geom.swapXY();
+  // if (ok && m_swapOutput) geom.swapXY();
 
   return ok;
 }
 
-const OGRSpatialReference& CoordinateTransformation::GetSourceCS() const
+const OGRSpatialReference& CoordinateTransformation::getSourceCS() const
 {
-  return *itsTransformation->GetSourceCS();
+  return *m_transformation->GetSourceCS();
 }
 
-const OGRSpatialReference& CoordinateTransformation::GetTargetCS() const
+const OGRSpatialReference& CoordinateTransformation::getTargetCS() const
 {
-  return *itsTransformation->GetTargetCS();
+  return *m_transformation->GetTargetCS();
 }
 
 const OGRCoordinateTransformation& CoordinateTransformation::operator*() const
 {
-  return *itsTransformation;
+  return *m_transformation;
 }
 
 OGRCoordinateTransformation* CoordinateTransformation::get() const
 {
-  return itsTransformation.get();
+  return m_transformation.get();
 }
 }  // namespace Fmi

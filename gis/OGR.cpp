@@ -372,7 +372,7 @@ boost::optional<double> Fmi::OGR::gridNorth(const CoordinateTransformation& theT
     y1 = theLat - 0.0001;
   }
 
-  if (!theTransformation.Transform(x1, y1) || !theTransformation.Transform(x2, y2)) return {};
+  if (!theTransformation.transform(x1, y1) || !theTransformation.transform(x2, y2)) return {};
 
   // Calculate the azimuth. Note that for us angle 0 is up and not to increasing x
   // as in normal math, hence we have rotated the system by swapping dx and dy in atan2

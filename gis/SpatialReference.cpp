@@ -1,6 +1,7 @@
 #include "SpatialReference.h"
 #include <fmt/format.h>
 #include <gdal_version.h>
+#include <iostream>
 #include <ogr_geometry.h>
 
 namespace Fmi
@@ -75,7 +76,7 @@ std::map<std::string, std::string> known_ellipsoids = {
 
 // Utility function for creating spatial references
 
-std::unique_ptr<OGRSpatialReference> make_sr(std::string theDesc)
+std::unique_ptr<OGRSpatialReference> make_crs(std::string theDesc)
 {
   if (theDesc.empty())
     throw std::runtime_error("Cannot create spatial reference from empty string");
@@ -92,10 +93,10 @@ std::unique_ptr<OGRSpatialReference> make_sr(std::string theDesc)
     if (pos != known_ellipsoids.end()) desc = std::string("+proj=longlat ") + pos->second;
   }
 
-  std::unique_ptr<OGRSpatialReference> sr(new OGRSpatialReference);
-  auto err = sr->SetFromUserInput(desc.c_str());
+  std::unique_ptr<OGRSpatialReference> crs(new OGRSpatialReference);
+  auto err = crs->SetFromUserInput(desc.c_str());
 
-  if (err == OGRERR_NONE) return sr;
+  if (err == OGRERR_NONE) return crs;
 
   if (theDesc == desc)
     throw std::runtime_error("Failed to create spatial reference from '" + theDesc + "'");
@@ -105,45 +106,49 @@ std::unique_ptr<OGRSpatialReference> make_sr(std::string theDesc)
 
 }  // namespace
 
-SpatialReference::~SpatialReference() { delete itsSR; }
+SpatialReference::~SpatialReference() { delete m_crs; }
 
 SpatialReference::SpatialReference(const SpatialReference &other)
-    : itsProjStr(other.itsProjStr), itsSR(other.itsSR->Clone())
+    : m_projStr(other.m_projStr), m_crs(other.m_crs->Clone())
 {
+  m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 }
 
 SpatialReference::SpatialReference(const OGRSpatialReference &other)
-    : itsProjStr(), itsSR(other.Clone())
+    : m_projStr(), m_crs(other.Clone())
+{
+  m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+}
+
+SpatialReference::SpatialReference(OGRSpatialReference &other) : m_projStr(), m_crs(other.Clone())
 {
 }
 
-SpatialReference::SpatialReference(OGRSpatialReference &other) : itsProjStr(), itsSR(other.Clone())
+SpatialReference::SpatialReference(const char *theCRS) { init(theCRS); }
+
+SpatialReference::SpatialReference(const std::string &theCRS) { init(theCRS); }
+
+void SpatialReference::init(const std::string &theCRS)
 {
-}
-
-SpatialReference::SpatialReference(const char *theSR) { init(theSR); }
-
-SpatialReference::SpatialReference(const std::string &theSR) { init(theSR); }
-
-void SpatialReference::init(const std::string &theSR)
-{
-  itsProjStr = theSR;
-  itsSR = make_sr(theSR).release();
+  m_projStr = theCRS;
+  m_crs = make_crs(theCRS).release();
+  m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 }
 
 SpatialReference::SpatialReference(int epsg)
 {
-  itsSR = new OGRSpatialReference();
-  auto err = itsSR->importFromEPSGA(epsg);
+  m_crs = new OGRSpatialReference();
+  auto err = m_crs->importFromEPSGA(epsg);
   if (err != OGRERR_NONE) throw std::runtime_error(fmt::format("Unknown EPSG {}", epsg));
+  m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 }
 
-bool SpatialReference::IsGeographic() const { return itsSR->IsGeographic() != 0; }
+bool SpatialReference::isGeographic() const { return m_crs->IsGeographic() != 0; }
 
-bool SpatialReference::IsAxisSwapped() const
+bool SpatialReference::isAxisSwapped() const
 {
 #if GDAL_VERSION_MAJOR > 1
-  return (itsSR->EPSGTreatsAsLatLong() || itsSR->EPSGTreatsAsNorthingEasting());
+  return (m_crs->EPSGTreatsAsLatLong() || m_crs->EPSGTreatsAsNorthingEasting());
 #else
   // GDAL1 does not seem to obey EPSGA flags at all
   return false;

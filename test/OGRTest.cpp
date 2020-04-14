@@ -985,6 +985,31 @@ void grid_north_wgs84()
 
 // ----------------------------------------------------------------------
 
+void grid_north_epsg_4326()
+{
+  Fmi::CoordinateTransformation trans("WGS84", "EPSG:4326");
+
+  auto result = Fmi::OGR::gridNorth(trans, 25, 60);
+  if (!result) TEST_FAILED("Failed to establish EPSG:4326 north at 25,60");
+  if (*result != 0)
+    TEST_FAILED("Expecting WGS84 north 0 at 25,60 but got " + std::to_string(*result));
+  TEST_PASSED();
+}
+// ----------------------------------------------------------------------
+
+void grid_north_epsga_4326()
+{
+  Fmi::CoordinateTransformation trans("WGS84", "EPSGA:4326");
+
+  auto result = Fmi::OGR::gridNorth(trans, 25, 60);
+  if (!result) TEST_FAILED("Failed to establish EPSGA:4326 north at 25,60");
+  if (*result != 0)
+    TEST_FAILED("Expecting WGS84 north 0 at 25,60 but got " + std::to_string(*result));
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
 void grid_north_epsg_3035()
 {
   Fmi::CoordinateTransformation trans("WGS84", "EPSG:3035");
@@ -1133,6 +1158,8 @@ class tests : public tframe::tests
     TEST(despeckle);
     TEST(despeckle_geography);
     TEST(grid_north_wgs84);
+    TEST(grid_north_epsg_4326);
+    TEST(grid_north_epsga_4326);
     TEST(grid_north_epsg_3035);
     TEST(grid_north_epsg_3034);
     TEST(grid_north_smartmet_editor);

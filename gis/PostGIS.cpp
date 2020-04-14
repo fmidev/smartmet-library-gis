@@ -14,24 +14,6 @@ namespace PostGIS
 {
 // ----------------------------------------------------------------------
 /*!
- * \brief Test if the axes should be swapped
- */
-// ----------------------------------------------------------------------
-
-bool must_swap_axes(OGRLayer* layer)
-{
-#if GDAL_VERSION_MAJOR < 2
-  return false;
-#else
-  if (layer == nullptr) return false;
-  const auto* sr = layer->GetSpatialRef();
-  if (sr == nullptr) return false;
-  return (sr->EPSGTreatsAsLatLong() || sr->EPSGTreatsAsNorthingEasting());
-#endif
-}
-
-// ----------------------------------------------------------------------
-/*!
  * \brief Fetch a shape from the database
  *
  * \param theName "schema.table"
@@ -67,8 +49,6 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
   // This is owned by us
   OGRFeature* feature;
 
-  const bool swap_axes = must_swap_axes(layer);
-
   if (theSR == nullptr)
   {
     out->assignSpatialReference(layer->GetSpatialRef());
@@ -80,7 +60,6 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       OGRGeometry* geometry = feature->GetGeometryRef();
       if (geometry != nullptr) out->addGeometry(geometry);  // clones geometry
     }
-    if (swap_axes) out->swapXY();
   }
   else
   {
@@ -95,9 +74,8 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       OGRGeometry* geometry = feature->GetGeometryRef();
       if (geometry != nullptr)
       {
-        if (swap_axes) geometry->swapXY();
         auto* clone = geometry->clone();
-        transformation.Transform(*clone);
+        transformation.transform(*clone);
         out->addGeometryDirectly(clone);  // takes ownership
       }
     }
@@ -144,8 +122,6 @@ Features read(const Fmi::SpatialReference* theSR,
                                "'");
   }
 
-  const bool swap_axes = must_swap_axes(layer);
-
   // Establish coordinate transformation
 
   std::unique_ptr<CoordinateTransformation> transformation;
@@ -166,16 +142,12 @@ Features read(const Fmi::SpatialReference* theSR,
     OGRGeometry* geometry = feature->GetGeometryRef();
     if (geometry != nullptr)
     {
-      if (swap_axes) geometry->swapXY();
-
+      auto* clone = geometry->clone();
       if (transformation == nullptr)
-      {
-        ret_item->geom.reset(geometry->clone());
-      }
+        ret_item->geom.reset(clone);
       else
       {
-        auto* clone = geometry->clone();
-        transformation->Transform(*clone);
+        transformation->transform(*clone);
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
         ret_item->geom->assignSpatialReference(theSR->get()->Clone());
