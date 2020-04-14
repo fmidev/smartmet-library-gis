@@ -27,6 +27,7 @@ Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 #TestRequires: boost-devel
+#TestRequires: fmt-devel
 #TestRequires: make
 #TestRequires: gcc-c++
 #TestRequires: gdal-devel
