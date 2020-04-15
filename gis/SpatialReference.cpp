@@ -1,4 +1,6 @@
 #include "SpatialReference.h"
+#include "OGR.h"
+#include <boost/functional/hash.hpp>
 #include <fmt/format.h>
 #include <gdal_version.h>
 #include <iostream>
@@ -153,6 +155,12 @@ bool SpatialReference::isAxisSwapped() const
   // GDAL1 does not seem to obey EPSGA flags at all
   return false;
 #endif
+}
+
+std::size_t SpatialReference::hashValue() const
+{
+  auto wkt = OGR::exportToWkt(*m_crs);
+  return boost::hash_value(wkt);
 }
 
 }  // namespace Fmi

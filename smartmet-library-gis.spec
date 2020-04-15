@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.4.12
+Version: 20.4.15
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -71,6 +71,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Apr 15 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.15-1.fmi
+- Added SpatialReference::hashValue()
+
 * Sun Apr 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.12-1.fmi
 - Added CoordinateMatrix
 - Added BoolMatrix

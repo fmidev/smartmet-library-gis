@@ -38,6 +38,8 @@ class SpatialReference
   bool isAxisSwapped() const;
   bool isGeographic() const;
 
+  std::size_t hashValue() const;
+
   // This is mostly for debugging
   const std::string &projStr() const { return m_projStr; }
 
