@@ -51,6 +51,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
 
   if (theSR == nullptr)
   {
+    layer->GetSpatialRef()->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
     out->assignSpatialReference(layer->GetSpatialRef());
 
     layer->ResetReading();
