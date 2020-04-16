@@ -7,37 +7,29 @@
 
 namespace Fmi
 {
-bool is_axis_swapped(const OGRSpatialReference& sr)
-{
-#if GDAL_VERSION_MAJOR > 1
-
-  if (sr.GetAxisMappingStrategy() == OAMS_TRADITIONAL_GIS_ORDER) return false;
-
-  if (sr.GetAxisMappingStrategy() == OAMS_CUSTOM)
-    return false;  // we do not attempt to figure it out
-
-  // OAMS_AUTHORITY_COMPLIANT
-  return (sr.EPSGTreatsAsLatLong() || sr.EPSGTreatsAsNorthingEasting());
-#else
-  // GDAL1 does not seem to obey EPSGA flags at all
-  return false;
-#endif
-}
-
 CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSource,
                                                    const SpatialReference& theTarget)
     : m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get())),
       m_swapInput(theSource.isAxisSwapped()),
       m_swapOutput(theTarget.isAxisSwapped())
 {
+  if (m_transformation == nullptr)
+    throw std::runtime_error("Failed to create the requested coordinate transformation");
 }
 
-CoordinateTransformation::CoordinateTransformation(const OGRSpatialReference& theSource,
-                                                   const OGRSpatialReference& theTarget)
-    : m_transformation(OGRCreateCoordinateTransformation(&theSource, &theTarget)),
-      m_swapInput(is_axis_swapped(theSource)),
-      m_swapOutput(is_axis_swapped(theTarget))
+CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSource,
+                                                   const SpatialReference& theTarget,
+                                                   double theWest,
+                                                   double theSouth,
+                                                   double theEast,
+                                                   double theNorth)
+    : m_swapInput(theSource.isAxisSwapped()), m_swapOutput(theTarget.isAxisSwapped())
 {
+  OGRCoordinateTransformationOptions opts;
+  opts.SetAreaOfInterest(theWest, theSouth, theEast, theNorth);
+  m_transformation.reset(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get(), opts));
+  if (m_transformation == nullptr)
+    throw std::runtime_error("Failed to create the requested coordinate transformation");
 }
 
 bool CoordinateTransformation::transform(double& x, double& y) const
