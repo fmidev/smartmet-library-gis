@@ -5,6 +5,28 @@
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 
+#if 0
+namespace
+{
+// Reduce to [-180,180] inclusive
+double normalize_lon(double lon)
+{
+  auto tmp = fmod(lon, 360.0);
+  if (tmp > 180.0) return tmp - 360.0;
+  if (tmp < -180.0) return tmp + 360.0;
+  return tmp;
+}
+
+// Reduce to [-90,90] inclusive
+double normalize_lat(double lat)
+{
+  if (lat < -90) return -90;
+  if (lat > 90) return 90;
+  return lat;
+}
+}  // namespace
+#endif
+
 namespace Fmi
 {
 CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSource,
@@ -13,21 +35,6 @@ CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSo
       m_swapInput(theSource.isAxisSwapped()),
       m_swapOutput(theTarget.isAxisSwapped())
 {
-  if (m_transformation == nullptr)
-    throw std::runtime_error("Failed to create the requested coordinate transformation");
-}
-
-CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSource,
-                                                   const SpatialReference& theTarget,
-                                                   double theWest,
-                                                   double theSouth,
-                                                   double theEast,
-                                                   double theNorth)
-    : m_swapInput(theSource.isAxisSwapped()), m_swapOutput(theTarget.isAxisSwapped())
-{
-  OGRCoordinateTransformationOptions opts;
-  opts.SetAreaOfInterest(theWest, theSouth, theEast, theNorth);
-  m_transformation.reset(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get(), opts));
   if (m_transformation == nullptr)
     throw std::runtime_error("Failed to create the requested coordinate transformation");
 }

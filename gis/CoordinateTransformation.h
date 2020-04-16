@@ -20,15 +20,6 @@ class CoordinateTransformation
   // Handles implicit construction from strings, OGRSpatialReference etc
   CoordinateTransformation(const SpatialReference& theSource, const SpatialReference& theTarget);
 
-  // With an area of interest in [-180,180], [-90,90] coordinates, east<west when antimeridian is
-  // crossed
-  CoordinateTransformation(const SpatialReference& theSource,
-                           const SpatialReference& theTarget,
-                           double theWest,
-                           double theSouth,
-                           double theEast,
-                           double theNorth);
-
   const OGRCoordinateTransformation& operator*() const;
   OGRCoordinateTransformation* get() const;
 
