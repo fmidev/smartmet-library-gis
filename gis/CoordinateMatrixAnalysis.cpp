@@ -2,10 +2,18 @@
 #include "CoordinateMatrix.h"
 #include <boost/optional.hpp>
 
+#include <cmath>
+#include <iomanip>
+#include <iostream>
+
 namespace Fmi
 {
 namespace
 {
+// We discard any grid cell whose bbox exceeds 1000 kilometers in size
+
+const double cell_size_limit = 1000 * 1000;
+
 enum class Handedness
 {
   ClockwiseConvex,
@@ -50,7 +58,11 @@ Handedness analyze_cell(
   const auto dx = xmax - xmin;
   const auto dy = ymax - ymin;
 
-  if (dx == 0 || dy == 0) return Handedness::Invalid;  // empty cell
+  // Empty cell?
+  if (dx == 0 || dy == 0) return Handedness::Invalid;
+
+  // Huge cell? (most likely due to projection instabilities)
+  if (dx >= cell_size_limit || dy >= cell_size_limit) return Handedness::Invalid;
 
   const auto ratio = dy / dx;
 
@@ -78,7 +90,7 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
   const auto nx = coords.width();
   const auto ny = coords.height();
 
-  BoolMatrix invalid(nx - 1, ny - 1, false);
+  BoolMatrix valid(nx - 1, ny - 1, true);
   BoolMatrix clockwise(nx - 1, ny - 1, false);
 
   std::size_t cw = 0;
@@ -111,7 +123,7 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
       }
       else
       {
-        invalid.set(i, j, true);
+        valid.set(i, j, false);
         ++bad;
       }
     }
@@ -120,7 +132,7 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
 
   bool needs_flipping = (ccw > 2 * cw);
 
-  return CoordinateAnalysis{invalid, clockwise, needs_flipping};
+  return CoordinateAnalysis{valid, clockwise, needs_flipping};
 }
 
 }  // namespace Fmi
