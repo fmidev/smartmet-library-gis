@@ -574,14 +574,6 @@ void sphere_and_stere()
   double x2 = 40;
   double y2 = 70;
 
-#if GDAL_VERSION_MAJOR > 1
-  bool swap_input = (latlon->EPSGTreatsAsLatLong() || latlon->EPSGTreatsAsNorthingEasting());
-  bool swap_output = (stere->EPSGTreatsAsLatLong() || stere->EPSGTreatsAsNorthingEasting());
-#else
-  bool swap_input = false;
-  bool swap_output = false;
-#endif
-
   if (swap_input)
   {
     std::swap(x1, y1);
