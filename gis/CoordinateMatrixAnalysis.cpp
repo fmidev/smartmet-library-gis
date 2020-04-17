@@ -20,6 +20,7 @@ enum class Handedness
   CounterClockwiseConvex,
   Invalid,
   NotConvex,
+  Huge,
   Oblong
 };
 
@@ -62,7 +63,7 @@ Handedness analyze_cell(
   if (dx == 0 || dy == 0) return Handedness::Invalid;
 
   // Huge cell? (most likely due to projection instabilities)
-  if (dx >= cell_size_limit || dy >= cell_size_limit) return Handedness::Invalid;
+  if (dx >= cell_size_limit || dy >= cell_size_limit) return Handedness::Huge;
 
   const auto ratio = dy / dx;
 
@@ -97,6 +98,10 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
   std::size_t ccw = 0;
   std::size_t bad = 0;
 
+  std::size_t huge = 0;
+  std::size_t oblong = 0;
+  std::size_t notconvex = 0;
+
   // Go through the coordinates once
 
   for (std::size_t j = 0; j < ny - 1; j++)
@@ -125,12 +130,21 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
       {
         valid.set(i, j, false);
         ++bad;
+
+        if (hand == Handedness::Huge)
+          ++huge;
+        else if (hand == Handedness::Oblong)
+          ++oblong;
+        else if (hand == Handedness::NotConvex)
+          ++notconvex;
       }
     }
 
   // The coordinates are likely to be upside done if there are many more CCW cells than CW cells
 
   bool needs_flipping = (ccw > 2 * cw);
+
+  std::cout << "\nHuge: " << huge << "\nOblong: " << oblong << "\nNotConvex: " << notconvex << "\n";
 
   return CoordinateAnalysis{valid, clockwise, needs_flipping};
 }
