@@ -32,6 +32,13 @@ DEFINES = -DUNIX -D_REENTRANT
 GCC_DIAG_COLOR ?= always
 CXX_STD ?= c++11
 
+# Boost 1.69
+
+ifneq "$(wildcard /usr/include/boost169)" ""
+  INCLUDES += -I/usr/include/boost169
+  LIBS += -L/usr/lib64/boost169
+endif
+
 ifeq ($(CXX), clang++)
 
  FLAGS = \
@@ -42,13 +49,13 @@ ifeq ($(CXX), clang++)
 	-Wno-padded \
 	-Wno-missing-prototypes
 
- INCLUDES = \
+ INCLUDES += \
 	-isystem $(includedir) \
 	-isystem $(includedir)/smartmet
 
 else
 
- FLAGS = -std=$(CXX_STD) -fdiagnostics-color=$(GCC_DIAG_COLOR) -fPIC -MD -Wall -W -Wno-unused-parameter -Wnon-virtual-dtor
+ FLAGS = -std=$(CXX_STD) -fdiagnostics-color=$(GCC_DIAG_COLOR) -fPIC -MD -Wall -W -Wno-unused-parameter
 
  FLAGS_DEBUG = \
 	-Wcast-align \
@@ -58,14 +65,13 @@ else
 	-Woverloaded-virtual  \
 	-Wpointer-arith \
 	-Wcast-qual \
-	-Wredundant-decls \
 	-Wwrite-strings \
 	-Wsign-promo \
 	-Wno-inline
 
  FLAGS_RELEASE = -Wuninitialized
 
- INCLUDES = \
+ INCLUDES += \
 	-I$(includedir) \
 	-I$(includedir)/smartmet
 
@@ -85,13 +91,13 @@ CFLAGS         = $(DEFINES) $(FLAGS) $(FLAGS_RELEASE) -DNDEBUG -O2 -g
 CFLAGS_DEBUG   = $(DEFINES) $(FLAGS) $(FLAGS_DEBUG)   -Werror  -Og -g
 CFLAGS_PROFILE = $(DEFINES) $(FLAGS) $(FLAGS_PROFILE) -DNDEBUG -O2 -g -pg
 
-LIBS = -L$(libdir) \
-	-lsmartmet-macgyver \
+LIBS += -L$(libdir) \
 	-lboost_filesystem \
 	-lboost_thread \
 	-lgeos \
 	-lgdal \
 	-lfmt
+
 
 # What to install
 
