@@ -98,9 +98,11 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
   std::size_t ccw = 0;
   std::size_t bad = 0;
 
+#if 0
   std::size_t huge = 0;
   std::size_t oblong = 0;
   std::size_t notconvex = 0;
+#endif
 
   // Go through the coordinates once
 
@@ -130,21 +132,20 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
       {
         valid.set(i, j, false);
         ++bad;
-
+#if 0
         if (hand == Handedness::Huge)
           ++huge;
         else if (hand == Handedness::Oblong)
           ++oblong;
         else if (hand == Handedness::NotConvex)
           ++notconvex;
+#endif
       }
     }
 
   // The coordinates are likely to be upside done if there are many more CCW cells than CW cells
 
   bool needs_flipping = (ccw > 2 * cw);
-
-  std::cout << "\nHuge: " << huge << "\nOblong: " << oblong << "\nNotConvex: " << notconvex << "\n";
 
   return CoordinateAnalysis{valid, clockwise, needs_flipping};
 }
