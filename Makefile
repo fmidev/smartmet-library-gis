@@ -32,6 +32,13 @@ DEFINES = -DUNIX -D_REENTRANT -DUSE_UNSTABLE_GEOS_CPP_API
 GCC_DIAG_COLOR ?= always
 CXX_STD ?= c++11
 
+# Boost 1.69
+
+ifneq "$(wildcard /usr/include/boost169)" ""
+  INCLUDES += -I/usr/include/boost169
+  LIBS += -L/usr/lib64/boost169
+endif
+
 ifeq ($(CXX), clang++)
 
  FLAGS = \
@@ -42,17 +49,15 @@ ifeq ($(CXX), clang++)
 	-Wno-padded \
 	-Wno-missing-prototypes
 
- INCLUDES = \
+ INCLUDES += \
 	-isystem $(PREFIX)/gdal30/include \
 	-isystem $(PREFIX)/geos38/include \
-	-isystem $(includedir) \
-	-isystem $(includedir)/smartmet
 
 # Broken, shows /usr/include/gdal30 instead:	`pkg-config --cflags gdal30`
 
 else
 
- FLAGS = -std=$(CXX_STD) -fdiagnostics-color=$(GCC_DIAG_COLOR) -fPIC -MD -Wall -W -Wno-unused-parameter -Wnon-virtual-dtor
+ FLAGS = -std=$(CXX_STD) -fdiagnostics-color=$(GCC_DIAG_COLOR) -fPIC -MD -Wall -W -Wno-unused-parameter
 
  FLAGS_DEBUG = \
 	-Wcast-align \
@@ -62,18 +67,15 @@ else
 	-Woverloaded-virtual  \
 	-Wpointer-arith \
 	-Wcast-qual \
-	-Wredundant-decls \
 	-Wwrite-strings \
 	-Wsign-promo \
 	-Wno-inline
 
  FLAGS_RELEASE = -Wuninitialized
 
- INCLUDES = \
+ INCLUDES += \
 	-I$(PREFIX)/gdal30/include \
 	-I$(PREFIX)/geos38/include \
-	-I$(includedir) \
-	-I$(includedir)/smartmet \
 
 # Broken, shows /usr/include/gdal30 instead:	`pkg-config --cflags gdal30`
 
@@ -93,13 +95,14 @@ CFLAGS         = $(DEFINES) $(FLAGS) $(FLAGS_RELEASE) -DNDEBUG -O2 -g
 CFLAGS_DEBUG   = $(DEFINES) $(FLAGS) $(FLAGS_DEBUG)   -Werror  -Og -g
 CFLAGS_PROFILE = $(DEFINES) $(FLAGS) $(FLAGS_PROFILE) -DNDEBUG -O2 -g -pg
 
-LIBS = \
+LIBS += \
 	-L$(PREFIX)/gdal30/lib `pkg-config --libs gdal30` \
 	-L$(PREFIX)/geos38/lib64 -lgeos \
 	-L$(libdir) \
 	-lboost_filesystem \
 	-lboost_thread \
 	-lfmt
+
 
 # What to install
 

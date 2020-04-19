@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.4.15
+Version: 20.4.18
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -13,7 +13,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
-BuildRequires: boost-devel
+BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 5.2.0
 BuildRequires: gdal30-devel
 BuildRequires: geos38-devel
@@ -21,19 +21,11 @@ Requires: fmt >= 5.2.0
 Requires: gdal30-libs
 Requires: geos38
 Requires: postgis
-Requires: boost-filesystem
-Requires: boost-thread
+Requires: boost169-filesystem
+Requires: boost169-thread
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
-#TestRequires: boost-devel
-#TestRequires: fmt-devel
-#TestRequires: make
-#TestRequires: gcc-c++
-#TestRequires: gdal-devel
-#TestRequires: geos-devel
-#TestRequires: smartmet-test-data-gis
-#TestRequires: smartmet-library-regression
 
 %description
 FMI GIS library
@@ -71,6 +63,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Sat Apr 18 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.18-1.fmi
+- Removed macgyver dependency
+- Upgrade to Boost 1.69
+
 * Wed Apr 15 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.15-1.fmi
 - Added SpatialReference::hashValue()
 

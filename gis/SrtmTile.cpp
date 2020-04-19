@@ -7,7 +7,6 @@
 #include <boost/move/unique_ptr.hpp>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
-#include <macgyver/StringConversion.h>
 #include <stdexcept>
 
 using FileMapping = boost::interprocess::file_mapping;
