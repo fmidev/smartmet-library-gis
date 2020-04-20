@@ -32,34 +32,9 @@ DEFINES = -DUNIX -D_REENTRANT -DUSE_UNSTABLE_GEOS_CPP_API
 GCC_DIAG_COLOR ?= always
 CXX_STD ?= c++11
 
-# Boost 1.69
+FLAGS = -std=$(CXX_STD) -fdiagnostics-color=$(GCC_DIAG_COLOR) -fPIC -MD -Wall -W -Wno-unused-parameter
 
-ifneq "$(wildcard /usr/include/boost169)" ""
-  INCLUDES += -I/usr/include/boost169
-  LIBS += -L/usr/lib64/boost169
-endif
-
-ifeq ($(CXX), clang++)
-
- FLAGS = \
-	-std=$(CXX_STD) -fPIC -MD -fno-omit-frame-pointer \
-	-Weverything \
-	-Wno-c++98-compat \
-	-Wno-float-equal \
-	-Wno-padded \
-	-Wno-missing-prototypes
-
- INCLUDES += \
-	-isystem $(PREFIX)/gdal30/include \
-	-isystem $(PREFIX)/geos38/include \
-
-# Broken, shows /usr/include/gdal30 instead:	`pkg-config --cflags gdal30`
-
-else
-
- FLAGS = -std=$(CXX_STD) -fdiagnostics-color=$(GCC_DIAG_COLOR) -fPIC -MD -Wall -W -Wno-unused-parameter
-
- FLAGS_DEBUG = \
+FLAGS_DEBUG = \
 	-Wcast-align \
 	-Winline \
 	-Wno-multichar \
@@ -71,15 +46,7 @@ else
 	-Wsign-promo \
 	-Wno-inline
 
- FLAGS_RELEASE = -Wuninitialized
-
- INCLUDES += \
-	-I$(PREFIX)/gdal30/include \
-	-I$(PREFIX)/geos38/include \
-
-# Broken, shows /usr/include/gdal30 instead:	`pkg-config --cflags gdal30`
-
-endif
+FLAGS_RELEASE = -Wuninitialized
 
 ifeq ($(TSAN), yes)
   FLAGS += -fsanitize=thread
@@ -95,14 +62,29 @@ CFLAGS         = $(DEFINES) $(FLAGS) $(FLAGS_RELEASE) -DNDEBUG -O2 -g
 CFLAGS_DEBUG   = $(DEFINES) $(FLAGS) $(FLAGS_DEBUG)   -Werror  -Og -g
 CFLAGS_PROFILE = $(DEFINES) $(FLAGS) $(FLAGS_PROFILE) -DNDEBUG -O2 -g -pg
 
-LIBS += \
-	-L$(PREFIX)/gdal30/lib `pkg-config --libs gdal30` \
-	-L$(PREFIX)/geos38/lib64 -lgeos \
-	-L$(libdir) \
+# Special external dependencies
+
+ifneq "$(wildcard /usr/include/boost169)" ""
+  INCLUDES += -I/usr/include/boost169
+  LIBS += -L/usr/lib64/boost169
+endif
+
+ifneq "$(wildcard /usr/gdal30/include)" ""
+  INCLUDES += -I/usr/gdal30/include
+  LIBS += -L$(PREFIX)/gdal30/lib
+endif
+
+ifneq "$(wildcard /usr/geos38/include)" ""
+  INCLUDES += -I/usr/geos38/include
+  LIBS += -L$(PREFIX)/geos38/lib64
+endif
+
+LIBS += -L$(libdir) \
 	-lboost_filesystem \
 	-lboost_thread \
+	-lgdal \
+	-lgeos \
 	-lfmt
-
 
 # What to install
 

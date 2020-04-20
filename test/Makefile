@@ -37,7 +37,7 @@ INCLUDES += \
 	-I/usr/geos38/include \
 	-I/usr/include/smartmet
 
-LIBS = \
+LIBS += \
 	../libsmartmet-gis.so \
 	-L/usr/gdal30/lib `pkg-config --libs gdal30` \
 	-L/usr/geos38/lib64 -lgeos \
