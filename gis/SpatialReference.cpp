@@ -113,7 +113,7 @@ class SpatialReference::Impl
  public:
   ~Impl() { delete m_crs; }
 
-  Impl(const Impl &other) : m_projStr(other.m_projStr), m_crs(other.m_crs)
+  Impl(const Impl &other) : m_projStr(other.m_projStr), m_crs(other.m_crs->Clone())
   {
     m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
   }
