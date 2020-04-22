@@ -108,49 +108,66 @@ std::unique_ptr<OGRSpatialReference> make_crs(std::string theDesc)
 
 }  // namespace
 
-SpatialReference::~SpatialReference() { delete m_crs; }
-
-SpatialReference::SpatialReference(const SpatialReference &other)
-    : m_projStr(other.m_projStr), m_crs(other.m_crs->Clone())
+class SpatialReference::Impl
 {
-  m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+ public:
+  ~Impl() { delete m_crs; }
+
+  Impl(const Impl &other) : m_projStr(other.m_projStr), m_crs(other.m_crs)
+  {
+    m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+  }
+
+  explicit Impl(const OGRSpatialReference &other) : m_crs(other.Clone())
+  {
+    m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+  }
+  explicit Impl(OGRSpatialReference &other) : m_crs(other.Clone())
+  {
+    m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+  }
+
+  explicit Impl(const std::string &theCRS) : m_projStr(theCRS)
+  {
+    m_crs = make_crs(theCRS).release();
+    m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+  }
+
+  explicit Impl(int epsg)
+  {
+    m_crs = new OGRSpatialReference();
+    auto err = m_crs->importFromEPSGA(epsg);
+    if (err != OGRERR_NONE) throw std::runtime_error(fmt::format("Unknown EPSG {}", epsg));
+    m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+  }
+
+  std::string m_projStr;  // set only if initialized from a string
+  OGRSpatialReference *m_crs = nullptr;
+};  // class Impl
+
+SpatialReference::~SpatialReference() = default;
+
+SpatialReference::SpatialReference(const SpatialReference &other) : impl(new Impl(*other.impl))
+{
+  impl->m_projStr = other.impl->m_projStr;
 }
 
-SpatialReference::SpatialReference(const OGRSpatialReference &other)
-    : m_projStr(), m_crs(other.Clone())
-{
-  m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-}
+SpatialReference::SpatialReference(const OGRSpatialReference &other) : impl(new Impl(other)) {}
 
-SpatialReference::SpatialReference(OGRSpatialReference &other) : m_projStr(), m_crs(other.Clone())
-{
-}
+SpatialReference::SpatialReference(OGRSpatialReference &other) : impl(new Impl(other)) {}
 
-SpatialReference::SpatialReference(const char *theCRS) { init(theCRS); }
+SpatialReference::SpatialReference(const char *theCRS) : impl(new Impl(std::string(theCRS))) {}
 
-SpatialReference::SpatialReference(const std::string &theCRS) { init(theCRS); }
+SpatialReference::SpatialReference(const std::string &theCRS) : impl(new Impl(theCRS)) {}
 
-void SpatialReference::init(const std::string &theCRS)
-{
-  m_projStr = theCRS;
-  m_crs = make_crs(theCRS).release();
-  m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-}
+SpatialReference::SpatialReference(int epsg) : impl(new Impl(epsg)) {}
 
-SpatialReference::SpatialReference(int epsg)
-{
-  m_crs = new OGRSpatialReference();
-  auto err = m_crs->importFromEPSGA(epsg);
-  if (err != OGRERR_NONE) throw std::runtime_error(fmt::format("Unknown EPSG {}", epsg));
-  m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-}
-
-bool SpatialReference::isGeographic() const { return m_crs->IsGeographic() != 0; }
+bool SpatialReference::isGeographic() const { return impl->m_crs->IsGeographic() != 0; }
 
 bool SpatialReference::isAxisSwapped() const
 {
 #if GDAL_VERSION_MAJOR > 1
-  return (m_crs->EPSGTreatsAsLatLong() || m_crs->EPSGTreatsAsNorthingEasting());
+  return (impl->m_crs->EPSGTreatsAsLatLong() || impl->m_crs->EPSGTreatsAsNorthingEasting());
 #else
   // GDAL1 does not seem to obey EPSGA flags at all
   return false;
@@ -159,8 +176,16 @@ bool SpatialReference::isAxisSwapped() const
 
 std::size_t SpatialReference::hashValue() const
 {
-  auto wkt = OGR::exportToWkt(*m_crs);
+  auto wkt = OGR::exportToWkt(*impl->m_crs);
   return boost::hash_value(wkt);
 }
+
+const OGRSpatialReference &SpatialReference::operator*() const { return *impl->m_crs; }
+OGRSpatialReference *SpatialReference::get() const { return impl->m_crs; }
+
+SpatialReference::operator OGRSpatialReference &() const { return *impl->m_crs; }
+SpatialReference::operator OGRSpatialReference *() const { return impl->m_crs; }
+
+const std::string &SpatialReference::projStr() const { return impl->m_projStr; }
 
 }  // namespace Fmi

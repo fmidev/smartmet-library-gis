@@ -28,11 +28,11 @@ class SpatialReference
 
   // Excplicit and implicit accessors
 
-  const OGRSpatialReference &operator*() const { return *m_crs; }
-  OGRSpatialReference *get() const { return m_crs; }
+  const OGRSpatialReference &operator*() const;
+  OGRSpatialReference *get() const;
 
-  operator OGRSpatialReference &() const { return *m_crs; }
-  operator OGRSpatialReference *() const { return m_crs; }
+  operator OGRSpatialReference &() const;
+  operator OGRSpatialReference *() const;
 
   // Common accessors
   bool isAxisSwapped() const;
@@ -41,13 +41,11 @@ class SpatialReference
   std::size_t hashValue() const;
 
   // This is mostly for debugging
-  const std::string &projStr() const { return m_projStr; }
+  const std::string &projStr() const;
 
  private:
-  void init(const std::string &theCRS);
-
-  std::string m_projStr;  // set only if initialized from a string
-  OGRSpatialReference *m_crs = nullptr;
+  class Impl;
+  std::unique_ptr<Impl> impl;
 };
 
 }  // namespace Fmi

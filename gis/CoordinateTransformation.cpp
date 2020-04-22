@@ -5,6 +5,12 @@
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 
+// So far we've had no data with axes swapped since we force axis orientation in all constructors.
+// This might change when using external sources for spatial references, then we'll need to put this
+// flag on.
+
+#define CHECK_AXES 0
+
 #if 0
 namespace
 {
@@ -29,21 +35,39 @@ double normalize_lat(double lat)
 
 namespace Fmi
 {
+class CoordinateTransformation::Impl
+{
+ public:
+  ~Impl() = default;
+  Impl() = delete;
+
+  Impl(const SpatialReference& theSource, const SpatialReference& theTarget)
+      : m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get())),
+        m_swapInput(theSource.isAxisSwapped()),
+        m_swapOutput(theTarget.isAxisSwapped())
+  {
+    if (m_transformation == nullptr)
+      throw std::runtime_error("Failed to create the requested coordinate transformation");
+  }
+
+  std::shared_ptr<OGRCoordinateTransformation> m_transformation;
+  bool m_swapInput = false;   // swap xy before calling GDAL?
+  bool m_swapOutput = false;  // swap xy after calling GDAL?
+};
+
 CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSource,
                                                    const SpatialReference& theTarget)
-    : m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get())),
-      m_swapInput(theSource.isAxisSwapped()),
-      m_swapOutput(theTarget.isAxisSwapped())
+    : impl(new Impl(theSource, theTarget))
 {
-  if (m_transformation == nullptr)
-    throw std::runtime_error("Failed to create the requested coordinate transformation");
 }
 
 bool CoordinateTransformation::transform(double& x, double& y) const
 {
-  // if (m_swapInput) std::swap(x, y);
+#if CHECK_AXES
+  if (impl->m_swapInput) std::swap(x, y);
+#endif
 
-  bool ok = (m_transformation->Transform(1, &x, &y) != 0);
+  bool ok = (impl->m_transformation->Transform(1, &x, &y) != 0);
 
   if (!ok)
   {
@@ -52,7 +76,7 @@ bool CoordinateTransformation::transform(double& x, double& y) const
     return false;
   }
 
-  // if (m_swapOutput) std::swap(x, y);
+  // if (impl->m_swapOutput) std::swap(x, y);
   return true;
 }
 
@@ -65,14 +89,18 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
     throw std::runtime_error(
         "Cannot do coordinate transformation for empty X- and Y-coordinate vectors");
 
-  // if (m_swapInput) std::swap(x, y);
+#if CHECK_AXES
+  if (impl->m_swapInput) std::swap(x, y);
+#endif
 
   int n = static_cast<int>(x.size());
   std::vector<int> flags(n, 0);
 
-  bool ok = (m_transformation->Transform(n, &x[0], &y[0], nullptr, &flags[0]) != 0);
+  bool ok = (impl->m_transformation->Transform(n, &x[0], &y[0], nullptr, &flags[0]) != 0);
 
-  // if (m_swapOutput) std::swap(x, y);
+#if CHECK_AXES
+  if (impl->m_swapOutput) std::swap(x, y);
+#endif
 
   for (std::size_t i = 0; i < flags.size(); i++)
   {
@@ -88,32 +116,36 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
 
 bool CoordinateTransformation::transform(OGRGeometry& geom) const
 {
-  // if (m_swapInput) geom.swapXY();
+#if CHECK_AXES
+  if (impl->m_swapInput) geom.swapXY();
+#endif
 
-  bool ok = (geom.transform(m_transformation.get()) != OGRERR_NONE);
+  bool ok = (geom.transform(impl->m_transformation.get()) != OGRERR_NONE);
 
-  // if (ok && m_swapOutput) geom.swapXY();
+#if CHECK_AXES
+  if (ok && impl->m_swapOutput) geom.swapXY();
+#endif
 
   return ok;
 }
 
 const OGRSpatialReference& CoordinateTransformation::getSourceCS() const
 {
-  return *m_transformation->GetSourceCS();
+  return *impl->m_transformation->GetSourceCS();
 }
 
 const OGRSpatialReference& CoordinateTransformation::getTargetCS() const
 {
-  return *m_transformation->GetTargetCS();
+  return *impl->m_transformation->GetTargetCS();
 }
 
 const OGRCoordinateTransformation& CoordinateTransformation::operator*() const
 {
-  return *m_transformation;
+  return *impl->m_transformation;
 }
 
 OGRCoordinateTransformation* CoordinateTransformation::get() const
 {
-  return m_transformation.get();
+  return impl->m_transformation.get();
 }
 }  // namespace Fmi

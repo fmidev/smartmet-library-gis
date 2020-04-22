@@ -31,10 +31,8 @@ class CoordinateTransformation
   const OGRSpatialReference& getTargetCS() const;
 
  private:
-  std::shared_ptr<OGRCoordinateTransformation> m_transformation;
-
-  bool m_swapInput = false;   // swap xy before calling GDAL?
-  bool m_swapOutput = false;  // swap xy after calling GDAL?
+  class Impl;
+  std::shared_ptr<Impl> impl;
 
 };  // class CoordinateTransformation
 
