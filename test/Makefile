@@ -24,23 +24,34 @@ endif
 CXX = g++
 CFLAGS = -DUNIX -O0 -g $(FLAGS) -Wno-write-strings
 
-# Boost 1.69
+# Special external dependencies
 
 ifneq "$(wildcard /usr/include/boost169)" ""
   INCLUDES += -I/usr/include/boost169
   LIBS += -L/usr/lib64/boost169
 endif
 
+ifneq "$(wildcard /usr/gdal30/include)" ""
+  INCLUDES += -I/usr/gdal30/include
+  LIBS += -L/usr/gdal30/lib
+else
+  INCLUDES += -I/usr/include/gdal
+endif
+
+ifneq "$(wildcard /usr/geos38/include)" ""
+  INCLUDES += -I/usr/geos38/include
+  LIBS += -L/usr/geos38/lib64
+else
+  INCLUDES += -I/usr/include/geos
+endif
+
 INCLUDES += \
 	-I../gis \
-	-I/usr/gdal30/include \
-	-I/usr/geos38/include \
 	-I/usr/include/smartmet
 
 LIBS += \
 	../libsmartmet-gis.so \
-	-L/usr/gdal30/lib `pkg-config --libs gdal30` \
-	-L/usr/geos38/lib64 -lgeos \
+	-lgdal -lgeos \
 	-lboost_filesystem \
 	-lfmt
 

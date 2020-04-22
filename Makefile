@@ -71,13 +71,18 @@ endif
 
 ifneq "$(wildcard /usr/gdal30/include)" ""
   INCLUDES += -I/usr/gdal30/include
-  LIBS += -L$(PREFIX)/gdal30/lib
+  LIBS += -L/usr/gdal30/lib
+else
+  INCLUDES += -I/usr/include/gdal
 endif
 
 ifneq "$(wildcard /usr/geos38/include)" ""
   INCLUDES += -I/usr/geos38/include
-  LIBS += -L$(PREFIX)/geos38/lib64
+  LIBS += -L/usr/geos38/lib64
+else
+  INCLUDES += -I/usr/include/geos
 endif
+
 
 LIBS += -L$(libdir) \
 	-lboost_filesystem \
