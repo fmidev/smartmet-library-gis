@@ -31,10 +31,17 @@ ifneq "$(wildcard /usr/include/boost169)" ""
   LIBS += -L/usr/lib64/boost169
 endif
 
+ifneq "$(wildcard /usr/gdal30/include)" ""
+  INCLUDES += -I/usr/gdal30/include
+  LIBS += -L$(PREFIX)/gdal30/lib
+else
+  INCLUDES += -I/usr/include/gdal
+endif
+
+
 INCLUDES += \
 	-I../gis \
-	-I/usr/include/smartmet \
-	-I/usr/include/gdal
+	-I/usr/include/smartmet
 
 LIBS += ../libsmartmet-gis.so -lboost_filesystem -lgeos -lgdal -lfmt
 
@@ -55,7 +62,7 @@ test: $(PROG)
 	  ( ./$$prog || touch $$prog.err ) ; \
 	done
 	@test `find . -name \*.err | wc -l` = "0" || ( echo ; echo "The following tests have errors:" ; \
-		for i in *.err ; do echo `basename $$i .err`; done ; rm -f *.err ; false ) 
+		for i in *.err ; do echo `basename $$i .err`; done ; rm -f *.err ; false )
 
 $(PROG) : % : %.cpp ../libsmartmet-gis.so Makefile TestDefs.h
 	$(CXX) $(CFLAGS) -DGIS_VIEWFINDER=\"$(GIS_VIEWFINDER)\" -DGIS_GLOBCOVER=\"$(GIS_GLOBCOVER)\" -DGIS_SMALLTESTDATA=$(GIS_SMALLTESTDATA) -o $@ $@.cpp $(INCLUDES) $(LIBS)
