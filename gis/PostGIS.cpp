@@ -75,9 +75,20 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       OGRGeometry* geometry = feature->GetGeometryRef();
       if (geometry != nullptr)
       {
-        auto* clone = geometry->clone();
-        transformation.transform(*clone);
-        out->addGeometryDirectly(clone);  // takes ownership
+#if 1
+        auto* newgeom = geometry->clone();
+        transformation.transform(*newgeom);
+#else
+        // This one timeouts WMS ice.get tests:
+        // const char* const opts[] = {"WRAPDATELINE=YES", nullptr};
+
+        // This one timeouts the same this:
+        // const char* const opts[] = {nullptr};
+
+        auto* newgeom = OGRGeometryFactory::transformWithOptions(
+            geometry, transformation.get(), const_cast<char**>(opts));
+#endif
+        out->addGeometryDirectly(newgeom);  // takes ownership
       }
     }
   }
