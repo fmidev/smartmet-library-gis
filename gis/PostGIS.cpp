@@ -179,14 +179,16 @@ Features read(const Fmi::SpatialReference* theSR,
         case OFTInteger:
           ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsInteger(iField)));
           break;
+        case OFTInteger64:
+          ret_item->attributes.insert(
+              make_pair(fieldname, static_cast<int>(feature->GetFieldAsInteger64(iField))));
+          break;
         case OFTReal:
           ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsDouble(iField)));
           break;
         case OFTString:
-        {
           ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsString(iField)));
-        }
-        break;
+          break;
         case OFTDateTime:
         {
           int year, month, day, hour, min, sec, tzFlag;
@@ -195,15 +197,14 @@ Features read(const Fmi::SpatialReference* theSR,
                                              boost::posix_time::time_duration(hour, min, sec));
 
           ret_item->attributes.insert(make_pair(fieldname, timestamp));
+          break;
         }
-        break;
         default:
           break;
       };
+      ret.push_back(ret_item);
     }
     OGRFeature::DestroyFeature(feature);
-
-    ret.push_back(ret_item);
   }
 
   return ret;
