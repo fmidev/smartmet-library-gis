@@ -2,14 +2,91 @@
 
 #include "PostGIS.h"
 #include "CoordinateTransformation.h"
+#include "OGR.h"
+#include "SpatialReference.h"
 #include <gdal_version.h>
 #include <iostream>
-#include <ogr_spatialref.h>
 #include <ogrsf_frmts.h>
 #include <stdexcept>
 
 namespace Fmi
 {
+#if 0
+void print_orientation(OGRGeometry& geom);
+
+void print_orientation(OGRLinearRing& geom)
+{
+  if (geom.isClockwise())
+    std::cout << " linearring is CW\n";
+  else
+    std::cout << " linearring is CCW\n";
+}
+
+void print_orientation(OGRPolygon& geom)
+{
+  if (geom.IsEmpty()) return;
+  std::cout << "Polygon exterior ";
+  print_orientation(*geom.getExteriorRing());
+  std::cout << "\tNumber of holes: " << geom.getNumInteriorRings() << "\n";
+  for (int i = 0, n = geom.getNumInteriorRings(); i < n; ++i)
+  {
+    std::cout << "\thole " << i << " ";
+    print_orientation(*geom.getInteriorRing(i));
+  }
+}
+
+void print_orientation(OGRMultiPolygon& geom)
+{
+  if (geom.IsEmpty()) return;
+  for (int i = 0, n = geom.getNumGeometries(); i < n; ++i)
+  {
+    std::cout << "Multipolygon:\n";
+    print_orientation(dynamic_cast<OGRPolygon&>(*geom.getGeometryRef(i)));
+  }
+}
+
+void print_orientation(OGRGeometryCollection& geom)
+{
+  if (geom.IsEmpty()) return;
+  for (int i = 0, n = geom.getNumGeometries(); i < n; ++i)
+  {
+    std::cout << "Collection:\n";
+    print_orientation(*geom.getGeometryRef(i));
+  }
+}
+
+void print_orientation(OGRGeometry& geom)
+{
+  OGRwkbGeometryType id = geom.getGeometryType();
+
+  switch (id)
+  {
+    case wkbPoint:
+    case wkbPoint25D:
+    case wkbLineString:
+    case wkbLineString25D:
+    case wkbMultiPoint:
+    case wkbMultiPoint25D:
+    case wkbMultiLineString:
+    case wkbMultiLineString25D:
+      break;
+    case wkbLinearRing:
+      return print_orientation(dynamic_cast<OGRLinearRing&>(geom));
+    case wkbPolygon:
+    case wkbPolygon25D:
+      return print_orientation(dynamic_cast<OGRPolygon&>(geom));
+    case wkbMultiPolygon:
+    case wkbMultiPolygon25D:
+      return print_orientation(dynamic_cast<OGRMultiPolygon&>(geom));
+    case wkbGeometryCollection:
+    case wkbGeometryCollection25D:
+      return print_orientation(dynamic_cast<OGRGeometryCollection&>(geom));
+    default:
+      throw std::runtime_error("FOOBAR");
+  }
+}
+#endif
+
 namespace PostGIS
 {
 // ----------------------------------------------------------------------
@@ -76,8 +153,11 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       if (geometry != nullptr)
       {
 #if 1
-        auto* newgeom = geometry->clone();
-        transformation.transform(*newgeom);
+        auto* tmpgeom = geometry->clone();
+        OGR::normalizeWindingOrder(*tmpgeom);
+        transformation.transform(*tmpgeom);
+        auto* newgeom = OGR::renormalizeWindingOrder(*tmpgeom);
+        CPLFree(tmpgeom);
 #else
         // This one timeouts WMS ice.get tests:
         // const char* const opts[] = {"WRAPDATELINE=YES", nullptr};
@@ -159,8 +239,11 @@ Features read(const Fmi::SpatialReference* theSR,
         ret_item->geom.reset(clone);
       else
       {
+        OGR::normalizeWindingOrder(*clone);
         transformation->transform(*clone);
-        ret_item->geom.reset(clone);
+        auto* newgeom = OGR::renormalizeWindingOrder(*clone);
+        CPLFree(clone);
+        ret_item->geom.reset(newgeom);
         // Note: We clone the input SR since we have no lifetime guarantees for it
         ret_item->geom->assignSpatialReference(theSR->get()->Clone());
       }
