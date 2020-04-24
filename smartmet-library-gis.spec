@@ -65,6 +65,7 @@ FMI GIS library development files
 %changelog
 * Thu Apr 23 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.23-1.fmi
 - Fixed PostGIS::read to handle attributes of type Integer64
+- Added OGR::normalizeWindingOrder and OGR::renormalizeWindingOrder
 
 * Wed Apr 22 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.20-1.fmi
 - Hide implementation details of SpatialReference and CoordinateTransformation
