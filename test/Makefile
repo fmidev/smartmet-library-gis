@@ -24,12 +24,19 @@ endif
 CXX = g++
 CFLAGS = -DUNIX -O0 -g $(FLAGS) -Wno-write-strings
 
-INCLUDES = \
+# Boost 1.69
+
+ifneq "$(wildcard /usr/include/boost169)" ""
+  INCLUDES += -I/usr/include/boost169
+  LIBS += -L/usr/lib64/boost169
+endif
+
+INCLUDES += \
 	-I../gis \
 	-I/usr/include/smartmet \
 	-I/usr/include/gdal
 
-LIBS = ../libsmartmet-gis.so -lboost_filesystem -lgeos -lgdal -lfmt
+LIBS += ../libsmartmet-gis.so -lboost_filesystem -lgeos -lgdal -lfmt
 
 # Testdata directories
 GIS_RASTERS_DIR = $(shell test -d /usr/share/smartmet/test/data/gis/rasters && echo /usr/share/smartmet/test/data/gis/rasters || echo /smartmet/share/gis/rasters )
