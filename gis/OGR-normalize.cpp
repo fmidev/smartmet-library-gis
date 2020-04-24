@@ -4,21 +4,8 @@
 
 namespace
 {
-void normalize_winding(OGRGeometry *theGeom);
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Handle LinearRing
- */
-// ----------------------------------------------------------------------
-
-void normalize_winding(OGRLinearRing *theGeom, bool cw)
-{
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
-
-  bool is_cw = theGeom->isClockwise();
-  if (cw ^ is_cw) theGeom->reverseWindingOrder();
-}
+// Forward declaration needed since two functions call each other
+OGRGeometry *normalize_winding(const OGRGeometry *theGeom);
 
 // ----------------------------------------------------------------------
 /*!
@@ -26,14 +13,26 @@ void normalize_winding(OGRLinearRing *theGeom, bool cw)
  */
 // ----------------------------------------------------------------------
 
-void normalize_winding(OGRPolygon *theGeom)
+OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
 
-  normalize_winding(theGeom->getExteriorRing(), true);
+  auto *out = new OGRPolygon;
 
-  for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
-    normalize_winding(theGeom->getInteriorRing(i), false);
+  auto *exterior = dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone());
+
+  if (!exterior->isClockwise()) exterior->reverseWindingOrder();
+
+  out->addRingDirectly(exterior);
+
+  for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; i++)
+  {
+    auto *geom = dynamic_cast<OGRLinearRing *>(theGeom->getInteriorRing(i)->clone());
+    if (geom->isClockwise()) geom->reverseWindingOrder();
+    out->addRingDirectly(geom);
+  }
+
+  return out;
 }
 
 // ----------------------------------------------------------------------
@@ -42,12 +41,18 @@ void normalize_winding(OGRPolygon *theGeom)
  */
 // ----------------------------------------------------------------------
 
-void normalize_winding(OGRMultiPolygon *theGeom)
+OGRMultiPolygon *normalize_winding(const OGRMultiPolygon *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+
+  auto *out = new OGRMultiPolygon();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
-    normalize_winding(theGeom->getGeometryRef(i));
+  {
+    auto *geom = normalize_winding(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
+    if (geom != nullptr) out->addGeometryDirectly(geom);
+  }
+  return out;
 }
 
 // ----------------------------------------------------------------------
@@ -56,12 +61,18 @@ void normalize_winding(OGRMultiPolygon *theGeom)
  */
 // ----------------------------------------------------------------------
 
-void normalize_winding(OGRGeometryCollection *theGeom)
+OGRGeometryCollection *normalize_winding(const OGRGeometryCollection *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+
+  auto *out = new OGRGeometryCollection();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
-    normalize_winding(theGeom->getGeometryRef(i));
+  {
+    auto *geom = normalize_winding(theGeom->getGeometryRef(i));
+    if (geom != nullptr) out->addGeometryDirectly(geom);
+  }
+  return out;
 }
 
 // ----------------------------------------------------------------------
@@ -70,9 +81,9 @@ void normalize_winding(OGRGeometryCollection *theGeom)
  */
 // ----------------------------------------------------------------------
 
-void normalize_winding(OGRGeometry *theGeom)
+OGRGeometry *normalize_winding(const OGRGeometry *theGeom)
 {
-  if (theGeom == nullptr) return;
+  if (theGeom == nullptr) return nullptr;
 
   OGRwkbGeometryType id = theGeom->getGeometryType();
 
@@ -82,33 +93,42 @@ void normalize_winding(OGRGeometry *theGeom)
     case wkbMultiPoint:
     case wkbMultiLineString:
     case wkbLineString:
-      break;
-    case wkbLinearRing:
-      return normalize_winding(dynamic_cast<OGRLinearRing *>(theGeom));
+      return theGeom->clone();
     case wkbPolygon:
-      return normalize_winding(dynamic_cast<OGRPolygon *>(theGeom));
+      return normalize_winding(dynamic_cast<const OGRPolygon *>(theGeom));
     case wkbMultiPolygon:
-      return normalize_winding(dynamic_cast<OGRMultiPolygon *>(theGeom));
+      return normalize_winding(dynamic_cast<const OGRMultiPolygon *>(theGeom));
     case wkbGeometryCollection:
-      return normalize_winding(dynamic_cast<OGRGeometryCollection *>(theGeom));
+      return normalize_winding(dynamic_cast<const OGRGeometryCollection *>(theGeom));
 
     case wkbNone:
       throw std::runtime_error(
-          "Encountered a 'none' geometry component while normalizing winding order of an OGR "
+          "Encountered a 'none' geometry component while changing winding order of an OGR "
           "geometry");
     default:
       throw std::runtime_error(
-          "Encountered an unknown geometry component while normalizing winding order of an OGR "
+          "Encountered an unknown geometry component while changing winding order of an OGR "
           "geometry");
   }
+
+  // NOT REACHED
+  return nullptr;
 }
 
 }  // namespace
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Normalize winding order to exterior=CW, interior=CCW
+ * \brief Normalize the winding order
  */
 // ----------------------------------------------------------------------
 
-void Fmi::OGR::normalizeWindingOrder(OGRGeometry &theGeom) { normalize_winding(&theGeom); }
+OGRGeometry *Fmi::OGR::normalizeWindingOrder(const OGRGeometry &theGeom)
+{
+  auto *geom = normalize_winding(&theGeom);
+
+  if (geom != nullptr)
+    geom->assignSpatialReference(theGeom.getSpatialReference());  // SR is ref. counter
+
+  return geom;
+}

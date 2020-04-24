@@ -153,11 +153,10 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       if (geometry != nullptr)
       {
 #if 1
-        auto* tmpgeom = geometry->clone();
-        OGR::normalizeWindingOrder(*tmpgeom);
-        transformation.transform(*tmpgeom);
-        auto* newgeom = OGR::renormalizeWindingOrder(*tmpgeom);
-        CPLFree(tmpgeom);
+        auto* clone2 = OGR::normalizeWindingOrder(*geometry);
+        transformation.transform(*clone2);
+        auto* clone = OGR::renormalizeWindingOrder(*clone2);
+        CPLFree(clone2);
 #else
         // This one timeouts WMS ice.get tests:
         // const char* const opts[] = {"WRAPDATELINE=YES", nullptr};
@@ -165,10 +164,10 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
         // This one timeouts the same this:
         // const char* const opts[] = {nullptr};
 
-        auto* newgeom = OGRGeometryFactory::transformWithOptions(
+        auto* clone = OGRGeometryFactory::transformWithOptions(
             geometry, transformation.get(), const_cast<char**>(opts));
 #endif
-        out->addGeometryDirectly(newgeom);  // takes ownership
+        out->addGeometryDirectly(clone);  // takes ownership
       }
     }
   }
@@ -234,16 +233,18 @@ Features read(const Fmi::SpatialReference* theSR,
     OGRGeometry* geometry = feature->GetGeometryRef();
     if (geometry != nullptr)
     {
-      auto* clone = geometry->clone();
       if (transformation == nullptr)
+      {
+        auto* clone = geometry->clone();
         ret_item->geom.reset(clone);
+      }
       else
       {
-        OGR::normalizeWindingOrder(*clone);
-        transformation->transform(*clone);
-        auto* newgeom = OGR::renormalizeWindingOrder(*clone);
-        CPLFree(clone);
-        ret_item->geom.reset(newgeom);
+        auto* clone2 = OGR::normalizeWindingOrder(*geometry);
+        transformation->transform(*clone2);
+        auto* clone = OGR::renormalizeWindingOrder(*clone2);
+        CPLFree(clone2);
+        ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
         ret_item->geom->assignSpatialReference(theSR->get()->Clone());
       }

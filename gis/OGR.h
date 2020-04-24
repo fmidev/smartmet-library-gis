@@ -49,7 +49,7 @@ OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox);
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);
 
 // Normalize winding order: exterior=CW, interior=CCW
-void normalizeWindingOrder(OGRGeometry& theGeom);
+OGRGeometry* normalizeWindingOrder(const OGRGeometry& theGeom);
 
 // Renormalize winding order after a coordinate transformation - some rings may have reverted order
 OGRGeometry* renormalizeWindingOrder(const OGRGeometry& theGeom);
