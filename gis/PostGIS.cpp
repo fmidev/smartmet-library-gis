@@ -129,7 +129,14 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
   if (theSR == nullptr)
   {
     layer->GetSpatialRef()->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-    out->assignSpatialReference(layer->GetSpatialRef());
+    if (layer->GetSpatialRef() == nullptr)
+    {
+      auto* wgs84 = new OGRSpatialReference();
+      wgs84->SetFromUserInput("WGS84");
+      out->assignSpatialReference(wgs84);
+    }
+    else
+      out->assignSpatialReference(layer->GetSpatialRef());
 
     layer->ResetReading();
     while ((feature = layer->GetNextFeature()) != nullptr)
@@ -141,8 +148,13 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
   }
   else
   {
-    SpatialReference source(*layer->GetSpatialRef());
-    CoordinateTransformation transformation(source, *theSR);
+    std::unique_ptr<SpatialReference> source;
+    if (layer->GetSpatialRef() == nullptr)
+      source.reset(new SpatialReference("WGS84"));
+    else
+      source.reset(new SpatialReference(*layer->GetSpatialRef()));
+
+    CoordinateTransformation transformation(*source, *theSR);
     out->assignSpatialReference(theSR->get()->Clone());
 
     layer->ResetReading();
@@ -218,8 +230,13 @@ Features read(const Fmi::SpatialReference* theSR,
   std::unique_ptr<CoordinateTransformation> transformation;
 
   if (theSR != nullptr)
-    transformation.reset(
-        new CoordinateTransformation(SpatialReference(*layer->GetSpatialRef()), *theSR));
+  {
+    if (layer->GetSpatialRef() == nullptr)
+      transformation.reset(new CoordinateTransformation(SpatialReference("WGS84"), *theSR));
+    else
+      transformation.reset(
+          new CoordinateTransformation(SpatialReference(*layer->GetSpatialRef()), *theSR));
+  }
 
   // This is owned by us
 
