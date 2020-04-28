@@ -167,6 +167,11 @@ bool SpatialReference::isGeographic() const { return impl->m_crs->IsGeographic()
 bool SpatialReference::isAxisSwapped() const
 {
 #if GDAL_VERSION_MAJOR > 1
+  auto strategy = impl->m_crs->GetAxisMappingStrategy();
+  if (strategy == OAMS_TRADITIONAL_GIS_ORDER) return false;
+  if (strategy == OAMS_CUSTOM) return false;  // Don't really know what to do in this case
+  if (strategy != OAMS_AUTHORITY_COMPLIANT) return false;  // Unknown case
+
   return (impl->m_crs->EPSGTreatsAsLatLong() || impl->m_crs->EPSGTreatsAsNorthingEasting());
 #else
   // GDAL1 does not seem to obey EPSGA flags at all
