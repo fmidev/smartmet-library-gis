@@ -31,11 +31,11 @@ class CoordinateMatrix
 
   // data setters are normally not needed, constructing a 1D array of station coordinates
   // is likely the only exception
-  void set(std::size_t i, std::size_t j, double x, double y)
+  void set(std::size_t i, std::size_t j, double xx, double yy)
   {
     const auto pos = i + j * m_width;
-    m_x[pos] = x;
-    m_y[pos] = y;
+    m_x[pos] = xx;
+    m_y[pos] = yy;
   }
 
   void set(std::size_t i, std::size_t j, const std::pair<double, double>& xy)
