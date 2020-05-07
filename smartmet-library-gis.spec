@@ -32,6 +32,8 @@ Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 #TestRequires: gcc-c++
 #TestRequires: smartmet-library-regression
 #TestRequires: boost169-devel
+#TestRequires: gdal-devel
+#Testrequires: fmt
 
 %description
 FMI GIS library
