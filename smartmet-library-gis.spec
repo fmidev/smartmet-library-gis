@@ -33,7 +33,7 @@ Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 #TestRequires: smartmet-library-regression
 #TestRequires: boost169-devel
 #TestRequires: gdal-devel
-#Testrequires: fmt
+#TestRequires: fmt
 
 %description
 FMI GIS library
