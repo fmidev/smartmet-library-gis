@@ -58,9 +58,11 @@ clean:
 test: $(PROG)
 	@echo Running tests:
 	@echo
-	@echo Using $GIS_RASTERS_DIR for rasterdata
+	@echo Using $(GIS_RASTERS_DIR) for rasterdata
 	@echo test-data installation:
 	@ls -lR /usr/share/smartmet/test/data/gis/rasters
+	@echo Package contents:
+	@rpm -ql smartmet-test-data
 	@rm -f *.err
 	@for prog in $(PROG); do \
 	  ( ./$$prog || touch $$prog.err ) ; \
