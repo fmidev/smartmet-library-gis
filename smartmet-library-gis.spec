@@ -28,6 +28,9 @@ Requires: boost169-thread
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
+#TestRequires: make
+#TestRequires: gcc-c++
+#TestRequires: smartmet-library-regression
 
 %description
 FMI GIS library
