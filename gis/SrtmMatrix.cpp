@@ -2,6 +2,8 @@
 #include "SrtmTile.h"
 #include <limits>
 #include <vector>
+#include <stdexcept>
+#include <algorithm>
 
 namespace Fmi
 {
