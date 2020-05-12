@@ -46,36 +46,34 @@ void elevation()
   if (value != expected)
     TEST_FAILED("Expected elevation " + expected + " at Helsinki, not " + value);
 
-    // Ruka
-#if GIS_SMALLTESTDATA == 1
-  expected = "0.0";
-#else
+  // Ruka
   expected = "449.0";
-#endif
   value = tostr(dem.elevation(29.1507, 66.1677));
   if (value != expected) TEST_FAILED("Expected elevation " + expected + " at Ruka, not " + value);
 
     // Matterhorn
 #if GIS_SMALLTESTDATA == 0
   expected = "4458.0";
-#endif
   value = tostr(dem.elevation(7.6583, 45.9764));
   if (value != expected)
     TEST_FAILED("Expected elevation " + expected + " at Matterhorn, not " + value);
+#endif
 
     // South pole
 #if GIS_SMALLTESTDATA == 0
   expected = "2771.0";
-#endif
   value = tostr(dem.elevation(0, -90));
   if (value != expected)
     TEST_FAILED("Expected elevation " + expected + " at South Pole, not " + value);
+#endif
 
-  // North pole
+    // North pole
+#if GIS_SMALLTESTDATA == 0
   expected = "0.0";
   value = tostr(dem.elevation(0, 90));
   if (value != expected)
     TEST_FAILED("Expected elevation " + expected + " at North Pole, not " + value);
+#endif
 
   // More special points
 

@@ -57,6 +57,8 @@ clean:
 
 test: $(PROG)
 	@echo Running tests:
+	@echo
+	@echo Using $(GIS_RASTERS_DIR) for rasterdata
 	@rm -f *.err
 	@for prog in $(PROG); do \
 	  ( ./$$prog || touch $$prog.err ) ; \
