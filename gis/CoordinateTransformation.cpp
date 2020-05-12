@@ -5,6 +5,7 @@
 
 #include <gdal_version.h>
 #include <limits>
+#include <stdexcept>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 
