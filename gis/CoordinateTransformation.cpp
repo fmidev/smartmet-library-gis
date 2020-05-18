@@ -117,6 +117,21 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
   return ok;
 }
 
+bool CoordinateTransformation::transform(OGRGeometry& geom) const
+{
+#if CHECK_AXES
+  if (impl->m_swapInput) geom.swapXY();
+#endif
+
+  bool ok = (geom.transform(impl->m_transformation.get()) != OGRERR_NONE);
+
+#if CHECK_AXES
+  if (ok && impl->m_swapOutput) geom.swapXY();
+#endif
+
+  return ok;
+}
+
 const OGRSpatialReference& CoordinateTransformation::getSourceCS() const
 {
   return *impl->m_transformation->GetSourceCS();
