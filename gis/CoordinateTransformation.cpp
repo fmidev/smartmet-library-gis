@@ -1,5 +1,8 @@
 #include "CoordinateTransformation.h"
+
+#include "OGR.h"
 #include "SpatialReference.h"
+
 #include <gdal_version.h>
 #include <limits>
 #include <ogr_geometry.h>
@@ -114,21 +117,6 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
   return ok;
 }
 
-bool CoordinateTransformation::transform(OGRGeometry& geom) const
-{
-#if CHECK_AXES
-  if (impl->m_swapInput) geom.swapXY();
-#endif
-
-  bool ok = (geom.transform(impl->m_transformation.get()) != OGRERR_NONE);
-
-#if CHECK_AXES
-  if (ok && impl->m_swapOutput) geom.swapXY();
-#endif
-
-  return ok;
-}
-
 const OGRSpatialReference& CoordinateTransformation::getSourceCS() const
 {
   return *impl->m_transformation->GetSourceCS();
@@ -148,4 +136,40 @@ OGRCoordinateTransformation* CoordinateTransformation::get() const
 {
   return impl->m_transformation.get();
 }
+
+OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom) const
+{
+  auto* g1 = OGR::normalizeWindingOrder(geom);
+
+  // If input is geographic apply geographic cuts
+  if (getSourceCS().IsGeographic())
+  {
+    // apply cuts if necessary
+    auto* cut_geom = OGR::interruptGeometry(getTargetCS());
+    if (cut_geom != nullptr)
+    {
+      auto* result_geom = g1->Difference(cut_geom);
+      CPLFree(cut_geom);
+      CPLFree(g1);
+      g1 = result_geom;
+    }
+  }
+
+  // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip that
+  // for now since almost all our data is in WGS84.
+
+  if (g1 == nullptr || g1->IsEmpty()) return g1;
+
+  if (!transform(*g1))
+  {
+    CPLFree(g1);
+    return nullptr;
+  }
+
+  auto* g2 = OGR::renormalizeWindingOrder(*g1);
+  CPLFree(g1);
+
+  return g2;
+}
+
 }  // namespace Fmi

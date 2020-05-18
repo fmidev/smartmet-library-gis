@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.4.28
+Version: 20.5.18
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -63,6 +63,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon May 18 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.5.18-1.fmi
+- Added CoordinateTransformation::transformGeometry for handling antimeridians and simular problems
+
 * Tue Apr 28 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.28-1.fmi
 - Fixed SpatialReference::isAxisSwapped to check the axis mapping strategy
 

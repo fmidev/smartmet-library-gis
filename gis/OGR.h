@@ -1,10 +1,12 @@
 #pragma once
 #include <boost/optional.hpp>
+
 #include <list>
 #include <string>
 
 class OGRGeometry;
 class OGRPolygon;
+class OGRMultiPolygon;
 class OGRSpatialReference;
 
 // cannot forward declare OGR similarly since OGRwkbGeometryType is an enum
@@ -27,14 +29,12 @@ namespace OGR
 std::string exportToWkt(const OGRSpatialReference& theSRS);
 std::string exportToPrettyWkt(const OGRSpatialReference& theSRS);
 std::string exportToProj(const OGRSpatialReference& theSRS);
-
 std::string exportToWkt(const OGRGeometry& theGeom);
-
 std::string exportToSvg(const OGRGeometry& theGeom, const Box& theBox, double thePrecision);
 
 // We would prefert to use a const reference here but const is
 // not possible due to SR reference counting
-OGRGeometry* importFromGeos(const geos::geom::Geometry& theGeom, OGRSpatialReference* theSR);
+OGRGeometry* importFromGeos(const geos::geom::Geometry& theGeom, OGRSpatialReference* theSRS);
 
 // Transform to box
 void transform(OGRGeometry& theGeom, const Box& theBox);
@@ -44,6 +44,9 @@ OGRGeometry* lineclip(const OGRGeometry& theGeom, const Box& theBox);
 
 // Clip to rectangle, polygons are preserved
 OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox);
+
+// Get WGS84 interrupt geometry for the given spatial reference
+OGRMultiPolygon* interruptGeometry(const OGRSpatialReference& theSRS);
 
 // Filter out small polygons
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);
@@ -61,7 +64,7 @@ OGRGeometry* reverseWindingOrder(const OGRGeometry& theGeom);
 bool inside(const OGRGeometry& theGeom, double theX, double theY);
 bool inside(const OGRPolygon& theGeom, double theX, double theY);
 
-typedef std::list<std::pair<double, double> > CoordinatePoints;
+using CoordinatePoints = std::list<std::pair<double, double>>;
 
 // OGRGeometry object is constructed from list of coordinates
 // wkbPoint, wkbLineString, wkbLinearRing, wkbPolygon types are supported

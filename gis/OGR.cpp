@@ -1,10 +1,13 @@
 #include "OGR.h"
+
 #include "CoordinateTransformation.h"
 #include "GEOS.h"
 #include "SpatialReference.h"
+
 #include <boost/math/constants/constants.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <fmt/format.h>
+
 #include <cmath>
 #include <ogr_geometry.h>
 #include <stdexcept>
@@ -81,7 +84,7 @@ std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom)
 // ----------------------------------------------------------------------
 
 OGRGeometry* Fmi::OGR::importFromGeos(const geos::geom::Geometry& theGeom,
-                                      OGRSpatialReference* theSR)
+                                      OGRSpatialReference* theSRS)
 {
   auto wkb = GEOS::exportToWkb(theGeom);
 
@@ -90,7 +93,7 @@ OGRGeometry* Fmi::OGR::importFromGeos(const geos::geom::Geometry& theGeom,
   unsigned char* cwkb = reinterpret_cast<unsigned char*>(const_cast<char*>(wkb.c_str()));
 
   OGRGeometry* ogeom = nullptr;
-  OGRErr err = OGRGeometryFactory::createFromWkb(cwkb, theSR, &ogeom);
+  OGRErr err = OGRGeometryFactory::createFromWkb(cwkb, theSRS, &ogeom);
 
   if (err != OGRERR_NONE)
     throw std::runtime_error("Failed to convert GEOS geometry to OGR geometry");

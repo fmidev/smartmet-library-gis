@@ -1,9 +1,11 @@
 #ifdef UNIX
 
 #include "PostGIS.h"
+
 #include "CoordinateTransformation.h"
 #include "OGR.h"
 #include "SpatialReference.h"
+
 #include <gdal_version.h>
 #include <iostream>
 #include <ogrsf_frmts.h>
@@ -165,10 +167,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       if (geometry != nullptr)
       {
 #if 1
-        auto* clone2 = OGR::normalizeWindingOrder(*geometry);
-        transformation.transform(*clone2);
-        auto* clone = OGR::renormalizeWindingOrder(*clone2);
-        CPLFree(clone2);
+        auto* clone = transformation.transformGeometry(*geometry);
 #else
         // This one timeouts WMS ice.get tests:
         // const char* const opts[] = {"WRAPDATELINE=YES", nullptr};
@@ -257,10 +256,7 @@ Features read(const Fmi::SpatialReference* theSR,
       }
       else
       {
-        auto* clone2 = OGR::normalizeWindingOrder(*geometry);
-        transformation->transform(*clone2);
-        auto* clone = OGR::renormalizeWindingOrder(*clone2);
-        CPLFree(clone2);
+        auto* clone = transformation->transformGeometry(*geometry);
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
         ret_item->geom->assignSpatialReference(theSR->get()->Clone());
