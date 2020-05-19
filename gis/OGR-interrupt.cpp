@@ -19,7 +19,7 @@ double modlon(double lon)
 
 // Add latitudes at 1 degree intervals as in -90.1 -89 -88 ... 89 90.1
 
-OGRPolygon* vertical_cut(double lon, int lat1, int lat2)
+OGRPolygon* vertical_cut(double lon, int lat1, int lat2, int resolution = 1)
 {
   OGRPolygon* poly = new OGRPolygon;
   OGRLinearRing* ring = new OGRLinearRing;
@@ -29,12 +29,12 @@ OGRPolygon* vertical_cut(double lon, int lat1, int lat2)
   auto y2 = std::max(lat1, lat2);
 
   // From lon-eps,y1 up to to lon-eps,y2
-  for (int y = y1; y <= y2; ++y)
+  for (int y = y1; y <= y2; y += resolution)
     ring->addPoint(x1, y + (y == -90 ? -poleshift : y == 90 ? +poleshift : 0));
 
   // From lon+eps,y2 down to lon+eps,y1
-  for (int y = y2; y >= y1; --y)
-    ring->addPoint(xx, y + (y == -90 ? -poleshift : y == 90 ? +poleshift : 0));
+  for (int y = y2; y >= y1; y -= resolution)
+    ring->addPoint(x2, y + (y == -90 ? -poleshift : y == 90 ? +poleshift : 0));
 
   ring->closeRings();
   poly->addRingDirectly(ring);
@@ -57,7 +57,7 @@ OGRMultiPolygon* interruptGeometry(const OGRSpatialReference& theSRS)
     OGRMultiPolygon* mpoly = new OGRMultiPolygon;
     mpoly->assignSpatialReference(OGRSpatialReference::GetWGS84SRS());
     mpoly->addGeometryDirectly(vertical_cut(modlon(lon_wrap - 180), -90, 90));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_wrap + 180), -90, 90));
+    if (lon_wrap == 0) mpoly->addGeometryDirectly(vertical_cut(modlon(lon_wrap + 180), -90, 90));
     return mpoly;
   }
 
@@ -75,17 +75,16 @@ OGRMultiPolygon* interruptGeometry(const OGRSpatialReference& theSRS)
   if (name == SRS_PT_ORTHOGRAPHIC) return nullptr;
   if (name == SRS_PT_TWO_POINT_EQUIDISTANT) return nullptr;
 
-  // lon_0 is needed for all remaining geometric projections
-
   const double lon_0 = theSRS.GetNormProjParm(SRS_PP_CENTRAL_MERIDIAN, 0.0);
 
   if (name == SRS_PT_IGH)
   {
     // Interrupted Goode Homolosine
+
     OGRMultiPolygon* mpoly = new OGRMultiPolygon;
     mpoly->assignSpatialReference(OGRSpatialReference::GetWGS84SRS());
     mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 180), -90, 90));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 180), -90, 90));
+    if (lon_0 == 0) mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 180), -90, 90));
     mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 40), 0, 90));
     mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 100), -90, 0));
     mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 20), -90, 0));
@@ -94,10 +93,12 @@ OGRMultiPolygon* interruptGeometry(const OGRSpatialReference& theSRS)
   }
 
   // Regular geometric: cut everything at lon_0+180 antimeridian
+  // lon_0 is needed for all remaining geometric projections
+
   OGRMultiPolygon* mpoly = new OGRMultiPolygon;
   mpoly->assignSpatialReference(OGRSpatialReference::GetWGS84SRS());
   mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 180), -90, 90));
-  mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 180), -90, 90));
+  if (lon_0 == 0) mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 180), -90, 90));
   return mpoly;
 }
 
