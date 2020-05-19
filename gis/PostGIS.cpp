@@ -1,11 +1,9 @@
 #ifdef UNIX
 
 #include "PostGIS.h"
-
 #include "CoordinateTransformation.h"
 #include "OGR.h"
 #include "SpatialReference.h"
-
 #include <gdal_version.h>
 #include <iostream>
 #include <ogrsf_frmts.h>
@@ -105,6 +103,9 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
                     const std::string& theName,
                     const boost::optional<std::string>& theWhereClause)
 {
+  std::string report = "PostGIS::read finished in %t sec CPU, %w sec real\n";
+  boost::timer::auto_cpu_timer timer(2, report);
+
   // Get time column in UTC time
   theConnection->ExecuteSQL("SET TIME ZONE UTC", nullptr, nullptr);
 
@@ -178,7 +179,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
         auto* clone = OGRGeometryFactory::transformWithOptions(
             geometry, transformation.get(), const_cast<char**>(opts));
 #endif
-        out->addGeometryDirectly(clone);  // takes ownership
+        if (clone != nullptr) out->addGeometryDirectly(clone);  // takes ownership
       }
     }
   }

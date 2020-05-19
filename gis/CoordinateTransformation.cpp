@@ -1,9 +1,9 @@
 #include "CoordinateTransformation.h"
-
 #include "OGR.h"
 #include "SpatialReference.h"
-
+#include "Types.h"
 #include <gdal_version.h>
+#include <iostream>
 #include <limits>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
@@ -13,28 +13,6 @@
 // flag on.
 
 #define CHECK_AXES 0
-
-#if 0
-namespace
-{
-// Reduce to [-180,180] inclusive
-double normalize_lon(double lon)
-{
-  auto tmp = fmod(lon, 360.0);
-  if (tmp > 180.0) return tmp - 360.0;
-  if (tmp < -180.0) return tmp + 360.0;
-  return tmp;
-}
-
-// Reduce to [-90,90] inclusive
-double normalize_lat(double lat)
-{
-  if (lat < -90) return -90;
-  if (lat > 90) return 90;
-  return lat;
-}
-}  // namespace
-#endif
 
 namespace Fmi
 {
@@ -154,37 +132,36 @@ OGRCoordinateTransformation* CoordinateTransformation::get() const
 
 OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom) const
 {
-  auto* g1 = OGR::normalizeWindingOrder(geom);
+  OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
 
   // If input is geographic apply geographic cuts
   if (getSourceCS().IsGeographic())
   {
     // apply cuts if necessary
-    auto* cut_geom = OGR::interruptGeometry(getTargetCS());
-    if (cut_geom != nullptr)
+    OGRGeometryPtr cut_geom(OGR::interruptGeometry(getTargetCS()));
+    if (cut_geom)
     {
-      auto* result_geom = g1->Difference(cut_geom);
-      CPLFree(cut_geom);
-      CPLFree(g1);
-      g1 = result_geom;
+      // std::cerr << "Original " << OGR::exportToWkt(*g) << "\n\n";
+      // std::cerr << "Substracting " << OGR::exportToWkt(*cut_geom) << "\n\n";
+
+      g.reset(g->Difference(cut_geom.get()));
+      // if (!g) std::cerr << "Result is nullptr\n";
+      // if (g && g->IsEmpty()) std::cerr << "Result is empty\n";
     }
   }
 
   // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip that
   // for now since almost all our data is in WGS84.
 
-  if (g1 == nullptr || g1->IsEmpty()) return g1;
+  if (!g || g->IsEmpty()) return nullptr;
 
-  if (!transform(*g1))
+  if (!this->transform(*g))
   {
-    CPLFree(g1);
-    return nullptr;
+    // std::cerr << "Failed to transform geometry\n";
+    // return nullptr;
   }
 
-  auto* g2 = OGR::renormalizeWindingOrder(*g1);
-  CPLFree(g1);
-
-  return g2;
+  return OGR::renormalizeWindingOrder(*g);
 }
 
 }  // namespace Fmi
