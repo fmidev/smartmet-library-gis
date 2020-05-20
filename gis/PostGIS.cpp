@@ -103,9 +103,6 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
                     const std::string& theName,
                     const boost::optional<std::string>& theWhereClause)
 {
-  std::string report = "PostGIS::read finished in %t sec CPU, %w sec real\n";
-  boost::timer::auto_cpu_timer timer(2, report);
-
   // Get time column in UTC time
   theConnection->ExecuteSQL("SET TIME ZONE UTC", nullptr, nullptr);
 
