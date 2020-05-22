@@ -12,14 +12,14 @@ class ProjInfo
   ProjInfo() = default;
   ProjInfo(const std::string& theProj);
 
-  const std::string& ProjStr() const { return itsProjStr; }
-  boost::optional<double> GetDouble(const std::string& theName) const;
-  boost::optional<std::string> GetString(const std::string& theName) const;
-  bool GetBool(const std::string& theName) const;
+  const std::string& projStr() const { return itsProjStr; }
+  boost::optional<double> getDouble(const std::string& theName) const;
+  boost::optional<std::string> getString(const std::string& theName) const;
+  bool getBool(const std::string& theName) const;
 
-  std::string InverseProjStr() const;
+  std::string inverseProjStr() const;
 
-  void Dump(std::ostream& theOutput) const;
+  void dump(std::ostream& theOutput) const;
 
  private:
   std::string itsProjStr;

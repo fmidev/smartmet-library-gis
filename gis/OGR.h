@@ -1,6 +1,6 @@
 #pragma once
-#include <boost/optional.hpp>
 
+#include <boost/optional.hpp>
 #include <list>
 #include <string>
 
@@ -23,6 +23,7 @@ namespace Fmi
 {
 class CoordinateTransformation;
 class Box;
+class SpatialReference;
 
 namespace OGR
 {
@@ -44,9 +45,6 @@ OGRGeometry* lineclip(const OGRGeometry& theGeom, const Box& theBox);
 
 // Clip to rectangle, polygons are preserved
 OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox);
-
-// Get WGS84 interrupt geometry for the given spatial reference
-OGRMultiPolygon* interruptGeometry(const OGRSpatialReference& theSRS);
 
 // Filter out small polygons
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);

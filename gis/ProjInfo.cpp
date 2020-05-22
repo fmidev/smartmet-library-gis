@@ -74,7 +74,7 @@ ProjInfo::ProjInfo(const std::string& theProj) : itsProjStr(theProj)
  */
 // ----------------------------------------------------------------------
 
-boost::optional<double> ProjInfo::GetDouble(const std::string& theName) const
+boost::optional<double> ProjInfo::getDouble(const std::string& theName) const
 {
   auto pos = itsDoubles.find(theName);
   if (pos == itsDoubles.end()) return {};
@@ -87,7 +87,7 @@ boost::optional<double> ProjInfo::GetDouble(const std::string& theName) const
  */
 // ----------------------------------------------------------------------
 
-boost::optional<std::string> ProjInfo::GetString(const std::string& theName) const
+boost::optional<std::string> ProjInfo::getString(const std::string& theName) const
 {
   auto pos = itsStrings.find(theName);
   if (pos == itsStrings.end()) return {};
@@ -100,7 +100,7 @@ boost::optional<std::string> ProjInfo::GetString(const std::string& theName) con
  */
 // ----------------------------------------------------------------------
 
-bool ProjInfo::GetBool(const std::string& theName) const
+bool ProjInfo::getBool(const std::string& theName) const
 {
   auto pos = itsOptions.find(theName);
   return (pos != itsOptions.end());
@@ -113,7 +113,7 @@ bool ProjInfo::GetBool(const std::string& theName) const
  */
 // ----------------------------------------------------------------------
 
-void ProjInfo::Dump(std::ostream& theOutput) const
+void ProjInfo::dump(std::ostream& theOutput) const
 {
   for (const auto& name_double : itsDoubles)
     theOutput << '+' << name_double.first << " = " << name_double.second << "\n";
@@ -131,7 +131,7 @@ void ProjInfo::Dump(std::ostream& theOutput) const
  */
 // ----------------------------------------------------------------------
 
-std::string ProjInfo::InverseProjStr() const
+std::string ProjInfo::inverseProjStr() const
 {
   // First we change the projection to longlat
   auto values = itsStrings;
