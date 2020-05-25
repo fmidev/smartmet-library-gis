@@ -11,6 +11,8 @@ class OGRSpatialReference;
 
 namespace Fmi
 {
+class ProjInfo;
+
 class SpatialReference
 {
  public:
@@ -37,6 +39,9 @@ class SpatialReference
   // Common accessors
   bool isAxisSwapped() const;
   bool isGeographic() const;
+
+  // Proj.4 info
+  const ProjInfo &projInfo() const;
 
   std::size_t hashValue() const;
 

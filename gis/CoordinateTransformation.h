@@ -27,6 +27,9 @@ class CoordinateTransformation
   bool transform(std::vector<double>& x, std::vector<double>& y) const;
   bool transform(OGRGeometry& geom) const;
 
+  // Intelligent transform handling antemeridians etc
+  OGRGeometry* transformGeometry(const OGRGeometry& geom) const;
+
   const OGRSpatialReference& getSourceCS() const;
   const OGRSpatialReference& getTargetCS() const;
 

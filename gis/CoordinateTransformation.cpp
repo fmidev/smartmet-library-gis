@@ -1,38 +1,21 @@
 #include "CoordinateTransformation.h"
+#include "Interrupt.h"
+#include "OGR.h"
 #include "SpatialReference.h"
+#include "Types.h"
 #include <gdal_version.h>
+#include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
+#include <stdexcept>
 
 // So far we've had no data with axes swapped since we force axis orientation in all constructors.
 // This might change when using external sources for spatial references, then we'll need to put this
 // flag on.
 
 #define CHECK_AXES 0
-
-#if 0
-namespace
-{
-// Reduce to [-180,180] inclusive
-double normalize_lon(double lon)
-{
-  auto tmp = fmod(lon, 360.0);
-  if (tmp > 180.0) return tmp - 360.0;
-  if (tmp < -180.0) return tmp + 360.0;
-  return tmp;
-}
-
-// Reduce to [-90,90] inclusive
-double normalize_lat(double lat)
-{
-  if (lat < -90) return -90;
-  if (lat > 90) return 90;
-  return lat;
-}
-}  // namespace
-#endif
 
 namespace Fmi
 {
@@ -149,4 +132,33 @@ OGRCoordinateTransformation* CoordinateTransformation::get() const
 {
   return impl->m_transformation.get();
 }
+
+OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom) const
+{
+  OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
+
+  // If input is geographic apply geographic cuts
+  if (getSourceCS().IsGeographic())
+  {
+    Interrupt interrupt = interruptGeometry(getTargetCS());
+
+    if (interrupt.cutGeometry) g.reset(g->Difference(interrupt.cutGeometry));
+    if (!g || g->IsEmpty()) return nullptr;
+
+    if (interrupt.andGeometry) g.reset(g->Intersection(interrupt.andGeometry));
+    if (!g || g->IsEmpty()) return nullptr;
+  }
+
+  // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip that
+  // for now since almost all our data is in WGS84.
+
+  if (!this->transform(*g))
+  {
+    // std::cerr << "Failed to transform geometry\n";
+    // return nullptr;
+  }
+
+  return OGR::renormalizeWindingOrder(*g);
+}  // namespace Fmi
+
 }  // namespace Fmi

@@ -165,10 +165,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       if (geometry != nullptr)
       {
 #if 1
-        auto* clone2 = OGR::normalizeWindingOrder(*geometry);
-        transformation.transform(*clone2);
-        auto* clone = OGR::renormalizeWindingOrder(*clone2);
-        CPLFree(clone2);
+        auto* clone = transformation.transformGeometry(*geometry);
 #else
         // This one timeouts WMS ice.get tests:
         // const char* const opts[] = {"WRAPDATELINE=YES", nullptr};
@@ -179,7 +176,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
         auto* clone = OGRGeometryFactory::transformWithOptions(
             geometry, transformation.get(), const_cast<char**>(opts));
 #endif
-        out->addGeometryDirectly(clone);  // takes ownership
+        if (clone != nullptr) out->addGeometryDirectly(clone);  // takes ownership
       }
     }
   }
@@ -257,10 +254,7 @@ Features read(const Fmi::SpatialReference* theSR,
       }
       else
       {
-        auto* clone2 = OGR::normalizeWindingOrder(*geometry);
-        transformation->transform(*clone2);
-        auto* clone = OGR::renormalizeWindingOrder(*clone2);
-        CPLFree(clone2);
+        auto* clone = transformation->transformGeometry(*geometry);
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
         ret_item->geom->assignSpatialReference(theSR->get()->Clone());
