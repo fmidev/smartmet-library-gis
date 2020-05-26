@@ -1,7 +1,9 @@
 #include "Box.h"
 #include "OGR.h"
+
 #include <fmt/format.h>
 #include <fmt/printf.h>
+
 #include <ogr_geometry.h>
 #include <stdexcept>
 

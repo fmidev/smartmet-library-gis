@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <ogr_geometry.h>
 #include <list>
+#include <ogr_geometry.h>
 
 namespace Fmi
 {

@@ -1,8 +1,10 @@
 #include "ProjInfo.h"
+
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <fmt/format.h>
+
 #include <string>
 #include <vector>
 

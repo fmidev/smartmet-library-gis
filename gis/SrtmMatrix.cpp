@@ -1,9 +1,11 @@
 #include "SrtmMatrix.h"
+
 #include "SrtmTile.h"
-#include <limits>
-#include <vector>
-#include <stdexcept>
+
 #include <algorithm>
+#include <limits>
+#include <stdexcept>
+#include <vector>
 
 namespace Fmi
 {

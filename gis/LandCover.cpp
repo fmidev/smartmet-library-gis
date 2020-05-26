@@ -1,10 +1,13 @@
 #define BOOST_FILESYSTEM_NO_DEPRECATED
 
 #include "LandCover.h"
+
 #include "SrtmMatrix.h"
 #include "SrtmTile.h"
+
 #include <boost/filesystem.hpp>
 #include <fmt/format.h>
+
 #include <cmath>
 #include <limits>
 #include <list>

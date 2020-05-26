@@ -1,12 +1,14 @@
 #define BOOST_FILESYSTEM_NO_DEPRECATED
 
 #include "SrtmTile.h"
+
 #include <boost/filesystem/operations.hpp>
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/move/unique_ptr.hpp>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
+
 #include <stdexcept>
 
 using FileMapping = boost::interprocess::file_mapping;

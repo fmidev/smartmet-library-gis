@@ -12,7 +12,9 @@
 #include "Host.h"
 #include "SpatialReference.h"
 #include "Types.h"
+
 #include <boost/optional.hpp>
+
 #include <set>
 #include <string>
 

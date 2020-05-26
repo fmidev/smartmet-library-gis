@@ -1,6 +1,8 @@
 #include "Interrupt.h"
+
 #include "ProjInfo.h"
 #include "SpatialReference.h"
+
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 

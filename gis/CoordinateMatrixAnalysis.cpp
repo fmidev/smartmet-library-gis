@@ -1,5 +1,7 @@
 #include "CoordinateMatrixAnalysis.h"
+
 #include "CoordinateMatrix.h"
+
 #include <boost/optional.hpp>
 
 #include <cmath>

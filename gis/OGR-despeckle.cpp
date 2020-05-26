@@ -1,5 +1,7 @@
 #include "OGR.h"
+
 #include <boost/math/constants/constants.hpp>
+
 #include <ogr_geometry.h>
 #include <stdexcept>
 

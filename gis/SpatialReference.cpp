@@ -1,8 +1,11 @@
 #include "SpatialReference.h"
+
 #include "OGR.h"
 #include "ProjInfo.h"
+
 #include <boost/functional/hash.hpp>
 #include <fmt/format.h>
+
 #include <gdal_version.h>
 #include <iostream>
 #include <ogr_geometry.h>
