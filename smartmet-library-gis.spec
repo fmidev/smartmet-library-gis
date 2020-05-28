@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.5.22
+Version: 20.5.25
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -63,6 +63,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon May 25 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.5.25-1.fmi
+- Added circle cuts for stereographic etc projections
+
 * Fri May 22 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.5.22-1.fmi
 - Added class ProjInfo for extracting information from PROJ.4 strings
 

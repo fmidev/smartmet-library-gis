@@ -40,6 +40,10 @@ OGRGeometry* importFromGeos(const geos::geom::Geometry& theGeom, OGRSpatialRefer
 // Transform to box
 void transform(OGRGeometry& theGeom, const Box& theBox);
 
+// Translate the geometry
+void translate(OGRGeometry& theGeom, double dx, double dy);
+void translate(OGRGeometry* theGeom, double dx, double dy);
+
 // Clip to rectangle, polygons may break into polylines
 OGRGeometry* lineclip(const OGRGeometry& theGeom, const Box& theBox);
 
