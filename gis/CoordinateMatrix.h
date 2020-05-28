@@ -42,7 +42,7 @@ class CoordinateMatrix
   {
     const auto pos = i + j * m_width;
     m_x[pos] = xy.first;
-    m_x[pos] = xy.second;
+    m_y[pos] = xy.second;
   }
 
   template <typename T>
