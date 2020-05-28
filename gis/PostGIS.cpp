@@ -1,9 +1,11 @@
 #ifdef UNIX
 
 #include "PostGIS.h"
+
 #include "CoordinateTransformation.h"
 #include "OGR.h"
 #include "SpatialReference.h"
+
 #include <gdal_version.h>
 #include <iostream>
 #include <ogrsf_frmts.h>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/optional.hpp>
+
 #include <list>
 #include <string>
 

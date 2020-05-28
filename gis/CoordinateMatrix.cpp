@@ -1,5 +1,7 @@
 #include "CoordinateMatrix.h"
+
 #include "CoordinateTransformation.h"
+
 #include <cmath>
 
 namespace Fmi

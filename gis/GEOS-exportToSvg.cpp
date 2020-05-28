@@ -1,4 +1,5 @@
 #include "GEOS.h"
+
 #include <boost/numeric/conversion/cast.hpp>
 #include <fmt/format.h>
 #include <fmt/printf.h>
@@ -12,6 +13,7 @@
 #include <geos/geom/Point.h>
 #include <geos/geom/Polygon.h>
 #include <geos/geom/PrecisionModel.h>
+
 #include <stdexcept>
 
 using geos::geom::Coordinate;

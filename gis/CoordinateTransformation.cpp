@@ -1,8 +1,10 @@
 #include "CoordinateTransformation.h"
+
 #include "Interrupt.h"
 #include "OGR.h"
 #include "SpatialReference.h"
 #include "Types.h"
+
 #include <gdal_version.h>
 #include <iostream>
 #include <limits>
