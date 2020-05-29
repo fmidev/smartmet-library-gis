@@ -3,11 +3,9 @@
 #include "CoordinateTransformation.h"
 #include "GEOS.h"
 #include "SpatialReference.h"
-
 #include <boost/math/constants/constants.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <fmt/format.h>
-
 #include <cmath>
 #include <ogr_geometry.h>
 #include <stdexcept>
@@ -381,4 +379,48 @@ boost::optional<double> Fmi::OGR::gridNorth(const CoordinateTransformation& theT
   // as in normal math, hence we have rotated the system by swapping dx and dy in atan2
 
   return atan2(x2 - x1, y2 - y1) * boost::math::double_constants::radian;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Translation visitor
+ */
+// ----------------------------------------------------------------------
+
+class TranslateVisitor : public OGRDefaultGeometryVisitor
+{
+ public:
+  TranslateVisitor(double dx, double dy) : m_dx(dx), m_dy(dy) {}
+
+  using OGRDefaultGeometryVisitor::visit;
+
+  void visit(OGRPoint* point) override
+  {
+    if (point != nullptr)
+    {
+      point->setX(point->getX() + m_dx);
+      point->setY(point->getY() + m_dy);
+    }
+  }
+
+ private:
+  double m_dx = 0;
+  double m_dy = 0;
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Translate a geometry by a fixed amount
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::OGR::translate(OGRGeometry& theGeom, double dx, double dy)
+{
+  TranslateVisitor visitor(dx, dy);
+  theGeom.accept(&visitor);
+}
+
+void Fmi::OGR::translate(OGRGeometry* theGeom, double dx, double dy)
+{
+  if (theGeom != nullptr) translate(*theGeom, dx, dy);
 }

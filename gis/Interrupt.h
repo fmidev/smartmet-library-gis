@@ -2,7 +2,7 @@
 
 #include "SpatialReference.h"
 
-class OGRMultiPolygon;
+class OGRGeometry;
 
 namespace Fmi
 {
@@ -10,8 +10,8 @@ namespace Fmi
 
 struct Interrupt
 {
-  OGRMultiPolygon* andGeometry = nullptr;
-  OGRMultiPolygon* cutGeometry = nullptr;
+  OGRGeometry* andGeometry = nullptr;
+  OGRGeometry* cutGeometry = nullptr;
 
   ~Interrupt();
 };
