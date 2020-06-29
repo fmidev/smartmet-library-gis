@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.5.28
+Version: 20.6.29
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -70,6 +70,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Jun 29 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.6.29-1.fmi
+- Improved spherical interrupts of map data
+
 * Thu May 28 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.5.28-1.fmi
 - Added circle cuts for stereographic etc projections
 
