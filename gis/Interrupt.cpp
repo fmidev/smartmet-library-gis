@@ -250,16 +250,11 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   const auto lat_0 = opt_lat_0 ? *opt_lat_0 : 0.0;
 
   // Polar projections
+  if (name == "aeqd" || name == "stere" || name == "sterea" || name == "ups") return result;
 
-  if (name == "aeqd")
-  {
-    const auto radius = 120 * wgs84radius * boost::math::double_constants::degree;
-    result.andGeometry = circle_cut(lon_0, lat_0, radius);
-    return result;
-  }
-
-  if (name == "laea" || name == "stere" || name == "sterea" || name == "ups" || name == "airy" ||
-      name == "geos" || name == "gnom" || name == "ortho" || name == "tpeqd")
+  // Spherical cuts
+  if (name == "laea" || name == "airy" || name == "geos" || name == "gnom" || name == "ortho" ||
+      name == "tpeqd")
   {
     // We take less than a full 90 degree view to avoid boundary effects
     const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
