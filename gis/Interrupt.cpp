@@ -214,12 +214,6 @@ OGRPolygon* vertical_cut(double lon, int lat1, int lat2, int resolution = 1)
   return poly;
 }
 
-Interrupt::~Interrupt()
-{
-  CPLFree(andGeometry);
-  CPLFree(cutGeometry);
-}
-
 Interrupt interruptGeometry(const SpatialReference& theSRS)
 {
   Interrupt result;
@@ -234,7 +228,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     mpoly->addGeometryDirectly(vertical_cut(modlon(lon_wrap - 180), -90, 90));
     if (lon_wrap == 0) mpoly->addGeometryDirectly(vertical_cut(modlon(lon_wrap + 180), -90, 90));
 
-    result.cutGeometry = mpoly;
+    result.cutGeometry.reset(mpoly);
     return result;
   }
 
@@ -258,7 +252,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   {
     // We take less than a full 90 degree view to avoid boundary effects
     const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
-    result.andGeometry = circle_cut(lon_0, lat_0, radius);
+    result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
     return result;
   }
 
@@ -275,7 +269,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 20), -90, 0));
     mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 80), -90, 0));
 
-    result.cutGeometry = mpoly;
+    result.cutGeometry.reset(mpoly);
     return result;
   }
 
@@ -292,7 +286,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 90), -90, -45));
     mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 90), 45, 90));
 
-    result.cutGeometry = mpoly;
+    result.cutGeometry.reset(mpoly);
     return result;
   }
 
@@ -304,7 +298,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 180), -90, 90));
   if (lon_0 == 0) mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 180), -90, 90));
 
-  result.cutGeometry = mpoly;
+  result.cutGeometry.reset(mpoly);
   return result;
 }
 

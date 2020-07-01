@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SpatialReference.h"
+#include <memory>
 
 class OGRGeometry;
 
@@ -10,10 +11,8 @@ namespace Fmi
 
 struct Interrupt
 {
-  OGRGeometry* andGeometry = nullptr;
-  OGRGeometry* cutGeometry = nullptr;
-
-  ~Interrupt();
+  std::shared_ptr<OGRGeometry> andGeometry;
+  std::shared_ptr<OGRGeometry> cutGeometry = nullptr;
 };
 
 Interrupt interruptGeometry(const SpatialReference& theSRS);
