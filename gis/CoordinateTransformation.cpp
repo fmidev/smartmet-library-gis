@@ -143,10 +143,10 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
   {
     Interrupt interrupt = interruptGeometry(getTargetCS());
 
-    if (interrupt.cutGeometry) g.reset(g->Difference(interrupt.cutGeometry));
+    if (interrupt.cutGeometry) g.reset(g->Difference(interrupt.cutGeometry.get()));
     if (!g || g->IsEmpty()) return nullptr;
 
-    if (interrupt.andGeometry) g.reset(g->Intersection(interrupt.andGeometry));
+    if (interrupt.andGeometry) g.reset(g->Intersection(interrupt.andGeometry.get()));
     if (!g || g->IsEmpty()) return nullptr;
   }
 

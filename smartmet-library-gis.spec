@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.6.29
+Version: 20.7.1
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -70,6 +70,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Jul  1 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.1-1.fmi
+- Use shared_ptr for Interrupt objects to enable copy construction
+
 * Mon Jun 29 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.6.29-1.fmi
 - Improved spherical interrupts of map data
 
