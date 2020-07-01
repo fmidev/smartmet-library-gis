@@ -151,7 +151,6 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
     // Speed up trivial geographic cases
     if (getTargetCS().IsGeographic())
     {
-      impl->m_targetproj.dump(std::cout);
       const auto opt_lon_wrap = impl->m_targetproj.getDouble("o_wrap");
       const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 180.0);
 
