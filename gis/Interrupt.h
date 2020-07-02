@@ -4,6 +4,7 @@
 #include <memory>
 
 class OGRGeometry;
+class OGREnvelope;
 
 namespace Fmi
 {
@@ -16,5 +17,8 @@ struct Interrupt
 };
 
 Interrupt interruptGeometry(const SpatialReference& theSRS);
+
+// Estimated envelope for interrupt generation
+OGREnvelope interruptEnvelope(const SpatialReference& theSRS);
 
 }  // namespace Fmi
