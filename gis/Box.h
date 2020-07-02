@@ -28,6 +28,9 @@ class Box
       std::size_t width,
       std::size_t height);
 
+  // Construct identity transformation for clipping purposes only
+  Box(double theX1, double theY1, double theX2, double theY2);
+
   Box() = delete;
 
   // Transform the given coordinate
