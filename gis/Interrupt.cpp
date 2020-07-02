@@ -324,23 +324,31 @@ OGREnvelope interruptEnvelope(const SpatialReference& theSRS)
     return env;
   }
 
-  // For geometric projections the default box is modified by +lon_0 whose default value is zero.
-  // Proper handling depends on the projection though. Interrupted projections such as Goode
-  // Homolosine should not return the
+  // For geometric projections the default box is modified by +lon_0
+  // whose default value is zero.  Anything not rectilinear must be
+  // clipped to produce shorted edges at the antimeridians, or the
+  // edges will not curve nicely enough when projected. In practise it
+  // seems like only cylindrical projections and pseudocylindrical
+  // projections with straight sides such as collg can be handled via
+  // envelopes.
 
   const auto opt_name = theSRS.projInfo().getString("proj");
   if (!opt_name) return env;
   const auto name = *opt_name;
 
-  if (name == "igh" || name == "healpix") return env;
+  if (name == "cc" || name == "cea" || name == "collg" || name == "comill" || name == "eqc" ||
+      name == "fouc_s" || name == "gall" || name == "merc" || name == "mill" || name == "ocea" ||
+      name == "patterson" || name == "webmerc")
+  {
+    const auto opt_lon_0 = theSRS.projInfo().getDouble("lon_0");
+    const auto lon_0 = opt_lon_0 ? *opt_lon_0 : 0.0;
 
-  const auto opt_lon_0 = theSRS.projInfo().getDouble("lon_0");
-  const auto lon_0 = opt_lon_0 ? *opt_lon_0 : 0.0;
+    env.MinY = -90;
+    env.MaxY = +90;
+    env.MinX = lon_0 - 180;
+    env.MaxX = lon_0 + 180;
+  }
 
-  env.MinY = -90;
-  env.MaxY = +90;
-  env.MinX = lon_0 - 180;
-  env.MaxX = lon_0 + 180;
   return env;
 }
 
