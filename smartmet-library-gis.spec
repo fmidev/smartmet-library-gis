@@ -4,7 +4,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 20.7.1
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -70,6 +70,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Jul  1 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.1-2.fmi
+- Optimized CoordinateTransformation::transformGeometry for speed for input/output latlon cases
+
 * Wed Jul  1 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.1-1.fmi
 - Use shared_ptr for Interrupt objects to enable copy construction
 

@@ -2,9 +2,9 @@
 
 #include "Interrupt.h"
 #include "OGR.h"
+#include "ProjInfo.h"
 #include "SpatialReference.h"
 #include "Types.h"
-
 #include <gdal_version.h>
 #include <iostream>
 #include <limits>
@@ -27,13 +27,18 @@ class CoordinateTransformation::Impl
   Impl() = delete;
 
   Impl(const SpatialReference& theSource, const SpatialReference& theTarget)
-      : m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get())),
+      : m_sourceproj(theSource.projInfo()),
+        m_targetproj(theTarget.projInfo()),
+        m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get())),
         m_swapInput(theSource.isAxisSwapped()),
         m_swapOutput(theTarget.isAxisSwapped())
   {
     if (m_transformation == nullptr)
       throw std::runtime_error("Failed to create the requested coordinate transformation");
   }
+
+  const ProjInfo m_sourceproj;
+  const ProjInfo m_targetproj;
 
   std::shared_ptr<OGRCoordinateTransformation> m_transformation;
   bool m_swapInput = false;   // swap xy before calling GDAL?
@@ -141,13 +146,30 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
   // If input is geographic apply geographic cuts
   if (getSourceCS().IsGeographic())
   {
-    Interrupt interrupt = interruptGeometry(getTargetCS());
+    bool needs_cut = true;
 
-    if (interrupt.cutGeometry) g.reset(g->Difference(interrupt.cutGeometry.get()));
-    if (!g || g->IsEmpty()) return nullptr;
+    // Speed up trivial geographic cases
+    if (getTargetCS().IsGeographic())
+    {
+      const auto opt_lon_wrap = impl->m_targetproj.getDouble("o_wrap");
+      const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 180.0);
 
-    if (interrupt.andGeometry) g.reset(g->Intersection(interrupt.andGeometry.get()));
-    if (!g || g->IsEmpty()) return nullptr;
+      OGREnvelope envelope;
+      geom.getEnvelope(&envelope);
+
+      if (envelope.MaxX <= lon_wrap || envelope.MinX >= lon_wrap) needs_cut = false;
+    }
+
+    if (needs_cut)
+    {
+      Interrupt interrupt = interruptGeometry(getTargetCS());
+
+      if (interrupt.cutGeometry) g.reset(g->Difference(interrupt.cutGeometry.get()));
+      if (!g || g->IsEmpty()) return nullptr;
+
+      if (interrupt.andGeometry) g.reset(g->Intersection(interrupt.andGeometry.get()));
+      if (!g || g->IsEmpty()) return nullptr;
+    }
   }
 
   // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip that
