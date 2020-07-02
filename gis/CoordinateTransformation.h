@@ -18,7 +18,7 @@ class CoordinateTransformation
   CoordinateTransformation() = delete;
 
   // Handles implicit construction from strings, OGRSpatialReference etc
-  CoordinateTransformation(const SpatialReference& theSource, const SpatialReference& theTarget);
+  CoordinateTransformation(SpatialReference theSource, SpatialReference theTarget);
 
   const OGRCoordinateTransformation& operator*() const;
   OGRCoordinateTransformation* get() const;

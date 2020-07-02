@@ -26,27 +26,22 @@ class CoordinateTransformation::Impl
   ~Impl() = default;
   Impl() = delete;
 
-  Impl(const SpatialReference& theSource, const SpatialReference& theTarget)
-      : m_sourceproj(theSource.projInfo()),
-        m_targetproj(theTarget.projInfo()),
-        m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get())),
-        m_swapInput(theSource.isAxisSwapped()),
-        m_swapOutput(theTarget.isAxisSwapped())
+  Impl(SpatialReference theSource, SpatialReference theTarget)
+      : m_source(theSource),
+        m_target(theTarget),
+        m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get()))
   {
     if (m_transformation == nullptr)
       throw std::runtime_error("Failed to create the requested coordinate transformation");
   }
 
-  const ProjInfo m_sourceproj;
-  const ProjInfo m_targetproj;
-
+  const SpatialReference m_source;
+  const SpatialReference m_target;
   std::shared_ptr<OGRCoordinateTransformation> m_transformation;
-  bool m_swapInput = false;   // swap xy before calling GDAL?
-  bool m_swapOutput = false;  // swap xy after calling GDAL?
 };
 
-CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSource,
-                                                   const SpatialReference& theTarget)
+CoordinateTransformation::CoordinateTransformation(SpatialReference theSource,
+                                                   SpatialReference theTarget)
     : impl(new Impl(theSource, theTarget))
 {
 }
@@ -139,37 +134,43 @@ OGRCoordinateTransformation* CoordinateTransformation::get() const
   return impl->m_transformation.get();
 }
 
+bool isEmpty(const OGREnvelope& env)
+{
+  return (env.MinX == 0 && env.MinY == 0 && env.MaxX == 0 && env.MaxY == 0);
+}
+
+bool contains_longitudes(const OGREnvelope& env1, const OGREnvelope& env2)
+{
+  return env1.MinX <= env2.MinX && env1.MaxX >= env2.MaxX;
+}
+
 OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom) const
 {
   OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
 
   // If input is geographic apply geographic cuts
-  if (getSourceCS().IsGeographic())
+  if (impl->m_source.isGeographic())
   {
-    bool needs_cut = true;
+    auto target_envelope = interruptEnvelope(impl->m_target);
 
-    // Speed up trivial geographic cases
-    if (getTargetCS().IsGeographic())
+    OGREnvelope shape_envelope;
+    geom.getEnvelope(&shape_envelope);
+
+    Interrupt interrupt = interruptGeometry(getTargetCS());
+
+    // If the target envelope is not set, we must try clipping.
+    // Otherwise if the geometry contains the target area, no clipping is needed.
+    // We test only X-containment, since the target envelope may reach the North Pole,
+    // but there is really no data beyond the 84th latitude.
+
+    if (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope))
     {
-      const auto opt_lon_wrap = impl->m_targetproj.getDouble("o_wrap");
-      const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 180.0);
-
-      OGREnvelope envelope;
-      geom.getEnvelope(&envelope);
-
-      if (envelope.MaxX <= lon_wrap || envelope.MinX >= lon_wrap) needs_cut = false;
-    }
-
-    if (needs_cut)
-    {
-      Interrupt interrupt = interruptGeometry(getTargetCS());
-
       if (interrupt.cutGeometry) g.reset(g->Difference(interrupt.cutGeometry.get()));
       if (!g || g->IsEmpty()) return nullptr;
-
-      if (interrupt.andGeometry) g.reset(g->Intersection(interrupt.andGeometry.get()));
-      if (!g || g->IsEmpty()) return nullptr;
     }
+
+    if (interrupt.andGeometry) g.reset(g->Intersection(interrupt.andGeometry.get()));
+    if (!g || g->IsEmpty()) return nullptr;
   }
 
   // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip that

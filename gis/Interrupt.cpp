@@ -302,4 +302,46 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   return result;
 }
 
+OGREnvelope interruptEnvelope(const SpatialReference& theSRS)
+{
+  // Default answer covers nothing. User should check for this special case.
+  OGREnvelope env;
+  env.MinY = 0;
+  env.MaxY = 0;
+  env.MinX = 0;
+  env.MaxX = 0;
+
+  if (theSRS.isGeographic())
+  {
+    // geographic projections are modified by +lon_wrap which defines the wanter center longitude
+    const auto opt_lon_wrap = theSRS.projInfo().getDouble("lon_wrap");
+    const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 0);
+
+    env.MinY = -90;
+    env.MaxY = +90;
+    env.MinX = lon_wrap - 180;
+    env.MaxX = lon_wrap + 180;
+    return env;
+  }
+
+  // For geometric projections the default box is modified by +lon_0 whose default value is zero.
+  // Proper handling depends on the projection though. Interrupted projections such as Goode
+  // Homolosine should not return the
+
+  const auto opt_name = theSRS.projInfo().getString("proj");
+  if (!opt_name) return env;
+  const auto name = *opt_name;
+
+  if (name == "igh" || name == "healpix") return env;
+
+  const auto opt_lon_0 = theSRS.projInfo().getDouble("lon_0");
+  const auto lon_0 = opt_lon_0 ? *opt_lon_0 : 0.0;
+
+  env.MinY = -90;
+  env.MaxY = +90;
+  env.MinX = lon_0 - 180;
+  env.MaxX = lon_0 + 180;
+  return env;
+}
+
 }  // namespace Fmi
