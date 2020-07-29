@@ -117,9 +117,8 @@ class SpatialReference::Impl
  public:
   ~Impl() { delete m_crs; }
 
-  Impl(const Impl &other) : m_crs(other.m_crs->Clone()), m_projInfo(OGR::exportToProj(*m_crs))
+  Impl(const Impl &other) : m_crs(other.m_crs->Clone()), m_projInfo(other.m_projInfo)
   {
-    m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
   }
 
   explicit Impl(const OGRSpatialReference &other)
@@ -149,6 +148,8 @@ class SpatialReference::Impl
     m_projInfo = ProjInfo(OGR::exportToProj(*m_crs));
     m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
   }
+
+  Impl &operator=(const Impl &) = delete;
 
   OGRSpatialReference *m_crs = nullptr;
   ProjInfo m_projInfo;
