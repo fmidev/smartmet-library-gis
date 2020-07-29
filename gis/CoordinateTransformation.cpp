@@ -26,7 +26,16 @@ class CoordinateTransformation::Impl
   ~Impl() = default;
   Impl() = delete;
 
-  Impl(SpatialReference theSource, SpatialReference theTarget)
+    Impl(const Impl& other)
+      : m_source(other.m_source),
+        m_target(other.m_target),
+        m_transformation(OGRCreateCoordinateTransformation(other.m_source, other.m_target))
+  {
+    if (m_transformation == nullptr)
+      throw std::runtime_error("Failed to create the requested coordinate transformation");
+  }
+
+  Impl(const SpatialReference &theSource, const SpatialReference &theTarget)
       : m_source(theSource),
         m_target(theTarget),
         m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get()))
@@ -35,13 +44,20 @@ class CoordinateTransformation::Impl
       throw std::runtime_error("Failed to create the requested coordinate transformation");
   }
 
+  Impl& operator=(const Impl&) = delete;
+
   const SpatialReference m_source;
   const SpatialReference m_target;
-  std::shared_ptr<OGRCoordinateTransformation> m_transformation;
+  std::unique_ptr<OGRCoordinateTransformation> m_transformation;
 };
 
-CoordinateTransformation::CoordinateTransformation(SpatialReference theSource,
-                                                   SpatialReference theTarget)
+CoordinateTransformation::CoordinateTransformation(const CoordinateTransformation& other) 
+    : impl(new Impl(*other.impl))
+{
+}
+
+CoordinateTransformation::CoordinateTransformation(const SpatialReference &theSource,
+                                                   const SpatialReference &theTarget)
     : impl(new Impl(theSource, theTarget))
 {
 }

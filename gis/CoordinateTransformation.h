@@ -16,9 +16,12 @@ class CoordinateTransformation
  public:
   ~CoordinateTransformation() = default;
   CoordinateTransformation() = delete;
+  CoordinateTransformation(const CoordinateTransformation& other);
 
   // Handles implicit construction from strings, OGRSpatialReference etc
-  CoordinateTransformation(SpatialReference theSource, SpatialReference theTarget);
+  CoordinateTransformation(const SpatialReference &theSource, const SpatialReference &theTarget);
+
+  CoordinateTransformation& operator=(const CoordinateTransformation&) = delete;
 
   const OGRCoordinateTransformation& operator*() const;
   OGRCoordinateTransformation* get() const;
