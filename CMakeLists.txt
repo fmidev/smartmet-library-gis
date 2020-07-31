@@ -18,6 +18,7 @@ target_include_directories(
     PUBLIC ${BOOST_INCLUDE_DIR} 
     PUBLIC ${FMT_INCLUDE_DIR}
     PUBLIC ${GDAL_INCLUDE_DIR} 
+    PUBLIC ${MacGyver_INCLUDE_DIRS}
     )
 
 set(
@@ -27,6 +28,7 @@ set(
     ${BOOST_INCLUDE_DIR} 
     ${FMT_INCLUDE_DIR}
     ${GDAL_INCLUDE_DIR} 
+    ${MacGyver_INCLUDE_DIRS}
     CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE
     )
 
