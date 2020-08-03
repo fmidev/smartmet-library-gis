@@ -51,6 +51,12 @@ OGRGeometry* lineclip(const OGRGeometry& theGeom, const Box& theBox);
 // Clip to rectangle, polygons are preserved
 OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox);
 
+// Cut rectangle out, polygons may break into polylines
+OGRGeometry* linecut(const OGRGeometry& theGeom, const Box& theBox);
+
+// Cut rectangle out, polygons are preserved
+OGRGeometry* polycut(const OGRGeometry& theGeom, const Box& theBox);
+
 // Filter out small polygons
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);
 

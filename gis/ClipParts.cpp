@@ -1,9 +1,69 @@
 #include "ClipParts.h"
-
 #include "Box.h"
 #include "OGR.h"
-
 #include <cassert>
+#include <iostream>
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Reverse given segment in a linestring
+ */
+// ----------------------------------------------------------------------
+
+void reverse_points(OGRLineString *line, int start, int end)
+{
+  OGRPoint p1;
+  OGRPoint p2;
+  while (start < end)
+  {
+    line->getPoint(start, &p1);
+    line->getPoint(end, &p2);
+    line->setPoint(start, &p2);
+    line->setPoint(end, &p1);
+    ++start;
+    --end;
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Normalize a ring into lexicographic order
+ */
+// ----------------------------------------------------------------------
+
+void normalize_ring(OGRLinearRing *ring)
+{
+  if (ring->IsEmpty() != 0) return;
+
+  // Find the "smallest" coordinate
+
+  int best_pos = 0;
+  int n = ring->getNumPoints();
+  for (int pos = 0; pos < n; ++pos)
+  {
+    if (ring->getX(pos) < ring->getX(best_pos))
+      best_pos = pos;
+    else if (ring->getX(pos) == ring->getX(best_pos) && ring->getY(pos) < ring->getY(best_pos))
+      best_pos = pos;
+  }
+
+  // Quick exit if the ring is already normalized
+  if (best_pos == 0) return;
+
+  // Flip hands -algorithm to the part without the
+  // duplicate last coordinate at n-1:
+
+  reverse_points(ring, 0, best_pos - 1);
+  reverse_points(ring, best_pos, n - 2);
+  reverse_points(ring, 0, n - 2);
+
+  // And make sure the ring is valid by duplicating the first coordinate
+  // at the end:
+
+  OGRPoint point;
+  ring->getPoint(0, &point);
+  ring->setPoint(n - 1, &point);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -11,13 +71,30 @@
  */
 // ----------------------------------------------------------------------
 
-OGRLinearRing *make_ring(const Fmi::Box &theBox)
+OGRLinearRing *make_exterior(const Fmi::Box &theBox)
 {
   OGRLinearRing *ring = new OGRLinearRing;
   ring->addPoint(theBox.xmin(), theBox.ymin());
   ring->addPoint(theBox.xmin(), theBox.ymax());
   ring->addPoint(theBox.xmax(), theBox.ymax());
   ring->addPoint(theBox.xmax(), theBox.ymin());
+  ring->addPoint(theBox.xmin(), theBox.ymin());
+  return ring;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Build a hole out of the bbox
+ */
+// ----------------------------------------------------------------------
+
+OGRLinearRing *make_hole(const Fmi::Box &theBox)
+{
+  OGRLinearRing *ring = new OGRLinearRing;
+  ring->addPoint(theBox.xmin(), theBox.ymin());
+  ring->addPoint(theBox.xmax(), theBox.ymin());
+  ring->addPoint(theBox.xmax(), theBox.ymax());
+  ring->addPoint(theBox.xmin(), theBox.ymax());
   ring->addPoint(theBox.xmin(), theBox.ymin());
   return ring;
 }
@@ -92,7 +169,10 @@ void Fmi::ClipParts::reconnect()
   else
   {
     OGRPolygon *poly = new OGRPolygon;
-    poly->addRingDirectly(reinterpret_cast<OGRLinearRing *>(line2));
+    OGRLinearRing *ring = new OGRLinearRing;
+    ring->addSubLineString(line2, 0, -1);
+    poly->addRingDirectly(ring);
+    delete line2;
     add(poly);
   }
 }
@@ -145,7 +225,11 @@ bool Fmi::ClipParts::empty() const
  */
 // ----------------------------------------------------------------------
 
-void Fmi::ClipParts::add(OGRPolygon *thePolygon) { itsPolygons.push_back(thePolygon); }
+void Fmi::ClipParts::add(OGRPolygon *thePolygon)
+{
+  normalize_ring(thePolygon->getExteriorRing());
+  itsPolygons.push_back(thePolygon);
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Add intermediate OGR LineString
@@ -278,67 +362,6 @@ OGRGeometry *Fmi::ClipParts::internalBuild() const
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Reverse given segment in a linestring
- */
-// ----------------------------------------------------------------------
-
-void reverse_points(OGRLineString *line, int start, int end)
-{
-  OGRPoint p1;
-  OGRPoint p2;
-  while (start < end)
-  {
-    line->getPoint(start, &p1);
-    line->getPoint(end, &p2);
-    line->setPoint(start, &p2);
-    line->setPoint(end, &p1);
-    ++start;
-    --end;
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Normalize a ring into lexicographic order
- */
-// ----------------------------------------------------------------------
-
-void normalize_ring(OGRLinearRing *ring)
-{
-  if (ring->IsEmpty() != 0) return;
-
-  // Find the "smallest" coordinate
-
-  int best_pos = 0;
-  int n = ring->getNumPoints();
-  for (int pos = 0; pos < n; ++pos)
-  {
-    if (ring->getX(pos) < ring->getX(best_pos))
-      best_pos = pos;
-    else if (ring->getX(pos) == ring->getX(best_pos) && ring->getY(pos) < ring->getY(best_pos))
-      best_pos = pos;
-  }
-
-  // Quick exit if the ring is already normalized
-  if (best_pos == 0) return;
-
-  // Flip hands -algorithm to the part without the
-  // duplicate last coordinate at n-1:
-
-  reverse_points(ring, 0, best_pos - 1);
-  reverse_points(ring, best_pos, n - 2);
-  reverse_points(ring, 0, n - 2);
-
-  // And make sure the ring is valid by duplicating the first coordinate
-  // at the end:
-
-  OGRPoint point;
-  ring->getPoint(0, &point);
-  ring->setPoint(n - 1, &point);
-}
-
-// ----------------------------------------------------------------------
-/*!
  * \Reverse the lines being built
  *
  * This is used to fix winding rules required by the clipping algorithm
@@ -359,6 +382,214 @@ void Fmi::ClipParts::reverseLines()
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Search for matching line segment clockwise (clipping)
+ */
+// ----------------------------------------------------------------------
+
+std::list<OGRLineString *>::iterator search_cw(OGRLinearRing *ring,
+                                               std::list<OGRLineString *> &lines,
+                                               double x1,
+                                               double y1,
+                                               double &x2,
+                                               double &y2,
+                                               const Fmi::Box &box)
+{
+  auto best = lines.end();
+
+  if (y1 == box.ymin() && x1 > box.xmin())
+  {
+    // On lower edge going left, worst we can do is left corner, closing might be better
+
+    if (ring->getY(0) == y1 && ring->getX(0) < x1)
+      x2 = ring->getX(0);
+    else
+      x2 = box.xmin();
+
+    // Look for a better match from the remaining linestrings.
+
+    for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+    {
+      double x = (*iter)->getX(0);
+      double y = (*iter)->getY(0);
+      if (y == y1 && x > x2 && x <= x1)  // if not to the right and better than previous best
+      {
+        x2 = x;
+        best = iter;
+      }
+    }
+  }
+  else if (x1 == box.xmin() && y1 < box.ymax())
+  {
+    // On left edge going up, worst we can do is upper conner, closing might be better
+
+    if (ring->getX(0) == x1 && ring->getY(0) > y1)
+      y2 = ring->getY(0);
+    else
+      y2 = box.ymax();
+
+    for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+    {
+      double x = (*iter)->getX(0);
+      double y = (*iter)->getY(0);
+      if (x == x1 && y > y1 && y <= y2)
+      {
+        y2 = y;
+        best = iter;
+      }
+    }
+  }
+  else if (y1 == box.ymax() && x1 < box.xmax())
+  {
+    // On top edge going right, worst we can do is right corner, closing might be better
+
+    if (ring->getY(0) == y1 && ring->getX(0) > x1)
+      x2 = ring->getX(0);
+    else
+      x2 = box.xmax();
+
+    for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+    {
+      double x = (*iter)->getX(0);
+      double y = (*iter)->getY(0);
+
+      if (y == y1 && x >= x1 && x <= x2)
+      {
+        x2 = x;
+        best = iter;
+      }
+    }
+  }
+  else
+  {
+    // On right edge going down, worst we can do is bottom corner, closing might be better
+
+    if (ring->getX(0) == x1 && ring->getY(0) < y1)
+      y2 = ring->getY(0);
+    else
+      y2 = box.ymin();
+
+    for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+    {
+      double x = (*iter)->getX(0);
+      double y = (*iter)->getY(0);
+
+      if (x == x2 && y <= y1 && y >= y2)
+      {
+        y2 = y;
+        best = iter;
+      }
+    }
+  }
+
+  return best;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Search for matching line segment counter-clockwise (cutting)
+ */
+// ----------------------------------------------------------------------
+
+std::list<OGRLineString *>::iterator search_ccw(OGRLinearRing *ring,
+                                                std::list<OGRLineString *> &lines,
+                                                double x1,
+                                                double y1,
+                                                double &x2,
+                                                double &y2,
+                                                const Fmi::Box &box)
+{
+  auto best = lines.end();
+
+  if (y1 == box.ymin() && x1 < box.xmax())
+  {
+    // On lower edge going right, worst we can do is right corner, closing might be better
+
+    if (ring->getY(0) == y1 && ring->getX(0) > x1)
+      x2 = ring->getX(0);
+    else
+      x2 = box.xmax();
+
+    // Look for a better match from the remaining linestrings.
+
+    for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+    {
+      double x = (*iter)->getX(0);
+      double y = (*iter)->getY(0);
+      if (y == y1 && x < x2 && x >= x1)  // if not to the left and better than previous best
+      {
+        x2 = x;
+        best = iter;
+      }
+    }
+  }
+  else if (x1 == box.xmin() && y1 > box.ymin())
+  {
+    // On left edge going down, worst we can do is lower conner, closing might be better
+
+    if (ring->getX(0) == x1 && ring->getY(0) < y1)
+      y2 = ring->getY(0);
+    else
+      y2 = box.ymin();
+
+    for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+    {
+      double x = (*iter)->getX(0);
+      double y = (*iter)->getY(0);
+      if (x == x1 && y < y1 && y >= y2)
+      {
+        y2 = y;
+        best = iter;
+      }
+    }
+  }
+  else if (y1 == box.ymax() && x1 > box.xmin())
+  {
+    // On top edge going left, worst we can do is right corner, closing might be better
+
+    if (ring->getY(0) == y1 && ring->getX(0) < x1)
+      x2 = ring->getX(0);
+    else
+      x2 = box.xmin();
+
+    for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+    {
+      double x = (*iter)->getX(0);
+      double y = (*iter)->getY(0);
+
+      if (y == y1 && x <= x1 && x >= x2)
+      {
+        x2 = x;
+        best = iter;
+      }
+    }
+  }
+  else
+  {
+    // On right edge going up, worst we can do is upper corner, closing might be better
+
+    if (ring->getX(0) == x1 && ring->getY(0) > y1)
+      y2 = ring->getY(0);
+    else
+      y2 = box.ymax();
+
+    for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+    {
+      double x = (*iter)->getX(0);
+      double y = (*iter)->getY(0);
+
+      if (x == x2 && y >= y1 && y <= y2)
+      {
+        y2 = y;
+        best = iter;
+      }
+    }
+  }
+
+  return best;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Build polygons from parts left by clipping one
  *
  * 1. Build exterior ring(s) from lines
@@ -366,36 +597,39 @@ void Fmi::ClipParts::reverseLines()
  *
  * Building new exterior:
  * 1. Pick first linestring as the beginning of a ring (until there are none left)
- * 2. Proceed outputting the bbox edges in clockwise orientation
+ * 2. Proceed outputting the bbox edges in clockwise orientation (clipping, ccw for cutting)
  *    until the ring itself or another linestring is encountered.
  * 3. If the ring became closed by joining the bbox edges, output it and restart at step 1.
  * 4. Attach the new linestring to the ring and jump back to step 2.
  */
 // ----------------------------------------------------------------------
 
-void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_exterior)
+void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_bbox)
 {
-  // Build the exterior rings first
+  // Build the result polygons
+  std::list<OGRPolygon *> polygons;
 
-  std::list<OGRLinearRing *> exterior;
+  // Build the reconnected rings first
+
+  std::list<OGRLinearRing *> reconnection;
+
+  if (add_bbox && itsKeepInsideFlag)
+  {
+    auto *ring = make_exterior(theBox);
+    reconnection.push_back(ring);
+  }
 
   // If there are no lines, the rectangle must have been
   // inside the exterior ring unless there have been sliver
   // polygons, in which case we may have created a polygon.
 
-#if 0
+#if 1
   std::cout << "Reconnecting polygons:\n"
             << "\tpolys = " << itsPolygons.size() << "\n"
             << "\tlines = " << itsLines.size() << "\n"
             << "\tpoints = " << itsPoints.size() << "\n"
-            << "\tadd_ext = " << add_exterior << std::endl;
+            << "\tadd_bbox = " << add_bbox << std::endl;
 #endif
-
-  if (add_exterior)
-  {
-    auto *ring = make_ring(theBox);
-    exterior.push_back(ring);
-  }
 
   // Reconnect all lines into one or more linearrings
   // using box boundaries if necessary
@@ -425,92 +659,8 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_exterior)
 
     // No linestring to move onto found next - meaning we'd
     // either move to the next corner or close the current ring.
-    auto best = itsLines.end();
-
-    if (y1 == theBox.ymin() && x1 > theBox.xmin())
-    {
-      // On lower edge going left, worst we can do is left corner, closing might be better
-
-      if (ring->getY(0) == y1 && ring->getX(0) < x1)
-        x2 = ring->getX(0);
-      else
-        x2 = theBox.xmin();
-
-      // Look for a better match from the remaining linestrings.
-
-      for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-        if (y == y1 && x > x2 && x <= x1)  // if not to the right and better than previous best
-        {
-          x2 = x;
-          best = iter;
-        }
-      }
-    }
-    else if (x1 == theBox.xmin() && y1 < theBox.ymax())
-    {
-      // On left edge going up, worst we can do is upper conner, closing might be better
-
-      if (ring->getX(0) == x1 && ring->getY(0) > y1)
-        y2 = ring->getY(0);
-      else
-        y2 = theBox.ymax();
-
-      for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-        if (x == x1 && y > y1 && y <= y2)
-        {
-          y2 = y;
-          best = iter;
-        }
-      }
-    }
-    else if (y1 == theBox.ymax() && x1 < theBox.xmax())
-    {
-      // On top edge going right, worst we can do is right corner, closing might be better
-
-      if (ring->getY(0) == y1 && ring->getX(0) > x1)
-        x2 = ring->getX(0);
-      else
-        x2 = theBox.xmax();
-
-      for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-
-        if (y == y1 && x >= x1 && x <= x2)
-        {
-          x2 = x;
-          best = iter;
-        }
-      }
-    }
-    else
-    {
-      // On right edge going down, worst we can do is bottom corner, closing might be better
-
-      if (ring->getX(0) == x1 && ring->getY(0) < y1)
-        y2 = ring->getY(0);
-      else
-        y2 = theBox.ymin();
-
-      for (auto iter = itsLines.begin(); iter != itsLines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-
-        if (x == x2 && y <= y1 && y >= y2)
-        {
-          y2 = y;
-          best = iter;
-        }
-      }
-    }
+    auto best = (itsKeepInsideFlag ? search_cw(ring, itsLines, x1, y1, x2, y2, theBox)
+                                   : search_ccw(ring, itsLines, x1, y1, x2, y2, theBox));
 
     if (best != itsLines.end())
     {
@@ -528,33 +678,56 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_exterior)
       if (ring->get_IsClosed())
       {
         normalize_ring(ring);
-        exterior.push_back(ring);
+        reconnection.push_back(ring);
         ring = NULL;
       }
     }
   }
 
-  // Build the result polygons
+  // Make exterior from one polygon if there isn't one yet built from cut parts
 
-  std::list<OGRPolygon *> polygons;
-  for (auto *ring : exterior)
+  if (polygons.empty() && !itsPolygons.empty())
+  {
+    polygons.push_back(itsPolygons.front());
+    itsPolygons.pop_front();
+  }
+
+  for (auto *ring : reconnection)
   {
     auto *poly = new OGRPolygon;
     poly->addRingDirectly(ring);
     polygons.push_back(poly);
   }
 
-  // Make exterior from one polygon, this can happen if there's been a sliver
-  if (polygons.empty() && itsPolygons.size() == 1)
+  // Attach bbox as hole to polygon
+
+  if (add_bbox && !itsKeepInsideFlag)
   {
-    polygons.push_back(itsPolygons.front());
-    itsPolygons.pop_front();
+    auto *hole = make_hole(theBox);
+    if (polygons.size() == 1)
+      polygons.front()->addRingDirectly(hole);
+    else
+    {
+      OGRPoint point;
+      hole->getPoint(0, &point);
+      for (auto *poly : polygons)
+      {
+        if (poly->getExteriorRing()->isPointInRing(&point, 0) != 0)
+        {
+          poly->addRingDirectly(hole);
+          break;
+        }
+      }
+    }
   }
 
   // Attach holes to polygons
 
   for (auto *hole : itsPolygons)
   {
+    std::cout << "Processing hole: " << Fmi::OGR::exportToWkt(*hole) << "\n";
+    std::cout << "\tnumber of polygons = " << polygons.size() << "\n";
+
     if (polygons.size() == 1)
       polygons.front()->addRing(hole->getExteriorRing());
     else
@@ -575,4 +748,15 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_exterior)
 
   clear();
   itsPolygons = polygons;
+}
+
+void Fmi::ClipParts::dump() const
+{
+  std::size_t i = 0;
+  for (const auto &poly : itsPolygons)
+    std::cout << "Polygon\t" << ++i << ' ' << Fmi::OGR::exportToWkt(*poly) << "\n";
+  for (const auto &line : itsLines)
+    std::cout << "Line\t" << ++i << ' ' << Fmi::OGR::exportToWkt(*line) << "\n";
+  for (const auto &point : itsPoints)
+    std::cout << "Point\t" << ++i << ' ' << Fmi::OGR::exportToWkt(*point) << "\n";
 }

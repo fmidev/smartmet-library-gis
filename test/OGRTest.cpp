@@ -563,7 +563,7 @@ void lineclip()
       // polygon cuts the rectangle
       {"POLYGON ((-1 -1,-1 5,5 5,5 -1,-1 -1))", "LINESTRING (0 5,5 5,5 0)"},
       // polygon with hole cuts the rectangle
-      {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (3 3,4 4,4 2,3 3))",
+      {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (3 3,4 2,4 4,3 3))",
        "GEOMETRYCOLLECTION (POLYGON ((3 3,4 4,4 2,3 3)),LINESTRING (0 5,5 5,5 0))"},
       // rectangle cuts both the polygon and the hole
       {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (-1 -1,3 1,3 3,-1 -1))",
@@ -640,7 +640,7 @@ void lineclip()
           "LINESTRING (0.0 7.5,5 5,0.0 2.5)",
       },
       {"POLYGON ((5 0,-5 0,-5 10,5 0))", "LINESTRING (0 5,5 0)"},
-      {"POLYGON((10 0,-10 0,-10 10,10 0))", "LINESTRING (0 5,10 0)"},
+      {"POLYGON ((10 0,-10 0,-10 10,10 0))", "LINESTRING (0 5,10 0)"},
       {"POLYGON ((5 0,-5 5,-5 10,5 0))", "LINESTRING (0 5,5 0,0.0 2.5)"},
       {"POLYGON ((10 5,-10 0,-10 10,10 5))", "LINESTRING (0.0 7.5,10 5,0.0 2.5)"},
       {"POLYGON ((10 10,-10 0,-10 5,10 10))", "LINESTRING (0.0 7.5,10 10,0 5)"},
@@ -861,6 +861,371 @@ void polyclip()
       TEST_FAILED("Failed to parse WKT for testing: " + std::string(mytests[test][0]));
     }
     output = OGR::polyclip(*input, box);
+    string ret = exportToWkt(*output);
+    OGRGeometryFactory::destroyGeometry(input);
+    OGRGeometryFactory::destroyGeometry(output);
+    if (ret != ok)
+      TEST_FAILED("Input   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+                  "\n\tGot     : " + ret);
+  }
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+void linecut()
+{
+  using namespace Fmi;
+  using Fmi::Box;
+  using OGR::exportToWkt;
+  using OGR::lineclip;
+
+  Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
+
+  int ntests = 75;
+
+  char* mytests[75][2] = {
+      // inside
+      {"LINESTRING (1 1,1 9,9 9,9 1)", "GEOMETRYCOLLECTION EMPTY"},
+      // outside
+      {"LINESTRING (-1 -9,-1 11,9 11)", "LINESTRING (-1 -9,-1 11,9 11)"},
+      // go in from left
+      {"LINESTRING (-1 5,5 5,9 9)", "LINESTRING (-1 5,0 5)"},
+      // go out from right
+      {"LINESTRING (5 5,8 5,12 5)", "LINESTRING (10 5,12 5)"},
+      // go in and out
+      {"LINESTRING (5 -1,5 5,1 2,-3 2,1 6)", "MULTILINESTRING ((5 -1,5 0),(0 2,-3 2,0 5))"},
+      // go along left edge
+      {"LINESTRING (0 3,0 5,0 7)", "GEOMETRYCOLLECTION EMPTY"},
+      // go out from left edge
+      {"LINESTRING (0 3,0 5,-1 7)", "LINESTRING (0 5,-1 7)"},
+      // go in from left edge
+      {"LINESTRING (0 3,0 5,2 7)", "GEOMETRYCOLLECTION EMPTY"},
+      // triangle corner at bottom left corner
+      {"LINESTRING (2 1,0 0,1 2)", "GEOMETRYCOLLECTION EMPTY"},
+      // go from in to edge and back in
+      {"LINESTRING (3 3,0 3,0 5,2 7)", "GEOMETRYCOLLECTION EMPTY"},
+      // go from in to edge and then straight out
+      {"LINESTRING (5 5,10 5,20 5)", "LINESTRING (10 5,20 5)"},
+      // triangle corner at left edge
+      {"LINESTRING (3 3,0 6,3 9)", "GEOMETRYCOLLECTION EMPTY"},
+
+      // polygon completely inside
+      {"POLYGON ((5 5,5 6,6 6,6 5,5 5))", "GEOMETRYCOLLECTION EMPTY"},
+      // polygon completely outside
+      {"POLYGON ((15 15,15 16,16 16,16 15,15 15))", "POLYGON ((15 15,15 16,16 16,16 15,15 15))"},
+      // polygon surrounds the rectangle
+      {"POLYGON ((-1 -1,-1 11,11 11,11 -1,-1 -1))", "POLYGON ((-1 -1,-1 11,11 11,11 -1,-1 -1))"},
+      // polygon cuts the rectangle
+      {"POLYGON ((-1 -1,-1 5,5 5,5 -1,-1 -1))", "LINESTRING (5 0,5 -1,-1 -1,-1 5,0 5)"},
+      // polygon with hole cuts the rectangle
+      {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (3 3,4 4,4 2,3 3))",
+       "LINESTRING (5 0,5 -2,-2 -2,-2 5,0 5)"},
+      // rectangle cuts both the polygon and the hole
+      {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (-1 -1,3 1,3 3,-1 -1))",
+       "MULTILINESTRING ((5 0,5 -2,-2 -2,-2 5,0 5),(0 0,-1 -1,1 0))"},
+      // Triangle at two corners and one edge
+      {
+          "POLYGON ((0 0,5 10,10 0,0 0))",
+          "GEOMETRYCOLLECTION EMPTY",
+      },
+      // Same triangle with another starting point
+      {"POLYGON ((5 10,0 0,10 0,5 10))", "GEOMETRYCOLLECTION EMPTY"},
+      // Triangle intersection at corner and edge
+      {"POLYGON ((-5 -5,5 5,5 -5,-5 -5))", "LINESTRING (5 0,5 -5,-5 -5,0 0)"},
+      // Triangle intersection at adjacent edges
+      {"POLYGON ((-1 5,5 11,5 5,-1 5))", "MULTILINESTRING ((0 5,-1 5,0 6),(4 10,5 11,5 10))"},
+      // One triangle intersection and one inside edge
+      {"POLYGON ((-5 5,5 10,5 5,-5 5))", "LINESTRING (0 5,-5 5,0.0 7.5)"},
+      // Triangle intersection at center and end of the same edge
+      {"POLYGON ((-10 5,10 10,10 5,-10 5))", "LINESTRING (0 5,-10 5,0.0 7.5)"},
+      // Two different edges clips
+      {"POLYGON ((-5 5,15 15,15 5,-5 5))",
+       "MULTILINESTRING ((0 5,-5 5,0.0 7.5),(5 10,15 15,15 5,10 5))"},
+      // Inside triangle with all corners at edges
+      {"POLYGON ((0 5,5 10,10 5,0 5))", "GEOMETRYCOLLECTION EMPTY"},
+      // Inside triangle whose base is one of the edges
+      {"POLYGON ((0 0,5 5,10 0,0 0))", "GEOMETRYCOLLECTION EMPTY"},
+      // Triangle touching two corners on the outside
+      {"POLYGON ((-5 5,5 15,15 5,-5 5))", "LINESTRING (0 5,-5 5,5 15,15 5,10 5)"},
+      // Triangle with a diagonal and sharing two edges
+      {"POLYGON ((0 0,10 10,10 0,0 0))", "GEOMETRYCOLLECTION EMPTY"},
+      // Triangle exits edge at a corner
+      {"POLYGON ((-5 0,5 10,5 0,-5 0))", "LINESTRING (0 0,-5 0,0 5)"},
+      // Triangle enters edge at a corner
+      {"POLYGON ((-5 10,5 10,0 0,-5 10))", "LINESTRING (0 0,-5 10,0 10)"},
+      // Triangle enters and exits the same edge
+      {"POLYGON ((-5 0,5 10,15 0,-5 0))", "MULTILINESTRING ((0 0,-5 0,0 5),(10 5,15 0,10 0))"},
+      // Triangle enters at a corner and exits at another
+      {"POLYGON ((-5 -5,15 15,15 -5,-5 -5))", "LINESTRING (10 10,15 15,15 -5,-5 -5,0 0)"},
+      // From outside to nearest edge etc
+      {"POLYGON ((-5 -5,0 5,5 0,-5 -5))", "LINESTRING (5 0,-5 -5,0 5)"},
+      // From outside to opposite edge etc
+      {"POLYGON ((-10 5,10 5,0 -5,-10 5))", "LINESTRING (5 0,0 -5,-10 5,0 5)"},
+
+      // Drew all combinations I could imagine on paper, and added the following.
+
+      // All triangles fully inside
+      {"POLYGON ((0 0,0 10,10 10,0 0))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 5,0 10,10 10,0 5))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,10 10,5 0,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,10 10,5 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,5 10,0 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,10 5,0 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,10 0,0 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,5 0,0 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,5 5,0 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,7 7,3 3,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,5 5,5 0,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,10 5,5 0,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((2 5,5 7,7 5,2 5))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((2 5,5 10,7 5,2 5))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 5,5 10,5 5,0 5))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 5,5 10,10 5,0 5))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 5,5 7,10 5,0 5))", "GEOMETRYCOLLECTION EMPTY"},
+
+      // No points inside, one intersection
+      {"POLYGON ((-5 10,0 15,0 10,-5 10))", "POLYGON ((0 10,-5 10,0 15,0 10))"},
+      {"POLYGON ((-5 10,0 5,-5 0,-5 10))", "POLYGON ((0 5,-5 0,-5 10,0 5))"},
+      // No points inside, two intersections
+      {"POLYGON ((-5 5,0 10,0 0,-5 5))", "LINESTRING (0 0,-5 5,0 10)"},
+      {"POLYGON ((-5 5,0 10,0 5,-5 5))", "LINESTRING (0 5,-5 5,0 10)"},
+      {"POLYGON ((-5 5,0 7,0 3,-5 5))", "LINESTRING (0 3,-5 5,0 7)"},
+      // One point inside
+      {
+          "POLYGON ((5 5,-5 0,-5 10,5 5))",
+          "LINESTRING (0.0 2.5,-5 0,-5 10,0.0 7.5)",
+      },
+      {"POLYGON ((5 0,-5 0,-5 10,5 0))", "LINESTRING (0 0,-5 0,-5 10,0 5)"},
+      {"POLYGON ((10 0,-10 0,-10 10,10 0))", "LINESTRING (0 0,-10 0,-10 10,0 5)"},
+      {"POLYGON ((5 0,-5 5,-5 10,5 0))", "LINESTRING (0.0 2.5,-5 5,-5 10,0 5)"},
+      {"POLYGON ((10 5,-10 0,-10 10,10 5))", "LINESTRING (0.0 2.5,-10 0,-10 10,0.0 7.5)"},
+      {"POLYGON ((10 10,-10 0,-10 5,10 10))", "LINESTRING (0 5,-10 0,-10 5,0.0 7.5)"},
+      {"POLYGON ((5 5,-5 -5,-5 15,5 5))", "LINESTRING (0 0,-5 -5,-5 15,0 10)"},
+      {"POLYGON ((10 5,-10 -5,-10 15,10 5))", "LINESTRING (0 0,-10 -5,-10 15,0 10)"},
+      {
+          "POLYGON ((5 0,-5 0,-5 20,5 0))",
+          "LINESTRING (0 0,-5 0,-5 20,0 10)",
+      },
+      {"POLYGON ((10 0,-10 0,-10 20,10 0))", "LINESTRING (0 0,-10 0,-10 20,0 10)"},
+      {
+          "POLYGON ((5 5,-10 5,0 15,5 5))",
+          "LINESTRING (0 5,-10 5,0 15,2.5 10.0)",
+      },
+      {"POLYGON ((5 5,-5 -5,0 15,5 5))", "LINESTRING (0 0,-5 -5,0 15,2.5 10.0)"},
+      {
+          "POLYGON ((5 5,-15 -20,-15 30,5 5))",
+          "LINESTRING (1 0,-15 -20,-15 30,1 10)",
+      },
+      // Two points inside
+      {"POLYGON ((5 7,5 3,-5 5,5 7))", "LINESTRING (0 4,-5 5,0 6)"},
+      {"POLYGON ((5 7,5 3,-5 13,5 7))", "LINESTRING (0 8,-5 13,0 10)"},
+      {"POLYGON ((6 6,4 4,-4 14,6 6))", "LINESTRING (0 9,-4 14,1.0 10.0)"},
+
+      // Polygon with hole which surrounds the rectangle
+      {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(-1 -1,11 -1,11 11,-1 11,-1 -1))",
+       "POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(-1 -1,11 -1,11 11,-1 11,-1 -1))"},
+      // Polygon surrounding the rect, but with a hole inside the rect
+      {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(1 1,9 1,9 9,1 9,1 1))",
+       "POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2))"}
+
+  };
+
+  for (int test = 73; test < ntests; ++test)
+  {
+    std::cout << "\nTest = " << test << "\n";
+    OGRGeometry* input;
+    OGRGeometry* output;
+
+    const char* wkt = mytests[test][0];
+    string ok = mytests[test][1];
+
+    try
+    {
+      auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
+      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+    }
+    catch (...)
+    {
+      TEST_FAILED("Failed to parse WKT for testing: " + std::string(mytests[test][0]));
+    }
+    output = OGR::linecut(*input, box);
+    string ret = exportToWkt(*output);
+    OGRGeometryFactory::destroyGeometry(input);
+    OGRGeometryFactory::destroyGeometry(output);
+    if (ret != ok)
+      TEST_FAILED("Input   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+                  "\n\tGot     : " + ret);
+  }
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+void polycut()
+{
+  using namespace Fmi;
+  using Fmi::Box;
+  using OGR::exportToWkt;
+  using OGR::lineclip;
+
+  Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
+
+  int ntests = 69;
+  char* mytests[69][2] = {
+      // inside
+      {"LINESTRING (1 1,1 9,9 9,9 1)", "GEOMETRYCOLLECTION EMPTY"},
+      // outside
+      {"LINESTRING (-1 -9,-1 11,9 11)", "LINESTRING (-1 -9,-1 11,9 11)"},
+      // go in from left
+      {"LINESTRING (-1 5,5 5,9 9)", "LINESTRING (-1 5,0 5)"},
+      // go out from right
+      {"LINESTRING (5 5,8 5,12 5)", "LINESTRING (10 5,12 5)"},
+      // go in and out
+      {"LINESTRING (5 -1,5 5,1 2,-3 2,1 6)", "MULTILINESTRING ((5 -1,5 0),(0 2,-3 2,0 5))"},
+      // go along left edge
+      {"LINESTRING (0 3,0 5,0 7)", "GEOMETRYCOLLECTION EMPTY"},
+      // go out from left edge
+      {"LINESTRING (0 3,0 5,-1 7)", "LINESTRING (0 5,-1 7)"},
+      // go in from left edge
+      {"LINESTRING (0 3,0 5,2 7)", "GEOMETRYCOLLECTION EMPTY"},
+      // triangle corner at bottom left corner
+      {"LINESTRING (2 1,0 0,1 2)", "GEOMETRYCOLLECTION EMPTY"},
+      // go from in to edge and back in
+      {"LINESTRING (3 3,0 3,0 5,2 7)", "GEOMETRYCOLLECTION EMPTY"},
+      // go from in to edge and then straight out
+      {"LINESTRING (5 5,10 5,20 5)", "LINESTRING (10 5,20 5)"},
+      // triangle corner at left edge
+      {"LINESTRING (3 3,0 6,3 9)", "GEOMETRYCOLLECTION EMPTY"},
+
+      // polygon completely inside
+      {"POLYGON ((5 5,5 6,6 6,6 5,5 5))", "GEOMETRYCOLLECTION EMPTY"},
+      // polygon completely outside
+      {"POLYGON ((15 15,15 16,16 16,16 15,15 15))", "POLYGON ((15 15,15 16,16 16,16 15,15 15))"},
+      // polygon surrounds the rectangle
+      {"POLYGON ((-1 -1,-1 11,11 11,11 -1,-1 -1))",
+       "POLYGON ((-1 -1,-1 11,11 11,11 -1,-1 -1),(0 0,10 0,10 10,0 10,0 0))"},
+      // polygon cuts the rectangle
+      {"POLYGON ((-1 -1,-1 5,5 5,5 -1,-1 -1))", "POLYGON ((-1 -1,-1 5,0 5,0 0,5 0,5 -1,-1 -1))"},
+      // polygon with hole cuts the rectangle
+      {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (3 3,4 4,4 2,3 3))",
+       "POLYGON ((-2 -2,-2 5,0 5,0 0,5 0,5 -2,-2 -2))"},
+      // rectangle cuts both the polygon and the hole
+      {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (-1 -1,3 1,3 3,-1 -1))",
+       "POLYGON ((-2 -2,-2 5,0 5,0 0,-1 -1,1 0,5 0,5 -2,-2 -2))"},
+      // Triangle at two corners and one edge
+      {
+          "POLYGON ((0 0,5 10,10 0,0 0))",
+          "GEOMETRYCOLLECTION EMPTY",
+      },
+      // Same triangle with another starting point
+      {
+          "POLYGON ((5 10,10 0,0 0,5 10))",
+          "GEOMETRYCOLLECTION EMPTY",
+      },
+      // Triangle intersection at corner and edge
+      {"POLYGON ((-5 -5,5 5,5 -5,-5 -5))", "POLYGON ((-5 -5,0 0,5 0,5 -5,-5 -5))"},
+      // All triangles fully inside
+      {"POLYGON ((0 0,0 10,10 10,0 0))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 5,0 10,10 10,0 5))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,10 10,5 0,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,10 10,5 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,5 10,0 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,10 5,0 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,10 0,0 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,5 0,0 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,5 5,0 5,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,7 7,3 3,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,5 5,5 0,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 10,10 5,5 0,0 10))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((2 5,5 7,7 5,2 5))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((2 5,5 10,7 5,2 5))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 5,5 10,5 5,0 5))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 5,5 10,10 5,0 5))", "GEOMETRYCOLLECTION EMPTY"},
+      {"POLYGON ((0 5,5 7,10 5,0 5))", "GEOMETRYCOLLECTION EMPTY"},
+
+      // No points inside, one intersection
+      {"POLYGON ((-5 10,0 15,0 10,-5 10))", "POLYGON ((-5 10,0 15,0 10,-5 10))"},
+      {"POLYGON ((-5 10,0 5,-5 0,-5 10))", "POLYGON ((-5 0,-5 10,0 5,-5 0))"},
+      // No points inside, two intersections
+      {"POLYGON ((-5 5,0 10,0 0,-5 5))", "POLYGON ((-5 5,0 10,0 0,-5 5))"},
+      {"POLYGON ((-5 5,0 10,0 5,-5 5))", "POLYGON ((-5 5,0 10,0 5,-5 5))"},
+      {"POLYGON ((-5 5,0 7,0 3,-5 5))", "POLYGON ((-5 5,0 7,0 3,-5 5))"},
+      // One point inside
+      {"POLYGON ((5 5,-5 0,-5 10,5 5))", "POLYGON ((-5 0,-5 10,0.0 7.5,0.0 2.5,-5 0))"},
+      {"POLYGON ((5 0,-5 0,-5 10,5 0))", "POLYGON ((-5 0,-5 10,0 5,0 0,-5 0))"},
+      {"POLYGON ((10 0,-10 0,-10 10,10 0))", "POLYGON ((-10 0,-10 10,0 5,0 0,-10 0))"},
+      {"POLYGON ((5 0,-5 5,-5 10,5 0))", "POLYGON ((-5 5,-5 10,0 5,0.0 2.5,-5 5))"},
+      {"POLYGON ((10 5,-10 0,-10 10,10 5))", "POLYGON ((-10 0,-10 10,0.0 7.5,0.0 2.5,-10 0))"},
+      {"POLYGON ((10 10,-10 0,-10 5,10 10))", "POLYGON ((-10 0,-10 5,0.0 7.5,0 5,-10 0))"},
+      {"POLYGON ((5 5,-5 -5,-5 15,5 5))", "POLYGON ((-5 -5,-5 15,0 10,0 0,-5 -5))"},
+      {"POLYGON ((10 5,-10 -5,-10 15,10 5))", "POLYGON ((-10 -5,-10 15,0 10,0 0,-10 -5))"},
+      {"POLYGON ((5 0,-5 0,-5 20,5 0))", "POLYGON ((-5 0,-5 20,0 10,0 0,-5 0))"},
+      {"POLYGON ((10 0,-10 0,-10 20,10 0))", "POLYGON ((-10 0,-10 20,0 10,0 0,-10 0))"},
+      {"POLYGON ((5 5,-10 5,0 15,5 5))", "POLYGON ((-10 5,0 15,2.5 10.0,0 10,0 5,-10 5))"},
+      {"POLYGON ((5 5,-5 -5,0 15,5 5))", "POLYGON ((-5 -5,0 15,2.5 10.0,0 10,0 0,-5 -5))"},
+      {"POLYGON ((5 5,-15 -20,-15 30,5 5))",
+       "POLYGON ((-15 -20,-15 30,1 10,0 10,0 0,1 0,-15 -20))"},  //
+      // Two points inside
+      {"POLYGON ((5 7,5 3,-5 5,5 7))", "POLYGON ((-5 5,0 6,0 4,-5 5))"},
+      {"POLYGON ((5 7,5 3,-5 13,5 7))", "POLYGON ((-5 13,0 10,0 8,-5 13))"},
+      {"POLYGON ((6 6,4 4,-4 14,6 6))", "POLYGON ((-4 14,1.0 10.0,0 10,0 9,-4 14))"},
+
+      // Polygon with hole which surrounds the rectangle
+      {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(-1 -1,11 -1,11 11,-1 11,-1 -1))",
+       "POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(-1 -1,11 -1,11 11,-1 11,-1 -1))"},
+      // Polygon surrounding the rect, but with a hole inside the rect
+      {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(1 1,9 1,9 9,1 9,1 1))",
+       "POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(0 0,10 0,10 10,0 10,0 0))"},
+      // Polygon with hole cut at the right corner
+      {"POLYGON ((5 5,15 5,15 -5,5 -5,5 5),(8 1,8 -1,9 -1,9 1,8 1))",
+       "POLYGON ((5 -5,5 0,8 0,8 -1,9 -1,9 0,10 0,10 5,15 5,15 -5,5 -5))"},
+      // Polygon going around a corner
+      {"POLYGON ((-6 5,5 5,5 -6,-6 5))", "POLYGON ((-6 5,0 5,0 0,5 0,5 -6,-6 5))"},
+      // Hole in a corner
+      {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-5 5,-5 -5,5 -5,5 5,-5 5))",
+       "POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-5 -5,5 -5,5 0,10 0,10 10,0 10,0 5,-5 5,-5 "
+       "-5))"},
+      // Hole going around a corner
+      {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-6 5,5 -6,5 5,-6 5))",
+       "POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-6 5,5 -6,5 0,10 0,10 10,0 10,0 5,-6 5))"},
+      // Surround the rectangle, hole outside rectangle
+      {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-5 5,-6 5,-6 6,-5 6,-5 5))",
+       "POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-5 5,-6 5,-6 6,-5 6,-5 5),(0 0,10 0,10 "
+       "10,0 10,0 0))"},
+      // Surround the rectangle, hole outside rectangle but shares edge
+      {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(0 5,-1 5,-1 6,0 6,0 5))",
+       "POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(0 0,10 0,10 10,0 10, 0 6,-1 6,-1 5,0 5,0 "
+       "0))"},
+      // Polygon with hole, box intersects both
+      {"POLYGON ((-5 1,-5 9,5 9,5 1,-5 1),(-4 8,-4 2,4 2,4 8,-4 8)))",
+       "POLYGON ((-5 1,-5 9,5 9,5 1,-5 1),(0 0,10 0,10 10,0 10,0 8,-4 8,-4 2,0 2,0 0"},
+      // Polygon with hole, box intersects both - variant 2
+      {"POLYGON ((-15 1,-15 15,15 15,15 1,-5 1),(-1 3,-1 2,1 2,1 3,-1 3))",
+       "POLYGON ((-15 1,-15 15,15 15,15 1,-5 1),(0 0,10 0,10 10,0 10,0 2.5,-1 3,-1 2,0 2,0 0))"}};
+
+  for (int test = 0; test < ntests; ++test)
+  {
+    std::cout << "\nTest " << test << "\n";
+    OGRGeometry* input;
+    OGRGeometry* output;
+
+    const char* wkt = mytests[test][0];
+    string ok = mytests[test][1];
+
+    // std::cerr << "\nTEST: " << std::string(wkt) << std::endl;
+    try
+    {
+      auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
+      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+    }
+    catch (...)
+    {
+      TEST_FAILED("Failed to parse WKT for testing: " + std::string(mytests[test][0]));
+    }
+    output = OGR::polycut(*input, box);
     string ret = exportToWkt(*output);
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
@@ -1152,23 +1517,25 @@ class tests : public tframe::tests
   // Main test suite
   void test()
   {
-    TEST(expand_geometry);
-    TEST(exportToWkt_spatialreference);
-    TEST(exportToSvg_precision);
-    TEST(exportToSvg_wiki_examples);
-    TEST(exportToProj);
-    TEST(lineclip);
-    TEST(polyclip);
-    TEST(despeckle);
-    TEST(despeckle_geography);
-    TEST(grid_north_wgs84);
-    TEST(grid_north_epsg_4326);
-    TEST(grid_north_epsga_4326);
-    TEST(grid_north_epsg_3035);
-    TEST(grid_north_epsg_3034);
-    TEST(grid_north_smartmet_editor);
-    TEST(grid_north_rotlatlon_proj);
-    TEST(grid_north_rotlatlon_wkt);
+    // TEST(expand_geometry);
+    // TEST(exportToWkt_spatialreference);
+    // TEST(exportToSvg_precision);
+    // TEST(exportToSvg_wiki_examples);
+    // TEST(exportToProj);
+    // TEST(lineclip);
+    // TEST(polyclip);
+    // TEST(linecut);
+    TEST(polycut);
+    // TEST(despeckle);
+    // TEST(despeckle_geography);
+    // TEST(grid_north_wgs84);
+    // TEST(grid_north_epsg_4326);
+    // TEST(grid_north_epsga_4326);
+    // TEST(grid_north_epsg_3035);
+    // TEST(grid_north_epsg_3034);
+    // TEST(grid_north_smartmet_editor);
+    // TEST(grid_north_rotlatlon_proj);
+    // TEST(grid_north_rotlatlon_wkt);
   }
 
 };  // class tests
