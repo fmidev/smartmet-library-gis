@@ -71,8 +71,8 @@ FMI GIS library development files
 
 %changelog
 * Thu Aug  6 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.6-1.fmi
-- Added OGRSpatialReferenceCache
-- Added CoordinateTransformationCache
+- Added OGRSpatialReferenceFactory
+- Added OGRCoordinateTransformationFactory
 
 * Thu Jul  2 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.2-1.fmi
 - Added Box constructor with identity transformation properties
