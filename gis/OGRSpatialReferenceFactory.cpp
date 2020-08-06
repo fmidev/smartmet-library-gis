@@ -11,13 +11,8 @@ namespace Fmi
 namespace
 {
 // Cache for spatial-reference objects created from defining string.
-using SpatialReferenceCacheFromString =
-    Cache::Cache<std::string, std::shared_ptr<OGRSpatialReference>>;
-SpatialReferenceCacheFromString g_spatialReferenceCacheFromString;
-
-// Cache for spatial-reference objects created from defining epsg number.
-using SpatialReferenceCacheFromEpsg = Cache::Cache<int, std::shared_ptr<OGRSpatialReference>>;
-SpatialReferenceCacheFromEpsg g_spatialReferenceCacheFromEpsg;
+using SpatialReferenceCache = Cache::Cache<std::string, std::shared_ptr<OGRSpatialReference>>;
+SpatialReferenceCache g_spatialReferenceCache;
 
 // Known datums : those listed in PROJ.4 pj_datums.c
 
@@ -91,7 +86,7 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
   if (theDesc.empty())
     throw std::runtime_error("Cannot create spatial reference from empty string");
 
-  auto cacheObject = g_spatialReferenceCacheFromString.find(theDesc);
+  auto cacheObject = g_spatialReferenceCache.find(theDesc);
   if (cacheObject) return *cacheObject;
 
   // Wasn't in the cache, must generate new object
@@ -116,23 +111,7 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
     throw std::runtime_error("Failed to create spatial reference from '" + theDesc + "' ('" + desc +
                              "')");
   }
-  g_spatialReferenceCacheFromString.insert(theDesc, sr);
-
-  return sr;
-}
-
-// Utility function for creating spatial references from defining epsg number.
-std::shared_ptr<OGRSpatialReference> make_crs(int epsg)
-{
-  auto cacheObject = g_spatialReferenceCacheFromEpsg.find(epsg);
-  if (cacheObject) return *cacheObject;
-
-  // Wasn't in the cache, must generate new object
-
-  auto sr = std::make_shared<OGRSpatialReference>();
-  auto err = sr->importFromEPSGA(epsg);
-  if (err != OGRERR_NONE) throw std::runtime_error(fmt::format("Unknown EPSG {}", epsg));
-  g_spatialReferenceCacheFromEpsg.insert(epsg, sr);
+  g_spatialReferenceCache.insert(theDesc, sr);
 
   return sr;
 }
@@ -146,13 +125,13 @@ std::shared_ptr<OGRSpatialReference> Create(const std::string& theDesc)
   return make_crs(theDesc);
 }
 
-std::shared_ptr<OGRSpatialReference> Create(int epsg) { return make_crs(epsg); }
-
-void SetCacheSize(std::size_t newMaxSize)
+std::shared_ptr<OGRSpatialReference> Create(int epsg)
 {
-  g_spatialReferenceCacheFromString.resize(newMaxSize);
-  g_spatialReferenceCacheFromEpsg.resize(newMaxSize);
+  auto desc = fmt::format("EPSG:{}", epsg);
+  return make_crs(desc);
 }
+
+void SetCacheSize(std::size_t newMaxSize) { g_spatialReferenceCache.resize(newMaxSize); }
 
 };  // namespace OGRSpatialReferenceFactory
 }  // namespace Fmi
