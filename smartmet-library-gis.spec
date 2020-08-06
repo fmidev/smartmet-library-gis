@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.7.2
+Version: 20.7.6
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -70,6 +70,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Aug  6 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.6-1.fmi
+- Added OGRSpatialReferenceCache
+- Added CoordinateTransformationCache
+
 * Thu Jul  2 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.2-1.fmi
 - Added Box constructor with identity transformation properties
 - CoordinateTransformation now clones the input SpatialReference objects

@@ -1,15 +1,24 @@
 #include "OGRSpatialReferenceFactory.h"
 #include "OGR.h"
 #include "ProjInfo.h"
-#include "macgyver/Cache.h"
+#include <fmt/format.h>
+#include <macgyver/Cache.h>
 #include <gdal_version.h>
 #include <ogr_geometry.h>
-#include <fmt/format.h>
 
 namespace Fmi
 {
 namespace
 {
+// Cache for spatial-reference objects created from defining string.
+using SpatialReferenceCacheFromString =
+    Cache::Cache<std::string, std::shared_ptr<OGRSpatialReference>>;
+SpatialReferenceCacheFromString g_spatialReferenceCacheFromString;
+
+// Cache for spatial-reference objects created from defining epsg number.
+using SpatialReferenceCacheFromEpsg = Cache::Cache<int, std::shared_ptr<OGRSpatialReference>>;
+SpatialReferenceCacheFromEpsg g_spatialReferenceCacheFromEpsg;
+
 // Known datums : those listed in PROJ.4 pj_datums.c
 
 std::map<std::string, std::string> known_datums = {
@@ -76,11 +85,6 @@ std::map<std::string, std::string> known_ellipsoids = {
     {"WGS84", "+a=6378137 +rf=298.257223563"},
     {"sphere", "+a=6370997 +b=6370997"}};
 
-// Cache for spatial-reference objects created from defining string.
-using SpatialReferenceCacheFromString =
-    Cache::Cache<std::string, std::shared_ptr<OGRSpatialReference>>;
-SpatialReferenceCacheFromString g_spatialReferenceCacheFromString;
-
 // Utility function for creating spatial references from defining string.
 std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
 {
@@ -117,10 +121,6 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
   return sr;
 }
 
-// Cache for spatial-reference objects created from defining epsg number.
-using SpatialReferenceCacheFromEpsg = Cache::Cache<int, std::shared_ptr<OGRSpatialReference>>;
-SpatialReferenceCacheFromEpsg g_spatialReferenceCacheFromEpsg;
-
 // Utility function for creating spatial references from defining epsg number.
 std::shared_ptr<OGRSpatialReference> make_crs(int epsg)
 {
@@ -139,20 +139,20 @@ std::shared_ptr<OGRSpatialReference> make_crs(int epsg)
 
 }  // namespace
 
-
 namespace OGRSpatialReferenceFactory
 {
-std::shared_ptr<OGRSpatialReference> Create(std::string theDesc) { return make_crs(theDesc); }
+std::shared_ptr<OGRSpatialReference> Create(const std::string& theDesc)
+{
+  return make_crs(theDesc);
+}
 
 std::shared_ptr<OGRSpatialReference> Create(int epsg) { return make_crs(epsg); }
 
-void SetCacheSize(size_t newMaxSize) 
-{ 
+void SetCacheSize(std::size_t newMaxSize)
+{
   g_spatialReferenceCacheFromString.resize(newMaxSize);
   g_spatialReferenceCacheFromEpsg.resize(newMaxSize);
 }
 
 };  // namespace OGRSpatialReferenceFactory
 }  // namespace Fmi
-
-

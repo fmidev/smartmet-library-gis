@@ -1,15 +1,12 @@
 #include "SpatialReference.h"
-
 #include "OGR.h"
-#include "ProjInfo.h"
-#include "macgyver/Cache.h"
 #include "OGRSpatialReferenceFactory.h"
-
+#include "ProjInfo.h"
+#include <boost/functional/hash.hpp>
 #include <ogr_geometry.h>
 
 namespace Fmi
 {
-
 class SpatialReference::Impl
 {
  public:

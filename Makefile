@@ -83,6 +83,8 @@ else
   INCLUDES += -I/usr/include/geos
 endif
 
+INCLUDES += -I/usr/include/smartmet
+
 
 LIBS += -L$(libdir) \
 	-lboost_filesystem \
