@@ -1,7 +1,7 @@
 #include "CoordinateTransformation.h"
-
 #include "Interrupt.h"
 #include "OGR.h"
+#include "OGRCoordinateTransformationFactory.h"
 #include "ProjInfo.h"
 #include "SpatialReference.h"
 #include "Types.h"
@@ -26,38 +26,36 @@ class CoordinateTransformation::Impl
   ~Impl() = default;
   Impl() = delete;
 
-    Impl(const Impl& other)
+  Impl(const Impl& other)
       : m_source(other.m_source),
         m_target(other.m_target),
-        m_transformation(OGRCreateCoordinateTransformation(other.m_source, other.m_target))
+        m_transformation(OGRCoordinateTransformationFactory::Create(
+            other.m_source.projInfo().projStr(), other.m_target.projInfo().projStr()))
   {
-    if (m_transformation == nullptr)
-      throw std::runtime_error("Failed to create the requested coordinate transformation");
   }
 
-  Impl(const SpatialReference &theSource, const SpatialReference &theTarget)
+  Impl(const SpatialReference& theSource, const SpatialReference& theTarget)
       : m_source(theSource),
         m_target(theTarget),
-        m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get()))
+        m_transformation(OGRCoordinateTransformationFactory::Create(theSource.projInfo().projStr(),
+                                                                    theTarget.projInfo().projStr()))
   {
-    if (m_transformation == nullptr)
-      throw std::runtime_error("Failed to create the requested coordinate transformation");
   }
 
   Impl& operator=(const Impl&) = delete;
 
   const SpatialReference m_source;
   const SpatialReference m_target;
-  std::unique_ptr<OGRCoordinateTransformation> m_transformation;
+  OGRCoordinateTransformationFactory::Ptr m_transformation;
 };
 
-CoordinateTransformation::CoordinateTransformation(const CoordinateTransformation& other) 
+CoordinateTransformation::CoordinateTransformation(const CoordinateTransformation& other)
     : impl(new Impl(*other.impl))
 {
 }
 
-CoordinateTransformation::CoordinateTransformation(const SpatialReference &theSource,
-                                                   const SpatialReference &theTarget)
+CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSource,
+                                                   const SpatialReference& theTarget)
     : impl(new Impl(theSource, theTarget))
 {
 }
