@@ -30,6 +30,9 @@ using Ptr = std::unique_ptr<OGRCoordinateTransformation, Deleter>;
 // Get transformation object, creating it if necessary using the engine spatial for creating
 // the needed spatial references
 Ptr Create(const std::string &theSource, const std::string &theTarget);
+Ptr Create(int theSource, int theTarget);
+Ptr Create(int theSource, const std::string &theTarget);
+Ptr Create(const std::string &theSource, int theTarget);
 
 // Set maximum cache size
 void SetMaxSize(std::size_t theMaxSize);

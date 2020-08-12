@@ -608,7 +608,7 @@ void lineclip()
 
       // Drew all combinations I could imagine on paper, and added the following.
 
-      // All triangles fully inside
+      // All triangles fully inside, but some edges will be removed
       {"POLYGON ((0 0,0 10,10 10,0 0))", "LINESTRING (10 10,0 0)"},
       {"POLYGON ((0 5,0 10,10 10,0 5))", "LINESTRING (10 10,0 5)"},
       {"POLYGON ((0 10,10 10,5 0,0 10))", "LINESTRING (10 10,5 0,0 10)"},
@@ -640,7 +640,7 @@ void lineclip()
           "LINESTRING (0.0 7.5,5 5,0.0 2.5)",
       },
       {"POLYGON ((5 0,-5 0,-5 10,5 0))", "LINESTRING (0 5,5 0)"},
-      {"POLYGON ((10 0,-10 0,-10 10,10 0))", "LINESTRING (0 5,10 0)"},
+      {"POLYGON((10 0,-10 0,-10 10,10 0))", "LINESTRING (0 5,10 0)"},
       {"POLYGON ((5 0,-5 5,-5 10,5 0))", "LINESTRING (0 5,5 0,0.0 2.5)"},
       {"POLYGON ((10 5,-10 0,-10 10,10 5))", "LINESTRING (0.0 7.5,10 5,0.0 2.5)"},
       {"POLYGON ((10 10,-10 0,-10 5,10 10))", "LINESTRING (0.0 7.5,10 10,0 5)"},
@@ -670,7 +670,7 @@ void lineclip()
        "GEOMETRYCOLLECTION EMPTY"},
       // Polygon surrounding the rect, but with a hole inside the rect
       {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(1 1,9 1,9 9,1 9,1 1))",
-       "POLYGON ((1 1,9 1,9 9,1 9,1 1))"}
+       "POLYGON ((1 1,1 9,9 9,9 1,1 1))"}
 
   };
 
@@ -756,15 +756,9 @@ void polyclip()
       {"POLYGON ((-2 -2,-2 5,5 5,5 -2,-2 -2), (-1 -1,3 1,3 3,-1 -1))",
        "POLYGON ((0 0,0 5,5 5,5 0,1 0,3 1,3 3,0 0))"},
       // Triangle at two corners and one edge
-      {
-          "POLYGON ((0 0,5 10,10 0,0 0))",
-          "POLYGON ((0 0,5 10,10 0,0 0))",
-      },
-      // Same triangle with another starting point
-      {
-          "POLYGON ((5 10,10 0,0 0,5 10))",
-          "POLYGON ((0 0,5 10,10 0,0 0))",
-      },
+      {"POLYGON ((0 0,5 10,10 0,0 0))", "POLYGON ((0 0,5 10,10 0,0 0))"},
+      // Same triangle with another starting point is normalized
+      {"POLYGON ((5 10,10 0,0 0,5 10))", "POLYGON ((0 0,5 10,10 0,0 0))"},
       // Triangle intersection at corner and edge
       {"POLYGON ((-5 -5,5 5,5 -5,-5 -5))", "POLYGON ((0 0,5 5,5 0,0 0))"},
       // All triangles fully inside
@@ -830,7 +824,7 @@ void polyclip()
       {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-6 5,5 -6,5 5,-6 5))",
        "POLYGON ((0 5,0 10,10 10,10 0,5 0,5 5,0 5))"},
       // Surround the rectangle, hole outside rectangle
-      {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-5 5,-6 5,-6 6,-5 6,-5 5))",
+      {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-6 5,-5 5,-5 6,-6 6,-6 5))",
        "POLYGON ((0 0,0 10,10 10,10 0,0 0))"},
       // Surround the rectangle, hole outside rectangle but shares edge
       {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(0 5,-1 5,-1 6,0 6,0 5))",
@@ -850,7 +844,6 @@ void polyclip()
     const char* wkt = mytests[test][0];
     string ok = mytests[test][1];
 
-    // std::cerr << "\nTEST: " << std::string(wkt) << std::endl;
     try
     {
       auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
@@ -935,14 +928,14 @@ void linecut()
       // Triangle intersection at corner and edge
       {"POLYGON ((-5 -5,5 5,5 -5,-5 -5))", "LINESTRING (5 0,5 -5,-5 -5,0 0)"},
       // Triangle intersection at adjacent edges
-      {"POLYGON ((-1 5,5 11,5 5,-1 5))", "MULTILINESTRING ((0 5,-1 5,0 6),(4 10,5 11,5 10))"},
+      {"POLYGON ((-1 5,5 11,5 5,-1 5))", "MULTILINESTRING ((4 10,5 11,5 10),(0 5,-1 5,0 6))"},
       // One triangle intersection and one inside edge
       {"POLYGON ((-5 5,5 10,5 5,-5 5))", "LINESTRING (0 5,-5 5,0.0 7.5)"},
       // Triangle intersection at center and end of the same edge
       {"POLYGON ((-10 5,10 10,10 5,-10 5))", "LINESTRING (0 5,-10 5,0.0 7.5)"},
       // Two different edges clips
       {"POLYGON ((-5 5,15 15,15 5,-5 5))",
-       "MULTILINESTRING ((0 5,-5 5,0.0 7.5),(5 10,15 15,15 5,10 5))"},
+       "MULTILINESTRING ((5 10,15 15,15 5,10 5),(0 5,-5 5,0.0 7.5))"},
       // Inside triangle with all corners at edges
       {"POLYGON ((0 5,5 10,10 5,0 5))", "GEOMETRYCOLLECTION EMPTY"},
       // Inside triangle whose base is one of the edges
@@ -956,7 +949,7 @@ void linecut()
       // Triangle enters edge at a corner
       {"POLYGON ((-5 10,5 10,0 0,-5 10))", "LINESTRING (0 0,-5 10,0 10)"},
       // Triangle enters and exits the same edge
-      {"POLYGON ((-5 0,5 10,15 0,-5 0))", "MULTILINESTRING ((0 0,-5 0,0 5),(10 5,15 0,10 0))"},
+      {"POLYGON ((-5 0,5 10,15 0,-5 0))", "MULTILINESTRING ((10 5,15 0,10 0),(0 0,-5 0,0 5))"},
       // Triangle enters at a corner and exits at another
       {"POLYGON ((-5 -5,15 15,15 -5,-5 -5))", "LINESTRING (10 10,15 15,15 -5,-5 -5,0 0)"},
       // From outside to nearest edge etc
@@ -986,8 +979,8 @@ void linecut()
       {"POLYGON ((0 5,5 7,10 5,0 5))", "GEOMETRYCOLLECTION EMPTY"},
 
       // No points inside, one intersection
-      {"POLYGON ((-5 10,0 15,0 10,-5 10))", "POLYGON ((0 10,-5 10,0 15,0 10))"},
-      {"POLYGON ((-5 10,0 5,-5 0,-5 10))", "POLYGON ((0 5,-5 0,-5 10,0 5))"},
+      {"POLYGON ((-5 10,0 15,0 10,-5 10))", "POLYGON ((-5 10,0 15,0 10,-5 10))"},
+      {"POLYGON ((-5 10,0 5,-5 0,-5 10))", "POLYGON ((-5 0,-5 10,0 5,-5 0))"},
       // No points inside, two intersections
       {"POLYGON ((-5 5,0 10,0 0,-5 5))", "LINESTRING (0 0,-5 5,0 10)"},
       {"POLYGON ((-5 5,0 10,0 5,-5 5))", "LINESTRING (0 5,-5 5,0 10)"},
@@ -1032,9 +1025,8 @@ void linecut()
 
   };
 
-  for (int test = 73; test < ntests; ++test)
+  for (int test = 0; test < ntests; ++test)
   {
-    std::cout << "\nTest = " << test << "\n";
     OGRGeometry* input;
     OGRGeometry* output;
 
@@ -1193,29 +1185,27 @@ void polycut()
        "POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-6 5,5 -6,5 0,10 0,10 10,0 10,0 5,-6 5))"},
       // Surround the rectangle, hole outside rectangle
       {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-5 5,-6 5,-6 6,-5 6,-5 5))",
-       "POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-5 5,-6 5,-6 6,-5 6,-5 5),(0 0,10 0,10 "
+       "POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-6 5,-5 5,-5 6,-6 6,-6 5),(0 0,10 0,10 "
        "10,0 10,0 0))"},
       // Surround the rectangle, hole outside rectangle but shares edge
-      {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(0 5,-1 5,-1 6,0 6,0 5))",
-       "POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(0 0,10 0,10 10,0 10, 0 6,-1 6,-1 5,0 5,0 "
-       "0))"},
+      {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-1 5,0 5,0 6,-1 6,-1 5))",
+       "POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-1 5,0 5,0 0,10 0,10 10,0 10,0 6,-1 6,-1 "
+       "5))"},
       // Polygon with hole, box intersects both
       {"POLYGON ((-5 1,-5 9,5 9,5 1,-5 1),(-4 8,-4 2,4 2,4 8,-4 8)))",
-       "POLYGON ((-5 1,-5 9,5 9,5 1,-5 1),(0 0,10 0,10 10,0 10,0 8,-4 8,-4 2,0 2,0 0"},
+       "POLYGON ((-5 1,-5 9,0 9,0 8,-4 8,-4 2,0 2,0 1,-5 1))"},
       // Polygon with hole, box intersects both - variant 2
-      {"POLYGON ((-15 1,-15 15,15 15,15 1,-5 1),(-1 3,-1 2,1 2,1 3,-1 3))",
-       "POLYGON ((-15 1,-15 15,15 15,15 1,-5 1),(0 0,10 0,10 10,0 10,0 2.5,-1 3,-1 2,0 2,0 0))"}};
+      {"POLYGON ((-15 1,-15 15,15 15,15 1,-15 1),(-1 3,-1 2,1 2,1 3,-1 3))",
+       "POLYGON ((-15 1,-15 15,15 15,15 1,10 1,10 10,0 10,0 3,-1 3,-1 2,0 2,0 1,-15 1))"}};
 
   for (int test = 0; test < ntests; ++test)
   {
-    std::cout << "\nTest " << test << "\n";
     OGRGeometry* input;
     OGRGeometry* output;
 
     const char* wkt = mytests[test][0];
     string ok = mytests[test][1];
 
-    // std::cerr << "\nTEST: " << std::string(wkt) << std::endl;
     try
     {
       auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
@@ -1517,25 +1507,25 @@ class tests : public tframe::tests
   // Main test suite
   void test()
   {
-    // TEST(expand_geometry);
-    // TEST(exportToWkt_spatialreference);
-    // TEST(exportToSvg_precision);
-    // TEST(exportToSvg_wiki_examples);
-    // TEST(exportToProj);
-    // TEST(lineclip);
-    // TEST(polyclip);
-    // TEST(linecut);
+    TEST(expand_geometry);
+    TEST(exportToWkt_spatialreference);
+    TEST(exportToSvg_precision);
+    TEST(exportToSvg_wiki_examples);
+    TEST(exportToProj);
+    TEST(lineclip);
+    TEST(polyclip);
+    TEST(linecut);
     TEST(polycut);
-    // TEST(despeckle);
-    // TEST(despeckle_geography);
-    // TEST(grid_north_wgs84);
-    // TEST(grid_north_epsg_4326);
-    // TEST(grid_north_epsga_4326);
-    // TEST(grid_north_epsg_3035);
-    // TEST(grid_north_epsg_3034);
-    // TEST(grid_north_smartmet_editor);
-    // TEST(grid_north_rotlatlon_proj);
-    // TEST(grid_north_rotlatlon_wkt);
+    TEST(despeckle);
+    TEST(despeckle_geography);
+    TEST(grid_north_wgs84);
+    TEST(grid_north_epsg_4326);
+    TEST(grid_north_epsga_4326);
+    TEST(grid_north_epsg_3035);
+    TEST(grid_north_epsg_3034);
+    TEST(grid_north_smartmet_editor);
+    TEST(grid_north_rotlatlon_proj);
+    TEST(grid_north_rotlatlon_wkt);
   }
 
 };  // class tests

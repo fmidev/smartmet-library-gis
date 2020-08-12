@@ -1,5 +1,6 @@
-#include "ClipParts.h"
+#include "RectClipper.h"
 #include "Box.h"
+#include "GeometryBuilder.h"
 #include "OGR.h"
 #include <cassert>
 #include <iostream>
@@ -28,6 +29,9 @@ void reverse_points(OGRLineString *line, int start, int end)
 // ----------------------------------------------------------------------
 /*!
  * \brief Normalize a ring into lexicographic order
+ *
+ * This is strictly speaking not necessary, but it keeps the expected
+ * test results stable.
  */
 // ----------------------------------------------------------------------
 
@@ -107,13 +111,17 @@ OGRLinearRing *make_hole(const Fmi::Box &theBox)
  */
 // ----------------------------------------------------------------------
 
-Fmi::ClipParts::~ClipParts()
+Fmi::RectClipper::~RectClipper()
 {
+  for (auto *ptr : itsExteriorRings)
+    delete ptr;
+  for (auto *ptr : itsInteriorRings)
+    delete ptr;
+  for (auto *ptr : itsExteriorLines)
+    delete ptr;
+  for (auto *ptr : itsInteriorLines)
+    delete ptr;
   for (auto *ptr : itsPolygons)
-    delete ptr;
-  for (auto *ptr : itsLines)
-    delete ptr;
-  for (auto *ptr : itsPoints)
     delete ptr;
 }
 
@@ -133,47 +141,62 @@ Fmi::ClipParts::~ClipParts()
  */
 // ----------------------------------------------------------------------
 
-void Fmi::ClipParts::reconnect()
+void Fmi::RectClipper::reconnect()
 {
   // Nothing to reconnect if there aren't at least two lines
-  if (itsLines.size() < 2) return;
+  if (itsExteriorLines.size() < 2) return;
 
-  OGRLineString *line1 = itsLines.front();
-  OGRLineString *line2 = itsLines.back();
-
-  const int n1 = line1->getNumPoints();
-  const int n2 = line2->getNumPoints();
-
-  // Safety check against bad input to prevent segfaults
-  if (n1 == 0 || n2 == 0) return;
-
-  if (line1->getX(0) != line2->getX(n2 - 1) || line1->getY(0) != line2->getY(n2 - 1))
+  for (auto pos1 = itsExteriorLines.begin(); pos1 != itsExteriorLines.end();)
   {
-    return;
-  }
+    auto *line1 = *pos1;
+    const int n1 = line1->getNumPoints();
 
-  // Merge the two linestrings
+    if (n1 == 0)  // safety check
+    {
+      ++pos1;
+      continue;
+    }
 
-  line2->addSubLineString(line1, 1, n1 - 1);
-  delete line1;
-  itsLines.pop_front();
-  itsLines.pop_back();
+    for (auto pos2 = itsExteriorLines.begin(); pos2 != itsExteriorLines.end();)
+    {
+      auto *line2 = *pos2;
+      const int n2 = line2->getNumPoints();
 
-  // The merge may have closed a linearring if the intersections
-  // have collapsed to a single point. This can happen if there is
-  // a tiny sliver polygon just outside the rectangle, and the
-  // intersection coordinates will be identical.
+      // Continue if the ends do not match
+      if (pos1 == pos2 || n2 == 0 || line1->getX(0) != line2->getX(n2 - 1) ||
+          line1->getY(0) != line2->getY(n2 - 1))
+      {
+        ++pos2;
+        continue;
+      }
 
-  if (!line2->get_IsClosed())
-    itsLines.push_front(line2);
-  else
-  {
-    OGRPolygon *poly = new OGRPolygon;
-    OGRLinearRing *ring = new OGRLinearRing;
-    ring->addSubLineString(line2, 0, -1);
-    poly->addRingDirectly(ring);
-    delete line2;
-    add(poly);
+      // The lines are joinable
+
+      line2->addSubLineString(line1, 1, n1 - 1);
+      delete line1;
+      pos1 = itsExteriorLines.erase(pos1);
+
+      // The merge may have closed a linearring if the intersections
+      // have collapsed to a single point. This can happen if there is
+      // a tiny sliver polygon just outside the rectangle, and the
+      // intersection coordinates will be identical.
+
+      if (!line2->get_IsClosed())
+        ++pos2;
+      else
+      {
+        OGRLinearRing *ring = new OGRLinearRing;
+        ring->addSubLineString(line2, 0, -1);
+        addExterior(ring);
+        delete line2;
+        pos2 = itsExteriorLines.erase(pos2);
+
+        if (itsExteriorLines.empty())  // safety against ++pos1 at the end
+          return;
+      }
+    }
+
+    ++pos1;
   }
 }
 
@@ -183,14 +206,12 @@ void Fmi::ClipParts::reconnect()
  */
 // ----------------------------------------------------------------------
 
-void Fmi::ClipParts::release(ClipParts &theParts)
+void Fmi::RectClipper::release(GeometryBuilder &theBuilder)
 {
   for (auto *ptr : itsPolygons)
-    theParts.add(ptr);
-  for (auto *ptr : itsLines)
-    theParts.add(ptr);
-  for (auto *ptr : itsPoints)
-    theParts.add(ptr);
+    theBuilder.add(ptr);
+  for (auto *ptr : itsExteriorLines)
+    theBuilder.add(ptr);
 
   clear();
 }
@@ -201,11 +222,13 @@ void Fmi::ClipParts::release(ClipParts &theParts)
  */
 // ----------------------------------------------------------------------
 
-void Fmi::ClipParts::clear()
+void Fmi::RectClipper::clear()
 {
+  itsExteriorRings.clear();
+  itsExteriorLines.clear();
+  itsInteriorRings.clear();
+  itsInteriorLines.clear();
   itsPolygons.clear();
-  itsLines.clear();
-  itsPoints.clear();
 }
 
 // ----------------------------------------------------------------------
@@ -214,9 +237,47 @@ void Fmi::ClipParts::clear()
  */
 // ----------------------------------------------------------------------
 
-bool Fmi::ClipParts::empty() const
+bool Fmi::RectClipper::empty() const
 {
-  return itsPolygons.empty() && itsLines.empty() && itsPoints.empty();
+  return itsExteriorRings.empty() && itsExteriorLines.empty() && itsInteriorRings.empty() &&
+         itsInteriorLines.empty();
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add box to the result
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::addBox() { itsAddBoxFlag = true; }
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add intermediate OGR Polygon
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::addExterior(OGRLinearRing *theRing)
+{
+  normalize_ring(theRing);
+  if (theRing->isClockwise() == 0) theRing->reverseWindingOrder();
+  itsExteriorRings.push_back(theRing);
+}
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add intermediate OGR LineString
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::addExterior(OGRLineString *theLine)
+{
+  auto n = theLine->getNumPoints();
+
+  // We may have just touched the exterior at a single point
+  if (n < 2)
+    delete theLine;
+  else
+    itsExteriorLines.push_back(theLine);
 }
 
 // ----------------------------------------------------------------------
@@ -225,10 +286,11 @@ bool Fmi::ClipParts::empty() const
  */
 // ----------------------------------------------------------------------
 
-void Fmi::ClipParts::add(OGRPolygon *thePolygon)
+void Fmi::RectClipper::addInterior(OGRLinearRing *theRing)
 {
-  normalize_ring(thePolygon->getExteriorRing());
-  itsPolygons.push_back(thePolygon);
+  normalize_ring(theRing);
+  if (theRing->isClockwise() == 1) theRing->reverseWindingOrder();
+  itsInteriorRings.push_back(theRing);
 }
 // ----------------------------------------------------------------------
 /*!
@@ -236,149 +298,7 @@ void Fmi::ClipParts::add(OGRPolygon *thePolygon)
  */
 // ----------------------------------------------------------------------
 
-void Fmi::ClipParts::add(OGRLineString *theLine) { itsLines.push_back(theLine); }
-// ----------------------------------------------------------------------
-/*!
- * \brief Add intermediate OGR Point
- */
-// ----------------------------------------------------------------------
-
-void Fmi::ClipParts::add(OGRPoint *thePoint) { itsPoints.push_back(thePoint); }
-// ----------------------------------------------------------------------
-/*!
- * \brief Build the result geometry from partial results and clean up
- */
-// ----------------------------------------------------------------------
-
-OGRGeometry *Fmi::ClipParts::build()
-{
-  auto *ptr = internalBuild();
-  clear();
-  return ptr;
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Build the result geometry from the partial results
- *
- * Does NOT clear the used data!
- */
-// ----------------------------------------------------------------------
-
-OGRGeometry *Fmi::ClipParts::internalBuild() const
-{
-  // Total number of objects
-
-  std::size_t n = itsPolygons.size() + itsLines.size() + itsPoints.size();
-
-  // We wish to avoid nullptr pointers due to more prone segfault mistakes
-
-  if (n == 0) return new OGRGeometryCollection;
-
-  // Simplify to LineString, Polygon or Point if possible
-  if (n == 1)
-  {
-    if (itsPolygons.size() == 1) return itsPolygons.front();
-    if (itsLines.size() == 1) return itsLines.front();
-    return itsPoints.front();
-  }
-
-  // Simplify to MultiLineString, MultiPolygon or MultiPoint if possible
-
-  if (!itsPolygons.empty() && itsLines.empty() && itsPoints.empty())
-  {
-    auto *geom = new OGRMultiPolygon;
-    for (auto *ptr : itsPolygons)
-      geom->addGeometryDirectly(ptr);
-    return geom;
-  }
-
-  if (!itsLines.empty() && itsPolygons.empty() && itsPoints.empty())
-  {
-    auto *geom = new OGRMultiLineString;
-    for (auto *ptr : itsLines)
-      geom->addGeometryDirectly(ptr);
-    return geom;
-  }
-
-  if (!itsPoints.empty() && itsLines.empty() && itsPolygons.empty())
-  {
-    auto *geom = new OGRMultiPoint;
-    for (auto *ptr : itsPoints)
-      geom->addGeometryDirectly(ptr);
-    return geom;
-  }
-
-  // A generic collection must be used, the types differ too much.
-  // The order should be kept the same for the benefit of
-  // regression tests: polygons, lines, points
-
-  auto *geom = new OGRGeometryCollection;
-
-  // Add a Polygon or a MultiPolygon
-  if (!itsPolygons.empty())
-  {
-    if (itsPolygons.size() == 1)
-      geom->addGeometryDirectly(itsPolygons.front());
-    else
-    {
-      auto *tmp = new OGRMultiPolygon;
-      for (auto *ptr : itsPolygons)
-        tmp->addGeometryDirectly(ptr);
-      geom->addGeometryDirectly(tmp);
-    }
-  }
-
-  // Add a LineString or a MultiLineString
-  if (!itsLines.empty())
-  {
-    if (itsLines.size() == 1)
-      geom->addGeometryDirectly(itsLines.front());
-    else
-    {
-      auto *tmp = new OGRMultiLineString;
-      for (auto *ptr : itsLines)
-        tmp->addGeometryDirectly(ptr);
-      geom->addGeometryDirectly(tmp);
-    }
-  }
-
-  // Add a Point or a MultiPoint
-  if (!itsPoints.empty())
-  {
-    if (itsPoints.size() == 1)
-      geom->addGeometryDirectly(itsPoints.front());
-    else
-    {
-      auto *tmp = new OGRMultiPoint;
-      for (auto *ptr : itsPoints)
-        tmp->addGeometryDirectly(ptr);
-      geom->addGeometryDirectly(tmp);
-    }
-  }
-
-  return geom;
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \Reverse the lines being built
- *
- * This is used to fix winding rules required by the clipping algorithm
- */
-// ----------------------------------------------------------------------
-
-void Fmi::ClipParts::reverseLines()
-{
-  std::list<OGRLineString *> new_lines;
-  for (auto it = itsLines.rbegin(), end = itsLines.rend(); it != end; ++it)
-  {
-    OGRLineString *line = *it;
-    line->reversePoints();
-    new_lines.push_back(line);
-  }
-  itsLines = new_lines;
-}
+void Fmi::RectClipper::addInterior(OGRLineString *theLine) { itsInteriorLines.push_back(theLine); }
 
 // ----------------------------------------------------------------------
 /*!
@@ -590,59 +510,30 @@ std::list<OGRLineString *>::iterator search_ccw(OGRLinearRing *ring,
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Build polygons from parts left by clipping one
- *
- * 1. Build exterior ring(s) from lines
- * 2. Attach polygons as holes to the exterior ring(s)
- *
- * Building new exterior:
- * 1. Pick first linestring as the beginning of a ring (until there are none left)
- * 2. Proceed outputting the bbox edges in clockwise orientation (clipping, ccw for cutting)
- *    until the ring itself or another linestring is encountered.
- * 3. If the ring became closed by joining the bbox edges, output it and restart at step 1.
- * 4. Attach the new linestring to the ring and jump back to step 2.
+ * \brief Reconnect lines into polygons along box edges
  */
 // ----------------------------------------------------------------------
 
-void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_bbox)
+void connectLines(std::list<OGRLinearRing *> &theRings,
+                  std::list<OGRLineString *> &theLines,
+                  const Fmi::Box &theBox,
+                  bool keep_inside,
+                  bool exterior)
 {
-  // Build the result polygons
-  std::list<OGRPolygon *> polygons;
+  if (theLines.empty()) return;
 
-  // Build the reconnected rings first
+  bool cw = false;
+  if (keep_inside) cw = exterior;
 
-  std::list<OGRLinearRing *> reconnection;
+  OGRLinearRing *ring = nullptr;
 
-  if (add_bbox && itsKeepInsideFlag)
+  while (!theLines.empty() || ring != nullptr)
   {
-    auto *ring = make_exterior(theBox);
-    reconnection.push_back(ring);
-  }
-
-  // If there are no lines, the rectangle must have been
-  // inside the exterior ring unless there have been sliver
-  // polygons, in which case we may have created a polygon.
-
-#if 1
-  std::cout << "Reconnecting polygons:\n"
-            << "\tpolys = " << itsPolygons.size() << "\n"
-            << "\tlines = " << itsLines.size() << "\n"
-            << "\tpoints = " << itsPoints.size() << "\n"
-            << "\tadd_bbox = " << add_bbox << std::endl;
-#endif
-
-  // Reconnect all lines into one or more linearrings
-  // using box boundaries if necessary
-
-  OGRLinearRing *ring = NULL;
-
-  while (!itsLines.empty() || ring != NULL)
-  {
-    if (ring == NULL)
+    if (ring == nullptr)
     {
       ring = new OGRLinearRing;
-      auto *line = itsLines.front();
-      itsLines.pop_front();
+      auto *line = theLines.front();
+      theLines.pop_front();
       ring->addSubLineString(line);
       delete line;
     }
@@ -659,58 +550,107 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_bbox)
 
     // No linestring to move onto found next - meaning we'd
     // either move to the next corner or close the current ring.
-    auto best = (itsKeepInsideFlag ? search_cw(ring, itsLines, x1, y1, x2, y2, theBox)
-                                   : search_ccw(ring, itsLines, x1, y1, x2, y2, theBox));
 
-    if (best != itsLines.end())
+    auto best = (cw ? search_cw(ring, theLines, x1, y1, x2, y2, theBox)
+                    : search_ccw(ring, theLines, x1, y1, x2, y2, theBox));
+
+    if (best != theLines.end())
     {
-      // Found a matching linestring to continue to from the same
-      // edge we were studying. Move to it and continue building.
-      ring->addSubLineString(*best);
+      // Found a matching linestring to continue to from the same edge we were studying. Move to it
+      // and continue building. The line might continue from the same point, in which case we must
+      // skip the first point.
+
+      if (x1 != (*best)->getX(0) || y1 != (*best)->getY(0))
+        ring->addSubLineString(*best);
+      else
+        ring->addSubLineString(*best, 1);  // start from 2nd point
       delete *best;
-      itsLines.erase(best);
+      theLines.erase(best);
     }
     else
     {
       // Couldn't find a matching best line. Either close the ring or move to next corner.
       ring->addPoint(x2, y2);
+    }
 
-      if (ring->get_IsClosed())
-      {
-        normalize_ring(ring);
-        reconnection.push_back(ring);
-        ring = NULL;
-      }
+    if (ring->get_IsClosed())
+    {
+      normalize_ring(ring);
+      theRings.push_back(ring);
+      ring = nullptr;
     }
   }
+}
 
-  // Make exterior from one polygon if there isn't one yet built from cut parts
+// ----------------------------------------------------------------------
+/*!
+ * \brief Build polygons from parts left by clipping one
+ *
+ * 1. Build exterior ring(s) from lines
+ * 2. Attach polygons as holes to the exterior ring(s)
+ *
+ * Building new exterior:
+ * 1. Pick first linestring as the beginning of a ring (until there are none left)
+ * 2. Proceed outputting the bbox edges in clockwise orientation (clipping, ccw for cutting)
+ *    until the ring itself or another linestring is encountered.
+ * 3. If the ring became closed by joining the bbox edges, output it and restart at step 1.
+ * 4. Attach the new linestring to the ring and jump back to step 2.
+ */
+// ----------------------------------------------------------------------
 
-  if (polygons.empty() && !itsPolygons.empty())
+void Fmi::RectClipper::reconnectWithBox()
+{
+  // Make exterior box if necessary
+
+  if (itsKeepInsideFlag && itsAddBoxFlag && itsExteriorLines.empty())
   {
-    polygons.push_back(itsPolygons.front());
-    itsPolygons.pop_front();
+    auto *ring = make_exterior(itsBox);
+    itsExteriorRings.push_back(ring);
   }
 
-  for (auto *ring : reconnection)
+  // Make hole if necessary
+
+  if (!itsKeepInsideFlag && itsAddBoxFlag && itsInteriorLines.empty())
+  {
+    auto *ring = make_hole(itsBox);
+    itsInteriorRings.push_back(ring);
+  }
+
+  // Reconnect lines into polygons (exterior or hole)
+  // Since clipped holes always become part of the exterior, and cut
+  // holes are either part of the interior unless the exterior is also clipped,
+  // if we have both lines they must by definition all belong to the exterior.
+
+  if (!itsExteriorLines.empty() && !itsInteriorLines.empty())
+  {
+    std::move(
+        itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
+    itsInteriorLines.clear();
+  }
+
+  connectLines(itsExteriorRings, itsExteriorLines, itsBox, itsKeepInsideFlag, true);
+  connectLines(itsInteriorRings, itsInteriorLines, itsBox, itsKeepInsideFlag, false);
+
+  // Build polygons starting from the built exterior rings
+  for (auto *exterior : itsExteriorRings)
   {
     auto *poly = new OGRPolygon;
-    poly->addRingDirectly(ring);
-    polygons.push_back(poly);
+    poly->addRingDirectly(exterior);
+    itsPolygons.push_back(poly);
   }
+  itsExteriorRings.clear();
 
-  // Attach bbox as hole to polygon
+  // Then assign the holes to them
 
-  if (add_bbox && !itsKeepInsideFlag)
+  for (auto *hole : itsInteriorRings)
   {
-    auto *hole = make_hole(theBox);
-    if (polygons.size() == 1)
-      polygons.front()->addRingDirectly(hole);
+    if (itsPolygons.size() == 1)
+      itsPolygons.front()->addRing(hole);
     else
     {
       OGRPoint point;
       hole->getPoint(0, &point);
-      for (auto *poly : polygons)
+      for (auto *poly : itsPolygons)
       {
         if (poly->getExteriorRing()->isPointInRing(&point, 0) != 0)
         {
@@ -719,26 +659,65 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_bbox)
         }
       }
     }
+    delete hole;
   }
 
-  // Attach holes to polygons
+  // Merge all unjoinable lines to one list of lines
 
-  for (auto *hole : itsPolygons)
+  std::move(itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
+
+  itsInteriorRings.clear();
+  itsInteriorLines.clear();
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Build results without connecting with the box
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::reconnectWithoutBox()
+{
+  // Make exterior box if necessary
+
+  if (itsKeepInsideFlag && itsAddBoxFlag && itsExteriorLines.empty())
   {
-    std::cout << "Processing hole: " << Fmi::OGR::exportToWkt(*hole) << "\n";
-    std::cout << "\tnumber of polygons = " << polygons.size() << "\n";
+    auto *ring = make_exterior(itsBox);
+    itsExteriorRings.push_back(ring);
+  }
 
-    if (polygons.size() == 1)
-      polygons.front()->addRing(hole->getExteriorRing());
+  // Make hole if necessary
+
+  if (!itsKeepInsideFlag && itsAddBoxFlag && !itsInteriorLines.empty())
+  {
+    auto *ring = make_hole(itsBox);
+    itsInteriorRings.push_back(ring);
+  }
+
+  // Build polygons starting from the built exterior rings
+  for (auto *exterior : itsExteriorRings)
+  {
+    auto *poly = new OGRPolygon;
+    poly->addRingDirectly(exterior);
+    itsPolygons.push_back(poly);
+  }
+  itsExteriorRings.clear();
+
+  // Then assign the holes to them
+
+  for (auto *hole : itsInteriorRings)
+  {
+    if (itsPolygons.size() == 1)
+      itsPolygons.front()->addRing(hole);
     else
     {
       OGRPoint point;
-      hole->getExteriorRing()->getPoint(0, &point);
-      for (auto *poly : polygons)
+      hole->getPoint(0, &point);
+      for (auto *poly : itsPolygons)
       {
         if (poly->getExteriorRing()->isPointInRing(&point, 0) != 0)
         {
-          poly->addRing(hole->getExteriorRing());
+          poly->addRingDirectly(hole);
           break;
         }
       }
@@ -746,17 +725,10 @@ void Fmi::ClipParts::reconnectPolygons(const Box &theBox, bool add_bbox)
     delete hole;
   }
 
-  clear();
-  itsPolygons = polygons;
-}
+  // Merge all unjoinable lines to one list of lines
 
-void Fmi::ClipParts::dump() const
-{
-  std::size_t i = 0;
-  for (const auto &poly : itsPolygons)
-    std::cout << "Polygon\t" << ++i << ' ' << Fmi::OGR::exportToWkt(*poly) << "\n";
-  for (const auto &line : itsLines)
-    std::cout << "Line\t" << ++i << ' ' << Fmi::OGR::exportToWkt(*line) << "\n";
-  for (const auto &point : itsPoints)
-    std::cout << "Point\t" << ++i << ' ' << Fmi::OGR::exportToWkt(*point) << "\n";
+  std::move(itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
+
+  itsInteriorRings.clear();
+  itsInteriorLines.clear();
 }

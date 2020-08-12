@@ -2,6 +2,7 @@
 #include "OGRSpatialReferenceFactory.h"
 #include <boost/functional/hash.hpp>
 #include <boost/thread.hpp>
+#include <fmt/format.h>
 #include <ogr_spatialref.h>
 
 namespace Fmi
@@ -83,6 +84,21 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
 
   throw std::runtime_error("Failed to create coordinate transformation from '" + theSource +
                            "' to '" + theTarget + "'");
+}
+
+Ptr Create(int theSource, const std::string &theTarget)
+{
+  return Create(fmt::format("EPSG:{}", theSource), theTarget);
+}
+
+Ptr Create(const std::string &theSource, int theTarget)
+{
+  return Create(theSource, fmt::format("EPSG:{}", theTarget));
+}
+
+Ptr Create(int theSource, int theTarget)
+{
+  return Create(fmt::format("EPSG:{}", theSource), fmt::format("EPSG:{}", theTarget));
 }
 
 }  // namespace OGRCoordinateTransformationFactory
