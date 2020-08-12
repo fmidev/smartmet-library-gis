@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.7.6
+Version: 20.8.12
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -17,12 +17,14 @@ BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 5.2.0
 BuildRequires: gdal30-devel
 BuildRequires: geos38-devel
+BuildRequires: smartmet-library-macgyver-devel >= 20.7.31
 Requires: fmt >= 5.2.0
 Requires: gdal30-libs
 Requires: geos38
 Requires: postgis
 Requires: boost169-filesystem
 Requires: boost169-thread
+Requires: smartmet-library-macgyver >= 20.7.31
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
@@ -70,6 +72,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Aug 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.12-1.fmi
+- Added OGRCoordinateTransformationFactory::Create methods for EPSG numbers
+
 * Thu Aug  6 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.6-1.fmi
 - Added OGRSpatialReferenceFactory
 - Added OGRCoordinateTransformationFactory

@@ -87,6 +87,7 @@ INCLUDES += -I/usr/include/smartmet
 
 
 LIBS += -L$(libdir) \
+	-lsmartmet-macgyver \
 	-lboost_filesystem \
 	-lboost_thread \
 	-lgdal \
