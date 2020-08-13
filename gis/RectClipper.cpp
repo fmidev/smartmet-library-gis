@@ -165,8 +165,8 @@ void Fmi::RectClipper::reconnect()
       const int n2 = line2->getNumPoints();
 
       // Continue if the ends do not match
-      if (pos1 == pos2 || n2 == 0 || line1->getX(0) != line2->getX(n2 - 1) ||
-          line1->getY(0) != line2->getY(n2 - 1))
+      if (pos1 == pos2 || n2 == 0 || line1->getX(n1 - 1) != line2->getX(0) ||
+          line1->getY(n1 - 1) != line2->getY(0))
       {
         ++pos2;
         continue;
@@ -174,31 +174,26 @@ void Fmi::RectClipper::reconnect()
 
       // The lines are joinable
 
-      line2->addSubLineString(line1, 1, n1 - 1);
-      delete line1;
-      pos1 = itsExteriorLines.erase(pos1);
+      line1->addSubLineString(line2, 1, n2 - 1);
+      delete line2;
+      pos2 = itsExteriorLines.erase(pos2);
 
       // The merge may have closed a linearring if the intersections
       // have collapsed to a single point. This can happen if there is
       // a tiny sliver polygon just outside the rectangle, and the
       // intersection coordinates will be identical.
 
-      if (!line2->get_IsClosed())
-        ++pos2;
-      else
+      if (line1->get_IsClosed())
       {
         OGRLinearRing *ring = new OGRLinearRing;
-        ring->addSubLineString(line2, 0, -1);
+        ring->addSubLineString(line1, 0, -1);
         addExterior(ring);
-        delete line2;
-        pos2 = itsExteriorLines.erase(pos2);
-
-        if (itsExteriorLines.empty())  // safety against ++pos1 at the end
-          return;
+        delete line1;
+        pos1 = itsExteriorLines.erase(pos1);
       }
     }
 
-    ++pos1;
+    if (pos1 != itsExteriorLines.end()) ++pos1;
   }
 }
 
@@ -602,6 +597,7 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
       ring = nullptr;
     }
   }
+  theLines.clear();
 }
 
 // ----------------------------------------------------------------------
@@ -674,7 +670,7 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
   for (auto *hole : itsInteriorRings)
   {
     if (itsPolygons.size() == 1)
-      itsPolygons.front()->addRing(hole);
+      itsPolygons.front()->addRingDirectly(hole);
     else
     {
       OGRPoint point;
@@ -688,7 +684,6 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
         }
       }
     }
-    delete hole;
   }
 
   // Merge all unjoinable lines to one list of lines
@@ -696,7 +691,6 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
   std::move(itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
 
   itsInteriorRings.clear();
-  itsInteriorLines.clear();
 }
 
 // ----------------------------------------------------------------------
