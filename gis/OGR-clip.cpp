@@ -1352,6 +1352,7 @@ OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom,
   do_geom(&theGeom, builder, theBox, theMaximumSegmentLength, keep_polygons, keep_inside);
 
   OGRGeometry *geom = builder.build();
+
   if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
 
   return geom;
