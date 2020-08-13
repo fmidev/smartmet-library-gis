@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.8.12
+Version: 20.8.13
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -72,6 +72,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Aug 13 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.13-1.fmi
+- CoordinateTransformation now uses OGR::polycut for speed when possible
+
 * Wed Aug 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.12-1.fmi
 - Added OGRCoordinateTransformationFactory::Create methods for EPSG numbers
 

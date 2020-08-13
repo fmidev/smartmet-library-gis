@@ -1,6 +1,8 @@
 #pragma once
 
+#include "Box.h"
 #include "SpatialReference.h"
+#include <list>
 #include <memory>
 
 class OGRGeometry;
@@ -8,12 +10,13 @@ class OGREnvelope;
 
 namespace Fmi
 {
-// Get WGS84 interrupt geometry for the given spatial reference
+// Geographic interrupt geometry for the given spatial reference
 
 struct Interrupt
 {
+  std::list<Box> cuts;
   std::shared_ptr<OGRGeometry> andGeometry;
-  std::shared_ptr<OGRGeometry> cutGeometry = nullptr;
+  std::shared_ptr<OGRGeometry> cutGeometry;
 };
 
 Interrupt interruptGeometry(const SpatialReference& theSRS);

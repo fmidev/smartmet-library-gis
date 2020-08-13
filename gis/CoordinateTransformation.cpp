@@ -173,6 +173,16 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
     Interrupt interrupt = interruptGeometry(getTargetCS());
 
+    // Do quick vertical cuts
+    if (!interrupt.cuts.empty())
+    {
+      for (const auto& box : interrupt.cuts)
+      {
+        g.reset(OGR::polycut(*g, box, theMaximumSegmentLength));
+        if (!g || g->IsEmpty()) return nullptr;
+      }
+    }
+
     // If the target envelope is not set, we must try clipping.
     // Otherwise if the geometry contains the target area, no clipping is needed.
     // We test only X-containment, since the target envelope may reach the North Pole,
