@@ -158,7 +158,8 @@ bool contains_longitudes(const OGREnvelope& env1, const OGREnvelope& env2)
   return env1.MinX <= env2.MinX && env1.MaxX >= env2.MaxX;
 }
 
-OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom) const
+OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom,
+                                                         double theMaximumSegmentLength) const
 {
   OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
 

@@ -75,7 +75,7 @@ void normalize_ring(OGRLinearRing *ring)
  */
 // ----------------------------------------------------------------------
 
-OGRLinearRing *make_exterior(const Fmi::Box &theBox)
+OGRLinearRing *make_exterior(const Fmi::Box &theBox, double max_length = 0)
 {
   OGRLinearRing *ring = new OGRLinearRing;
   ring->addPoint(theBox.xmin(), theBox.ymin());
@@ -83,6 +83,7 @@ OGRLinearRing *make_exterior(const Fmi::Box &theBox)
   ring->addPoint(theBox.xmax(), theBox.ymax());
   ring->addPoint(theBox.xmax(), theBox.ymin());
   ring->addPoint(theBox.xmin(), theBox.ymin());
+  if (max_length > 0) ring->segmentize(max_length);
   return ring;
 }
 
@@ -92,7 +93,7 @@ OGRLinearRing *make_exterior(const Fmi::Box &theBox)
  */
 // ----------------------------------------------------------------------
 
-OGRLinearRing *make_hole(const Fmi::Box &theBox)
+OGRLinearRing *make_hole(const Fmi::Box &theBox, double max_length = 0)
 {
   OGRLinearRing *ring = new OGRLinearRing;
   ring->addPoint(theBox.xmin(), theBox.ymin());
@@ -100,6 +101,7 @@ OGRLinearRing *make_hole(const Fmi::Box &theBox)
   ring->addPoint(theBox.xmax(), theBox.ymax());
   ring->addPoint(theBox.xmin(), theBox.ymax());
   ring->addPoint(theBox.xmin(), theBox.ymin());
+  if (max_length > 0) ring->segmentize(max_length);
   return ring;
 }
 
@@ -517,6 +519,7 @@ std::list<OGRLineString *>::iterator search_ccw(OGRLinearRing *ring,
 void connectLines(std::list<OGRLinearRing *> &theRings,
                   std::list<OGRLineString *> &theLines,
                   const Fmi::Box &theBox,
+                  bool max_length,
                   bool keep_inside,
                   bool exterior)
 {
@@ -570,6 +573,25 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
     else
     {
       // Couldn't find a matching best line. Either close the ring or move to next corner.
+      if (max_length > 0)
+      {
+        OGRPoint startpoint;
+        ring->EndPoint(&startpoint);
+        const auto x1 = startpoint.getX();
+        const auto y1 = startpoint.getY();
+        const auto dx = x2 - x1;
+        const auto dy = y2 - y1;
+        auto length = std::sqrt(std::hypot(dx, dy));
+        if (length > max_length)
+        {
+          auto num = static_cast<int>(std::ceil(length / max_length));
+          for (auto i = 1; i < num; i++)
+          {
+            auto fraction = 1.0 * i / num;
+            ring->addPoint(x1 + fraction * dx, y1 + fraction * dy);
+          }
+        }
+      }
       ring->addPoint(x2, y2);
     }
 
@@ -598,13 +620,13 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
  */
 // ----------------------------------------------------------------------
 
-void Fmi::RectClipper::reconnectWithBox()
+void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
 {
   // Make exterior box if necessary
 
   if (itsKeepInsideFlag && itsAddBoxFlag && itsExteriorLines.empty())
   {
-    auto *ring = make_exterior(itsBox);
+    auto *ring = make_exterior(itsBox, theMaximumSegmentLength);
     itsExteriorRings.push_back(ring);
   }
 
@@ -612,7 +634,7 @@ void Fmi::RectClipper::reconnectWithBox()
 
   if (!itsKeepInsideFlag && itsAddBoxFlag && itsInteriorLines.empty())
   {
-    auto *ring = make_hole(itsBox);
+    auto *ring = make_hole(itsBox, theMaximumSegmentLength);
     itsInteriorRings.push_back(ring);
   }
 
@@ -628,8 +650,15 @@ void Fmi::RectClipper::reconnectWithBox()
     itsInteriorLines.clear();
   }
 
-  connectLines(itsExteriorRings, itsExteriorLines, itsBox, itsKeepInsideFlag, true);
-  connectLines(itsInteriorRings, itsInteriorLines, itsBox, itsKeepInsideFlag, false);
+  connectLines(
+      itsExteriorRings, itsExteriorLines, itsBox, theMaximumSegmentLength, itsKeepInsideFlag, true);
+
+  connectLines(itsInteriorRings,
+               itsInteriorLines,
+               itsBox,
+               theMaximumSegmentLength,
+               itsKeepInsideFlag,
+               false);
 
   // Build polygons starting from the built exterior rings
   for (auto *exterior : itsExteriorRings)

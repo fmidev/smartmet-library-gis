@@ -30,7 +30,7 @@ class RectClipper
   void addInterior(OGRLinearRing *theRing);
   void addInterior(OGRLineString *theLine);
 
-  void reconnectWithBox();
+  void reconnectWithBox(double theMaximumSegmentLength);
   void reconnectWithoutBox();
   void release(GeometryBuilder &theBuilder);
   void clear();

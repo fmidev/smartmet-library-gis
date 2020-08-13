@@ -989,6 +989,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
 void do_polygon_to_polygons(const OGRPolygon *theGeom,
                             GeometryBuilder &theBuilder,
                             const Box &theBox,
+                            double max_length,
                             bool keep_inside)
 {
   if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
@@ -1094,8 +1095,8 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
     }
   }
 
-  rect.reconnect();         // trivial reconnect of endpoints
-  rect.reconnectWithBox();  // reconnect along box boundaries
+  rect.reconnect();                   // trivial reconnect of endpoints
+  rect.reconnectWithBox(max_length);  // reconnect along box boundaries
   rect.release(theBuilder);
 }
 
@@ -1108,11 +1109,12 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
 void do_polygon(const OGRPolygon *theGeom,
                 GeometryBuilder &theBuilder,
                 const Box &theBox,
+                double max_length,
                 bool keep_polygons,
                 bool keep_inside)
 {
   if (keep_polygons)
-    do_polygon_to_polygons(theGeom, theBuilder, theBox, keep_inside);
+    do_polygon_to_polygons(theGeom, theBuilder, theBox, max_length, keep_inside);
   else
     do_polygon_to_linestrings(theGeom, theBuilder, theBox, keep_inside);
 }
@@ -1204,6 +1206,7 @@ void do_multilinestring(const OGRMultiLineString *theGeom,
 void do_multipolygon(const OGRMultiPolygon *theGeom,
                      GeometryBuilder &theBuilder,
                      const Box &theBox,
+                     double max_length,
                      bool keep_polygons,
                      bool keep_inside)
 {
@@ -1214,6 +1217,7 @@ void do_multipolygon(const OGRMultiPolygon *theGeom,
     do_polygon(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)),
                theBuilder,
                theBox,
+               max_length,
                keep_polygons,
                keep_inside);
   }
@@ -1230,12 +1234,14 @@ void do_multipolygon(const OGRMultiPolygon *theGeom,
 void do_geom(const OGRGeometry *theGeom,
              GeometryBuilder &theBuilder,
              const Box &theBox,
+             double max_length,
              bool keep_polygons,
              bool keep_inside);
 
 void do_geometrycollection(const OGRGeometryCollection *theGeom,
                            GeometryBuilder &theBuilder,
                            const Box &theBox,
+                           double max_length,
                            bool keep_polygons,
                            bool keep_inside)
 {
@@ -1243,7 +1249,7 @@ void do_geometrycollection(const OGRGeometryCollection *theGeom,
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
-    do_geom(theGeom->getGeometryRef(i), theBuilder, theBox, keep_polygons, keep_inside);
+    do_geom(theGeom->getGeometryRef(i), theBuilder, theBox, max_length, keep_polygons, keep_inside);
   }
 }
 
@@ -1256,6 +1262,7 @@ void do_geometrycollection(const OGRGeometryCollection *theGeom,
 void do_geom(const OGRGeometry *theGeom,
              GeometryBuilder &theBuilder,
              const Box &theBox,
+             double max_length,
              bool keep_polygons,
              bool keep_inside)
 {
@@ -1272,6 +1279,7 @@ void do_geom(const OGRGeometry *theGeom,
       return do_polygon(dynamic_cast<const OGRPolygon *>(theGeom),
                         theBuilder,
                         theBox,
+                        max_length,
                         keep_polygons,
                         keep_inside);
     case wkbMultiPoint:
@@ -1284,12 +1292,14 @@ void do_geom(const OGRGeometry *theGeom,
       return do_multipolygon(dynamic_cast<const OGRMultiPolygon *>(theGeom),
                              theBuilder,
                              theBox,
+                             max_length,
                              keep_polygons,
                              keep_inside);
     case wkbGeometryCollection:
       return do_geometrycollection(dynamic_cast<const OGRGeometryCollection *>(theGeom),
                                    theBuilder,
                                    theBox,
+                                   max_length,
                                    keep_polygons,
                                    keep_inside);
     case wkbLinearRing:
@@ -1316,7 +1326,7 @@ OGRGeometry *OGR::lineclip(const OGRGeometry &theGeom, const Box &theBox)
   bool keep_inside = true;
 
   GeometryBuilder builder;
-  do_geom(&theGeom, builder, theBox, keep_polygons, keep_inside);
+  do_geom(&theGeom, builder, theBox, 0, keep_polygons, keep_inside);
 
   OGRGeometry *geom = builder.build();
   if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
@@ -1331,13 +1341,15 @@ OGRGeometry *OGR::lineclip(const OGRGeometry &theGeom, const Box &theBox)
  */
 // ----------------------------------------------------------------------
 
-OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom, const Box &theBox)
+OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom,
+                           const Box &theBox,
+                           double theMaximumSegmentLength)
 {
   bool keep_polygons = true;
   bool keep_inside = true;
 
   GeometryBuilder builder;
-  do_geom(&theGeom, builder, theBox, keep_polygons, keep_inside);
+  do_geom(&theGeom, builder, theBox, theMaximumSegmentLength, keep_polygons, keep_inside);
 
   OGRGeometry *geom = builder.build();
   if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
@@ -1362,7 +1374,7 @@ OGRGeometry *OGR::linecut(const OGRGeometry &theGeom, const Box &theBox)
   bool keep_inside = false;
 
   GeometryBuilder builder;
-  do_geom(&theGeom, builder, theBox, keep_polygons, keep_inside);
+  do_geom(&theGeom, builder, theBox, 0, keep_polygons, keep_inside);
 
   OGRGeometry *geom = builder.build();
   if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
@@ -1377,13 +1389,15 @@ OGRGeometry *OGR::linecut(const OGRGeometry &theGeom, const Box &theBox)
  */
 // ----------------------------------------------------------------------
 
-OGRGeometry *OGR::polycut(const OGRGeometry &theGeom, const Box &theBox)
+OGRGeometry *OGR::polycut(const OGRGeometry &theGeom,
+                          const Box &theBox,
+                          double theMaximumSegmentLength)
 {
   bool keep_polygons = true;
   bool keep_inside = false;
 
   GeometryBuilder builder;
-  do_geom(&theGeom, builder, theBox, keep_polygons, keep_inside);
+  do_geom(&theGeom, builder, theBox, theMaximumSegmentLength, keep_polygons, keep_inside);
 
   OGRGeometry *geom = builder.build();
   if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());

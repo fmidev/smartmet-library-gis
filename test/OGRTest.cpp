@@ -1229,6 +1229,73 @@ void polycut()
 
 // ----------------------------------------------------------------------
 
+void polyclip_segmentation()
+{
+  using namespace Fmi;
+  using Fmi::Box;
+  using OGR::exportToWkt;
+  using OGR::lineclip;
+
+  Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
+
+  const double max_segment_length = 2.5;
+
+  int ntests = 6;
+  char* mytests[6][2] = {
+      // polygon surrounds the rectangle
+      {"POLYGON ((-1 -1,-1 11,11 11,11 -1,-1 -1))",
+       "POLYGON ((0 0,0.0 2.5,0 5,0.0 7.5,0 10,2.5 10.0,5 10,7.5 10.0,10 10,10.0 7.5,10 5,10.0 "
+       "2.5,10 0,7.5 0.0,5 0,2.5 0.0,0 0))"},
+      // Polygon with hole which surrounds the rectangle
+      {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(-1 -1,11 -1,11 11,-1 11,-1 -1))",
+       "GEOMETRYCOLLECTION EMPTY"},
+      // Polygon surrounding the rect, but with a hole inside the rect
+      {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(1 1,9 1,9 9,1 9,1 1))",
+       "POLYGON ((0 0,0.0 2.5,0 5,0.0 7.5,0 10,2.5 10.0,5 10,7.5 10.0,10 10,10.0 7.5,10 5,10.0 "
+       "2.5,10 0,7.5 0.0,5 0,2.5 0.0,0 0),(1 1,9 1,9 9,1 9,1 1))"},
+      // Surround the rectangle, hole outside rectangle
+      {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(-6 5,-5 5,-5 6,-6 6,-6 5))",
+       "POLYGON ((0 0,0.0 2.5,0 5,0.0 7.5,0 10,2.5 10.0,5 10,7.5 10.0,10 10,10.0 7.5,10 5,10.0 "
+       "2.5,10 0,7.5 0.0,5 0,2.5 0.0,0 0))"},
+      // Surround the rectangle, hole outside rectangle but shares edge
+      {"POLYGON ((-15 -15,-15 15,15 15,15 -15,-15 -15),(0 5,-1 5,-1 6,0 6,0 5))",
+       "POLYGON ((0 0,0.0 2.5,0 5,0.0 7.5,0 10,2.5 10.0,5 10,7.5 10.0,10 10,10.0 7.5,10 5,10.0 "
+       "2.5,10 0,7.5 0.0,5 0,2.5 0.0,0 0))"},
+      // Polygon with hole, box intersects both
+      {"POLYGON ((-5 1,-5 9,5 9,5 1,-5 1),(-4 8,-4 2,4 2,4 8,-4 8)))",
+       "POLYGON ((0 1,0 2,4 2,4 8,0 8,0 9,5 9,5 1,0 1))"}};
+
+  for (int test = 0; test < ntests; ++test)
+  {
+    OGRGeometry* input;
+    OGRGeometry* output;
+
+    const char* wkt = mytests[test][0];
+    string ok = mytests[test][1];
+
+    try
+    {
+      auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
+      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+    }
+    catch (...)
+    {
+      TEST_FAILED("Failed to parse WKT for testing: " + std::string(mytests[test][0]));
+    }
+    output = OGR::polyclip(*input, box, max_segment_length);
+    string ret = exportToWkt(*output);
+    OGRGeometryFactory::destroyGeometry(input);
+    OGRGeometryFactory::destroyGeometry(output);
+    if (ret != ok)
+      TEST_FAILED("Input   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+                  "\n\tGot     : " + ret);
+  }
+
+  TEST_PASSED();
+}  // namespace Tests
+
+// ----------------------------------------------------------------------
+
 void despeckle()
 {
   using namespace Fmi;
@@ -1514,6 +1581,7 @@ class tests : public tframe::tests
     TEST(exportToProj);
     TEST(lineclip);
     TEST(polyclip);
+    TEST(polyclip_segmentation);
     TEST(linecut);
     TEST(polycut);
     TEST(despeckle);
