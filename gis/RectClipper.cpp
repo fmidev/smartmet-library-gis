@@ -514,7 +514,7 @@ std::list<OGRLineString *>::iterator search_ccw(OGRLinearRing *ring,
 void connectLines(std::list<OGRLinearRing *> &theRings,
                   std::list<OGRLineString *> &theLines,
                   const Fmi::Box &theBox,
-                  bool max_length,
+                  double max_length,
                   bool keep_inside,
                   bool exterior)
 {
@@ -576,7 +576,8 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
         const auto y1 = startpoint.getY();
         const auto dx = x2 - x1;
         const auto dy = y2 - y1;
-        auto length = std::sqrt(std::hypot(dx, dy));
+
+        auto length = std::hypot(dx, dy);
         if (length > max_length)
         {
           auto num = static_cast<int>(std::ceil(length / max_length));
