@@ -205,8 +205,8 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     const auto opt_lon_wrap = theSRS.projInfo().getDouble("o_wrap");
     const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 180.0);
 
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap - 180), -90, 90));
-    if (lon_wrap == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap + 180), -90, 90));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap + 180), -90, 90));
+    if (lon_wrap == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap - 180), -90, 90));
 
     return result;
   }
@@ -239,8 +239,8 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   {
     // Interrupted Goode Homolosine
 
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-    if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 40), 0, 90));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 100), -90, 0));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 20), -90, 0));
@@ -250,8 +250,8 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
 
   if (name == "healpix")
   {
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-    if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), -90, -45));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), 45, 90));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0), -90, -45));
@@ -264,8 +264,8 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   // Regular geometric: cut everything at lon_0+180 antimeridian
   // lon_0 is needed for all remaining geometric projections
 
-  result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-  if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+  result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+  if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
 
   return result;
 }
