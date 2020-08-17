@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.8.16
+Version: 20.8.17
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -72,6 +72,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Aug 17 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.17-1.fmi
+- Fixed RectBuilder potential segfault
+- Avoid OGRCoordinateTransformationFactory double frees at program termination by using plain pointers instead of unique_ptr
+
 * Sun Aug 16 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.16-1.fmi
 - Fixed RectBuilder to use double for maximum segment length instead of bool (!)
 

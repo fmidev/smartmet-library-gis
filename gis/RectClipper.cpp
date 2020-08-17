@@ -190,6 +190,7 @@ void Fmi::RectClipper::reconnect()
         addExterior(ring);
         delete line1;
         pos1 = itsExteriorLines.erase(pos1);
+        pos2 = itsExteriorLines.begin();  // safety measure
       }
     }
 

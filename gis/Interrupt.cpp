@@ -226,8 +226,19 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   if (name == "aeqd" || name == "stere" || name == "sterea" || name == "ups") return result;
 
   // Spherical cuts
-  if (name == "laea" || name == "airy" || name == "geos" || name == "gnom" || name == "ortho" ||
-      name == "tpeqd")
+
+  if (name == "laea")
+  {
+    // No idea yet
+    // Wikipedia on ALEA: In practice the projection is often restricted to the hemisphere centered
+    // at that point; the other hemisphere can be mapped separately, using a second projection
+    // centered at the antipode. The equator is on a circle of radius sqrt(2) instead of 2 for
+    // the full view, hence zooming would work differently from the global view. Should consider
+    // using a circle cut of 90 degrees here though.
+    return result;
+  }
+
+  if (name == "airy" || name == "geos" || name == "gnom" || name == "ortho" || name == "tpeqd")
   {
     // We take less than a full 90 degree view to avoid boundary effects
     const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
