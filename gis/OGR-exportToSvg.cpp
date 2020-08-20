@@ -13,27 +13,37 @@ namespace
 {
 // ----------------------------------------------------------------------
 /*!
- * \brief Pretty print a number
+ * \brief Format a number to a local buffer and append it to string thus avoiding intermediate
+ * std::string creation
  */
 // ----------------------------------------------------------------------
 
-std::string pretty(double num, const char *format)
+void append_number(std::string &out, double num, const char *format)
 {
-  if (strcmp(format, "%.0f") == 0) return fmt::sprintf("%d", static_cast<long>(round(num)));
-
-  std::string ret = fmt::sprintf(format, num);
-  std::size_t pos = ret.size();
-  while (pos > 0 && ret[--pos] == '0')
+  char buffer[30]{};  // zero initialized!
+  if (strcmp(format, "%.0f") == 0)
+    fmt::format_to(buffer, "%d", static_cast<long>(round(num)));
+  else
   {
+    // Does not produce a trailing zero :(
+    fmt::format_to(buffer, format, num);
+
+    // Remove trailing zeros and decimal point if possible
+    auto pos = strlen(buffer);
+    while (pos > 0 && buffer[--pos] == '0')
+    {
+    }
+    if (buffer[pos] == ',' || buffer[pos] == '.') buffer[pos] = '\0';
+    // Convert -0 to 0
+    if (strcmp(buffer, "-0") == 0)
+    {
+      out += '0';
+      return;
+    }
   }
-
-  if (ret[pos] != ',' && ret[pos] != '.') return ret;
-
-  ret.resize(pos);
-
-  if (ret != "-0") return ret;
-  return "0";
+  out.append(buffer);
 }
+
 }  // namespace
 
 // Forward declaration needed since two functions call each other
@@ -54,7 +64,10 @@ void writePointSVG(std::string &out, const OGRPoint *geom, const Box &box, const
     double x = geom->getX();
     double y = geom->getY();
     box.transform(x, y);
-    out += 'M' + pretty(x, format) + ' ' + pretty(y, format);
+    out += 'M';
+    append_number(out, x, format);
+    out += ' ';
+    append_number(out, y, format);
   }
 }
 
@@ -82,7 +95,10 @@ void writeLinearRingSVG(
   double previous_rx = std::round(x * rfactor);
   double previous_ry = std::round(y * rfactor);
 
-  out += 'M' + pretty(x, format) + ' ' + pretty(y, format);
+  out += 'M';
+  append_number(out, x, format);
+  out += ' ';
+  append_number(out, y, format);
 
   const int n = geom->getNumPoints();
 
@@ -97,7 +113,10 @@ void writeLinearRingSVG(
 
     if (new_rx != previous_rx || new_ry != previous_ry)
     {
-      out += ' ' + pretty(x, format) + ' ' + pretty(y, format);
+      out += ' ';
+      append_number(out, x, format);
+      out += ' ';
+      append_number(out, y, format);
       previous_rx = new_rx;
       previous_ry = new_ry;
     }
@@ -127,7 +146,10 @@ void writeLineStringSVG(
   double previous_rx = std::round(x * rfactor);
   double previous_ry = std::round(y * rfactor);
 
-  out += 'M' + pretty(x, format) + ' ' + pretty(y, format);
+  out += 'M';
+  append_number(out, x, format);
+  out += ' ';
+  append_number(out, y, format);
 
   const int n = geom->getNumPoints();
 
@@ -143,7 +165,10 @@ void writeLineStringSVG(
 
     if (new_rx != previous_rx || new_ry != previous_ry)
     {
-      out += ' ' + pretty(x, format) + ' ' + pretty(y, format);
+      out += ' ';
+      append_number(out, x, format);
+      out += ' ';
+      append_number(out, y, format);
       previous_rx = new_rx;
       previous_ry = new_ry;
     }
@@ -305,7 +330,7 @@ std::string Fmi::OGR::exportToSvg(const OGRGeometry &theGeom,
 
   const int decimals = std::ceil(precision);
   const double rfactor = pow(10.0, precision);
-  const std::string format = "%." + fmt::sprintf("%d", decimals) + "f";
+  const std::string format = "{:." + fmt::sprintf("%d", decimals) + "f}";
 
   std::string out;
   writeSVG(out, &theGeom, theBox, rfactor, format.c_str());

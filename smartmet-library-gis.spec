@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.8.17
+Version: 20.8.20
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -124,6 +124,15 @@ FMI GIS library development files
 * Wed Apr 22 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.20-1.fmi
 - Hide implementation details of SpatialReference and CoordinateTransformation
 
+=======
+* Thu Aug 20 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.20-1.fmi
+- Optimized exportToSvg to minimize string allocations
+
+* Wed Aug 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.12-1.fmi
+- Added OGRSpatialReferenceFactory
+- Added OGRCoordinateTransformationFactory
+
+>>>>>>> master
 * Sat Apr 18 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.18-1.fmi
 - Removed macgyver dependency
 - Upgrade to Boost 1.69
