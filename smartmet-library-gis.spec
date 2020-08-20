@@ -72,6 +72,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Aug 20 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.20-1.fmi
+- Optimized exportToSvg to minimize string allocations
+
 * Mon Aug 17 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.17-1.fmi
 - Fixed RectBuilder potential segfault
 - Avoid OGRCoordinateTransformationFactory double frees at program termination by using plain pointers instead of unique_ptr
@@ -124,15 +127,6 @@ FMI GIS library development files
 * Wed Apr 22 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.20-1.fmi
 - Hide implementation details of SpatialReference and CoordinateTransformation
 
-=======
-* Thu Aug 20 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.20-1.fmi
-- Optimized exportToSvg to minimize string allocations
-
-* Wed Aug 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.12-1.fmi
-- Added OGRSpatialReferenceFactory
-- Added OGRCoordinateTransformationFactory
-
->>>>>>> master
 * Sat Apr 18 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.18-1.fmi
 - Removed macgyver dependency
 - Upgrade to Boost 1.69
@@ -179,6 +173,7 @@ FMI GIS library development files
 
 * Wed Dec  4 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.4-1.fmi
 - Use -fno-omit-frame-pointer for a better profiling and debugging experience                                                                             - Fixed dependency to be on gdal-libs instead of gdal        
+
 * Thu Sep 26 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.9.26-1.fmi
 - Added support for GDAL 2
 - Avoid regex use to avoid locale locks
