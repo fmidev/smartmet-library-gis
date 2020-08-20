@@ -17,6 +17,7 @@ BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 5.2.0
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
+BuildRequires: smartmet-library-macgyver-devel >= 20.8.7
 Requires: fmt >= 5.2.0
 Requires: gdal-libs
 Requires: geos >= 3.5.0
@@ -25,6 +26,7 @@ Requires: proj-epsg
 Requires: postgis
 Requires: boost169-filesystem
 Requires: boost169-thread
+Requires: smartmet-library-macgyver >= 20.8.7
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
@@ -74,6 +76,10 @@ FMI GIS library development files
 %changelog
 * Thu Aug 20 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.20-1.fmi
 - Optimized exportToSvg to minimize string allocations
+
+* Wed Aug 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.12-1.fmi
+- Added OGRSpatialReferenceFactory
+- Added OGRCoordinateTransformationFactory
 
 * Sat Apr 18 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.18-1.fmi
 - Removed macgyver dependency
