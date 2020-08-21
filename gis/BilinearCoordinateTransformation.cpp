@@ -21,11 +21,13 @@ BilinearCoordinateTransformation::BilinearCoordinateTransformation(
       m_y2(y2),
       m_matrix(new CoordinateMatrix(nx, ny, x1, y1, x2, y2))
 {
-  m_matrix->transform(theTransformation);
-  m_hash = m_matrix->hashValue();
+  m_matrix->transform(theTransformation);  // projected grid
+  m_hash = m_matrix->hashValue();          // grid hash value when projected
 }
 
-double bilinear(
+// Bilinear interpolation in a rectable
+
+inline double bilinear(
     double dx, double dy, double topleft, double topright, double bottomleft, double bottomright)
 {
   const auto mdx = 1 - dx;
@@ -37,7 +39,10 @@ double bilinear(
 
 bool BilinearCoordinateTransformation::transform(double& x, double& y) const
 {
+  // Return false if wanted point is outside the bbox
   if (x < m_x1 || x > m_x2 || y < m_y1 || y > m_y2) return false;
+
+  // Calculate integer and fractional coordinates inside the grid
 
   const auto xpos = (x - m_x1) / (m_x2 - m_x1) * m_nx;
   const auto ypos = (y - m_y1) / (m_y2 - m_y1) * m_ny;
@@ -50,6 +55,8 @@ bool BilinearCoordinateTransformation::transform(double& x, double& y) const
 
   const auto xfrac = xpos - i;
   const auto yfrac = ypos - j;
+
+  // Interpolate projected coordinate
 
   x = bilinear(xfrac,
                yfrac,
