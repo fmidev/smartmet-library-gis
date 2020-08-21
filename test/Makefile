@@ -43,7 +43,7 @@ INCLUDES += \
 	-I../gis \
 	-I/usr/include/smartmet
 
-LIBS += ../libsmartmet-gis.so -lboost_filesystem -lgeos -lgdal -lfmt
+LIBS += ../libsmartmet-gis.so -lboost_filesystem -lboost_chrono -lgeos -lgdal -lfmt
 
 # Testdata directories
 GIS_RASTERS_DIR = $(shell test -d /usr/share/smartmet/test/data/gis/rasters && echo /usr/share/smartmet/test/data/gis/rasters || echo /smartmet/share/gis/rasters )
