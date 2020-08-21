@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.8.20
+Version: 20.8.21
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -14,17 +14,17 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: fmt-devel >= 5.2.0
+BuildRequires: fmt-devel >= 6.2.1
 BuildRequires: gdal30-devel
 BuildRequires: geos38-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.7.31
-Requires: fmt >= 5.2.0
+BuildRequires: smartmet-library-macgyver-devel >= 20.8.21 smartmet-library-macgyver-devel is not installed
+Requires: fmt >= 6.2.1
 Requires: gdal30-libs
 Requires: geos38
 Requires: postgis
 Requires: boost169-filesystem
 Requires: boost169-thread
-Requires: smartmet-library-macgyver >= 20.7.31
+Requires: smartmet-library-macgyver >= 20.8.21 smartmet-library-macgyver is not installed
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
@@ -72,6 +72,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri Aug 21 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.21-1.fmi
+- Upgrade to fmt 6.2
+
 * Thu Aug 20 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.20-1.fmi
 - Optimized exportToSvg to minimize string allocations
 
