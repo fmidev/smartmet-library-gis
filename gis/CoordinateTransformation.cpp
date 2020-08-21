@@ -5,6 +5,7 @@
 #include "ProjInfo.h"
 #include "SpatialReference.h"
 #include "Types.h"
+#include <boost/functional/hash.hpp>
 #include <gdal_version.h>
 #include <iostream>
 #include <limits>
@@ -30,7 +31,8 @@ class CoordinateTransformation::Impl
       : m_source(other.m_source),
         m_target(other.m_target),
         m_transformation(OGRCoordinateTransformationFactory::Create(
-            other.m_source.projInfo().projStr(), other.m_target.projInfo().projStr()))
+            other.m_source.projInfo().projStr(), other.m_target.projInfo().projStr())),
+        m_hash(other.m_hash)
   {
   }
 
@@ -40,6 +42,8 @@ class CoordinateTransformation::Impl
         m_transformation(OGRCoordinateTransformationFactory::Create(theSource.projInfo().projStr(),
                                                                     theTarget.projInfo().projStr()))
   {
+    m_hash = theSource.hashValue();
+    boost::hash_combine(m_hash, theTarget.hashValue());
   }
 
   Impl& operator=(const Impl&) = delete;
@@ -47,6 +51,7 @@ class CoordinateTransformation::Impl
   const SpatialReference m_source;
   const SpatialReference m_target;
   OGRCoordinateTransformationFactory::Ptr m_transformation;
+  std::size_t m_hash = 0;
 };
 
 CoordinateTransformation::CoordinateTransformation(const CoordinateTransformation& other)
@@ -208,6 +213,8 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
   }
 
   return OGR::renormalizeWindingOrder(*g);
-}  // namespace Fmi
+}
+
+std::size_t CoordinateTransformation::hashValue() const { return impl->m_hash; }
 
 }  // namespace Fmi

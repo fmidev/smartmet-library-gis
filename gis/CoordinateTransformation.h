@@ -36,6 +36,8 @@ class CoordinateTransformation
   const OGRSpatialReference& getSourceCS() const;
   const OGRSpatialReference& getTargetCS() const;
 
+  std::size_t hashValue() const;
+
  private:
   class Impl;
   std::shared_ptr<Impl> impl;
