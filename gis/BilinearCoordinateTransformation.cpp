@@ -16,7 +16,9 @@ BilinearCoordinateTransformation::BilinearCoordinateTransformation(
     double y2)
     : m_nx(nx), m_ny(ny), m_x1(x1), m_y1(y1), m_x2(x2), m_y2(y2)
 {
-  // Search the cache first
+  // Search the cache first. Note that the hash value calculation order must match that in
+  // CoordinateMatrix::transform or the cache will not work properly.
+
   auto m_hash = CoordinateMatrix::hashValue(nx, ny, x1, y1, x2, y2);
   boost::hash_combine(m_hash, theTransformation.hashValue());
   m_matrix = CoordinateMatrixCache::Find(m_hash);
