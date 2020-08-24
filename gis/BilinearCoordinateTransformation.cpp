@@ -1,5 +1,6 @@
 #include "BilinearCoordinateTransformation.h"
 #include "CoordinateMatrix.h"
+#include "CoordinateMatrixCache.h"
 #include "CoordinateTransformation.h"
 #include <boost/functional/hash.hpp>
 
@@ -13,16 +14,20 @@ BilinearCoordinateTransformation::BilinearCoordinateTransformation(
     double y1,
     double x2,
     double y2)
-    : m_nx(nx),
-      m_ny(ny),
-      m_x1(x1),
-      m_y1(y1),
-      m_x2(x2),
-      m_y2(y2),
-      m_matrix(new CoordinateMatrix(nx, ny, x1, y1, x2, y2))
+    : m_nx(nx), m_ny(ny), m_x1(x1), m_y1(y1), m_x2(x2), m_y2(y2)
 {
-  m_matrix->transform(theTransformation);  // projected grid
-  m_hash = m_matrix->hashValue();          // grid hash value when projected
+  // Search the cache first
+  auto m_hash = CoordinateMatrix::hashValue(nx, ny, x1, y1, x2, y2);
+  boost::hash_combine(m_hash, theTransformation.hashValue());
+  m_matrix = CoordinateMatrixCache::Find(m_hash);
+
+  if (!m_matrix)
+  {
+    // Create new transformation and cache it
+    m_matrix.reset(new CoordinateMatrix(nx, ny, x1, y1, x2, y2));
+    m_matrix->transform(theTransformation);  // projected grid
+    CoordinateMatrixCache::Insert(m_hash, m_matrix);
+  }
 }
 
 // Bilinear interpolation in a rectable
