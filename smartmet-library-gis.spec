@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.8.21
+Version: 20.8.24
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -72,6 +72,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Aug 24 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.24-1.fmi
+- Added CoordinateMatrixCache for caching projected coordinates
+- Added BilinearCoordinateTransformation for fast approximate projections
+
 * Fri Aug 21 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.21-1.fmi
 - Upgrade to fmt 6.2
 
