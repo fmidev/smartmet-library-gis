@@ -78,4 +78,10 @@ bool BilinearCoordinateTransformation::transform(double& x, double& y) const
   return true;
 }
 
+const CoordinateMatrix& BilinearCoordinateTransformation::coordinateMatrix() const
+{
+  // Object cannot be constructed without initializing the member
+  return *m_matrix;
+}
+
 }  // namespace Fmi

@@ -4,7 +4,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 20.8.24
-Release: 1%{?dist}.fmi
+Release:2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -72,6 +72,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Aug 24 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.24-2.fmi
+- Added access to BilinearCoordinateTransformation CoordinateMatrix
+
 * Mon Aug 24 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.24-1.fmi
 - Added CoordinateMatrixCache for caching projected coordinates
 - Added BilinearCoordinateTransformation for fast approximate projections

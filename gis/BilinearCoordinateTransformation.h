@@ -24,6 +24,8 @@ class BilinearCoordinateTransformation
 
   bool transform(double& x, double& y) const;
 
+  const CoordinateMatrix& coordinateMatrix() const;
+
   std::size_t hashValue() const { return m_hash; }
 
  private:
