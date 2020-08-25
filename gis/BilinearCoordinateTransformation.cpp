@@ -51,8 +51,8 @@ bool BilinearCoordinateTransformation::transform(double& x, double& y) const
 
   // Calculate integer and fractional coordinates inside the grid
 
-  const auto xpos = (x - m_x1) / (m_x2 - m_x1) * m_nx;
-  const auto ypos = (y - m_y1) / (m_y2 - m_y1) * m_ny;
+  const auto xpos = (x - m_x1) / (m_x2 - m_x1) * (m_nx - 1);
+  const auto ypos = (y - m_y1) / (m_y2 - m_y1) * (m_ny - 1);
   auto i = static_cast<std::size_t>(xpos);
   auto j = static_cast<std::size_t>(ypos);
 
@@ -71,6 +71,7 @@ bool BilinearCoordinateTransformation::transform(double& x, double& y) const
                m_matrix->x(i + 1, j + 1),
                m_matrix->x(i, j),
                m_matrix->x(i + 1, j));
+
   y = bilinear(xfrac,
                yfrac,
                m_matrix->y(i, j + 1),
