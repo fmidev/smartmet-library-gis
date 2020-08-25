@@ -67,10 +67,10 @@ bool BilinearCoordinateTransformation::transform(double& x, double& y) const
 
   x = bilinear(xfrac,
                yfrac,
-               m_matrix->y(i, j + 1),
-               m_matrix->y(i + 1, j + 1),
-               m_matrix->y(i, j),
-               m_matrix->y(i + 1, j));
+               m_matrix->x(i, j + 1),
+               m_matrix->x(i + 1, j + 1),
+               m_matrix->x(i, j),
+               m_matrix->x(i + 1, j));
   y = bilinear(xfrac,
                yfrac,
                m_matrix->y(i, j + 1),
