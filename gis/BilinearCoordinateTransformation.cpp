@@ -65,19 +65,10 @@ bool BilinearCoordinateTransformation::transform(double& x, double& y) const
 
   // Interpolate projected coordinate
 
-  x = bilinear(xfrac,
-               yfrac,
-               m_matrix->x(i, j + 1),
-               m_matrix->x(i + 1, j + 1),
-               m_matrix->x(i, j),
-               m_matrix->x(i + 1, j));
+  const auto& m = *m_matrix;  // to avoid 7 more dereferences of shared_ptr
 
-  y = bilinear(xfrac,
-               yfrac,
-               m_matrix->y(i, j + 1),
-               m_matrix->y(i + 1, j + 1),
-               m_matrix->y(i, j),
-               m_matrix->y(i + 1, j));
+  x = bilinear(xfrac, yfrac, m.x(i, j + 1), m.x(i + 1, j + 1), m.x(i, j), m.x(i + 1, j));
+  y = bilinear(xfrac, yfrac, m.y(i, j + 1), m.y(i + 1, j + 1), m.y(i, j), m.y(i + 1, j));
   return true;
 }
 
