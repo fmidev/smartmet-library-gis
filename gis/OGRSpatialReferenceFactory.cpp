@@ -111,6 +111,13 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
     throw std::runtime_error("Failed to create spatial reference from '" + theDesc + "' ('" + desc +
                              "')");
   }
+
+  // This is done here instead of SpatialReference constructors to make the modification
+  // thread safe. Note that changing the strategy leads to calling proj_destroy
+  // on the projection, and recreating it.
+
+  sr->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+
   g_spatialReferenceCache.insert(theDesc, sr);
 
   return sr;
