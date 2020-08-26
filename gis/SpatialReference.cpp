@@ -17,13 +17,15 @@ class SpatialReference::Impl
   explicit Impl(const OGRSpatialReference &other)
       : m_crs(other.Clone()), m_projInfo(OGR::exportToProj(*m_crs))
   {
-    m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    // Not thread safe. We assume Clone sets this properly.
+    // m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
   }
 
   explicit Impl(OGRSpatialReference &other)
       : m_crs(other.Clone()), m_projInfo(OGR::exportToProj(*m_crs))
   {
-    m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    // Not thread safe. We assume Clone sets this properly.
+    // m_crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
   }
 
   explicit Impl(const std::string &theCRS)

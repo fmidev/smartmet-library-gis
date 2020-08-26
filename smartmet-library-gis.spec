@@ -3,8 +3,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.8.24
-Release:2%{?dist}.fmi
+Version: 20.8.26
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -72,6 +72,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Aug 26 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.26-1.fmi
+- Fixed SpatialReference copy constructor and assignment not to modify the axis mapping strategy
+
 * Mon Aug 24 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.24-2.fmi
 - Added access to BilinearCoordinateTransformation CoordinateMatrix
 
