@@ -3,8 +3,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.8.26
-Release: 1%{?dist}.fmi
+Version: 20.8.27
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -72,6 +72,12 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Aug 27 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.27-2.fmi
+- Fixed BilinearCoordinateInterpolation index overflow testing to substract one from width to get maximum allowed index
+
+* Thu Aug 27 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.27-1.fmi
+- Fixed clipping of polygons where a hole touches the exterior and the clipping rectangle at the same point
+
 * Wed Aug 26 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.26-1.fmi
 - Fixed SpatialReference copy constructor and assignment not to modify the axis mapping strategy
 

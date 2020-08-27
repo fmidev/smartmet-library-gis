@@ -57,8 +57,8 @@ bool BilinearCoordinateTransformation::transform(double& x, double& y) const
   auto j = static_cast<std::size_t>(ypos);
 
   // Avoid overflow at the edges
-  if (i == m_nx) --i;
-  if (j == m_ny) --j;
+  if (i == m_nx - 1) --i;
+  if (j == m_ny - 1) --j;
 
   const auto xfrac = xpos - i;
   const auto yfrac = ypos - j;
