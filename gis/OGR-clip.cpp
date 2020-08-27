@@ -479,7 +479,10 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
           if (add_start) line->addPoint(x0, y0);
           add_start = false;
           line->addSubLineString(&g, start_index, i);
-          theRect.addExterior(line);
+          if (exterior)
+            theRect.addExterior(line);
+          else
+            theRect.addInterior(line);
 
           start_index = i;  // potentially going in again at this point
           break;            // going to the edge loop
@@ -499,7 +502,10 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
           add_start = false;
         }
         line->addSubLineString(&g, start_index, i - 1);
-        theRect.addExterior(line);
+        if (exterior)
+          theRect.addExterior(line);
+        else
+          theRect.addInterior(line);
       }
     }
 

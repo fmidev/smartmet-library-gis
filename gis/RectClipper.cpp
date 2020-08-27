@@ -143,12 +143,12 @@ Fmi::RectClipper::~RectClipper()
  */
 // ----------------------------------------------------------------------
 
-void Fmi::RectClipper::reconnect()
+void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper, bool exterior)
 {
   // Nothing to reconnect if there aren't at least two lines
-  if (itsExteriorLines.size() < 2) return;
+  if (lines.size() < 2) return;
 
-  for (auto pos1 = itsExteriorLines.begin(); pos1 != itsExteriorLines.end();)
+  for (auto pos1 = lines.begin(); pos1 != lines.end();)
   {
     auto *line1 = *pos1;
     const int n1 = line1->getNumPoints();
@@ -159,7 +159,7 @@ void Fmi::RectClipper::reconnect()
       continue;
     }
 
-    for (auto pos2 = itsExteriorLines.begin(); pos2 != itsExteriorLines.end();)
+    for (auto pos2 = lines.begin(); pos2 != lines.end();)
     {
       auto *line2 = *pos2;
       const int n2 = line2->getNumPoints();
@@ -176,7 +176,7 @@ void Fmi::RectClipper::reconnect()
 
       line1->addSubLineString(line2, 1, n2 - 1);
       delete line2;
-      pos2 = itsExteriorLines.erase(pos2);
+      pos2 = lines.erase(pos2);
 
       // The merge may have closed a linearring if the intersections
       // have collapsed to a single point. This can happen if there is
@@ -187,15 +187,24 @@ void Fmi::RectClipper::reconnect()
       {
         OGRLinearRing *ring = new OGRLinearRing;
         ring->addSubLineString(line1, 0, -1);
-        addExterior(ring);
+        if (exterior)
+          clipper.addExterior(ring);
+        else
+          clipper.addInterior(ring);
         delete line1;
-        pos1 = itsExteriorLines.erase(pos1);
-        pos2 = itsExteriorLines.begin();  // safety measure
+        pos1 = lines.erase(pos1);
+        pos2 = lines.begin();  // safety measure
       }
     }
 
-    if (pos1 != itsExteriorLines.end()) ++pos1;
+    if (pos1 != lines.end()) ++pos1;
   }
+}
+
+void Fmi::RectClipper::reconnect()
+{
+  reconnectLines(itsExteriorLines, *this, true);
+  reconnectLines(itsInteriorLines, *this, false);
 }
 
 // ----------------------------------------------------------------------
