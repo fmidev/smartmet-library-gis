@@ -3,8 +3,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.7.2
-Release: 1%{?dist}.fmi
+Version: 20.8.27
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -14,15 +14,17 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: fmt-devel >= 5.2.0
+BuildRequires: fmt-devel >= 6.2.1
 BuildRequires: gdal30-devel
 BuildRequires: geos38-devel
-Requires: fmt >= 5.2.0
+BuildRequires: smartmet-library-macgyver-devel >= 20.8.21
+Requires: fmt >= 6.2.1
 Requires: gdal30-libs
 Requires: geos38
 Requires: postgis
 Requires: boost169-filesystem
 Requires: boost169-thread
+Requires: smartmet-library-macgyver >= 20.8.21
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
@@ -70,6 +72,45 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Aug 27 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.27-2.fmi
+- Fixed BilinearCoordinateInterpolation index overflow testing to substract one from width to get maximum allowed index
+
+* Thu Aug 27 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.27-1.fmi
+- Fixed clipping of polygons where a hole touches the exterior and the clipping rectangle at the same point
+
+* Wed Aug 26 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.26-1.fmi
+- Fixed SpatialReference copy constructor and assignment not to modify the axis mapping strategy
+
+* Mon Aug 24 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.24-2.fmi
+- Added access to BilinearCoordinateTransformation CoordinateMatrix
+
+* Mon Aug 24 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.24-1.fmi
+- Added CoordinateMatrixCache for caching projected coordinates
+- Added BilinearCoordinateTransformation for fast approximate projections
+
+* Fri Aug 21 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.21-1.fmi
+- Upgrade to fmt 6.2
+
+* Thu Aug 20 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.20-1.fmi
+- Optimized exportToSvg to minimize string allocations
+
+* Mon Aug 17 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.17-1.fmi
+- Fixed RectBuilder potential segfault
+- Avoid OGRCoordinateTransformationFactory double frees at program termination by using plain pointers instead of unique_ptr
+
+* Sun Aug 16 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.16-1.fmi
+- Fixed RectBuilder to use double for maximum segment length instead of bool (!)
+
+* Thu Aug 13 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.13-1.fmi
+- CoordinateTransformation now uses OGR::polycut for speed when possible
+
+* Wed Aug 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.12-1.fmi
+- Added OGRCoordinateTransformationFactory::Create methods for EPSG numbers
+
+* Thu Aug  6 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.6-1.fmi
+- Added OGRSpatialReferenceFactory
+- Added OGRCoordinateTransformationFactory
+
 * Thu Jul  2 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.2-1.fmi
 - Added Box constructor with identity transformation properties
 - CoordinateTransformation now clones the input SpatialReference objects
@@ -151,6 +192,7 @@ FMI GIS library development files
 
 * Wed Dec  4 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.4-1.fmi
 - Use -fno-omit-frame-pointer for a better profiling and debugging experience                                                                             - Fixed dependency to be on gdal-libs instead of gdal        
+
 * Thu Sep 26 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.9.26-1.fmi
 - Added support for GDAL 2
 - Avoid regex use to avoid locale locks

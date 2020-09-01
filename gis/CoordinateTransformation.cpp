@@ -1,10 +1,11 @@
 #include "CoordinateTransformation.h"
-
 #include "Interrupt.h"
 #include "OGR.h"
+#include "OGRCoordinateTransformationFactory.h"
 #include "ProjInfo.h"
 #include "SpatialReference.h"
 #include "Types.h"
+#include <boost/functional/hash.hpp>
 #include <gdal_version.h>
 #include <iostream>
 #include <limits>
@@ -26,38 +27,40 @@ class CoordinateTransformation::Impl
   ~Impl() = default;
   Impl() = delete;
 
-    Impl(const Impl& other)
+  Impl(const Impl& other)
       : m_source(other.m_source),
         m_target(other.m_target),
-        m_transformation(OGRCreateCoordinateTransformation(other.m_source, other.m_target))
+        m_transformation(OGRCoordinateTransformationFactory::Create(
+            other.m_source.projInfo().projStr(), other.m_target.projInfo().projStr())),
+        m_hash(other.m_hash)
   {
-    if (m_transformation == nullptr)
-      throw std::runtime_error("Failed to create the requested coordinate transformation");
   }
 
-  Impl(const SpatialReference &theSource, const SpatialReference &theTarget)
+  Impl(const SpatialReference& theSource, const SpatialReference& theTarget)
       : m_source(theSource),
         m_target(theTarget),
-        m_transformation(OGRCreateCoordinateTransformation(theSource.get(), theTarget.get()))
+        m_transformation(OGRCoordinateTransformationFactory::Create(theSource.projInfo().projStr(),
+                                                                    theTarget.projInfo().projStr()))
   {
-    if (m_transformation == nullptr)
-      throw std::runtime_error("Failed to create the requested coordinate transformation");
+    m_hash = theSource.hashValue();
+    boost::hash_combine(m_hash, theTarget.hashValue());
   }
 
   Impl& operator=(const Impl&) = delete;
 
   const SpatialReference m_source;
   const SpatialReference m_target;
-  std::unique_ptr<OGRCoordinateTransformation> m_transformation;
+  OGRCoordinateTransformationFactory::Ptr m_transformation;
+  std::size_t m_hash = 0;
 };
 
-CoordinateTransformation::CoordinateTransformation(const CoordinateTransformation& other) 
+CoordinateTransformation::CoordinateTransformation(const CoordinateTransformation& other)
     : impl(new Impl(*other.impl))
 {
 }
 
-CoordinateTransformation::CoordinateTransformation(const SpatialReference &theSource,
-                                                   const SpatialReference &theTarget)
+CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSource,
+                                                   const SpatialReference& theTarget)
     : impl(new Impl(theSource, theTarget))
 {
 }
@@ -160,7 +163,8 @@ bool contains_longitudes(const OGREnvelope& env1, const OGREnvelope& env2)
   return env1.MinX <= env2.MinX && env1.MaxX >= env2.MaxX;
 }
 
-OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom) const
+OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom,
+                                                         double theMaximumSegmentLength) const
 {
   OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
 
@@ -173,6 +177,16 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
     geom.getEnvelope(&shape_envelope);
 
     Interrupt interrupt = interruptGeometry(getTargetCS());
+
+    // Do quick vertical cuts
+    if (!interrupt.cuts.empty())
+    {
+      for (const auto& box : interrupt.cuts)
+      {
+        g.reset(OGR::polycut(*g, box, theMaximumSegmentLength));
+        if (!g || g->IsEmpty()) return nullptr;
+      }
+    }
 
     // If the target envelope is not set, we must try clipping.
     // Otherwise if the geometry contains the target area, no clipping is needed.
@@ -199,6 +213,8 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
   }
 
   return OGR::renormalizeWindingOrder(*g);
-}  // namespace Fmi
+}
+
+std::size_t CoordinateTransformation::hashValue() const { return impl->m_hash; }
 
 }  // namespace Fmi

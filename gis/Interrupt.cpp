@@ -190,28 +190,9 @@ OGRGeometry* circle_cut(double lon,
   return result;
 }
 
-// Add latitudes at 1 degree intervals as in -90.1 -89 -88 ... 89 90.1
-
-OGRPolygon* vertical_cut(double lon, int lat1, int lat2, int resolution = 1)
+Box make_vertical_cut(double lon, double lat1, double lat2)
 {
-  OGRPolygon* poly = new OGRPolygon;
-  OGRLinearRing* ring = new OGRLinearRing;
-  auto x1 = lon - epsilon;
-  auto x2 = lon + epsilon;
-  auto y1 = std::min(lat1, lat2);
-  auto y2 = std::max(lat1, lat2);
-
-  // From lon-eps,y1 up to to lon-eps,y2
-  for (int y = y1; y <= y2; y += resolution)
-    ring->addPoint(x1, y + (y == -90 ? -poleshift : y == 90 ? +poleshift : 0));
-
-  // From lon+eps,y2 down to lon+eps,y1
-  for (int y = y2; y >= y1; y -= resolution)
-    ring->addPoint(x2, y + (y == -90 ? -poleshift : y == 90 ? +poleshift : 0));
-
-  ring->closeRings();
-  poly->addRingDirectly(ring);
-  return poly;
+  return Box(lon - epsilon, std::min(lat1, lat2), lon + epsilon, std::max(lat1, lat2));
 }
 
 Interrupt interruptGeometry(const SpatialReference& theSRS)
@@ -223,12 +204,10 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   {
     const auto opt_lon_wrap = theSRS.projInfo().getDouble("o_wrap");
     const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 180.0);
-    OGRMultiPolygon* mpoly = new OGRMultiPolygon;
-    mpoly->assignSpatialReference(OGRSpatialReference::GetWGS84SRS());
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_wrap - 180), -90, 90));
-    if (lon_wrap == 0) mpoly->addGeometryDirectly(vertical_cut(modlon(lon_wrap + 180), -90, 90));
 
-    result.cutGeometry.reset(mpoly);
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap + 180), -90, 90));
+    if (lon_wrap == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap - 180), -90, 90));
+
     return result;
   }
 
@@ -247,8 +226,19 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   if (name == "aeqd" || name == "stere" || name == "sterea" || name == "ups") return result;
 
   // Spherical cuts
-  if (name == "laea" || name == "airy" || name == "geos" || name == "gnom" || name == "ortho" ||
-      name == "tpeqd")
+
+  if (name == "laea")
+  {
+    // No idea yet
+    // Wikipedia on ALEA: In practice the projection is often restricted to the hemisphere centered
+    // at that point; the other hemisphere can be mapped separately, using a second projection
+    // centered at the antipode. The equator is on a circle of radius sqrt(2) instead of 2 for
+    // the full view, hence zooming would work differently from the global view. Should consider
+    // using a circle cut of 90 degrees here though.
+    return result;
+  }
+
+  if (name == "airy" || name == "geos" || name == "gnom" || name == "ortho" || name == "tpeqd")
   {
     // We take less than a full 90 degree view to avoid boundary effects
     const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
@@ -260,45 +250,34 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   {
     // Interrupted Goode Homolosine
 
-    OGRMultiPolygon* mpoly = new OGRMultiPolygon;
-    mpoly->assignSpatialReference(OGRSpatialReference::GetWGS84SRS());
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 180), -90, 90));
-    if (lon_0 == 0) mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 180), -90, 90));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 40), 0, 90));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 100), -90, 0));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 20), -90, 0));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 80), -90, 0));
-
-    result.cutGeometry.reset(mpoly);
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 40), 0, 90));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 100), -90, 0));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 20), -90, 0));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 80), -90, 0));
     return result;
   }
 
   if (name == "healpix")
   {
-    OGRMultiPolygon* mpoly = new OGRMultiPolygon;
-    mpoly->assignSpatialReference(OGRSpatialReference::GetWGS84SRS());
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 180), -90, 90));
-    if (lon_0 == 0) mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 180), -90, 90));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 90), -90, -45));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 90), 45, 90));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0), -90, -45));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0), 45, 90));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 90), -90, -45));
-    mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 90), 45, 90));
-
-    result.cutGeometry.reset(mpoly);
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), -90, -45));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), 45, 90));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0), -90, -45));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0), 45, 90));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), -90, -45));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), 45, 90));
     return result;
   }
 
   // Regular geometric: cut everything at lon_0+180 antimeridian
   // lon_0 is needed for all remaining geometric projections
 
-  OGRMultiPolygon* mpoly = new OGRMultiPolygon;
-  mpoly->assignSpatialReference(OGRSpatialReference::GetWGS84SRS());
-  mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 - 180), -90, 90));
-  if (lon_0 == 0) mpoly->addGeometryDirectly(vertical_cut(modlon(lon_0 + 180), -90, 90));
+  result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+  if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
 
-  result.cutGeometry.reset(mpoly);
   return result;
 }
 

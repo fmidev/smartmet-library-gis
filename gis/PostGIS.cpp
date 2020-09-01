@@ -11,6 +11,9 @@
 #include <ogrsf_frmts.h>
 #include <stdexcept>
 
+// Segment geometries by 1 degree accuracy when clipping/cutting to a rectangle
+const double default_segmentation_length = 1.0;
+
 namespace Fmi
 {
 #if 0
@@ -167,7 +170,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       if (geometry != nullptr)
       {
 #if 1
-        auto* clone = transformation.transformGeometry(*geometry);
+        auto* clone = transformation.transformGeometry(*geometry, default_segmentation_length);
 #else
         // This one timeouts WMS ice.get tests:
         // const char* const opts[] = {"WRAPDATELINE=YES", nullptr};
@@ -256,7 +259,7 @@ Features read(const Fmi::SpatialReference* theSR,
       }
       else
       {
-        auto* clone = transformation->transformGeometry(*geometry);
+        auto* clone = transformation->transformGeometry(*geometry, default_segmentation_length);
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
         ret_item->geom->assignSpatialReference(theSR->get()->Clone());

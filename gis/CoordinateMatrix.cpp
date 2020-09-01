@@ -1,18 +1,19 @@
 #include "CoordinateMatrix.h"
-
 #include "CoordinateTransformation.h"
-
+#include <boost/functional/hash.hpp>
 #include <cmath>
 
 namespace Fmi
 {
-// PROJ uses HUGE_VAL as a missing value, hence we do too to avoid unnecessary modifications to data
+// PROJ uses HUGE_VAL as a missing value, hence we do too to avoid unnecessary modifications to
+// data. Note that hash_value() accessor is not usually useful when constructed this way
 
 CoordinateMatrix::CoordinateMatrix(std::size_t nx, std::size_t ny)
     : m_width{nx},
       m_height{ny},
       m_x{std::vector<double>(nx * ny, HUGE_VAL)},
-      m_y{std::vector<double>(nx * ny, HUGE_VAL)}
+      m_y{std::vector<double>(nx * ny, HUGE_VAL)},
+      m_hash(hashValue(nx, ny, 0, 0, nx, ny))
 {
 }
 
@@ -22,7 +23,8 @@ CoordinateMatrix::CoordinateMatrix(
     : m_width{nx},
       m_height{ny},
       m_x{std::vector<double>(nx * ny, HUGE_VAL)},
-      m_y{std::vector<double>(nx * ny, HUGE_VAL)}
+      m_y{std::vector<double>(nx * ny, HUGE_VAL)},
+      m_hash(hashValue(nx, ny, x1, y1, x2, y2))
 {
   const auto dx = nx > 1 ? (x2 - x1) / (nx - 1) : 0;
   const auto dy = ny > 1 ? (y2 - y1) / (ny - 1) : 0;
@@ -55,7 +57,23 @@ void CoordinateMatrix::swap(CoordinateMatrix& other)
 
 bool CoordinateMatrix::transform(const CoordinateTransformation& transformation)
 {
+  // Note that the hash value calculation order must match that in the
+  // BilinearCoordinateTransformation constructor or caching will not work properly.
+
+  boost::hash_combine(m_hash, transformation.hashValue());  // update hash to the new projection
   return transformation.transform(m_x, m_y);
+}
+
+std::size_t CoordinateMatrix::hashValue(
+    std::size_t nx, std::size_t ny, double x1, double y1, double x2, double y2)
+{
+  auto hash = boost::hash_value(nx);
+  boost::hash_combine(hash, boost::hash_value(ny));
+  boost::hash_combine(hash, boost::hash_value(x1));
+  boost::hash_combine(hash, boost::hash_value(y1));
+  boost::hash_combine(hash, boost::hash_value(x2));
+  boost::hash_combine(hash, boost::hash_value(y2));
+  return hash;
 }
 
 }  // namespace Fmi

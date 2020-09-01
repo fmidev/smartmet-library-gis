@@ -49,10 +49,12 @@ INCLUDES += \
 	-I../gis \
 	-I/usr/include/smartmet
 
+
 LIBS += \
 	../libsmartmet-gis.so \
 	-lgdal -lgeos \
 	-lboost_filesystem \
+	-lboost_chrono \
 	-lfmt
 
 # Testdata directories

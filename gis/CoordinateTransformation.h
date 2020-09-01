@@ -19,7 +19,7 @@ class CoordinateTransformation
   CoordinateTransformation(const CoordinateTransformation& other);
 
   // Handles implicit construction from strings, OGRSpatialReference etc
-  CoordinateTransformation(const SpatialReference &theSource, const SpatialReference &theTarget);
+  CoordinateTransformation(const SpatialReference& theSource, const SpatialReference& theTarget);
 
   CoordinateTransformation& operator=(const CoordinateTransformation&) = delete;
 
@@ -31,10 +31,12 @@ class CoordinateTransformation
   bool transform(OGRGeometry& geom) const;
 
   // Intelligent transform handling antemeridians etc
-  OGRGeometry* transformGeometry(const OGRGeometry& geom) const;
+  OGRGeometry* transformGeometry(const OGRGeometry& geom, double theMaximumSegmentLength = 0) const;
 
   const OGRSpatialReference& getSourceCS() const;
   const OGRSpatialReference& getTargetCS() const;
+
+  std::size_t hashValue() const;
 
  private:
   class Impl;

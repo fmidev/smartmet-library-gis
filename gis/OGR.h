@@ -45,11 +45,19 @@ void transform(OGRGeometry& theGeom, const Box& theBox);
 void translate(OGRGeometry& theGeom, double dx, double dy);
 void translate(OGRGeometry* theGeom, double dx, double dy);
 
-// Clip to rectangle, polygons may break into polylines
+// Clip to rectangle, polygons may break into polylines.
 OGRGeometry* lineclip(const OGRGeometry& theGeom, const Box& theBox);
 
-// Clip to rectangle, polygons are preserved
-OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox);
+// Clip to rectangle, polygons are preserved. Optional maximum length for new edges along the box
+// boundaries.
+OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox, double maxSegmenLength = 0);
+
+// Cut rectangle out, polygons may break into polylines
+OGRGeometry* linecut(const OGRGeometry& theGeom, const Box& theBox);
+
+// Cut rectangle out, polygons are preserved. Optional maximum length for new edges along the box
+// boundaries.
+OGRGeometry* polycut(const OGRGeometry& theGeom, const Box& theBox, double maxSegmentLength = 0);
 
 // Filter out small polygons
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);

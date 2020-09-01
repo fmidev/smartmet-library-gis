@@ -59,11 +59,20 @@ class CoordinateMatrix
   // Always uses lon/lat x/y ordering.
   bool transform(const Fmi::CoordinateTransformation& transformation);
 
+  // Hash value calculation
+
+  std::size_t hashValue() const { return m_hash; }
+
+  // Used externally when searching for projected matrices from a cache
+  static std::size_t hashValue(
+      std::size_t nx, std::size_t ny, double x1, double y1, double x2, double y2);
+
  private:
   std::size_t m_width = 0;
   std::size_t m_height = 0;
   std::vector<double> m_x;
   std::vector<double> m_y;
+  std::size_t m_hash = 0;
 
 };  // class CoordinateMatrix
 
