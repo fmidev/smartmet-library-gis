@@ -1,6 +1,6 @@
 #include "Box.h"
 #include "OGR.h"
-#include <gdal/ogr_geometry.h>
+#include <ogr_geometry.h>
 #include <stdexcept>
 
 using Fmi::Box;

@@ -1,5 +1,5 @@
 #include "OGR.h"
-#include <gdal/ogr_geometry.h>
+#include <ogr_geometry.h>
 #include <stdexcept>
 
 // Unfortunately reversing OGR rings cannot be done directly in the
