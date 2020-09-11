@@ -68,7 +68,7 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
       // Take ownership from the CacheElement and return it to the user
       Ptr ret(pos->second.release(), Deleter(hash, &gPool));
       gPool.erase(pos);
-      return std::move(ret);
+      return ret;
     }
   }
 
