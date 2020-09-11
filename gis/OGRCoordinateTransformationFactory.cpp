@@ -3,7 +3,7 @@
 #include <boost/functional/hash.hpp>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
-#include <gdal/ogr_spatialref.h>
+#include <ogr_spatialref.h>
 
 namespace Fmi
 {

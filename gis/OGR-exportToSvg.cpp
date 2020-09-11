@@ -2,7 +2,7 @@
 #include "OGR.h"
 #include <fmt/format.h>
 #include <fmt/printf.h>
-#include <gdal/ogr_geometry.h>
+#include <ogr_geometry.h>
 #include <stdexcept>
 
 using Fmi::Box;

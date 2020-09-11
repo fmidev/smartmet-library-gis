@@ -3,7 +3,7 @@
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/variant.hpp>
-#include <gdal/gdal_version.h>
+#include <gdal_version.h>
 #include <map>
 #include <vector>
 

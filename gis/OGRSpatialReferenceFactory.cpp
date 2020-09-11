@@ -1,7 +1,7 @@
 #include "OGRSpatialReferenceFactory.h"
 #include "OGR.h"
 #include <fmt/format.h>
-#include <gdal/ogr_geometry.h>
+#include <ogr_geometry.h>
 #include <macgyver/Cache.h>
 
 namespace Fmi
