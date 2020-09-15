@@ -6,12 +6,13 @@ datadir = $(PREFIX)/share
 objdir = obj
 
 GCC_DIAG_COLOR ?= always
-CXX_STD ?= c++11
 
 ifneq ($(findstring clang++,$(CXX)),)
 USE_CLANG=yes
+CXX_STD ?= c++17
 else
 USE_CLANG=no
+CXX_STD ?= c++11
 endif
 
 processor := $(shell uname -p)
