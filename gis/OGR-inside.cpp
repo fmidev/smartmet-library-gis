@@ -1,5 +1,5 @@
 #include "OGR.h"
-#include <gdal/ogr_geometry.h>
+#include <ogr_geometry.h>
 #include <stdexcept>
 
 // Forward declaration needed since two functions call each other

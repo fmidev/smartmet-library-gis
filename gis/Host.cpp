@@ -1,9 +1,9 @@
 #include "Host.h"
 #include <fmt/format.h>
 #include <stdexcept>
-#include <gdal/gdal_version.h>
-#include <gdal/ogrsf_frmts.h>
-#include <gdal/gdal_version.h>
+#include <gdal_version.h>
+#include <ogrsf_frmts.h>
+#include <gdal_version.h>
 
 
 namespace Fmi

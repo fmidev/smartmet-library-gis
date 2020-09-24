@@ -1,6 +1,7 @@
 #include "SrtmMatrix.h"
 #include "SrtmTile.h"
 #include <limits>
+#include <stdexcept>
 #include <vector>
 
 namespace Fmi

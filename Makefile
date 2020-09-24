@@ -3,55 +3,24 @@ LIB = smartmet-$(SUBNAME)
 SPEC = smartmet-library-$(SUBNAME)
 INCDIR = smartmet/$(SUBNAME)
 
-# Installation directories
-
-processor := $(shell uname -p)
-
-ifeq ($(origin PREFIX), undefined)
-  PREFIX = /usr
-else
-  PREFIX = $(PREFIX)
-endif
-
-ifeq ($(processor), x86_64)
-  libdir = $(PREFIX)/lib64
-else
-  libdir = $(PREFIX)/lib
-endif
-
-bindir = $(PREFIX)/bin
-includedir = $(PREFIX)/include
-datadir = $(PREFIX)/share
-objdir = obj
+include common.mk
 
 # Compiler options
 
 DEFINES = -DUNIX -D_REENTRANT
 
--include $(HOME)/.smartmet.mk
-GCC_DIAG_COLOR ?= always
-CXX_STD ?= c++11
-
-# Boost 1.69
-
-ifneq "$(wildcard /usr/include/boost169)" ""
-  INCLUDES += -I/usr/include/boost169
-  LIBS += -L/usr/lib64/boost169
-endif
-
-ifeq ($(CXX), clang++)
+ifeq ($(USE_CLANG), yes)
 
  FLAGS = \
 	-std=$(CXX_STD) -fPIC -MD -fno-omit-frame-pointer \
-	-Weverything \
+	-Wall \
+	-Wextra \
 	-Wno-c++98-compat \
 	-Wno-float-equal \
 	-Wno-padded \
 	-Wno-missing-prototypes
 
- INCLUDES += \
-	-isystem $(includedir) \
-	-isystem $(includedir)/smartmet
+ INCLUDES += -isystem $(includedir)/smartmet $(SYSTEM_INCLUDES)
 
 else
 
@@ -142,7 +111,7 @@ release: all
 profile: all
 
 $(LIBFILE): $(OBJS)
-	$(CXX) $(CFLAGS) -shared -rdynamic -o $(LIBFILE) $(OBJS) $(LIBS)
+	$(CC) $(LDFLAGS) -shared -rdynamic -o $(LIBFILE) $(OBJS) $(LIBS)
 
 clean:
 	rm -f $(LIBFILE) *~ $(SUBNAME)/*~
