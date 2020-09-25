@@ -16,12 +16,14 @@ namespace
 // Created only once for better inverseProjStr() speed.
 
 // And keep only the parameters relevant to it. Note that +init is not here,
-// it is expanded to +datum and other options prior to this stage.
+// it is expanded to +datum and other options prior to this stage. Note that pm
+// can be both a double and a city name
 
-const std::set<std::string> g_keepers{"proj",     "datum",  "ellps",   "towgs84", "over",  "no_defs",
-                                    "to_meter", "o_proj", "o_lon_p", "o_lat_p", "lon_0", "lon_wrap",
-                                    "R",        "a",      "b",       "k",       "k_0",   "pm",
-                                    "f",        "axis",   "wktext"};
+const std::set<std::string> g_str_keepers{"proj", "datum", "ellps", "towgs84", "o_proj", "pm", "axis"};
+
+const std::set<std::string> g_num_keepers{ "to_meter", "o_lon_p", "o_lat_p", "lon_0", "lon_wrap", "R", "a", "b", "k", "k_0", "pm", "f" };
+
+const std::set<std::string> g_opt_keepers{"over",  "no_defs", "wktext"};
 
 const std::set<std::string> g_ints{"R", "a", "b"};  // one meter accuracy is enough for these
 }
@@ -156,9 +158,10 @@ std::string ProjInfo::inverseProjStr() const
   
   for (const auto& name_value : itsStrings)
   {
-    if (g_keepers.find(name_value.first) == g_keepers.end()) continue;
+    if (g_str_keepers.find(name_value.first) == g_str_keepers.end()) continue;
 
     if (!ret.empty()) ret += ' ';
+
     if(name_value.first == "proj")
       ret += "+proj=longlat";
     else
@@ -172,7 +175,7 @@ std::string ProjInfo::inverseProjStr() const
 
   for (const auto& name_value : itsDoubles)
   {
-    if (g_keepers.find(name_value.first) == g_keepers.end()) continue;
+    if (g_num_keepers.find(name_value.first) == g_num_keepers.end()) continue;
     if (!ret.empty()) ret += ' ';
     ret += '+';
     ret += name_value.first;
@@ -186,7 +189,7 @@ std::string ProjInfo::inverseProjStr() const
 
   for (const auto& name : itsOptions)
   {
-    if (g_keepers.find(name) == g_keepers.end()) continue;
+    if (g_opt_keepers.find(name) == g_opt_keepers.end()) continue;
     if (!ret.empty()) ret += ' ';
     ret += '+';
     ret += name;
