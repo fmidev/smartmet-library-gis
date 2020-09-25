@@ -15,12 +15,12 @@ class SpatialReference::Impl
   Impl(const Impl &other) = default;
 
   explicit Impl(const OGRSpatialReference &other)
-      : m_crs(other.Clone()), m_projInfo(OGR::exportToProj(*m_crs))
+      : m_crs(other.Clone()), m_projInfo(OGR::exportToProj(*m_crs)), m_hashValue(boost::hash_value(m_projInfo.projStr()))
   {
   }
 
   explicit Impl(OGRSpatialReference &other)
-      : m_crs(other.Clone()), m_projInfo(OGR::exportToProj(*m_crs))
+      : m_crs(other.Clone()), m_projInfo(OGR::exportToProj(*m_crs)), m_hashValue(boost::hash_value(m_projInfo.projStr()))
   {
   }
 
@@ -28,18 +28,21 @@ class SpatialReference::Impl
   {
     m_crs = OGRSpatialReferenceFactory::Create(theCRS);
     m_projInfo = ProjInfo(OGR::exportToProj(*m_crs));
+    m_hashValue = boost::hash_value(m_projInfo.projStr());
   }
 
   explicit Impl(int epsg)
   {
     m_crs = OGRSpatialReferenceFactory::Create(epsg);
     m_projInfo = ProjInfo(OGR::exportToProj(*m_crs));
+    m_hashValue = boost::hash_value(m_projInfo.projStr());
   }
 
   Impl &operator=(const Impl &) = delete;
 
   std::shared_ptr<OGRSpatialReference> m_crs;
   ProjInfo m_projInfo;
+  std::size_t m_hashValue;
 
 };  // class Impl
 
@@ -76,8 +79,7 @@ bool SpatialReference::isAxisSwapped() const
 
 std::size_t SpatialReference::hashValue() const
 {
-  auto wkt = OGR::exportToWkt(*impl->m_crs);
-  return boost::hash_value(wkt);
+  return impl->m_hashValue;
 }
 
 const OGRSpatialReference &SpatialReference::operator*() const { return *impl->m_crs; }
