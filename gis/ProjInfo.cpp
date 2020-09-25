@@ -10,6 +10,22 @@
 
 namespace Fmi
 {
+
+namespace
+{
+// Created only once for better inverseProjStr() speed.
+
+// And keep only the parameters relevant to it. Note that +init is not here,
+// it is expanded to +datum and other options prior to this stage.
+
+const std::set<std::string> g_keepers{"proj",     "datum",  "ellps",   "towgs84", "over",  "no_defs",
+                                    "to_meter", "o_proj", "o_lon_p", "o_lat_p", "lon_0", "lon_wrap",
+                                    "R",        "a",      "b",       "k",       "k_0",   "pm",
+                                    "f",        "axis",   "wktext"};
+
+const std::set<std::string> g_ints{"R", "a", "b"};  // one meter accuracy is enough for these
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Parse PROJ.4 settings
@@ -135,40 +151,34 @@ void ProjInfo::dump(std::ostream& theOutput) const
 
 std::string ProjInfo::inverseProjStr() const
 {
-  // First we change the projection to longlat
-  auto values = itsStrings;
-  values["proj"] = "longlat";
-
-  // And keep only the parameters relevant to it. Note that +init is not here,
-  // it is expanded to +datum and other options prior to this stage.
-
-  std::set<std::string> keepers{"proj",     "datum",  "ellps",   "towgs84", "over",  "no_defs",
-                                "to_meter", "o_proj", "o_lon_p", "o_lat_p", "lon_0", "lon_wrap",
-                                "R",        "a",      "b",       "k",       "k_0",   "pm",
-                                "f",        "axis",   "wktext"};
-
-  std::set<std::string> ints{"R", "a", "b"};  // one meter accuracy is enough for these
-
   std::string ret;
-  for (const auto& name_value : values)
+  ret.reserve(120); // should cover most projections
+  
+  for (const auto& name_value : itsStrings)
   {
-    if (keepers.find(name_value.first) == keepers.end()) continue;
+    if (g_keepers.find(name_value.first) == g_keepers.end()) continue;
+
     if (!ret.empty()) ret += ' ';
-    ret += '+';
-    ret += name_value.first;
-    ret += '=';
-    ret += name_value.second;
+    if(name_value.first == "proj")
+      ret += "+proj=longlat";
+    else
+    {
+      ret += '+';
+      ret += name_value.first;
+      ret += '=';
+      ret += name_value.second;
+    }
   }
 
   for (const auto& name_value : itsDoubles)
   {
-    if (keepers.find(name_value.first) == keepers.end()) continue;
+    if (g_keepers.find(name_value.first) == g_keepers.end()) continue;
     if (!ret.empty()) ret += ' ';
     ret += '+';
     ret += name_value.first;
     ret += '=';
 
-    if (ints.find(name_value.first) == ints.end())
+    if (g_ints.find(name_value.first) == g_ints.end())
       ret += fmt::format("{}", name_value.second);
     else
       ret += fmt::format("{:.0f}", name_value.second);
@@ -176,7 +186,7 @@ std::string ProjInfo::inverseProjStr() const
 
   for (const auto& name : itsOptions)
   {
-    if (keepers.find(name) == keepers.end()) continue;
+    if (g_keepers.find(name) == g_keepers.end()) continue;
     if (!ret.empty()) ret += ' ';
     ret += '+';
     ret += name;

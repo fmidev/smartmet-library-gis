@@ -75,6 +75,7 @@ FMI GIS library development files
 * Fri Sep 25 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.9.25-1.fmi
 - Faster SpatialReference::hashValue
 - SpatialReference constructor caches created objects
+- ProjInfo::inverseProjStr is now faster
 
 * Thu Aug 27 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.27-2.fmi
 - Fixed BilinearCoordinateInterpolation index overflow testing to substract one from width to get maximum allowed index
