@@ -98,7 +98,8 @@ FMI GIS library development files
 - Added OGR::transform to scale the geometry to pixel coordinates
 
 * Wed Dec  4 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.4-1.fmi
-- Use -fno-omit-frame-pointer for a better profiling and debugging experience                                                                               - Fixed dependency to be on gdal-libs instead of gdal        
+- Use -fno-omit-frame-pointer for a better profiling and debugging experience
+- Fixed dependency to be on gdal-libs instead of gdal
 
 * Thu Sep 26 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.9.26-1.fmi
 - Added support for GDAL 2
