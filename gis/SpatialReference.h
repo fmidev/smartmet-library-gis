@@ -48,6 +48,9 @@ class SpatialReference
   // This is mostly for debugging
   const std::string &projStr() const;
 
+  // Internal cache size
+  static void setCacheSize(std::size_t newMaxSize);
+  
  private:
   class Impl;
   std::unique_ptr<Impl> impl;

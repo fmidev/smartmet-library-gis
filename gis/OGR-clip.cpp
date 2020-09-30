@@ -941,6 +941,8 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
   // - Clipped ones become linestrings
   // - Intact ones become new polygons without holes
 
+  // Note that we add the holes as exterior parts
+  
   for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
   {
     auto *hole = theGeom->getInteriorRing(i);
@@ -948,30 +950,22 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
 
     if (all_only_inside(holeposition))
     {
-      if (keep_inside)
-        rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
-      else
-        rect.addBox();
+      if (keep_inside) rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
     }
     else if (all_not_inside(holeposition))
     {
-      // If the box cut is inside a hole we can keep the original polygon fully
-      if (!keep_inside) theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
-      // If the box clip is inside a hole the result is empty
-      return;
-    }
-    else
-    {
-      // No intersections with the outside hole, but we may be inside it!
-      if (box_inside_ring(theBox, *theGeom->getInteriorRing(i)))
-      {
-        // Box is completely inside the hole, the intersection must be empty
-        if (keep_inside) return;
+      bool box_inside_hole = box_inside_ring(theBox, *hole);
 
-        // Cutting a hole from a hole does nothing
-        theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+      if (box_inside_hole)
+      {
+        // If the box clip is inside a hole the result is empty
+        // Otherwise we can keep the original input
+        if (!keep_inside) theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
         return;
       }
+
+      // Otherwise the hole is outside the box
+      if (!keep_inside) rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
     }
   }
 

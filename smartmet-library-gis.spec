@@ -3,8 +3,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.8.27
-Release: 2%{?dist}.fmi
+Version: 20.9.29
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -72,6 +72,14 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Sep 29 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.9.29-1.fmi
+- Fixed lineclipping in the case when a hole is outside the clipped area
+
+* Fri Sep 25 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.9.25-1.fmi
+- Faster SpatialReference::hashValue
+- SpatialReference constructor caches created objects
+- ProjInfo::inverseProjStr is now faster
+
 * Thu Aug 27 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.27-2.fmi
 - Fixed BilinearCoordinateInterpolation index overflow testing to substract one from width to get maximum allowed index
 

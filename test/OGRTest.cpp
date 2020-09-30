@@ -522,7 +522,6 @@ void lineclip()
   using namespace Fmi;
   using Fmi::Box;
   using OGR::exportToWkt;
-  using OGR::lineclip;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
@@ -674,7 +673,7 @@ void lineclip()
 
   };
 
-  for (int test = 25; test < ntests; ++test)
+  for (int test = 0; test < ntests; ++test)
   {
     OGRGeometry* input;
     OGRGeometry* output;
@@ -696,7 +695,7 @@ void lineclip()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Input   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
                   "\n\tGot     : " + ret);
   }
 
@@ -710,7 +709,6 @@ void polyclip()
   using namespace Fmi;
   using Fmi::Box;
   using OGR::exportToWkt;
-  using OGR::lineclip;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
@@ -875,7 +873,7 @@ void polyclip()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Input   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
                   "\n\tGot     : " + ret);
   }
 
@@ -889,7 +887,6 @@ void linecut()
   using namespace Fmi;
   using Fmi::Box;
   using OGR::exportToWkt;
-  using OGR::lineclip;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
@@ -1064,7 +1061,7 @@ void linecut()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Input   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
                   "\n\tGot     : " + ret);
   }
 
@@ -1078,7 +1075,6 @@ void polycut()
   using namespace Fmi;
   using Fmi::Box;
   using OGR::exportToWkt;
-  using OGR::lineclip;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
@@ -1237,7 +1233,7 @@ void polycut()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Input   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
                   "\n\tGot     : " + ret);
   }
 
@@ -1251,7 +1247,6 @@ void polyclip_segmentation()
   using namespace Fmi;
   using Fmi::Box;
   using OGR::exportToWkt;
-  using OGR::lineclip;
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
