@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.10.2
+Version: 20.10.5
 Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -17,7 +17,7 @@ BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 6.2.1
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.10.2
+BuildRequires: smartmet-library-macgyver-devel >= 20.10.5
 Requires: fmt >= 6.2.1
 Requires: gdal-libs
 Requires: geos >= 3.5.0
@@ -26,7 +26,7 @@ Requires: proj-epsg
 Requires: postgis
 Requires: boost169-filesystem
 Requires: boost169-thread
-Requires: smartmet-library-macgyver >= 20.10.2
+Requires: smartmet-library-macgyver >= 20.10.5
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
@@ -74,6 +74,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Oct  5 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.10.5-1.fmi
+- Rebuild due to smartmet-library-macgyver makefile.inc changes
+
 * Fri Oct  2 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.10.2-1.fmi
 - Build update (use makefile.inc from smartmet-library-macgyver)
 - Revert change to link always with GCC (no more needed)
