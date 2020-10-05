@@ -30,12 +30,13 @@ Requires: smartmet-library-macgyver >= 20.10.5
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
-#TestRequires: make
-#TestRequires: gcc-c++
-#TestRequires: smartmet-library-regression
 #TestRequires: boost169-devel
-#TestRequires: gdal-devel
 #TestRequires: fmt-devel
+#TestRequires: gcc-c++
+#TestRequires: gdal-devel
+#TestRequires: make
+#TestRequires: smartmet-library-macgyver-devel
+#TestRequires: smartmet-library-regression
 #TestRequires: smartmet-test-data
 
 %description
