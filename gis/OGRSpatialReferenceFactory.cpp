@@ -131,5 +131,5 @@ std::shared_ptr<OGRSpatialReference> Create(int epsg)
 
 void SetCacheSize(std::size_t newMaxSize) { g_spatialReferenceCache.resize(newMaxSize); }
 
-};  // namespace OGRSpatialReferenceFactory
+}  // namespace OGRSpatialReferenceFactory
 }  // namespace Fmi
