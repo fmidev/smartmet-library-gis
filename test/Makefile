@@ -1,6 +1,8 @@
 PROG = $(patsubst %.cpp,%,$(wildcard *Test.cpp))
 
-include ../common.mk
+REQUIRES = gdal
+
+include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
 FLAGS = -std=$(CXX_STD) -Wall -W -Wno-unused-parameter
 
@@ -13,11 +15,9 @@ endif
 
 CFLAGS = -DUNIX -O0 -g $(FLAGS) -Wno-write-strings
 
-INCLUDES += \
-	-I../gis \
-	-I/usr/include/smartmet
+INCLUDES += -I../gis \
 
-LIBS += ../libsmartmet-gis.so -lboost_filesystem -lboost_chrono -lgeos -lgdal -lfmt
+LIBS += ../libsmartmet-gis.so -lboost_filesystem -lboost_chrono -lgeos $(GDAL_LIBS) -lfmt
 
 # Testdata directories
 GIS_RASTERS_DIR = $(shell test -d /usr/share/smartmet/test/data/gis/rasters && echo /usr/share/smartmet/test/data/gis/rasters || echo /smartmet/share/gis/rasters )

@@ -3,8 +3,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.8.21
-Release: 1%{?dist}.fmi
+Version: 20.10.5
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -17,7 +17,7 @@ BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 6.2.1
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.8.21
+BuildRequires: smartmet-library-macgyver-devel >= 20.10.5
 Requires: fmt >= 6.2.1
 Requires: gdal-libs
 Requires: geos >= 3.5.0
@@ -26,16 +26,17 @@ Requires: proj-epsg
 Requires: postgis
 Requires: boost169-filesystem
 Requires: boost169-thread
-Requires: smartmet-library-macgyver >= 20.8.21
+Requires: smartmet-library-macgyver >= 20.10.5
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
-#TestRequires: make
-#TestRequires: gcc-c++
-#TestRequires: smartmet-library-regression
 #TestRequires: boost169-devel
-#TestRequires: gdal-devel
 #TestRequires: fmt-devel
+#TestRequires: gcc-c++
+#TestRequires: gdal-devel
+#TestRequires: make
+#TestRequires: smartmet-library-macgyver-devel
+#TestRequires: smartmet-library-regression
 #TestRequires: smartmet-test-data
 
 %description
@@ -74,6 +75,13 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Oct  5 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.10.5-1.fmi
+- Rebuild due to smartmet-library-macgyver makefile.inc changes
+
+* Fri Oct  2 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.10.2-1.fmi
+- Build update (use makefile.inc from smartmet-library-macgyver)
+- Revert change to link always with GCC (no more needed)
+
 * Fri Aug 21 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.21-1.fmi
 - Upgrade to fmt 6.2
 
@@ -98,7 +106,8 @@ FMI GIS library development files
 - Added OGR::transform to scale the geometry to pixel coordinates
 
 * Wed Dec  4 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.4-1.fmi
-- Use -fno-omit-frame-pointer for a better profiling and debugging experience                                                                               - Fixed dependency to be on gdal-libs instead of gdal        
+- Use -fno-omit-frame-pointer for a better profiling and debugging experience
+- Fixed dependency to be on gdal-libs instead of gdal
 
 * Thu Sep 26 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.9.26-1.fmi
 - Added support for GDAL 2
