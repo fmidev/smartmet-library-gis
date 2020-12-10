@@ -17,7 +17,7 @@ BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 7.1.0
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.10.28
+BuildRequires: smartmet-library-macgyver-devel >= 20.12.10
 Requires: fmt >= 7.1.0
 Requires: gdal-libs
 Requires: geos >= 3.5.0
@@ -26,7 +26,7 @@ Requires: proj-epsg
 Requires: postgis
 Requires: boost169-filesystem
 Requires: boost169-thread
-Requires: smartmet-library-macgyver >= 20.10.28
+Requires: smartmet-library-macgyver >= 20.12.10
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
