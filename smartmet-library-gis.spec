@@ -10,16 +10,25 @@ Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
+
+%if %{defined el7}
+Requires: gdal-libs
+BuildRequires: gdal-devel
+#TestRequires: gdal-devel
+%else if %{defined el8}
+Requires: gdal32-libs
+BuildRequires: gdal32-devel
+#TestRequires: gdal32-devel
+%endif
+
 BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 7.1.0
-BuildRequires: gdal-devel
 BuildRequires: geos-devel
 BuildRequires: smartmet-library-macgyver-devel >= 20.12.10
 Requires: fmt >= 7.1.0
-Requires: gdal-libs
 Requires: geos >= 3.5.0
 Requires: proj
 Requires: proj-epsg
@@ -33,7 +42,6 @@ Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
-#TestRequires: gdal-devel
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
 #TestRequires: smartmet-library-regression
