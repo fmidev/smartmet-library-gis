@@ -11,8 +11,7 @@ include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
 DEFINES = -DUNIX -D_REENTRANT
 
-LIBS += -L$(libdir) \
-	-lsmartmet-macgyver \
+LIBS += -lsmartmet-macgyver \
 	-lboost_filesystem \
 	-lboost_thread \
 	-lgeos \
