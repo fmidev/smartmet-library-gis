@@ -3,8 +3,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.12.10
-Release: 2%{?dist}.fmi
+Version: 20.12.15
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -13,12 +13,17 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 
 %if %{defined el7}
 Requires: gdal-libs
+Requires: geos >= 3.5.0
 BuildRequires: gdal-devel
+BuildRequires: geos-devel
 #TestRequires: gdal-devel
 %else if %{defined el8}
 Requires: gdal32-libs
+Requires: geos38
 BuildRequires: gdal32-devel
+BuildRequires: geos38-devel
 #TestRequires: gdal32-devel
+#TestRequires: geos38-devel
 %endif
 
 BuildRequires: rpm-build
@@ -26,16 +31,18 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 7.1.0
-BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.12.10
+BuildRequires: smartmet-library-macgyver-devel >= 20.12.15
 Requires: fmt >= 7.1.0
-Requires: geos >= 3.5.0
 Requires: proj
+%if %{defined el7}
 Requires: proj-epsg
+%else if %{defined el8}
+Requires: proj
+%endif
 Requires: postgis
 Requires: boost169-filesystem
 Requires: boost169-thread
-Requires: smartmet-library-macgyver >= 20.12.10
+Requires: smartmet-library-macgyver >= 20.12.15
 Provides: %{LIBNAME}
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
@@ -71,8 +78,12 @@ rm -rf $RPM_BUILD_ROOT
 %package -n %{SPECNAME}-devel
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
-Requires: geos-devel
-Requires: %{SPECNAME}
+Requires: %{SPECNAME} = %{version}-%{release}
+%if %{defined el7}
+BuildRequires: geos-devel
+%else if %{defined el8}
+BuildRequires: geos38-devel
+%endif
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -83,6 +94,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Dec 15 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.12.15-1.fmi
+- Require exactly same version in binary and devel RPM
+- proj-epsg tilalle EPEL 8 on proj: use it in case of RHEL 8
+
 * Thu Dec 10 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.12.10-1.fmi
 - Adapt to makefile.inc changes
 

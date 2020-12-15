@@ -3,7 +3,7 @@ LIB = smartmet-$(SUBNAME)
 SPEC = smartmet-library-$(SUBNAME)
 INCDIR = smartmet/$(SUBNAME)
 
-REQUIRES = fmt gdal
+REQUIRES = fmt gdal geos
 
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
@@ -14,7 +14,6 @@ DEFINES = -DUNIX -D_REENTRANT
 LIBS += -lsmartmet-macgyver \
 	-lboost_filesystem \
 	-lboost_thread \
-	-lgeos \
 	$(REQUIRED_LIBS)
 
 
@@ -55,6 +54,7 @@ $(LIBFILE): $(OBJS)
 clean:
 	rm -f $(LIBFILE) *~ $(SUBNAME)/*~
 	rm -rf $(objdir)
+	$(MAKE) -C test $@
 
 format:
 	clang-format -i -style=file $(SUBNAME)/*.h $(SUBNAME)/*.cpp test/*.cpp
