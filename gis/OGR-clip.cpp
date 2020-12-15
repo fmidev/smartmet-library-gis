@@ -14,7 +14,10 @@ using Fmi::ClipParts;
  */
 // ----------------------------------------------------------------------
 
-bool different(double x1, double y1, double x2, double y2) { return !(x1 == x2 && y1 == y2); }
+bool different(double x1, double y1, double x2, double y2)
+{
+  return !(x1 == x2 && y1 == y2);
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Calculate a line intersection point
@@ -70,12 +73,14 @@ void clip_to_edges(double &x1, double &y1, double x2, double y2, const Box &theB
 
 void clip_point(const OGRPoint *theGeom, ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == nullptr) return;
+  if (theGeom == nullptr)
+    return;
 
   double x = theGeom->getX();
   double y = theGeom->getY();
 
-  if (theBox.position(x, y) == Box::Inside) theParts.add(new OGRPoint(x, y));
+  if (theBox.position(x, y) == Box::Inside)
+    theParts.add(new OGRPoint(x, y));
 }
 
 // ----------------------------------------------------------------------
@@ -91,7 +96,8 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
 {
   int n = theGeom->getNumPoints();
 
-  if (theGeom == nullptr || n < 1) return false;
+  if (theGeom == nullptr || n < 1)
+    return false;
 
   // For shorthand code
 
@@ -141,7 +147,8 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
         while (i < n && g.getY(i) > theBox.ymax())
           ++i;
 
-      if (i >= n) return false;
+      if (i >= n)
+        return false;
 
       // Establish new position
 
@@ -254,7 +261,8 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
             }
             line->addSubLineString(&g, start_index, i - 1);
 
-            if (through_box) line->addPoint(x, y);
+            if (through_box)
+              line->addPoint(x, y);
 
             theParts.add(line);
           }
@@ -289,7 +297,8 @@ bool clip_linestring_parts(const OGRLineString *theGeom, ClipParts &theParts, co
       }
 
       // Was everything in? If so, generate no output but return true in this case only
-      if (start_index == 0 && i >= n) return true;
+      if (start_index == 0 && i >= n)
+        return true;
 
       // Flush the last line segment if data ended and there is something to flush
 
@@ -322,7 +331,8 @@ void clip_polygon_to_linestrings(const OGRPolygon *theGeom,
                                  Fmi::ClipParts &theParts,
                                  const Box &theBox)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   // Clip the exterior first to see what's going on
 
@@ -346,7 +356,8 @@ void clip_polygon_to_linestrings(const OGRPolygon *theGeom,
     // smaller than the exterior ring just checking the holes
     // separately could be faster.
 
-    if (theGeom->getNumInteriorRings() == 0) return;
+    if (theGeom->getNumInteriorRings() == 0)
+      return;
 
 #if 0
 	if(!inside((xmin+xmax)/2,(ymin+ymax)/2,theGeom->getExteriorRing()))
@@ -403,7 +414,8 @@ bool inside(const OGRLinearRing *theGeom, const Fmi::Box &theBox)
 {
   int n = theGeom->getNumPoints();
 
-  if (theGeom == nullptr || n < 1) return false;
+  if (theGeom == nullptr || n < 1)
+    return false;
 
   for (int i = 0; i < n; ++i)
   {
@@ -412,8 +424,10 @@ bool inside(const OGRLinearRing *theGeom, const Fmi::Box &theBox)
 
     Box::Position pos = theBox.position(x, y);
 
-    if (pos == Box::Outside) return false;
-    if (pos == Box::Inside) return true;
+    if (pos == Box::Outside)
+      return false;
+    if (pos == Box::Inside)
+      return true;
   }
 
   // Indeterminate answer, should be impossible. We discard the hole
@@ -438,7 +452,8 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
                               Fmi::ClipParts &theParts,
                               const Box &theBox)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   // Clip the exterior first to see what's going on
 
@@ -470,7 +485,8 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
   bool ext_clockwise = (theGeom->getExteriorRing()->isClockwise() == 1);
 
   // Force exterior to be clockwise
-  if (!ext_clockwise) parts.reverseLines();
+  if (!ext_clockwise)
+    parts.reverseLines();
 
   // Must do this to make sure all end points are on the edges
 
@@ -515,7 +531,8 @@ void clip_polygon_to_polygons(const OGRPolygon *theGeom,
       {
         ++holes_clipped;
         // Clipped holes change orientation when connecting the edges!!
-        if (hole_clockwise) holeparts.reverseLines();
+        if (hole_clockwise)
+          holeparts.reverseLines();
         holeparts.reconnect();
         holeparts.release(parts);
       }
@@ -574,7 +591,8 @@ void clip_polygon(const OGRPolygon *theGeom,
 
 void clip_linestring(const OGRLineString *theGeom, Fmi::ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   // If everything was in, just clone the original
 
@@ -590,7 +608,8 @@ void clip_linestring(const OGRLineString *theGeom, Fmi::ClipParts &theParts, con
 
 void clip_multipoint(const OGRMultiPoint *theGeom, ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     clip_point(dynamic_cast<const OGRPoint *>(theGeom->getGeometryRef(i)), theParts, theBox);
@@ -605,7 +624,8 @@ void clip_multipoint(const OGRMultiPoint *theGeom, ClipParts &theParts, const Bo
 
 void clip_multilinestring(const OGRMultiLineString *theGeom, ClipParts &theParts, const Box &theBox)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -625,7 +645,8 @@ void clip_multipolygon(const OGRMultiPolygon *theGeom,
                        const Box &theBox,
                        bool keep_polygons)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -654,7 +675,8 @@ void clip_geometrycollection(const OGRGeometryCollection *theGeom,
                              const Box &theBox,
                              bool keep_polygons)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -697,16 +719,7 @@ void clip_geom(const OGRGeometry *theGeom,
           dynamic_cast<const OGRGeometryCollection *>(theGeom), theParts, theBox, keep_polygons);
     case wkbLinearRing:
       throw std::runtime_error("Direct clipping of LinearRings is not supported");
-    case wkbNone:
-      throw std::runtime_error("Encountered a 'none' geometry component when clipping polygons");
-    case wkbUnknown:
-    case wkbPoint25D:
-    case wkbLineString25D:
-    case wkbPolygon25D:
-    case wkbMultiLineString25D:
-    case wkbMultiPoint25D:
-    case wkbMultiPolygon25D:
-    case wkbGeometryCollection25D:
+    default:
       throw std::runtime_error("Encountered an unknown geometry component when clipping polygons");
   }
 }
@@ -730,7 +743,8 @@ OGRGeometry *Fmi::OGR::lineclip(const OGRGeometry &theGeom, const Box &theBox)
   clip_geom(&theGeom, parts, theBox, keep_polygons);
 
   OGRGeometry *geom = parts.build();
-  if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
+  if (geom != nullptr)
+    geom->assignSpatialReference(theGeom.getSpatialReference());
   return geom;
 }
 
@@ -750,7 +764,8 @@ OGRGeometry *Fmi::OGR::polyclip(const OGRGeometry &theGeom, const Box &theBox)
   clip_geom(&theGeom, parts, theBox, keep_polygons);
 
   OGRGeometry *geom = parts.build();
-  if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
+  if (geom != nullptr)
+    geom->assignSpatialReference(theGeom.getSpatialReference());
 
   return geom;
 }

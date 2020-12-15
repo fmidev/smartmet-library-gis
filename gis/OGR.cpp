@@ -17,7 +17,7 @@ std::string Fmi::OGR::exportToWkt(const OGRSpatialReference& theSRS)
   char* out;
   theSRS.exportToWkt(&out);
   std::string ret = out;
-  OGRFree(out);
+  CPLFree(out);
   return ret;
 }
 
@@ -32,7 +32,7 @@ std::string Fmi::OGR::exportToPrettyWkt(const OGRSpatialReference& theSRS)
   char* out;
   theSRS.exportToPrettyWkt(&out);
   std::string ret = out;
-  OGRFree(out);
+  CPLFree(out);
   return ret;
 }
 
@@ -47,7 +47,7 @@ std::string Fmi::OGR::exportToProj(const OGRSpatialReference& theSRS)
   char* out;
   theSRS.exportToProj4(&out);
   std::string ret = out;
-  OGRFree(out);
+  CPLFree(out);
   return ret;
 }
 
@@ -65,7 +65,7 @@ std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom)
   char* out;
   theGeom.exportToWkt(&out);
   std::string ret = out;
-  OGRFree(out);
+  CPLFree(out);
   return ret;
 }
 
@@ -112,15 +112,16 @@ OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
                                      unsigned int theEPSGNumber /* = 0 */)
 {
   OGRGeometry* geom = nullptr;
-  char* pszWKT(const_cast<char*>(wktString.c_str()));
-  OGRErr err = OGRGeometryFactory::createFromWkt(&pszWKT, nullptr, &geom);
+  OGRErr err = OGRGeometryFactory::createFromWkt(wktString.c_str(), nullptr, &geom);
   if (err != OGRERR_NONE)
   {
     std::string errStr = "Failed to create OGRGeometry from WKT " + wktString + "";
-    if (err == OGRERR_NOT_ENOUGH_DATA) errStr += " OGRErr: OGRERR_NOT_ENOUGH_DATA";
+    if (err == OGRERR_NOT_ENOUGH_DATA)
+      errStr += " OGRErr: OGRERR_NOT_ENOUGH_DATA";
     if (err == OGRERR_UNSUPPORTED_GEOMETRY_TYPE)
       errStr += " OGRErr: OGRERR_UNSUPPORTED_GEOMETRY_TYPE";
-    if (err == OGRERR_CORRUPT_DATA) errStr += " OGRErr: OGRERR_CORRUPT_DATA";
+    if (err == OGRERR_CORRUPT_DATA)
+      errStr += " OGRErr: OGRERR_CORRUPT_DATA";
 
     throw std::runtime_error(errStr);
   }
@@ -158,17 +159,19 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
   OGRPolygon ogrPolygon;
   OGRGeometry* ogrGeom = nullptr;
 
-  if (theGeometryType == wkbPoint)
+  auto geomtype = static_cast<OGRwkbGeometryType>(theGeometryType);
+
+  if (geomtype == wkbPoint)
   {
     wkt += "POINT(";
     ogrGeom = &ogrPoint;
   }
-  else if (theGeometryType == wkbLineString || theGeometryType == wkbLinearRing)
+  else if (geomtype == wkbLineString || geomtype == wkbLinearRing)
   {
     wkt += "LINESTRING(";
     ogrGeom = &ogrLineString;
   }
-  else if (theGeometryType == wkbPolygon)
+  else if (geomtype == wkbPolygon)
   {
     wkt += "POLYGON((";
     ogrGeom = &ogrPolygon;
@@ -178,12 +181,13 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
 
   for (auto iter = theCoordinates.begin(); iter != theCoordinates.end(); iter++)
   {
-    if (iter != theCoordinates.begin()) wkt += ", ";
+    if (iter != theCoordinates.begin())
+      wkt += ", ";
     wkt += fmt::format("%f %f", iter->first, iter->second);
   }
-  wkt += (theGeometryType == wkbPolygon ? "))" : ")");
+  wkt += (geomtype == wkbPolygon ? "))" : ")");
 
-  char* pBuff(const_cast<char*>(wkt.c_str()));
+  const char* pBuff = wkt.c_str();
 
   ogrGeom->importFromWkt(&pBuff);
 
@@ -215,7 +219,8 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
   {
     // if no spatial reference, use EPSG:4326
     OGRErr err = sourceSR.importFromEPSGA(4326);
-    if (err != OGRERR_NONE) throw std::runtime_error("EPSG:4326 is unknown!");
+    if (err != OGRERR_NONE)
+      throw std::runtime_error("EPSG:4326 is unknown!");
 
     tmp_geom->assignSpatialReference(&sourceSR);
   }
@@ -225,7 +230,8 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
   // wgs-84-world-mercator7
   OGRErr err = targetSR.importFromEPSGA(3395);
 
-  if (err != OGRERR_NONE) throw std::runtime_error("EPSG:3395 is unknown!");
+  if (err != OGRERR_NONE)
+    throw std::runtime_error("EPSG:3395 is unknown!");
 
   OGRCoordinateTransformation* pCT = OGRCreateCoordinateTransformation(&sourceSR, &targetSR);
 
@@ -294,9 +300,11 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
   poly.addRing(exring);
 
   // polygon is simplified to reduce amount of points
-  if (exring->getNumPoints() > 1000) ret = poly.SimplifyPreserveTopology(0.001);
+  if (exring->getNumPoints() > 1000)
+    ret = poly.SimplifyPreserveTopology(0.001);
 
-  if (ret == nullptr) ret = poly.clone();
+  if (ret == nullptr)
+    ret = poly.clone();
 
   return ret;
 }
@@ -321,7 +329,8 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
     return ret;
   }
 
-  if (theRadiusInMeters <= 0.0) return theGeom->clone();
+  if (theRadiusInMeters <= 0.0)
+    return theGeom->clone();
 
   // in case of  multipolygon, expand each polygon separately
   if (theGeom->getGeometryType() == wkbMultiPolygon)
@@ -387,13 +396,19 @@ boost::optional<double> Fmi::OGR::gridNorth(OGRCoordinateTransformation& theTran
     y1 = theLat - 0.0001;
   }
 
-  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1) std::swap(x1, y1);
-  if (theTransformation.Transform(1, &x1, &y1) == 0) return {};
-  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1) std::swap(x1, y1);
+  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1)
+    std::swap(x1, y1);
+  if (theTransformation.Transform(1, &x1, &y1) == 0)
+    return {};
+  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1)
+    std::swap(x1, y1);
 
-  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1) std::swap(x2, y2);
-  if (theTransformation.Transform(1, &x2, &y2) == 0) return {};
-  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1) std::swap(x2, y2);
+  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1)
+    std::swap(x2, y2);
+  if (theTransformation.Transform(1, &x2, &y2) == 0)
+    return {};
+  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1)
+    std::swap(x2, y2);
 
 #if GDAL_VERSION_MAJOR > 1
   if (theTransformation.GetTargetCS()->EPSGTreatsAsLatLong() == 0 &&

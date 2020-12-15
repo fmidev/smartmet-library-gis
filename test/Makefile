@@ -13,7 +13,7 @@ ifeq ($(ASAN), yes)
   FLAGS += -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=undefined -fsanitize-address-use-after-scope
 endif
 
-CFLAGS = -DUNIX -O0 -g $(FLAGS) -Wno-write-strings
+CFLAGS = -DUNIX -DUSE_UNSTABLE_GEOS_CPP_API -O0 -g $(FLAGS) -Wno-write-strings
 
 INCLUDES += -I../gis \
 

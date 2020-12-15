@@ -1,9 +1,9 @@
 #include "Box.h"
 #include "OGR.h"
 #include "TestDefs.h"
-#include <ogr_geometry.h>
 #include <regression/tframe.h>
 #include <memory>
+#include <ogr_geometry.h>
 
 using namespace std;
 
@@ -17,7 +17,8 @@ void exportToWkt_spatialreference()
 {
   std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
   OGRErr err = srs->SetFromUserInput("WGS84");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create spatial reference WGS84");
 
   std::string result = Fmi::OGR::exportToWkt(*srs);
 
@@ -34,7 +35,8 @@ void exportToProj()
   {
     std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
     OGRErr err = srs->SetFromUserInput("WGS84");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference WGS84");
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -58,7 +60,8 @@ void exportToProj()
   {
     std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
     OGRErr err = srs->SetFromUserInput("+init=epsg:4326");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -72,7 +75,8 @@ void exportToProj()
   {
     std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
     OGRErr err = srs->SetFromUserInput("+init=epsg:4326");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -91,7 +95,8 @@ void exportToProj()
   {
     std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
     OGRErr err = srs->SetFromUserInput("+init=epsg:2393");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference +init=epsg:2393");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference +init=epsg:2393");
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -119,7 +124,7 @@ void expand_geometry()
   OGRSpatialReference srs;
   srs.importFromEPSGA(4326);
 
-  OGRGeometryFactory::createFromWkt(&point, &srs, &input_geom);
+  OGRGeometryFactory::createFromWkt(point, &srs, &input_geom);
   // circle around helsinki coordinates  with 1 km radius
   output_geom = Fmi::OGR::expandGeometry(input_geom, 1000);
 
@@ -170,7 +175,8 @@ void expand_geometry()
       "60.194188290919257,24.963645110646066 60.193499402870913,24.963810921557922 "
       "60.192801872533131,24.963866305682387 60.192099999998732))";
 
-  if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+  if (result != ok)
+    TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
 
   // expand circle another 1 km
   OGRGeometry* output_geom2 = Fmi::OGR::expandGeometry(output_geom, 1000);
@@ -261,9 +267,10 @@ void expand_geometry()
        "60.194550808072492,24.981652693019122 60.193853300153243,24.981763375869743 "
        "60.193153073914317,24.981818759994205 60.19245120891479))";
 
-  if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+  if (result != ok)
+    TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
 
-  OGRGeometryFactory::createFromWkt(&linestring, &srs, &input_geom);
+  OGRGeometryFactory::createFromWkt(linestring, &srs, &input_geom);
 
   // expand line by 1 km
   output_geom = Fmi::OGR::expandGeometry(input_geom, 1000);
@@ -316,7 +323,8 @@ void expand_geometry()
        "60.192275396653507,24.936979065076301 60.19262552232334,24.937089374263792 "
        "60.192972404286671,24.977089374263791 60.292969736329617))";
 
-  if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+  if (result != ok)
+    TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
 
   TEST_PASSED();
 }
@@ -347,73 +355,81 @@ void exportToSvg_wiki_examples()
 
   OGRGeometry* geom;
   {
-    OGRGeometryFactory::createFromWkt(&point, NULL, &geom);
+    OGRGeometryFactory::createFromWkt(point, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
-    OGRGeometryFactory::createFromWkt(&linestring, NULL, &geom);
+    OGRGeometryFactory::createFromWkt(linestring, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 10 10 30 40 40";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
-    OGRGeometryFactory::createFromWkt(&polygon1, NULL, &geom);
+    OGRGeometryFactory::createFromWkt(polygon1, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 10 40 40 20 40 10 20Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
-    OGRGeometryFactory::createFromWkt(&polygon2, NULL, &geom);
+    OGRGeometryFactory::createFromWkt(polygon2, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M35 10 45 45 15 40 10 20ZM20 30 35 35 30 20Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
-    OGRGeometryFactory::createFromWkt(&multipoint1, NULL, &geom);
+    OGRGeometryFactory::createFromWkt(multipoint1, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M10 40M40 30M20 20M30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
-    OGRGeometryFactory::createFromWkt(&multipoint2, NULL, &geom);
+    OGRGeometryFactory::createFromWkt(multipoint2, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M10 40M40 30M20 20M30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
-    OGRGeometryFactory::createFromWkt(&multilinestring, NULL, &geom);
+    OGRGeometryFactory::createFromWkt(multilinestring, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M10 10 20 20 10 40M40 40 30 30 40 20 30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
-    OGRGeometryFactory::createFromWkt(&multipolygon1, NULL, &geom);
+    OGRGeometryFactory::createFromWkt(multipolygon1, NULL, &geom);
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 20 45 40 10 40ZM15 5 40 10 10 20 5 10Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
 #if 0
 	// Note: Using multipolygon2 twice will crash
 	{
-	  OGRGeometryFactory::createFromWkt(&multipolygon2,NULL,&geom);
+	  OGRGeometryFactory::createFromWkt(multipolygon2,NULL,&geom);
 	  string result = exportToSvg(*geom, box, precision);
 	  OGRGeometryFactory::destroyGeometry(geom);
 	  string ok = "M40 40 20 45 45 30ZM20 35 10 30 10 10 30 5 45 20ZM30 20 20 15 20 25Z";
@@ -424,11 +440,12 @@ void exportToSvg_wiki_examples()
 
   // Finally test integer precision too
   {
-    OGRGeometryFactory::createFromWkt(&multipolygon2, NULL, &geom);
+    OGRGeometryFactory::createFromWkt(multipolygon2, NULL, &geom);
     string result = exportToSvg(*geom, box, 0);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M40 40 20 45 45 30ZM20 35 10 30 10 10 30 5 45 20ZM30 20 20 15 20 25Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   TEST_PASSED();
@@ -469,7 +486,8 @@ void exportToSvg_precision()
           "0.95 "
           "0.96 0.97 0.98 0.99";
       string result = exportToSvg(*line, Box::identity(), 2.0);
-      if (result != ok) TEST_FAILED("Precision 2:\n\tExpected: " + ok + "\n\tObtained: " + result);
+      if (result != ok)
+        TEST_FAILED("Precision 2:\n\tExpected: " + ok + "\n\tObtained: " + result);
     }
 
     {
@@ -478,7 +496,8 @@ void exportToSvg_precision()
           "0.5 "
           "0.5 0.5 0.6 0.6 0.6 0.6 0.7 0.7 0.7 0.7 0.8 0.8 0.8 0.8 0.8 0.9 0.9 0.9 0.9 1 1";
       string result = exportToSvg(*line, Box::identity(), 1.0);
-      if (result != ok) TEST_FAILED("Precision 1:\n\tExpected: " + ok + "\n\tObtained: " + result);
+      if (result != ok)
+        TEST_FAILED("Precision 1:\n\tExpected: " + ok + "\n\tObtained: " + result);
     }
 
     {
@@ -682,8 +701,9 @@ void lineclip()
 
     try
     {
-      auto err = OGRGeometryFactory::createFromWkt(&wkt, NULL, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -851,8 +871,9 @@ void polyclip()
     // std::cerr << "\nTEST: " << std::string(wkt) << std::endl;
     try
     {
-      auto err = OGRGeometryFactory::createFromWkt(&wkt, NULL, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -889,8 +910,9 @@ void clip_spike()
 
   try
   {
-    auto err = OGRGeometryFactory::createFromWkt(&wkt, NULL, &input);
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+    auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to parse input " + std::string(wkt));
   }
   catch (...)
   {
@@ -935,8 +957,9 @@ void despeckle()
     // std::cerr << "\nTEST: " << std::string(wkt) << std::endl;
     try
     {
-      auto err = OGRGeometryFactory::createFromWkt(&wkt, NULL, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -986,8 +1009,9 @@ void despeckle_geography()
     // std::cerr << "\nTEST: " << std::string(wkt) << std::endl;
     try
     {
-      auto err = OGRGeometryFactory::createFromWkt(&wkt, &wgs84, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      auto err = OGRGeometryFactory::createFromWkt(wkt, &wgs84, &input);
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -1011,7 +1035,8 @@ void grid_north()
 {
   std::unique_ptr<OGRSpatialReference> wgs84(new OGRSpatialReference);
   OGRErr err = wgs84->SetFromUserInput("WGS84");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create spatial reference WGS84");
 
   // For latlon itself north is always at 0
   {
@@ -1019,7 +1044,8 @@ void grid_north()
         OGRCreateCoordinateTransformation(wgs84.get(), wgs84.get()));
 
     auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
-    if (!result) TEST_FAILED("Failed to establish WGS84 north at 25,60");
+    if (!result)
+      TEST_FAILED("Failed to establish WGS84 north at 25,60");
     if (*result != 0)
       TEST_FAILED("Expecting WGS84 north 0 at 25,60 but got " + std::to_string(*result));
   }
@@ -1028,7 +1054,8 @@ void grid_north()
   {
     std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
     err = epsg->SetFromUserInput("EPSG:3035");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference EPSG:3035");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference EPSG:3035");
 
     std::unique_ptr<OGRCoordinateTransformation> trans(
         OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
@@ -1036,7 +1063,8 @@ void grid_north()
     // Helsinki
     auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
     auto expected = -12.762637;
-    if (!result) TEST_FAILED("Failed to establish EPSG:3035 north at 25,60");
+    if (!result)
+      TEST_FAILED("Failed to establish EPSG:3035 north at 25,60");
     if (std::abs(*result - expected) > 0.0001)
       TEST_FAILED("Expecting EPSG:3035 north " + std::to_string(expected) + " at 25,60 but got " +
                   std::to_string(*result));
@@ -1044,7 +1072,8 @@ void grid_north()
     // Stockholm
     result = Fmi::OGR::gridNorth(*trans, 18, 60);
     expected = -6.815401;
-    if (!result) TEST_FAILED("Failed to establish EPSG:3035 north at 18,60");
+    if (!result)
+      TEST_FAILED("Failed to establish EPSG:3035 north at 18,60");
     if (std::abs(*result - expected) > 0.0001)
       TEST_FAILED("Expecting EPSG:3035 north " + std::to_string(expected) + " at 18,60 but got " +
                   std::to_string(*result));
@@ -1054,7 +1083,8 @@ void grid_north()
   {
     std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
     err = epsg->SetFromUserInput("EPSG:3034");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference EPSG:3034");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference EPSG:3034");
 
     std::unique_ptr<OGRCoordinateTransformation> trans(
         OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
@@ -1062,7 +1092,8 @@ void grid_north()
     // Helsinki
     auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
     auto expected = -11.630724;
-    if (!result) TEST_FAILED("Failed to establish EPSG:3034 north at 25,60");
+    if (!result)
+      TEST_FAILED("Failed to establish EPSG:3034 north at 25,60");
     if (std::abs(*result - expected) > 0.0001)
       TEST_FAILED("Expecting EPSG:3034 north " + std::to_string(expected) + " at 25,60 but got " +
                   std::to_string(*result));
@@ -1070,7 +1101,8 @@ void grid_north()
     // Stockholm
     result = Fmi::OGR::gridNorth(*trans, 18, 60);
     expected = -6.203053;
-    if (!result) TEST_FAILED("Failed to establish EPSG:3034 north at 18,60");
+    if (!result)
+      TEST_FAILED("Failed to establish EPSG:3034 north at 18,60");
     if (std::abs(*result - expected) > 0.0001)
       TEST_FAILED("Expecting EPSG:3034 north " + std::to_string(expected) + " at 18,60 but got " +
                   std::to_string(*result));
@@ -1082,7 +1114,8 @@ void grid_north()
     err = epsg->SetFromUserInput(
         "+proj=stere +lat_0=90 +lat_ts=60 +lon_0=20 +k=1 +x_0=0 +y_0=0 +a=6371220 +b=6371220 "
         "+units=m +no_defs");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create polar stereographic spatial reference");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create polar stereographic spatial reference");
 
     std::unique_ptr<OGRCoordinateTransformation> trans(
         OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
@@ -1090,7 +1123,8 @@ void grid_north()
     // Helsinki
     auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
     auto expected = -5;
-    if (!result) TEST_FAILED("Failed to establish polster north at 25,60");
+    if (!result)
+      TEST_FAILED("Failed to establish polster north at 25,60");
     if (std::abs(*result - expected) > 0.0001)
       TEST_FAILED("Expecting polster north " + std::to_string(expected) + " at 25,60 but got " +
                   std::to_string(*result));
@@ -1098,7 +1132,8 @@ void grid_north()
     // Stockholm
     result = Fmi::OGR::gridNorth(*trans, 18, 60);
     expected = 2;
-    if (!result) TEST_FAILED("Failed to establish polster north at 18,60");
+    if (!result)
+      TEST_FAILED("Failed to establish polster north at 18,60");
     if (std::abs(*result - expected) > 0.0001)
       TEST_FAILED("Expecting polster north " + std::to_string(expected) + " at 18,60 but got " +
                   std::to_string(*result));
@@ -1112,7 +1147,8 @@ void grid_north()
 
     std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
     err = epsg->SetFromUserInput(tmp.c_str());
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create rotlatlon spatial reference");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create rotlatlon spatial reference");
 
     std::unique_ptr<OGRCoordinateTransformation> trans(
         OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
@@ -1120,7 +1156,8 @@ void grid_north()
     // Helsinki
     auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
     auto expected = -21.499203;
-    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 25,60");
+    if (!result)
+      TEST_FAILED("Failed to establish rotlatlon north at 25,60");
     if (std::abs(*result - expected) > 0.0001)
       TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 25,60 but got " +
                   std::to_string(*result));
@@ -1128,7 +1165,8 @@ void grid_north()
     // Stockholm
     result = Fmi::OGR::gridNorth(*trans, 18, 60);
     expected = -15.527667;
-    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 18,60");
+    if (!result)
+      TEST_FAILED("Failed to establish rotlatlon north at 18,60");
     if (std::abs(*result - expected) > 0.0001)
       TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 18,60 but got " +
                   std::to_string(*result));
@@ -1141,7 +1179,8 @@ void grid_north()
 
     std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
     err = epsg->SetFromUserInput(tmp.c_str());
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create rotlatlon spatial reference");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create rotlatlon spatial reference");
 
     std::unique_ptr<OGRCoordinateTransformation> trans(
         OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
@@ -1149,7 +1188,8 @@ void grid_north()
     // Helsinki
     auto result = Fmi::OGR::gridNorth(*trans, 25, 60);
     auto expected = -21.503683;
-    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 25,60");
+    if (!result)
+      TEST_FAILED("Failed to establish rotlatlon north at 25,60");
     if (std::abs(*result - expected) > 0.0001)
       TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 25,60 but got " +
                   std::to_string(*result));
@@ -1157,7 +1197,8 @@ void grid_north()
     // Stockholm
     result = Fmi::OGR::gridNorth(*trans, 18, 60);
     expected = -15.529383;
-    if (!result) TEST_FAILED("Failed to establish rotlatlon north at 18,60");
+    if (!result)
+      TEST_FAILED("Failed to establish rotlatlon north at 18,60");
     if (std::abs(*result - expected) > 0.0001)
       TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 18,60 but got " +
                   std::to_string(*result));

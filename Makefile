@@ -9,7 +9,7 @@ include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
 # Compiler options
 
-DEFINES = -DUNIX -D_REENTRANT
+DEFINES = -DUNIX -D_REENTRANT -DUSE_UNSTABLE_GEOS_CPP_API
 
 LIBS += -lsmartmet-macgyver \
 	-lboost_filesystem \
