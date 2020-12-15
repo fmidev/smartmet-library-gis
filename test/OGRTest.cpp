@@ -1,7 +1,7 @@
 #include "Box.h"
 #include "OGR.h"
 #include "TestDefs.h"
-#include <gdal/ogr_geometry.h>
+#include <ogr_geometry.h>
 #include <regression/tframe.h>
 #include <memory>
 
@@ -1174,17 +1174,23 @@ class tests : public tframe::tests
   // Main test suite
   void test()
   {
+#if GDAL_VERSION_MAJOR < 3
     TEST(expand_geometry);
+#endif
     TEST(exportToWkt_spatialreference);
     TEST(exportToSvg_precision);
     TEST(exportToSvg_wiki_examples);
+#if GDAL_VERSION_MAJOR < 3
     TEST(exportToProj);
+#endif
     TEST(lineclip);
     TEST(polyclip);
     TEST(despeckle);
     TEST(despeckle_geography);
     TEST(grid_north);
+#if GDAL_VERSION_MAJOR < 3
     TEST(clip_spike);
+#endif
   }
 
 };  // class tests
