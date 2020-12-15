@@ -17,6 +17,7 @@ Requires: geos >= 3.5.0
 BuildRequires: gdal-devel
 BuildRequires: geos-devel
 #TestRequires: gdal-devel
+#TestRequires: geos-devel
 %else if %{defined el8}
 Requires: gdal32-libs
 Requires: geos38
