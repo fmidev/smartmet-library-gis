@@ -5,6 +5,8 @@ INCDIR = smartmet/$(SUBNAME)
 
 REQUIRES = fmt gdal geos
 
+CXX_STD=c++11
+
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
 # Compiler options
