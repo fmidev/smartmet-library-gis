@@ -2,6 +2,8 @@ PROG = $(patsubst %.cpp,%,$(wildcard *Test.cpp))
 
 REQUIRES = fmt gdal geos
 
+CXX_STD=c++11
+
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
 FLAGS = -std=$(CXX_STD) -Wall -W -Wno-unused-parameter
