@@ -13,12 +13,12 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 
 %if %{defined el7}
 Requires: proj-epsg
+BuildRequires: devtoolset-7-gcc-c++
 %endif
 
 BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 7.1.0
 BuildRequires: gcc-c++
-BuildRequires: devtoolset-7-gcc-c++
 BuildRequires: gdal32-devel
 BuildRequires: geos38-devel
 BuildRequires: make
