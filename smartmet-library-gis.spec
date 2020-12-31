@@ -3,8 +3,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.12.15
-Release: 2%{?dist}.fmi
+Version: 20.12.31
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -13,13 +13,12 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 
 %if %{defined el7}
 Requires: proj-epsg
-%else if %{defined el8}
-Requires: proj
 %endif
 
 BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 7.1.0
 BuildRequires: gcc-c++
+BuildRequires: devtoolset-7-gcc-c++
 BuildRequires: gdal32-devel
 BuildRequires: geos38-devel
 BuildRequires: make
@@ -33,8 +32,8 @@ Requires: boost169-thread
 Requires: fmt >= 7.1.0
 Requires: gdal32-libs
 Requires: geos38
-Requires: postgis
-Requires: proj
+Requires: postgis31_12
+Requires: proj72
 Requires: smartmet-library-macgyver >= 20.12.15
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
@@ -71,11 +70,7 @@ rm -rf $RPM_BUILD_ROOT
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
 Requires: %{SPECNAME} = %{version}-%{release}
-%if %{defined el7}
-BuildRequires: geos-devel
-%else if %{defined el8}
 BuildRequires: geos38-devel
-%endif
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -86,6 +81,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Dec 31 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.12.31-1.fmi
+- Require devtoolset-7-gcc-c++ to be able to use clang++ -std=c++17
+- Upgraded gdal/geos/proj dependencies
+
 * Tue Dec 15 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.12.15-2.fmi
 - Upgrade to pgsg12
 
