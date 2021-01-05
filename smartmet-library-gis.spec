@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.1.4
+Version: 21.1.5
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -17,24 +17,24 @@ BuildRequires: devtoolset-7-gcc-c++
 %endif
 
 BuildRequires: boost169-devel
-BuildRequires: fmt-devel >= 7.1.0
+BuildRequires: fmt-devel >= 7.1.3
 BuildRequires: gcc-c++
 BuildRequires: gdal32-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
-BuildRequires: smartmet-library-macgyver-devel >= 21.1.4
+BuildRequires: smartmet-library-macgyver-devel >= 21.1.5
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
 Requires: boost169-filesystem
 Requires: boost169-thread
-Requires: fmt >= 7.1.0
+Requires: fmt >= 7.1.3
 Requires: gdal32-libs
 Requires: geos39
 Requires: postgis31_12
 Requires: proj72
-Requires: smartmet-library-macgyver >= 21.1.4
+Requires: smartmet-library-macgyver >= 21.1.5
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -81,6 +81,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Jan  5 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.5-1.fmi
+- Upgrade to fmt 7.1.3
+
 * Mon Jan  4 2021 Andris Pavenis <andris.pavenis@fmi.fi> - 21.1.4-1.fmi
 - Rebuild due to PGDG repository change: gdal-3.2 uses geos-3.9 instead of geos-3.8
 
