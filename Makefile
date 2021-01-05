@@ -3,21 +3,18 @@ LIB = smartmet-$(SUBNAME)
 SPEC = smartmet-library-$(SUBNAME)
 INCDIR = smartmet/$(SUBNAME)
 
-REQUIRES = gdal
+REQUIRES = fmt gdal geos
 
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
 # Compiler options
 
-DEFINES = -DUNIX -D_REENTRANT
+DEFINES = -DUNIX -D_REENTRANT -DUSE_UNSTABLE_GEOS_CPP_API
 
-LIBS += -L$(libdir) \
-	-lsmartmet-macgyver \
+LIBS += -lsmartmet-macgyver \
 	-lboost_filesystem \
 	-lboost_thread \
-	-lgeos \
-	$(GDAL_LIBS) \
-	-lfmt
+	$(REQUIRED_LIBS)
 
 
 # What to install
@@ -57,6 +54,7 @@ $(LIBFILE): $(OBJS)
 clean:
 	rm -f $(LIBFILE) *~ $(SUBNAME)/*~
 	rm -rf $(objdir)
+	$(MAKE) -C test $@
 
 format:
 	clang-format -i -style=file $(SUBNAME)/*.h $(SUBNAME)/*.cpp test/*.cpp
@@ -81,7 +79,7 @@ objdir:
 rpm: clean $(SPEC).spec
 	rm -f $(SPEC).tar.gz # Clean a possible leftover from previous attempt
 	tar -czvf $(SPEC).tar.gz --exclude test --exclude-vcs --transform "s,^,$(SPEC)/," *
-	rpmbuild -ta $(SPEC).tar.gz
+	rpmbuild -tb $(SPEC).tar.gz
 	rm -f $(SPEC).tar.gz
 
 .SUFFIXES: $(SUFFIXES) .cpp

@@ -3,37 +3,43 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.10.28
+Version: 21.1.5
 Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
-BuildRequires: rpm-build
-BuildRequires: gcc-c++
-BuildRequires: make
-BuildRequires: boost169-devel
-BuildRequires: fmt-devel >= 7.1.0
-BuildRequires: gdal-devel
-BuildRequires: geos-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.10.28
-Requires: fmt >= 7.1.0
-Requires: gdal-libs
-Requires: geos >= 3.5.0
-Requires: proj
+
+%if %{defined el7}
 Requires: proj-epsg
-Requires: postgis
-Requires: boost169-filesystem
-Requires: boost169-thread
-Requires: smartmet-library-macgyver >= 20.10.28
-Provides: %{LIBNAME}
+BuildRequires: devtoolset-7-gcc-c++
+%endif
+
+BuildRequires: boost169-devel
+BuildRequires: fmt-devel >= 7.1.3
+BuildRequires: gcc-c++
+BuildRequires: gdal32-devel
+BuildRequires: geos39-devel
+BuildRequires: make
+BuildRequires: rpm-build
+BuildRequires: smartmet-library-macgyver-devel >= 21.1.5
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
+Provides: %{LIBNAME}
+Requires: boost169-filesystem
+Requires: boost169-thread
+Requires: fmt >= 7.1.3
+Requires: gdal32-libs
+Requires: geos39
+Requires: postgis31_12
+Requires: proj72
+Requires: smartmet-library-macgyver >= 21.1.5
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
-#TestRequires: gdal-devel
+#TestRequires: gdal32-devel
+#TestRequires: geos39-devel
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
 #TestRequires: smartmet-library-regression
@@ -63,8 +69,8 @@ rm -rf $RPM_BUILD_ROOT
 %package -n %{SPECNAME}-devel
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
-Requires: geos-devel
-Requires: %{SPECNAME}
+Requires: %{SPECNAME} = %{version}-%{release}
+BuildRequires: geos39-devel
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -75,6 +81,29 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Jan  5 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.5-2.fmi
+- Do not show password in stack trace on failure to connect to database
+
+* Tue Jan  5 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.5-1.fmi
+- Upgrade to fmt 7.1.3
+
+* Mon Jan  4 2021 Andris Pavenis <andris.pavenis@fmi.fi> - 21.1.4-1.fmi
+- Rebuild due to PGDG repository change: gdal-3.2 uses geos-3.9 instead of geos-3.8
+
+* Thu Dec 31 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.12.31-1.fmi
+- Require devtoolset-7-gcc-c++ to be able to use clang++ -std=c++17
+- Upgraded gdal/geos/proj dependencies
+
+* Tue Dec 15 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.12.15-2.fmi
+- Upgrade to pgsg12
+
+* Tue Dec 15 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.12.15-1.fmi
+- Require exactly same version in binary and devel RPM
+- proj-epsg tilalle EPEL 8 on proj: use it in case of RHEL 8
+
+* Thu Dec 10 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.12.10-1.fmi
+- Adapt to makefile.inc changes
+
 * Wed Oct 28 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.10.28-1.fmi
 - Rebuild due to fmt upgrade
 
