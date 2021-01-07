@@ -1,7 +1,7 @@
 #pragma once
 #include <boost/optional.hpp>
-#include <ogr_geometry.h>
 #include <list>
+#include <ogr_geometry.h>
 #include <string>
 
 // cannot forward declare OGR similarly since OGRwkbGeometryType is an enum

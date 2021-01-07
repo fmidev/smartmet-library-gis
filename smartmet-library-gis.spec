@@ -3,8 +3,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.1.5
-Release: 2%{?dist}.fmi
+Version: 21.1.7
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -81,6 +81,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Jan  7 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.7-1.fmi
+- Fixed OGR::gridNorth based on the WGS84 branch version
+
 * Tue Jan  5 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.5-2.fmi
 - Do not show password in stack trace on failure to connect to database
 
