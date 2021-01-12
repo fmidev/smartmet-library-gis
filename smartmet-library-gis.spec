@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.1.7
+Version: 21.1.12
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -12,7 +12,6 @@ Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 
 %if %{defined el7}
-Requires: proj-epsg
 BuildRequires: devtoolset-7-gcc-c++
 %endif
 
@@ -81,6 +80,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Jan 12 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.12-1.fmi
+- Removed obsolete proj-epsg dependency
+
 * Thu Jan  7 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.7-1.fmi
 - Fixed OGR::gridNorth based on the WGS84 branch version
 
