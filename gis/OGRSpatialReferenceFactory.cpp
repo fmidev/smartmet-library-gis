@@ -1,8 +1,11 @@
 #include "OGRSpatialReferenceFactory.h"
+
 #include "OGR.h"
 #include "ProjInfo.h"
+
 #include <fmt/format.h>
 #include <macgyver/Cache.h>
+
 #include <gdal_version.h>
 #include <ogr_geometry.h>
 

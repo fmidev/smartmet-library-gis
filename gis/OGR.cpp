@@ -3,9 +3,11 @@
 #include "CoordinateTransformation.h"
 #include "GEOS.h"
 #include "SpatialReference.h"
+
 #include <boost/math/constants/constants.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <fmt/format.h>
+
 #include <cmath>
 #include <ogr_geometry.h>
 #include <stdexcept>

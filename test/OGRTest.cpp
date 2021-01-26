@@ -3,7 +3,9 @@
 #include "OGR.h"
 #include "SpatialReference.h"
 #include "TestDefs.h"
+
 #include <regression/tframe.h>
+
 #include <memory>
 #include <ogr_geometry.h>
 
@@ -695,8 +697,8 @@ void lineclip()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
-                  "\n\tGot     : " + ret);
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
+                  std::string(mytests[test][0]) + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
   }
 
   TEST_PASSED();
@@ -873,8 +875,8 @@ void polyclip()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
-                  "\n\tGot     : " + ret);
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
+                  std::string(mytests[test][0]) + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
   }
 
   TEST_PASSED();
@@ -1061,8 +1063,8 @@ void linecut()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
-                  "\n\tGot     : " + ret);
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
+                  std::string(mytests[test][0]) + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
   }
 
   TEST_PASSED();
@@ -1233,8 +1235,8 @@ void polycut()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
-                  "\n\tGot     : " + ret);
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
+                  std::string(mytests[test][0]) + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
   }
 
   TEST_PASSED();

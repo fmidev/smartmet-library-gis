@@ -1,4 +1,5 @@
 #include "GeometryBuilder.h"
+
 #include <iostream>
 
 namespace Fmi

@@ -1,7 +1,9 @@
 #include "BilinearCoordinateTransformation.h"
+
 #include "CoordinateMatrix.h"
 #include "CoordinateMatrixCache.h"
 #include "CoordinateTransformation.h"
+
 #include <boost/functional/hash.hpp>
 
 namespace Fmi

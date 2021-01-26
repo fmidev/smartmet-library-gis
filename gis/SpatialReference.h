@@ -50,7 +50,7 @@ class SpatialReference
 
   // Internal cache size
   static void setCacheSize(std::size_t newMaxSize);
-  
+
  private:
   class Impl;
   std::unique_ptr<Impl> impl;

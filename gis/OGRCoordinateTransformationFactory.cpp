@@ -1,8 +1,11 @@
 #include "OGRCoordinateTransformationFactory.h"
+
 #include "OGRSpatialReferenceFactory.h"
+
 #include <boost/functional/hash.hpp>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
+
 #include <ogr_spatialref.h>
 
 namespace Fmi

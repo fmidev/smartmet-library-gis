@@ -1,15 +1,17 @@
 #include "SpatialReference.h"
+
 #include "OGR.h"
 #include "OGRSpatialReferenceFactory.h"
 #include "ProjInfo.h"
+
 #include <boost/functional/hash.hpp>
 #include <fmt/format.h>
 #include <macgyver/Cache.h>
+
 #include <ogr_geometry.h>
 
 namespace Fmi
 {
-
 // Cache variables
 namespace
 {
@@ -21,12 +23,11 @@ struct ImplData
   ProjInfo projinfo;
 };
 
-
 const std::size_t default_cache_size = 10000;
 using ImplDataCache = Cache::Cache<std::string, std::shared_ptr<ImplData>>;
 ImplDataCache g_ImplDataCache{default_cache_size};
 
-} // namespace
+}  // namespace
 
 // Implementation details
 class SpatialReference::Impl
@@ -36,34 +37,23 @@ class SpatialReference::Impl
 
   Impl(const Impl &other) = default;
 
-  explicit Impl(const SpatialReference &other)
-      : m_data(other.impl->m_data)
-  { }
-  
-  explicit Impl(const OGRSpatialReference &other)
-  {
-    init(other);
-  }
+  explicit Impl(const SpatialReference &other) : m_data(other.impl->m_data) {}
+
+  explicit Impl(const OGRSpatialReference &other) { init(other); }
 
   explicit Impl(OGRSpatialReference &other)
   {
     init(const_cast<const OGRSpatialReference &>(other));
   }
 
-  explicit Impl(const std::string &theCRS)
-  {
-    init(theCRS);
-  }
+  explicit Impl(const std::string &theCRS) { init(theCRS); }
 
-  explicit Impl(int epsg)
-  {
-    init(fmt::format("EPSG:{}",epsg));
-  }
+  explicit Impl(int epsg) { init(fmt::format("EPSG:{}", epsg)); }
 
   void init(const std::string &theCRS)
   {
     auto obj = g_ImplDataCache.find(theCRS);
-    if(obj)
+    if (obj)
       m_data = *obj;
     else
     {
@@ -75,7 +65,7 @@ class SpatialReference::Impl
     }
   }
 
-  void init(const OGRSpatialReference & other)
+  void init(const OGRSpatialReference &other)
   {
     m_data = std::make_shared<ImplData>();
     m_data->crs.reset(other.Clone());
@@ -83,7 +73,6 @@ class SpatialReference::Impl
     m_data->hashvalue = boost::hash_value(m_data->projinfo.projStr());
   }
 
-  
   Impl &operator=(const Impl &) = delete;
 
   std::shared_ptr<ImplData> m_data;
@@ -114,17 +103,15 @@ bool SpatialReference::isAxisSwapped() const
   if (strategy == OAMS_CUSTOM) return false;  // Don't really know what to do in this case
   if (strategy != OAMS_AUTHORITY_COMPLIANT) return false;  // Unknown case
 
-  return (impl->m_data->crs->EPSGTreatsAsLatLong() || impl->m_data->crs->EPSGTreatsAsNorthingEasting());
+  return (impl->m_data->crs->EPSGTreatsAsLatLong() ||
+          impl->m_data->crs->EPSGTreatsAsNorthingEasting());
 #else
   // GDAL1 does not seem to obey EPSGA flags at all
   return false;
 #endif
 }
 
-std::size_t SpatialReference::hashValue() const
-{
-  return impl->m_data->hashvalue;
-}
+std::size_t SpatialReference::hashValue() const { return impl->m_data->hashvalue; }
 
 const OGRSpatialReference &SpatialReference::operator*() const { return *impl->m_data->crs; }
 OGRSpatialReference *SpatialReference::get() const { return impl->m_data->crs.get(); }
@@ -135,9 +122,6 @@ SpatialReference::operator OGRSpatialReference *() const { return impl->m_data->
 const ProjInfo &SpatialReference::projInfo() const { return impl->m_data->projinfo; }
 const std::string &SpatialReference::projStr() const { return impl->m_data->projinfo.projStr(); }
 
-void SpatialReference::setCacheSize(std::size_t newMaxSize)
-{
-  g_ImplDataCache.resize(newMaxSize);
-}
+void SpatialReference::setCacheSize(std::size_t newMaxSize) { g_ImplDataCache.resize(newMaxSize); }
 
 }  // namespace Fmi

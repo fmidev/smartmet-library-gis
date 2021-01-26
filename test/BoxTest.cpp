@@ -1,7 +1,9 @@
 #include "Box.h"
 #include "TestDefs.h"
+
 #include <fmt/format.h>
 #include <regression/tframe.h>
+
 #include <gdal_version.h>
 #include <iostream>
 #include <ogr_spatialref.h>

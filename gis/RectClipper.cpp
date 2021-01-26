@@ -1,7 +1,9 @@
 #include "RectClipper.h"
+
 #include "Box.h"
 #include "GeometryBuilder.h"
 #include "OGR.h"
+
 #include <cassert>
 #include <iostream>
 
