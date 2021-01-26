@@ -111,7 +111,6 @@
 #include "GeometryBuilder.h"
 #include "OGR.h"
 #include "RectClipper.h"
-
 #include <iomanip>
 #include <iostream>
 #include <list>
@@ -943,7 +942,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
   // - Intact ones become new polygons without holes
 
   // Note that we add the holes as exterior parts
-
+  
   for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
   {
     auto *hole = theGeom->getInteriorRing(i);

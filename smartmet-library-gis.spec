@@ -3,37 +3,45 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 20.9.29
+Version: 21.1.22
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
-BuildRequires: rpm-build
-BuildRequires: gcc-c++
-BuildRequires: make
+
+%if %{defined el7}
+BuildRequires: devtoolset-7-gcc-c++
+%endif
+
 BuildRequires: boost169-devel
-BuildRequires: fmt-devel >= 6.2.1
-BuildRequires: gdal30-devel
-BuildRequires: geos38-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.8.21
-Requires: fmt >= 6.2.1
-Requires: gdal30-libs
-Requires: geos38
-Requires: postgis
-Requires: boost169-filesystem
-Requires: boost169-thread
-Requires: smartmet-library-macgyver >= 20.8.21
-Provides: %{LIBNAME}
+BuildRequires: fmt-devel >= 7.1.3
+BuildRequires: gcc-c++
+BuildRequires: gdal32-devel
+BuildRequires: geos39-devel
+BuildRequires: make
+BuildRequires: rpm-build
+BuildRequires: smartmet-library-macgyver-devel >= 21.1.14
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
-#TestRequires: make
-#TestRequires: gcc-c++
-#TestRequires: smartmet-library-regression
+Provides: %{LIBNAME}
+Requires: boost169-filesystem
+Requires: boost169-thread
+Requires: fmt >= 7.1.3
+Requires: gdal32-libs
+Requires: geos39
+Requires: postgis31_12
+Requires: proj72
+Requires: smartmet-library-macgyver >= 21.1.14
 #TestRequires: boost169-devel
-#TestRequires: gdal-devel
 #TestRequires: fmt-devel
+#TestRequires: gcc-c++
+#TestRequires: gdal32-devel
+#TestRequires: geos39-devel
+#TestRequires: make
+#TestRequires: smartmet-library-macgyver-devel
+#TestRequires: smartmet-library-regression
 #TestRequires: smartmet-test-data
 
 %description
@@ -60,8 +68,8 @@ rm -rf $RPM_BUILD_ROOT
 %package -n %{SPECNAME}-devel
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
-Requires: geos38-devel
-Requires: %{SPECNAME}
+Requires: %{SPECNAME} = %{version}-%{release}
+BuildRequires: geos39-devel
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -72,29 +80,50 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
-* Tue Sep 29 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.9.29-1.fmi
-- Fixed lineclipping in the case when a hole is outside the clipped area
+* Fri Jan 22 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.22-1.fmi
+- Fixed PostGIS to handle the new OFTInteger64 type
 
-* Fri Sep 25 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.9.25-1.fmi
-- Faster SpatialReference::hashValue
-- SpatialReference constructor caches created objects
-- ProjInfo::inverseProjStr is now faster
+* Thu Jan 14 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.14-1.fmi
+- Repackaged smartmet to resolve debuginfo issues
 
-* Thu Aug 27 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.27-2.fmi
-- Fixed BilinearCoordinateInterpolation index overflow testing to substract one from width to get maximum allowed index
+* Tue Jan 12 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.12-1.fmi
+- Removed obsolete proj-epsg dependency
 
-* Thu Aug 27 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.27-1.fmi
-- Fixed clipping of polygons where a hole touches the exterior and the clipping rectangle at the same point
+* Thu Jan  7 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.7-1.fmi
+- Fixed OGR::gridNorth based on the WGS84 branch version
 
-* Wed Aug 26 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.26-1.fmi
-- Fixed SpatialReference copy constructor and assignment not to modify the axis mapping strategy
+* Tue Jan  5 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.5-2.fmi
+- Do not show password in stack trace on failure to connect to database
 
-* Mon Aug 24 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.24-2.fmi
-- Added access to BilinearCoordinateTransformation CoordinateMatrix
+* Tue Jan  5 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.5-1.fmi
+- Upgrade to fmt 7.1.3
 
-* Mon Aug 24 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.24-1.fmi
-- Added CoordinateMatrixCache for caching projected coordinates
-- Added BilinearCoordinateTransformation for fast approximate projections
+* Mon Jan  4 2021 Andris Pavenis <andris.pavenis@fmi.fi> - 21.1.4-1.fmi
+- Rebuild due to PGDG repository change: gdal-3.2 uses geos-3.9 instead of geos-3.8
+
+* Thu Dec 31 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.12.31-1.fmi
+- Require devtoolset-7-gcc-c++ to be able to use clang++ -std=c++17
+- Upgraded gdal/geos/proj dependencies
+
+* Tue Dec 15 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.12.15-2.fmi
+- Upgrade to pgsg12
+
+* Tue Dec 15 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.12.15-1.fmi
+- Require exactly same version in binary and devel RPM
+- proj-epsg tilalle EPEL 8 on proj: use it in case of RHEL 8
+
+* Thu Dec 10 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.12.10-1.fmi
+- Adapt to makefile.inc changes
+
+* Wed Oct 28 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.10.28-1.fmi
+- Rebuild due to fmt upgrade
+
+* Mon Oct  5 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.10.5-1.fmi
+- Rebuild due to smartmet-library-macgyver makefile.inc changes
+
+* Fri Oct  2 2020 Andris Pavenis <andris.pavenis@fmi.fi> - 20.10.2-1.fmi
+- Build update (use makefile.inc from smartmet-library-macgyver)
+- Revert change to link always with GCC (no more needed)
 
 * Fri Aug 21 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.21-1.fmi
 - Upgrade to fmt 6.2
@@ -102,104 +131,26 @@ FMI GIS library development files
 * Thu Aug 20 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.20-1.fmi
 - Optimized exportToSvg to minimize string allocations
 
-* Mon Aug 17 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.17-1.fmi
-- Fixed RectBuilder potential segfault
-- Avoid OGRCoordinateTransformationFactory double frees at program termination by using plain pointers instead of unique_ptr
-
-* Sun Aug 16 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.16-1.fmi
-- Fixed RectBuilder to use double for maximum segment length instead of bool (!)
-
-* Thu Aug 13 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.13-1.fmi
-- CoordinateTransformation now uses OGR::polycut for speed when possible
-
 * Wed Aug 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.12-1.fmi
-- Added OGRCoordinateTransformationFactory::Create methods for EPSG numbers
-
-* Thu Aug  6 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.6-1.fmi
 - Added OGRSpatialReferenceFactory
 - Added OGRCoordinateTransformationFactory
-
-* Thu Jul  2 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.2-1.fmi
-- Added Box constructor with identity transformation properties
-- CoordinateTransformation now clones the input SpatialReference objects
-
-* Wed Jul  1 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.1-2.fmi
-- Optimized CoordinateTransformation::transformGeometry for speed for input/output latlon cases
-
-* Wed Jul  1 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.7.1-1.fmi
-- Use shared_ptr for Interrupt objects to enable copy construction
-
-* Mon Jun 29 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.6.29-1.fmi
-- Improved spherical interrupts of map data
-
-* Thu May 28 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.5.28-1.fmi
-- Added circle cuts for stereographic etc projections
-
-* Fri May 22 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.5.22-1.fmi
-- Added class ProjInfo for extracting information from PROJ.4 strings
-
-* Mon May 18 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.5.18-1.fmi
-- Added CoordinateTransformation::transformGeometry for handling antimeridians and simular problems
-
-* Tue Apr 28 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.28-1.fmi
-- Fixed SpatialReference::isAxisSwapped to check the axis mapping strategy
-
-* Sun Apr 26 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.26-1.fmi
-- Assign WGS84 CRS to shapes read from PostGIS which do not have spatial references
-
-* Thu Apr 23 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.23-1.fmi
-- Fixed PostGIS::read to handle attributes of type Integer64
-- Added OGR::normalizeWindingOrder and OGR::renormalizeWindingOrder
-
-* Wed Apr 22 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.20-1.fmi
-- Hide implementation details of SpatialReference and CoordinateTransformation
 
 * Sat Apr 18 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.18-1.fmi
 - Removed macgyver dependency
 - Upgrade to Boost 1.69
 
-* Wed Apr 15 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.15-1.fmi
-- Added SpatialReference::hashValue()
-
-* Sun Apr 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.12-1.fmi
-- Added CoordinateMatrix
-- Added BoolMatrix
-- Added CoordinateMatrixAnalysis
-- Improved use of same naming conventions
-
-* Wed Apr  8 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.8-1.fmi
-- Force traditional GIS axis order strategy (lon,lat and east,north)
-
-* Tue Apr  7 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.7-1.fmi
-- Force longlat order for PostGIS geometries
-
-* Mon Apr  6 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.6-1.fmi
-- Added SpatialReference and CoordinateTransformation
-- Removed macgyver dependency
-
-* Thu Mar 26 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.3.26-1.fmi
-- Repackaged after GDAL/GEOS updates
-
 * Tue Feb 18 2020 Anssi Reponen <anssi.reponen@fmi.fi> - 20.2.18-1.fmi
 - Fixed expanding of MULTILINRSTRING geometry (BRAINSTORM-1757)
 
-* Fri Feb 14 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.2.14-1.fmi
-- Fixed order of linked to directories to get GDAL 3.0 correctly
-
-* Thu Feb 13 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.2.13-1.fmi
-- Hide GDAL dependencies in OGR.h to avoid dependency escalation
-
 * Wed Feb  5 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.2.5-1.fmi
-- Fixed gridNorth to work with GDAL 3
+- Fixed gridNorth method to work with GDAL versions > 1
 
 * Wed Jan 29 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.1.29-1.fmi
 - Added OGR::transform to scale the geometry to pixel coordinates
 
-* Tue Dec 10 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.10-1.fmi
-- Switch to GDAL 3.0 and GEOS 3.8
-
 * Wed Dec  4 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.12.4-1.fmi
-- Use -fno-omit-frame-pointer for a better profiling and debugging experience                                                                             - Fixed dependency to be on gdal-libs instead of gdal        
+- Use -fno-omit-frame-pointer for a better profiling and debugging experience
+- Fixed dependency to be on gdal-libs instead of gdal
 
 * Thu Sep 26 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.9.26-1.fmi
 - Added support for GDAL 2

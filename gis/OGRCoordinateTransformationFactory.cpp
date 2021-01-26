@@ -1,11 +1,8 @@
 #include "OGRCoordinateTransformationFactory.h"
-
 #include "OGRSpatialReferenceFactory.h"
-
 #include <boost/functional/hash.hpp>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
-
 #include <ogr_spatialref.h>
 
 namespace Fmi
@@ -75,7 +72,7 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
       // Take ownership from the CacheElement and return it to the user
       Ptr ret(pos->second, Deleter(hash, &gPool));
       gPool.erase(pos);
-      return std::move(ret);
+      return ret;
     }
   }
 
@@ -87,7 +84,8 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
 
   auto *ptr = OGRCreateCoordinateTransformation(src.get(), tgt.get());
 
-  if (ptr != nullptr) return Ptr(ptr, Deleter(hash, &gPool));
+  if (ptr != nullptr)
+    return Ptr(ptr, Deleter(hash, &gPool));
 
   throw std::runtime_error("Failed to create coordinate transformation from '" + theSource +
                            "' to '" + theTarget + "'");

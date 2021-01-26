@@ -1,11 +1,8 @@
 #include "OGRSpatialReferenceFactory.h"
-
 #include "OGR.h"
 #include "ProjInfo.h"
-
 #include <fmt/format.h>
 #include <macgyver/Cache.h>
-
 #include <gdal_version.h>
 #include <ogr_geometry.h>
 
@@ -90,7 +87,8 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
     throw std::runtime_error("Cannot create spatial reference from empty string");
 
   auto cacheObject = g_spatialReferenceCache.find(theDesc);
-  if (cacheObject) return *cacheObject;
+  if (cacheObject)
+    return *cacheObject;
 
   // Wasn't in the cache, must generate new object
 
@@ -102,7 +100,8 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
   else
   {
     pos = known_ellipsoids.find(desc);
-    if (pos != known_ellipsoids.end()) desc = std::string("+proj=longlat ") + pos->second;
+    if (pos != known_ellipsoids.end())
+      desc = std::string("+proj=longlat ") + pos->second;
   }
 
   auto sr = std::make_shared<OGRSpatialReference>();
@@ -141,7 +140,10 @@ std::shared_ptr<OGRSpatialReference> Create(int epsg)
   return make_crs(desc);
 }
 
-void SetCacheSize(std::size_t newMaxSize) { g_spatialReferenceCache.resize(newMaxSize); }
+void SetCacheSize(std::size_t newMaxSize)
+{
+  g_spatialReferenceCache.resize(newMaxSize);
+}
 
-};  // namespace OGRSpatialReferenceFactory
+}  // namespace OGRSpatialReferenceFactory
 }  // namespace Fmi

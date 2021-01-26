@@ -1,7 +1,5 @@
 #include "OGR.h"
-
 #include <boost/math/constants/constants.hpp>
-
 #include <ogr_geometry.h>
 #include <stdexcept>
 
@@ -58,7 +56,8 @@ double geographic_area(const OGRLinearRing *theGeom)
 double metric_area(const OGRLineString *theGeom)
 {
   std::size_t npoints = theGeom->getNumPoints();
-  if (npoints < 2) return 0;
+  if (npoints < 2)
+    return 0;
 
   double area = theGeom->getX(0) * (theGeom->getY(1) - theGeom->getY(npoints - 1));
 
@@ -83,7 +82,8 @@ OGRPolygon *despeckle_polygon(const OGRPolygon *theGeom, double theLimit, bool t
   auto *exterior = theGeom->getExteriorRing();
   double area = (theGeogFlag ? geographic_area(exterior) : exterior->get_Area());
 
-  if (area < theLimit) return nullptr;
+  if (area < theLimit)
+    return nullptr;
 
   // We have at least a valid exterior
 
@@ -96,7 +96,8 @@ OGRPolygon *despeckle_polygon(const OGRPolygon *theGeom, double theLimit, bool t
   {
     auto *hole = theGeom->getInteriorRing(i);
     area = (theGeogFlag ? geographic_area(hole) : hole->get_Area());
-    if (area >= theLimit) out->addRingDirectly(dynamic_cast<OGRLinearRing *>(hole->clone()));
+    if (area >= theLimit)
+      out->addRingDirectly(dynamic_cast<OGRLinearRing *>(hole->clone()));
   }
 
   return out;
@@ -110,9 +111,11 @@ OGRPolygon *despeckle_polygon(const OGRPolygon *theGeom, double theLimit, bool t
 
 OGRLineString *despeckle_linestring(const OGRLineString *theGeom, double theLimit, bool theGeogFlag)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
-  if (!theGeom->get_IsClosed()) return dynamic_cast<OGRLineString *>(theGeom->clone());
+  if (!theGeom->get_IsClosed())
+    return dynamic_cast<OGRLineString *>(theGeom->clone());
 
   // Despeckle closed linestrings only
 
@@ -120,7 +123,8 @@ OGRLineString *despeckle_linestring(const OGRLineString *theGeom, double theLimi
   // double area = (theGeogFlag ? geographic_area(theGeom) : geom->get_Area());
   double area = (theGeogFlag ? geographic_area(theGeom) : metric_area(theGeom));
 
-  if (area < theLimit) return nullptr;
+  if (area < theLimit)
+    return nullptr;
 
   return dynamic_cast<OGRLineString *>(theGeom->clone());
 }
@@ -133,7 +137,8 @@ OGRLineString *despeckle_linestring(const OGRLineString *theGeom, double theLimi
 
 OGRPoint *despeckle_point(const OGRPoint *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   return dynamic_cast<OGRPoint *>(theGeom->clone());
 }
@@ -146,7 +151,8 @@ OGRPoint *despeckle_point(const OGRPoint *theGeom)
 
 OGRMultiPoint *despeckle_multipoint(const OGRMultiPoint *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   return dynamic_cast<OGRMultiPoint *>(theGeom->clone());
 }
@@ -161,7 +167,8 @@ OGRMultiLineString *despeckle_multilinestring(const OGRMultiLineString *theGeom,
                                               double theLimit,
                                               bool theGeogFlag)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
   ;
 
   auto *out = new OGRMultiLineString();
@@ -170,10 +177,12 @@ OGRMultiLineString *despeckle_multilinestring(const OGRMultiLineString *theGeom,
   {
     auto *geom = despeckle_linestring(
         dynamic_cast<const OGRLineString *>(theGeom->getGeometryRef(i)), theLimit, theGeogFlag);
-    if (geom != nullptr) out->addGeometryDirectly(geom);
+    if (geom != nullptr)
+      out->addGeometryDirectly(geom);
   }
 
-  if (out->IsEmpty() == 0) return out;
+  if (out->IsEmpty() == 0)
+    return out;
 
   delete out;
   return nullptr;
@@ -189,7 +198,8 @@ OGRMultiPolygon *despeckle_multipolygon(const OGRMultiPolygon *theGeom,
                                         double theLimit,
                                         bool theGeogFlag)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *out = new OGRMultiPolygon();
 
@@ -197,10 +207,12 @@ OGRMultiPolygon *despeckle_multipolygon(const OGRMultiPolygon *theGeom,
   {
     auto *geom = despeckle_polygon(
         dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)), theLimit, theGeogFlag);
-    if (geom != nullptr) out->addGeometryDirectly(geom);
+    if (geom != nullptr)
+      out->addGeometryDirectly(geom);
   }
 
-  if (out->IsEmpty() == 0) return out;
+  if (out->IsEmpty() == 0)
+    return out;
 
   delete out;
   return nullptr;
@@ -220,17 +232,20 @@ OGRGeometryCollection *despeckle_geometrycollection(const OGRGeometryCollection 
                                                     double theLimit,
                                                     bool theGeogFlag)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *out = new OGRGeometryCollection;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     auto *geom = despeckle_geom(theGeom->getGeometryRef(i), theLimit, theGeogFlag);
-    if (geom != nullptr) out->addGeometryDirectly(geom);
+    if (geom != nullptr)
+      out->addGeometryDirectly(geom);
   }
 
-  if (out->IsEmpty() == 0) return out;
+  if (out->IsEmpty() == 0)
+    return out;
 
   delete out;
   return nullptr;

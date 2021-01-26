@@ -1,7 +1,7 @@
 #include "Host.h"
-
 #include <fmt/format.h>
-
+#include <macgyver/Exception.h>
+#include <macgyver/StringConversion.h>
 #include <gdal_version.h>
 #include <ogrsf_frmts.h>
 #include <stdexcept>
@@ -56,7 +56,8 @@ GDALDataPtr Host::connect() const
 #else
   auto* driver = GetGDALDriverManager()->GetDriverByName("PostgreSQL");
 #endif
-  if (driver == nullptr) throw std::runtime_error("PostgreSQL driver not installed!");
+  if (driver == nullptr)
+    throw std::runtime_error("PostgreSQL driver not installed!");
 
   auto src = dataSource();
 
@@ -67,7 +68,12 @@ GDALDataPtr Host::connect() const
   auto ptr = GDALDataPtr(driver->pfnOpen(&info));
 #endif
 
-  if (!ptr) throw std::runtime_error("Failed to open database using source " + dataSource());
+  if (!ptr)
+    throw Fmi::Exception(BCP, "Failed to open connection to database")
+        .addParameter("Host", itsHostname)
+        .addParameter("Database", itsDatabase)
+        .addParameter("User", itsUsername)
+        .addParameter("Port", Fmi::to_string(itsPort));
 
   ptr->ExecuteSQL("SET CLIENT_ENCODING TO 'UTF8'", nullptr, nullptr);
   return ptr;

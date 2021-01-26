@@ -1,6 +1,5 @@
 #include "Box.h"
 #include "OGR.h"
-
 #include <ogr_geometry.h>
 #include <stdexcept>
 
@@ -40,7 +39,8 @@ void tr(OGRPoint *geom, const Box &box)
 
 void tr(OGRLinearRing *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0) return;
+  if (geom == nullptr || geom->IsEmpty() != 0)
+    return;
 
   const int n = geom->getNumPoints();
 
@@ -61,7 +61,8 @@ void tr(OGRLinearRing *geom, const Box &box)
 
 void tr(OGRLineString *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0) return;
+  if (geom == nullptr || geom->IsEmpty() != 0)
+    return;
 
   const int n = geom->getNumPoints();
 
@@ -82,7 +83,8 @@ void tr(OGRLineString *geom, const Box &box)
 
 void tr(OGRPolygon *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0) return;
+  if (geom == nullptr || geom->IsEmpty() != 0)
+    return;
 
   tr(geom->getExteriorRing(), box);
   for (int i = 0, n = geom->getNumInteriorRings(); i < n; ++i)
@@ -97,7 +99,8 @@ void tr(OGRPolygon *geom, const Box &box)
 
 void tr(OGRMultiPoint *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0) return;
+  if (geom == nullptr || geom->IsEmpty() != 0)
+    return;
 
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     tr(dynamic_cast<OGRPoint *>(geom->getGeometryRef(i)), box);
@@ -111,7 +114,8 @@ void tr(OGRMultiPoint *geom, const Box &box)
 
 void tr(OGRMultiLineString *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0) return;
+  if (geom == nullptr || geom->IsEmpty() != 0)
+    return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     tr(dynamic_cast<OGRLineString *>(geom->getGeometryRef(i)), box);
 }
@@ -124,7 +128,8 @@ void tr(OGRMultiLineString *geom, const Box &box)
 
 void tr(OGRMultiPolygon *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0) return;
+  if (geom == nullptr || geom->IsEmpty() != 0)
+    return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     tr(dynamic_cast<OGRPolygon *>(geom->getGeometryRef(i)), box);
 }
@@ -137,7 +142,8 @@ void tr(OGRMultiPolygon *geom, const Box &box)
 
 void tr(OGRGeometryCollection *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0) return;
+  if (geom == nullptr || geom->IsEmpty() != 0)
+    return;
   for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     tr(geom->getGeometryRef(i), box);
 }
@@ -191,6 +197,9 @@ namespace Fmi
 {
 namespace OGR
 {
-void transform(OGRGeometry &theGeom, const Box &theBox) { tr(&theGeom, theBox); }
+void transform(OGRGeometry &theGeom, const Box &theBox)
+{
+  tr(&theGeom, theBox);
+}
 }  // namespace OGR
 }  // namespace Fmi

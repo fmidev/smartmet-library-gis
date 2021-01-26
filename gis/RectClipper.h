@@ -5,7 +5,6 @@
 #pragma once
 
 #include "Box.h"
-
 #include <list>
 #include <ogr_geometry.h>
 
