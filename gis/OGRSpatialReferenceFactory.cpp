@@ -18,7 +18,11 @@ SpatialReferenceCache g_spatialReferenceCache;
 
 std::map<std::string, std::string> known_datums = {
     {"FMI", "+R=6371229 +towgs84=0,0,0"},
-    {"WGS84", "+a=6378137 +rf=298.257223563 +towgs84=0,0,0"},
+
+    // This stopped working with GDAL 3.2 and PROJ 7.9, and had to be replaced by the following line
+    // {"WGS84", "+a=6378137 +rf=298.257223563 +towgs84=0,0,0"},
+    {"WGS84", "+datum=WGS84 +no_defs"},
+
     {"GGRS87", "+a=6378137 +rf=298.257222101 +towgs84=-199.87,74.79,246.62"},
     {"NAD83", "+a=6378137 +rf=298.257222101 +towgs84=0,0,0"},
     {"NAD27", "+a=6378206.4 +b=6356583.8 +nadgrids=@conus,@alaska,@ntv2_0.gsb,@ntv1_can.dat"},

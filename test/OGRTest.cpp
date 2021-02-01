@@ -1566,8 +1566,6 @@ void grid_north_rotlatlon_proj()
       "+proj=ob_tran +o_proj=eqc +o_lon_p=0 +o_lat_p=30 +lon_0=0 +R=6371220 +wktext +over "
       "+towgs84=0,0,0 +no_defs");
 
-  // Test test worked with GDAL 3.0, but fails in GDAL 3.2
-
   // Helsinki
   auto result = Fmi::OGR::gridNorth(trans, 25, 60);
   auto expected = -21.499203;

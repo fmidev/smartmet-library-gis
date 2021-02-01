@@ -82,6 +82,7 @@ FMI GIS library development files
 %changelog
 * Mon Feb  1 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.1-1.fmi
 - Strip lon_0 when extracting the ellipsoid for projections
+- Updated definition of WGS84 to use +datum=WGS84 or tests fail with PROJ 7.9
 
 * Fri Jan 22 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.22-1.fmi
 - Fixed PostGIS to handle the new OFTInteger64 type
