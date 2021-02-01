@@ -21,8 +21,10 @@ namespace
 const std::set<std::string> g_str_keepers{
     "proj", "datum", "ellps", "towgs84", "o_proj", "pm", "axis"};
 
+// Note: lon_0 must be stripped in newer PROJ versions
+
 const std::set<std::string> g_num_keepers{
-    "to_meter", "o_lon_p", "o_lat_p", "lon_0", "lon_wrap", "R", "a", "b", "k", "k_0", "pm", "f"};
+    "to_meter", "o_lon_p", "o_lat_p", "lon_wrap", "R", "a", "b", "k", "k_0", "pm", "f"};
 
 const std::set<std::string> g_opt_keepers{"over", "no_defs", "wktext"};
 
@@ -51,7 +53,8 @@ ProjInfo::ProjInfo(const std::string& theProj) : itsProjStr(theProj)
 
   for (const auto& option : options)
   {
-    if (option.empty()) continue;  // safety check
+    if (option.empty())
+      continue;  // safety check
 
     if (option[0] != '+')
       throw std::runtime_error("Only PROJ options starting with '+' are allowed");
@@ -98,7 +101,8 @@ ProjInfo::ProjInfo(const std::string& theProj) : itsProjStr(theProj)
 boost::optional<double> ProjInfo::getDouble(const std::string& theName) const
 {
   auto pos = itsDoubles.find(theName);
-  if (pos == itsDoubles.end()) return {};
+  if (pos == itsDoubles.end())
+    return {};
   return pos->second;
 }
 
@@ -111,7 +115,8 @@ boost::optional<double> ProjInfo::getDouble(const std::string& theName) const
 boost::optional<std::string> ProjInfo::getString(const std::string& theName) const
 {
   auto pos = itsStrings.find(theName);
-  if (pos == itsStrings.end()) return {};
+  if (pos == itsStrings.end())
+    return {};
   return pos->second;
 }
 
@@ -159,9 +164,11 @@ std::string ProjInfo::inverseProjStr() const
 
   for (const auto& name_value : itsStrings)
   {
-    if (g_str_keepers.find(name_value.first) == g_str_keepers.end()) continue;
+    if (g_str_keepers.find(name_value.first) == g_str_keepers.end())
+      continue;
 
-    if (!ret.empty()) ret += ' ';
+    if (!ret.empty())
+      ret += ' ';
 
     if (name_value.first == "proj")
       ret += "+proj=longlat";
@@ -176,8 +183,10 @@ std::string ProjInfo::inverseProjStr() const
 
   for (const auto& name_value : itsDoubles)
   {
-    if (g_num_keepers.find(name_value.first) == g_num_keepers.end()) continue;
-    if (!ret.empty()) ret += ' ';
+    if (g_num_keepers.find(name_value.first) == g_num_keepers.end())
+      continue;
+    if (!ret.empty())
+      ret += ' ';
     ret += '+';
     ret += name_value.first;
     ret += '=';
@@ -190,8 +199,10 @@ std::string ProjInfo::inverseProjStr() const
 
   for (const auto& name : itsOptions)
   {
-    if (g_opt_keepers.find(name) == g_opt_keepers.end()) continue;
-    if (!ret.empty()) ret += ' ';
+    if (g_opt_keepers.find(name) == g_opt_keepers.end())
+      continue;
+    if (!ret.empty())
+      ret += ' ';
     ret += '+';
     ret += name;
   }
