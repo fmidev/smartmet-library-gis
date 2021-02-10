@@ -372,8 +372,6 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
  * We approximate the result by moving a small distance to the north,
  * and by calculating the resulting azimuth angle. This is not entirely
  * accurate, but accurate enough for most purposes.
- *
- * Note: OGRCoordinateTransformation::Transform is not const
  */
 // ----------------------------------------------------------------------
 
@@ -396,30 +394,11 @@ boost::optional<double> Fmi::OGR::gridNorth(OGRCoordinateTransformation& theTran
     y1 = theLat - 0.0001;
   }
 
-  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1)
-    std::swap(x1, y1);
-  if (theTransformation.Transform(1, &x1, &y1) == 0)
+  if (!theTransformation.Transform(1, &x1, &y1) || !theTransformation.Transform(1, &x2, &y2))
     return {};
-  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1)
-    std::swap(x1, y1);
-
-  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1)
-    std::swap(x2, y2);
-  if (theTransformation.Transform(1, &x2, &y2) == 0)
-    return {};
-  if (theTransformation.GetSourceCS()->EPSGTreatsAsLatLong() == 1)
-    std::swap(x2, y2);
-
-#if GDAL_VERSION_MAJOR > 1
-  if (theTransformation.GetTargetCS()->EPSGTreatsAsLatLong() == 0 &&
-      theTransformation.GetTargetCS()->EPSGTreatsAsNorthingEasting() == 0)
-  {
-    std::swap(x1, y1);
-    std::swap(x2, y2);
-  }
-#endif
 
   // Calculate the azimuth. Note that for us angle 0 is up and not to increasing x
   // as in normal math, hence we have rotated the system by swapping dx and dy in atan2
+
   return atan2(x2 - x1, y2 - y1) * boost::math::double_constants::radian;
 }

@@ -171,29 +171,36 @@ Features read(OGRSpatialReference* theSR,
         continue;
       }
 
-      switch (poFieldDefn->GetType())
+      const auto ftype = poFieldDefn->GetType();
+
+      switch (ftype)
       {
         case OFTInteger:
-          ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsInteger(iField)));
-          break;
+        case OFTInteger64:
+          {
+            ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsInteger(iField)));
+            break;
+          }
         case OFTReal:
-          ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsDouble(iField)));
-          break;
+          {
+            ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsDouble(iField)));
+            break;
+          }
         case OFTString:
-        {
-          ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsString(iField)));
-        }
-        break;
+          {
+            ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsString(iField)));
+            break;
+          }
         case OFTDateTime:
-        {
-          int year, month, day, hour, min, sec, tzFlag;
-          feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
-          boost::posix_time::ptime timestamp(boost::gregorian::date(year, month, day),
-                                             boost::posix_time::time_duration(hour, min, sec));
-
-          ret_item->attributes.insert(make_pair(fieldname, timestamp));
-        }
-        break;
+          {
+            int year, month, day, hour, min, sec, tzFlag;
+            feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
+            boost::posix_time::ptime timestamp(boost::gregorian::date(year, month, day),
+                                               boost::posix_time::time_duration(hour, min, sec));
+            
+            ret_item->attributes.insert(make_pair(fieldname, timestamp));
+            break;
+          }
         default:
           break;
       };

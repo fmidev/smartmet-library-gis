@@ -19,6 +19,7 @@ void exportToWkt_spatialreference()
   OGRErr err = srs->SetFromUserInput("WGS84");
   if (err != OGRERR_NONE)
     TEST_FAILED("Failed to create spatial reference WGS84");
+  srs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
   std::string result = Fmi::OGR::exportToWkt(*srs);
 
@@ -37,6 +38,7 @@ void exportToProj()
     OGRErr err = srs->SetFromUserInput("WGS84");
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create spatial reference WGS84");
+    srs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -49,6 +51,7 @@ void exportToProj()
     OGRErr err = srs->SetFromUserInput("+proj=latlong +datum=WGS84");
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create spatial reference +proj=latlong +datum=WGS84");
+    srs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -62,6 +65,7 @@ void exportToProj()
     OGRErr err = srs->SetFromUserInput("+init=epsg:4326");
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
+    srs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -77,6 +81,7 @@ void exportToProj()
     OGRErr err = srs->SetFromUserInput("+init=epsg:4326");
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
+    srs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -84,6 +89,7 @@ void exportToProj()
     err = srs->SetFromUserInput(result.c_str());
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create secondary spatial reference from +init=epsg:4326");
+    srs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     result = Fmi::OGR::exportToProj(*srs);
 
@@ -97,6 +103,7 @@ void exportToProj()
     OGRErr err = srs->SetFromUserInput("+init=epsg:2393");
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create spatial reference +init=epsg:2393");
+    srs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -123,6 +130,7 @@ void expand_geometry()
 
   OGRSpatialReference srs;
   srs.importFromEPSGA(4326);
+  srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
   OGRGeometryFactory::createFromWkt(point, &srs, &input_geom);
   // circle around helsinki coordinates  with 1 km radius
@@ -997,6 +1005,7 @@ void despeckle_geography()
 
   OGRSpatialReference wgs84;
   wgs84.SetFromUserInput("WGS84");
+  wgs84.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
   for (int test = 0; test < ntests; ++test)
   {
@@ -1037,6 +1046,7 @@ void grid_north()
   OGRErr err = wgs84->SetFromUserInput("WGS84");
   if (err != OGRERR_NONE)
     TEST_FAILED("Failed to create spatial reference WGS84");
+  wgs84->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
   // For latlon itself north is always at 0
   {
@@ -1056,6 +1066,7 @@ void grid_north()
     err = epsg->SetFromUserInput("EPSG:3035");
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create spatial reference EPSG:3035");
+    epsg->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     std::unique_ptr<OGRCoordinateTransformation> trans(
         OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
@@ -1085,6 +1096,7 @@ void grid_north()
     err = epsg->SetFromUserInput("EPSG:3034");
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create spatial reference EPSG:3034");
+    epsg->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     std::unique_ptr<OGRCoordinateTransformation> trans(
         OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
@@ -1116,6 +1128,7 @@ void grid_north()
         "+units=m +no_defs");
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create polar stereographic spatial reference");
+    epsg->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     std::unique_ptr<OGRCoordinateTransformation> trans(
         OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
@@ -1149,6 +1162,7 @@ void grid_north()
     err = epsg->SetFromUserInput(tmp.c_str());
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create rotlatlon spatial reference");
+    epsg->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     std::unique_ptr<OGRCoordinateTransformation> trans(
         OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));
@@ -1181,6 +1195,7 @@ void grid_north()
     err = epsg->SetFromUserInput(tmp.c_str());
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create rotlatlon spatial reference");
+    epsg->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     std::unique_ptr<OGRCoordinateTransformation> trans(
         OGRCreateCoordinateTransformation(wgs84.get(), epsg.get()));

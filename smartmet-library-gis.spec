@@ -3,8 +3,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.1.5
-Release: 2%{?dist}.fmi
+Version: 21.1.22
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -12,7 +12,6 @@ Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 
 %if %{defined el7}
-Requires: proj-epsg
 BuildRequires: devtoolset-7-gcc-c++
 %endif
 
@@ -23,7 +22,7 @@ BuildRequires: gdal32-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
-BuildRequires: smartmet-library-macgyver-devel >= 21.1.5
+BuildRequires: smartmet-library-macgyver-devel >= 21.1.14
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
@@ -34,7 +33,7 @@ Requires: gdal32-libs
 Requires: geos39
 Requires: postgis31_12
 Requires: proj72
-Requires: smartmet-library-macgyver >= 21.1.5
+Requires: smartmet-library-macgyver >= 21.1.14
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -81,6 +80,18 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri Jan 22 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.22-1.fmi
+- Fixed PostGIS to handle the new OFTInteger64 type
+
+* Thu Jan 14 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.14-1.fmi
+- Repackaged smartmet to resolve debuginfo issues
+
+* Tue Jan 12 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.12-1.fmi
+- Removed obsolete proj-epsg dependency
+
+* Thu Jan  7 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.7-1.fmi
+- Fixed OGR::gridNorth based on the WGS84 branch version
+
 * Tue Jan  5 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.5-2.fmi
 - Do not show password in stack trace on failure to connect to database
 
