@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.2.1
+Version: 21.2.10
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -80,6 +80,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Feb 10 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.10-1.fmi
+- Initialize SpatialReference IsGeographic and IsAxisSwapped booleans on construction for thread safety
+- Added SpatialiteReference construction from a shared pointer to OGRSpatialReference to simplify external code
+
 * Mon Feb  1 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.1-1.fmi
 - Strip lon_0 when extracting the ellipsoid for projections
 - Updated definition of WGS84 to use +datum=WGS84 or tests fail with PROJ 7.9
