@@ -1,5 +1,6 @@
 #include "GEOS.h"
 #include "TestDefs.h"
+
 #include <geos/io/WKTReader.h>
 #include <geos/version.h>
 #include <regression/tframe.h>

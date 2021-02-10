@@ -1,9 +1,13 @@
 #include "OGR.h"
+
+#include "CoordinateTransformation.h"
 #include "GEOS.h"
+#include "SpatialReference.h"
 #include <boost/math/constants/constants.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <fmt/format.h>
 #include <cmath>
+#include <ogr_geometry.h>
 #include <stdexcept>
 
 // ----------------------------------------------------------------------
@@ -78,7 +82,7 @@ std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom)
 // ----------------------------------------------------------------------
 
 OGRGeometry* Fmi::OGR::importFromGeos(const geos::geom::Geometry& theGeom,
-                                      OGRSpatialReference* theSR)
+                                      OGRSpatialReference* theSRS)
 {
   auto wkb = GEOS::exportToWkb(theGeom);
 
@@ -87,7 +91,7 @@ OGRGeometry* Fmi::OGR::importFromGeos(const geos::geom::Geometry& theGeom,
   unsigned char* cwkb = reinterpret_cast<unsigned char*>(const_cast<char*>(wkb.c_str()));
 
   OGRGeometry* ogeom = nullptr;
-  OGRErr err = OGRGeometryFactory::createFromWkb(cwkb, theSR, &ogeom);
+  OGRErr err = OGRGeometryFactory::createFromWkb(cwkb, theSRS, &ogeom);
 
   if (err != OGRERR_NONE)
     throw std::runtime_error("Failed to convert GEOS geometry to OGR geometry");
@@ -116,12 +120,10 @@ OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
   if (err != OGRERR_NONE)
   {
     std::string errStr = "Failed to create OGRGeometry from WKT " + wktString + "";
-    if (err == OGRERR_NOT_ENOUGH_DATA)
-      errStr += " OGRErr: OGRERR_NOT_ENOUGH_DATA";
+    if (err == OGRERR_NOT_ENOUGH_DATA) errStr += " OGRErr: OGRERR_NOT_ENOUGH_DATA";
     if (err == OGRERR_UNSUPPORTED_GEOMETRY_TYPE)
       errStr += " OGRErr: OGRERR_UNSUPPORTED_GEOMETRY_TYPE";
-    if (err == OGRERR_CORRUPT_DATA)
-      errStr += " OGRErr: OGRERR_CORRUPT_DATA";
+    if (err == OGRERR_CORRUPT_DATA) errStr += " OGRErr: OGRERR_CORRUPT_DATA";
 
     throw std::runtime_error(errStr);
   }
@@ -149,7 +151,7 @@ OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
 // ----------------------------------------------------------------------
 
 OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
-                                         OGRwkbGeometryType theGeometryType,
+                                         int theGeometryType,
                                          unsigned int theEPSGNumber)
 {
   std::string wkt;
@@ -181,8 +183,7 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
 
   for (auto iter = theCoordinates.begin(); iter != theCoordinates.end(); iter++)
   {
-    if (iter != theCoordinates.begin())
-      wkt += ", ";
+    if (iter != theCoordinates.begin()) wkt += ", ";
     wkt += fmt::format("%f %f", iter->first, iter->second);
   }
   wkt += (geomtype == wkbPolygon ? "))" : ")");
@@ -209,45 +210,28 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
 
   OGRSpatialReference* pSR = tmp_geom->getSpatialReference();
 
-  OGRSpatialReference sourceSR;
+  OGRSpatialReference SR;
 
   if (pSR != nullptr)
-  {
-    sourceSR = *pSR;
-  }
+    SR = *pSR;
   else
   {
     // if no spatial reference, use EPSG:4326
-    OGRErr err = sourceSR.importFromEPSGA(4326);
-    if (err != OGRERR_NONE)
-      throw std::runtime_error("EPSG:4326 is unknown!");
+    OGRErr err = SR.importFromEPSGA(4326);
+    if (err != OGRERR_NONE) throw std::runtime_error("EPSG:4326 is unknown!");
 
-    tmp_geom->assignSpatialReference(&sourceSR);
+    tmp_geom->assignSpatialReference(&SR);
   }
 
-  OGRSpatialReference targetSR;
-
-  // wgs-84-world-mercator7
-  OGRErr err = targetSR.importFromEPSGA(3395);
-
-  if (err != OGRERR_NONE)
-    throw std::runtime_error("EPSG:3395 is unknown!");
-
-  OGRCoordinateTransformation* pCT = OGRCreateCoordinateTransformation(&sourceSR, &targetSR);
-
-  if (pCT == nullptr)
-    throw std::runtime_error("OGRCreateCoordinateTransformation function call failed");
+  Fmi::SpatialReference sourceCR(SR);
+  Fmi::SpatialReference targetCR("EPSGA:3395");
+  Fmi::CoordinateTransformation CT(sourceCR, targetCR);
 
   // transform to EPSG:3395 geometry
-  if (tmp_geom->transform(pCT) != OGRERR_NONE)
+  if (tmp_geom->transform(CT.get()) != OGRERR_NONE)
     throw std::runtime_error("OGRGeometry::transform() function call failed");
 
-  delete pCT;
-
-  pCT = OGRCreateCoordinateTransformation(&targetSR, &sourceSR);
-
-  if (pCT == nullptr)
-    throw std::runtime_error("OGRCreateCoordinateTransformation function call failed");
+  Fmi::CoordinateTransformation CT2(targetCR, sourceCR);
 
   unsigned int radius =
       lround(type == wkbLineString || type == wkbMultiLineString ? theRadiusInMeters
@@ -273,7 +257,7 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
         mpoly.addGeometry(linestring.get());
       }
       // Convert back to original geometry
-      if (mpoly.transform(pCT) != OGRERR_NONE)
+      if (mpoly.transform(CT2.get()) != OGRERR_NONE)
         throw std::runtime_error("OGRMultiPolygon::transform() function call failed");
 
       return mpoly.clone();
@@ -291,20 +275,16 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
   OGRLinearRing* exring(polygon->getExteriorRing());
 
   // Convert back to original geometry
-  if (exring->transform(pCT) != OGRERR_NONE)
+  if (exring->transform(CT2.get()) != OGRERR_NONE)
     throw std::runtime_error("OGRLinearRing::transform() function call failed");
-
-  delete pCT;
 
   OGRPolygon poly;
   poly.addRing(exring);
 
   // polygon is simplified to reduce amount of points
-  if (exring->getNumPoints() > 1000)
-    ret = poly.SimplifyPreserveTopology(0.001);
+  if (exring->getNumPoints() > 1000) ret = poly.SimplifyPreserveTopology(0.001);
 
-  if (ret == nullptr)
-    ret = poly.clone();
+  if (ret == nullptr) ret = poly.clone();
 
   return ret;
 }
@@ -329,8 +309,7 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
     return ret;
   }
 
-  if (theRadiusInMeters <= 0.0)
-    return theGeom->clone();
+  if (theRadiusInMeters <= 0.0) return theGeom->clone();
 
   // in case of  multipolygon, expand each polygon separately
   if (theGeom->getGeometryType() == wkbMultiPolygon)
@@ -375,7 +354,7 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
  */
 // ----------------------------------------------------------------------
 
-boost::optional<double> Fmi::OGR::gridNorth(OGRCoordinateTransformation& theTransformation,
+boost::optional<double> Fmi::OGR::gridNorth(const CoordinateTransformation& theTransformation,
                                             double theLon,
                                             double theLat)
 {
@@ -394,11 +373,54 @@ boost::optional<double> Fmi::OGR::gridNorth(OGRCoordinateTransformation& theTran
     y1 = theLat - 0.0001;
   }
 
-  if (!theTransformation.Transform(1, &x1, &y1) || !theTransformation.Transform(1, &x2, &y2))
-    return {};
+  if (!theTransformation.transform(x1, y1) || !theTransformation.transform(x2, y2)) return {};
 
   // Calculate the azimuth. Note that for us angle 0 is up and not to increasing x
   // as in normal math, hence we have rotated the system by swapping dx and dy in atan2
 
   return atan2(x2 - x1, y2 - y1) * boost::math::double_constants::radian;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Translation visitor
+ */
+// ----------------------------------------------------------------------
+
+class TranslateVisitor : public OGRDefaultGeometryVisitor
+{
+ public:
+  TranslateVisitor(double dx, double dy) : m_dx(dx), m_dy(dy) {}
+
+  using OGRDefaultGeometryVisitor::visit;
+
+  void visit(OGRPoint* point) override
+  {
+    if (point != nullptr)
+    {
+      point->setX(point->getX() + m_dx);
+      point->setY(point->getY() + m_dy);
+    }
+  }
+
+ private:
+  double m_dx = 0;
+  double m_dy = 0;
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Translate a geometry by a fixed amount
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::OGR::translate(OGRGeometry& theGeom, double dx, double dy)
+{
+  TranslateVisitor visitor(dx, dy);
+  theGeom.accept(&visitor);
+}
+
+void Fmi::OGR::translate(OGRGeometry* theGeom, double dx, double dy)
+{
+  if (theGeom != nullptr) translate(*theGeom, dx, dy);
 }

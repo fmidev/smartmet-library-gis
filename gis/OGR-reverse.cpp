@@ -125,6 +125,10 @@ OGRGeometry *reverse_winding(const OGRGeometry *theGeom)
       return reverse_winding(dynamic_cast<const OGRMultiPolygon *>(theGeom));
     case wkbGeometryCollection:
       return reverse_winding(dynamic_cast<const OGRGeometryCollection *>(theGeom));
+    case wkbNone:
+      throw std::runtime_error(
+          "Encountered a 'none' geometry component while changing winding order of an OGR "
+          "geometry");
     default:
       throw std::runtime_error(
           "Encountered an unknown geometry component while changing winding order of an OGR "

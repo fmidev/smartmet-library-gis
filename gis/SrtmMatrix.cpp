@@ -1,5 +1,8 @@
 #include "SrtmMatrix.h"
+
 #include "SrtmTile.h"
+
+#include <algorithm>
 #include <limits>
 #include <stdexcept>
 #include <vector>

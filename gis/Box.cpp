@@ -1,7 +1,9 @@
 // ======================================================================
 
 #include "Box.h"
+
 #include <fmt/format.h>
+
 #include <stdexcept>
 
 // ----------------------------------------------------------------------
@@ -36,6 +38,30 @@ Fmi::Box::Box(
   itsXbeta = itsWidth * itsX1 / (itsX1 - itsX2);
   itsYalpha = itsHeight * 1 / (itsY1 - itsY2);
   itsYbeta = itsHeight * itsY2 / (itsY2 - itsY1);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * Construct box with identity transformation
+ */
+// ----------------------------------------------------------------------
+
+Fmi::Box::Box(double theX1, double theY1, double theX2, double theY2)
+    : itsX1(theX1),
+      itsY1(theY1),
+      itsX2(theX2),
+      itsY2(theY2),
+      itsXMin(std::min(theX1, theX2)),
+      itsYMin(std::min(theY1, theY2)),
+      itsXMax(std::max(theX1, theX2)),
+      itsYMax(std::max(theY1, theY2)),
+      itsWidth(0),
+      itsHeight(0),
+      itsXalpha(1),
+      itsXbeta(0),
+      itsYalpha(1),
+      itsYbeta(0)
+{
 }
 
 // ----------------------------------------------------------------------

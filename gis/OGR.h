@@ -1,8 +1,14 @@
 #pragma once
+
 #include <boost/optional.hpp>
 #include <list>
 #include <ogr_geometry.h>
 #include <string>
+
+class OGRGeometry;
+class OGRPolygon;
+class OGRMultiPolygon;
+class OGRSpatialReference;
 
 // cannot forward declare OGR similarly since OGRwkbGeometryType is an enum
 
@@ -16,33 +22,51 @@ class Geometry;
 
 namespace Fmi
 {
+class CoordinateTransformation;
 class Box;
+class SpatialReference;
 
 namespace OGR
 {
 std::string exportToWkt(const OGRSpatialReference& theSRS);
 std::string exportToPrettyWkt(const OGRSpatialReference& theSRS);
 std::string exportToProj(const OGRSpatialReference& theSRS);
-
 std::string exportToWkt(const OGRGeometry& theGeom);
-
 std::string exportToSvg(const OGRGeometry& theGeom, const Box& theBox, double thePrecision);
 
 // We would prefert to use a const reference here but const is
 // not possible due to SR reference counting
-OGRGeometry* importFromGeos(const geos::geom::Geometry& theGeom, OGRSpatialReference* theSR);
+OGRGeometry* importFromGeos(const geos::geom::Geometry& theGeom, OGRSpatialReference* theSRS);
 
 // Transform to box
 void transform(OGRGeometry& theGeom, const Box& theBox);
 
-// Clip to rectangle, polygons may break into polylines
+// Translate the geometry
+void translate(OGRGeometry& theGeom, double dx, double dy);
+void translate(OGRGeometry* theGeom, double dx, double dy);
+
+// Clip to rectangle, polygons may break into polylines.
 OGRGeometry* lineclip(const OGRGeometry& theGeom, const Box& theBox);
 
-// Clip to rectangle, polygons are preserved
-OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox);
+// Clip to rectangle, polygons are preserved. Optional maximum length for new edges along the box
+// boundaries.
+OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox, double maxSegmenLength = 0);
+
+// Cut rectangle out, polygons may break into polylines
+OGRGeometry* linecut(const OGRGeometry& theGeom, const Box& theBox);
+
+// Cut rectangle out, polygons are preserved. Optional maximum length for new edges along the box
+// boundaries.
+OGRGeometry* polycut(const OGRGeometry& theGeom, const Box& theBox, double maxSegmentLength = 0);
 
 // Filter out small polygons
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);
+
+// Normalize winding order: exterior=CW, interior=CCW
+OGRGeometry* normalizeWindingOrder(const OGRGeometry& theGeom);
+
+// Renormalize winding order after a coordinate transformation - some rings may have reverted order
+OGRGeometry* renormalizeWindingOrder(const OGRGeometry& theGeom);
 
 // Reverse winding order
 OGRGeometry* reverseWindingOrder(const OGRGeometry& theGeom);
@@ -51,20 +75,21 @@ OGRGeometry* reverseWindingOrder(const OGRGeometry& theGeom);
 bool inside(const OGRGeometry& theGeom, double theX, double theY);
 bool inside(const OGRPolygon& theGeom, double theX, double theY);
 
-typedef std::list<std::pair<double, double> > CoordinatePoints;
+using CoordinatePoints = std::list<std::pair<double, double>>;
 
 // OGRGeometry object is constructed from list of coordinates
 // wkbPoint, wkbLineString, wkbLinearRing, wkbPolygon types are supported
 // spatial reference with theEPSGNumber is assigned to the geometry
+
 OGRGeometry* constructGeometry(const CoordinatePoints& theCoordinates,
-                               OGRwkbGeometryType theGeometryType,
+                               int theGeometryType,  // OGRwkbGeometryType
                                unsigned int theEPSGNumber);
 
 // OGRGeometry is expanded by theRadiusInMeters meters
 OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters);
 
 // Direction of north in the spatial reference given a WGS84 -> GEOM transformation
-boost::optional<double> gridNorth(OGRCoordinateTransformation& theTransformation,
+boost::optional<double> gridNorth(const CoordinateTransformation& theTransformation,
                                   double theLon,
                                   double theLat);
 

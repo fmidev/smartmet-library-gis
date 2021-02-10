@@ -1,10 +1,95 @@
+#ifdef UNIX
+
 #include "PostGIS.h"
-#include <ogr_spatialref.h>
+#include "CoordinateTransformation.h"
+#include "OGR.h"
+#include "SpatialReference.h"
+#include <gdal_version.h>
+#include <iostream>
 #include <ogrsf_frmts.h>
 #include <stdexcept>
 
+// Segment geometries by 1 degree accuracy when clipping/cutting to a rectangle
+const double default_segmentation_length = 1.0;
+
 namespace Fmi
 {
+#if 0
+void print_orientation(OGRGeometry& geom);
+
+void print_orientation(OGRLinearRing& geom)
+{
+  if (geom.isClockwise())
+    std::cout << " linearring is CW\n";
+  else
+    std::cout << " linearring is CCW\n";
+}
+
+void print_orientation(OGRPolygon& geom)
+{
+  if (geom.IsEmpty()) return;
+  std::cout << "Polygon exterior ";
+  print_orientation(*geom.getExteriorRing());
+  std::cout << "\tNumber of holes: " << geom.getNumInteriorRings() << "\n";
+  for (int i = 0, n = geom.getNumInteriorRings(); i < n; ++i)
+  {
+    std::cout << "\thole " << i << " ";
+    print_orientation(*geom.getInteriorRing(i));
+  }
+}
+
+void print_orientation(OGRMultiPolygon& geom)
+{
+  if (geom.IsEmpty()) return;
+  for (int i = 0, n = geom.getNumGeometries(); i < n; ++i)
+  {
+    std::cout << "Multipolygon:\n";
+    print_orientation(dynamic_cast<OGRPolygon&>(*geom.getGeometryRef(i)));
+  }
+}
+
+void print_orientation(OGRGeometryCollection& geom)
+{
+  if (geom.IsEmpty()) return;
+  for (int i = 0, n = geom.getNumGeometries(); i < n; ++i)
+  {
+    std::cout << "Collection:\n";
+    print_orientation(*geom.getGeometryRef(i));
+  }
+}
+
+void print_orientation(OGRGeometry& geom)
+{
+  OGRwkbGeometryType id = geom.getGeometryType();
+
+  switch (id)
+  {
+    case wkbPoint:
+    case wkbPoint25D:
+    case wkbLineString:
+    case wkbLineString25D:
+    case wkbMultiPoint:
+    case wkbMultiPoint25D:
+    case wkbMultiLineString:
+    case wkbMultiLineString25D:
+      break;
+    case wkbLinearRing:
+      return print_orientation(dynamic_cast<OGRLinearRing&>(geom));
+    case wkbPolygon:
+    case wkbPolygon25D:
+      return print_orientation(dynamic_cast<OGRPolygon&>(geom));
+    case wkbMultiPolygon:
+    case wkbMultiPolygon25D:
+      return print_orientation(dynamic_cast<OGRMultiPolygon&>(geom));
+    case wkbGeometryCollection:
+    case wkbGeometryCollection25D:
+      return print_orientation(dynamic_cast<OGRGeometryCollection&>(geom));
+    default:
+      throw std::runtime_error("FOOBAR");
+  }
+}
+#endif
+
 namespace PostGIS
 {
 // ----------------------------------------------------------------------
@@ -16,7 +101,7 @@ namespace PostGIS
  */
 // ----------------------------------------------------------------------
 
-OGRGeometryPtr read(OGRSpatialReference* theSR,
+OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
                     const GDALDataPtr& theConnection,
                     const std::string& theName,
                     const boost::optional<std::string>& theWhereClause)
@@ -39,49 +124,69 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
                                "'");
   }
 
-  // Establish coordinate transformation
-
-  OGRCoordinateTransformation* transformation = nullptr;
-  if (theSR != nullptr)
-    transformation = OGRCreateCoordinateTransformation(layer->GetSpatialRef(), theSR);
-
-  // Build the result. Note: SR objects are reference counted
-
   auto* out = new OGRGeometryCollection;  // NOLINT
-  // Note: We clone the input SR since we have no lifetime guarantees for it
-  if (theSR != nullptr)
-    out->assignSpatialReference(theSR->Clone());
-  else
-    out->assignSpatialReference(layer->GetSpatialRef());
 
   // This is owned by us
-
   OGRFeature* feature;
 
-  layer->ResetReading();
-  while ((feature = layer->GetNextFeature()) != nullptr)
+  if (theSR == nullptr)
   {
-    // owned by feature
-    OGRGeometry* geometry = feature->GetGeometryRef();
-    if (geometry != nullptr)
+    layer->GetSpatialRef()->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    if (layer->GetSpatialRef() == nullptr)
     {
-      if (transformation == nullptr)
+      auto* wgs84 = new OGRSpatialReference();
+      wgs84->SetFromUserInput("WGS84");
+      out->assignSpatialReference(wgs84);
+    }
+    else
+      out->assignSpatialReference(layer->GetSpatialRef());
+
+    layer->ResetReading();
+    while ((feature = layer->GetNextFeature()) != nullptr)
+    {
+      // owned by feature
+      OGRGeometry* geometry = feature->GetGeometryRef();
+      if (geometry != nullptr)
         out->addGeometry(geometry);  // clones geometry
-      else
+    }
+  }
+  else
+  {
+    std::unique_ptr<SpatialReference> source;
+    if (layer->GetSpatialRef() == nullptr)
+      source.reset(new SpatialReference("WGS84"));
+    else
+      source.reset(new SpatialReference(*layer->GetSpatialRef()));
+
+    CoordinateTransformation transformation(*source, *theSR);
+    out->assignSpatialReference(theSR->get()->Clone());
+
+    layer->ResetReading();
+    while ((feature = layer->GetNextFeature()) != nullptr)
+    {
+      // owned by feature
+      OGRGeometry* geometry = feature->GetGeometryRef();
+      if (geometry != nullptr)
       {
-        auto* clone = geometry->clone();
-        clone->transform(transformation);
-        out->addGeometryDirectly(clone);  // takes ownership
+#if 1
+        auto* clone = transformation.transformGeometry(*geometry, default_segmentation_length);
+#else
+        // This one timeouts WMS ice.get tests:
+        // const char* const opts[] = {"WRAPDATELINE=YES", nullptr};
+
+        // This one timeouts the same this:
+        // const char* const opts[] = {nullptr};
+
+        auto* clone = OGRGeometryFactory::transformWithOptions(
+            geometry, transformation.get(), const_cast<char**>(opts));
+#endif
+        if (clone != nullptr)
+          out->addGeometryDirectly(clone);  // takes ownership
       }
     }
-    OGRFeature::DestroyFeature(feature);
   }
 
-  if (transformation != nullptr)
-  {
-    OCTDestroyCoordinateTransformation(transformation);
-  }
-
+  OGRFeature::DestroyFeature(feature);
   return OGRGeometryPtr(out);
 }
 
@@ -95,7 +200,8 @@ OGRGeometryPtr read(OGRSpatialReference* theSR,
  * \return Features return value contains geometries and related attributes
  */
 // ----------------------------------------------------------------------
-Features read(OGRSpatialReference* theSR,
+
+Features read(const Fmi::SpatialReference* theSR,
               const GDALDataPtr& theConnection,
               const std::string& theName,
               const std::set<std::string>& theFieldNames,
@@ -122,9 +228,17 @@ Features read(OGRSpatialReference* theSR,
   }
 
   // Establish coordinate transformation
-  OGRCoordinateTransformation* transformation = nullptr;
+
+  std::unique_ptr<CoordinateTransformation> transformation;
+
   if (theSR != nullptr)
-    transformation = OGRCreateCoordinateTransformation(layer->GetSpatialRef(), theSR);
+  {
+    if (layer->GetSpatialRef() == nullptr)
+      transformation.reset(new CoordinateTransformation(SpatialReference("WGS84"), *theSR));
+    else
+      transformation.reset(
+          new CoordinateTransformation(SpatialReference(*layer->GetSpatialRef()), *theSR));
+  }
 
   // This is owned by us
 
@@ -140,15 +254,15 @@ Features read(OGRSpatialReference* theSR,
     {
       if (transformation == nullptr)
       {
-        ret_item->geom.reset(geometry->clone());
+        auto* clone = geometry->clone();
+        ret_item->geom.reset(clone);
       }
       else
       {
-        auto* clone = geometry->clone();
-        clone->transform(transformation);
+        auto* clone = transformation->transformGeometry(*geometry, default_segmentation_length);
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
-        ret_item->geom->assignSpatialReference(theSR->Clone());
+        ret_item->geom->assignSpatialReference(theSR->get()->Clone());
       }
     }
     else
@@ -164,7 +278,8 @@ Features read(OGRSpatialReference* theSR,
       OGRFieldDefn* poFieldDefn = poFDefn->GetFieldDefn(iField);
       std::string fieldname(poFieldDefn->GetNameRef());
 
-      if (theFieldNames.find(fieldname) == theFieldNames.end()) continue;
+      if (theFieldNames.find(fieldname) == theFieldNames.end())
+        continue;
       if (feature->IsFieldSet(iField) == 0)
       {
         ret_item->attributes.insert(make_pair(fieldname, ""));
@@ -176,46 +291,41 @@ Features read(OGRSpatialReference* theSR,
       switch (ftype)
       {
         case OFTInteger:
+          ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsInteger(iField)));
+          break;
         case OFTInteger64:
-          {
-            ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsInteger(iField)));
-            break;
-          }
+          ret_item->attributes.insert(
+              make_pair(fieldname, static_cast<int>(feature->GetFieldAsInteger64(iField))));
+          break;
         case OFTReal:
-          {
-            ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsDouble(iField)));
-            break;
-          }
+        {
+          ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsDouble(iField)));
+          break;
+        }
         case OFTString:
-          {
-            ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsString(iField)));
-            break;
-          }
+          ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsString(iField)));
+          break;
         case OFTDateTime:
-          {
-            int year, month, day, hour, min, sec, tzFlag;
-            feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
-            boost::posix_time::ptime timestamp(boost::gregorian::date(year, month, day),
-                                               boost::posix_time::time_duration(hour, min, sec));
-            
-            ret_item->attributes.insert(make_pair(fieldname, timestamp));
-            break;
-          }
+        {
+          int year, month, day, hour, min, sec, tzFlag;
+          feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
+          boost::posix_time::ptime timestamp(boost::gregorian::date(year, month, day),
+                                             boost::posix_time::time_duration(hour, min, sec));
+
+          ret_item->attributes.insert(make_pair(fieldname, timestamp));
+          break;
+        }
         default:
           break;
       };
     }
-    OGRFeature::DestroyFeature(feature);
-
     ret.push_back(ret_item);
-  }
-
-  if (transformation != nullptr)
-  {
-    OCTDestroyCoordinateTransformation(transformation);
+    OGRFeature::DestroyFeature(feature);
   }
 
   return ret;
 }
 }  // namespace PostGIS
 }  // namespace Fmi
+
+#endif

@@ -16,6 +16,7 @@
 #include <geos/geom/Point.h>
 #include <geos/geom/Polygon.h>
 #include <geos/geom/PrecisionModel.h>
+
 #include <stdexcept>
 
 using geos::geom::Coordinate;
