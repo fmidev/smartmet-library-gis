@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.2.10
+Version: 21.2.11
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -22,7 +22,7 @@ BuildRequires: gdal32-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
-BuildRequires: smartmet-library-macgyver-devel >= 21.1.14
+BuildRequires: smartmet-library-macgyver-devel >= 21.1.25
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
@@ -33,7 +33,7 @@ Requires: gdal32-libs
 Requires: geos39
 Requires: postgis31_12
 Requires: proj72
-Requires: smartmet-library-macgyver >= 21.1.14
+Requires: smartmet-library-macgyver >= 21.1.25
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -80,6 +80,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Feb 11 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.11-1.fmi
+- Always use std::shared_ptr for OGRGeometryPtr
+
 * Wed Feb 10 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.10-1.fmi
 - Initialize SpatialReference IsGeographic and IsAxisSwapped booleans on construction for thread safety
 - Added SpatialiteReference construction from a shared pointer to OGRSpatialReference to simplify external code

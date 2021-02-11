@@ -7,10 +7,6 @@
 #include <memory>
 #include <vector>
 
-#ifndef WGS84
-#include <boost/shared_ptr.hpp>
-#endif
-
 class OGRGeometry;
 
 namespace geos
@@ -22,12 +18,7 @@ class Geometry;
 }  // namespace geos
 
 using GeometryPtr = std::shared_ptr<geos::geom::Geometry>;
-
-#ifdef WGS84
 using OGRGeometryPtr = std::shared_ptr<OGRGeometry>;
-#else
-using OGRGeometryPtr = boost::shared_ptr<OGRGeometry>;
-#endif
 
 #if GDAL_VERSION_MAJOR < 2
 class OGRDataSource;
