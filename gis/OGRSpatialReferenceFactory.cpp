@@ -109,7 +109,6 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
   }
 
   auto sr = std::make_shared<OGRSpatialReference>();
-  sr->importFromEPSG(4326);
   auto err = sr->SetFromUserInput(desc.c_str());
   if (err != OGRERR_NONE)
   {
