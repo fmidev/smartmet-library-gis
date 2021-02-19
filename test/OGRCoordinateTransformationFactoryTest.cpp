@@ -1,6 +1,8 @@
 #include "OGRCoordinateTransformationFactory.h"
 #include "TestDefs.h"
+
 #include <regression/tframe.h>
+
 #include <ogr_spatialref.h>
 
 using namespace std;

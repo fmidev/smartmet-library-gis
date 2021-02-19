@@ -1,8 +1,8 @@
 #pragma once
 
 #include <boost/optional.hpp>
-
 #include <list>
+#include <ogr_geometry.h>
 #include <string>
 
 class OGRGeometry;

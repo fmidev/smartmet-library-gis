@@ -1,18 +1,12 @@
 PROG = $(patsubst %.cpp,%,$(wildcard *Test.cpp))
 
--include $(HOME)/.smartmet.mk
-GCC_DIAG_COLOR ?= always
-CXX_STD ?= c++11
+REQUIRES = fmt gdal geos
 
-FLAGS = -std=$(CXX_STD) -Wall -W -Wno-unused-parameter -DUSE_UNSTABLE_GEOS_CPP_API
+CXX_STD=c++11
 
-EXTRAFLAGS = -Werror -pedantic -Wpointer-arith -Wcast-qual \
-	-Wcast-align -Wconversion -Winline \
-	-Wctor-dtor-privacy -Wnon-virtual-dtor -Wno-pmf-conversions \
-	-Wsign-promo -Wchar-subscripts -Wold-style-cast \
-	-Wshadow -Woverloaded-virtual
+include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
-DIFFICULTFLAGS = -Weffc++ -Wunreachable-code -Wredundant-decls
+FLAGS = -std=$(CXX_STD) -Wall -W -Wno-unused-parameter
 
 ifeq ($(TSAN), yes)
   FLAGS += -fsanitize=thread
@@ -21,41 +15,11 @@ ifeq ($(ASAN), yes)
   FLAGS += -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=undefined -fsanitize-address-use-after-scope
 endif
 
-CXX = g++
-CFLAGS = -DUNIX -O0 -g $(FLAGS) -Wno-write-strings
+CFLAGS = -DUNIX -DUSE_UNSTABLE_GEOS_CPP_API -O0 -g $(FLAGS) -Wno-write-strings
 
-# Special external dependencies
+INCLUDES += -I../gis \
 
-ifneq "$(wildcard /usr/include/boost169)" ""
-  INCLUDES += -I/usr/include/boost169
-  LIBS += -L/usr/lib64/boost169
-endif
-
-ifneq "$(wildcard /usr/gdal30/include)" ""
-  INCLUDES += -I/usr/gdal30/include
-  LIBS += -L/usr/gdal30/lib
-else
-  INCLUDES += -I/usr/include/gdal
-endif
-
-ifneq "$(wildcard /usr/geos38/include)" ""
-  INCLUDES += -I/usr/geos38/include
-  LIBS += -L/usr/geos38/lib64
-else
-  INCLUDES += -I/usr/include/geos
-endif
-
-INCLUDES += \
-	-I../gis \
-	-I/usr/include/smartmet
-
-
-LIBS += \
-	../libsmartmet-gis.so \
-	-lgdal -lgeos \
-	-lboost_filesystem \
-	-lboost_chrono \
-	-lfmt
+LIBS += ../libsmartmet-gis.so -lboost_filesystem -lboost_chrono $(REQUIRED_LIBS)
 
 # Testdata directories
 GIS_RASTERS_DIR = $(shell test -d /usr/share/smartmet/test/data/gis/rasters && echo /usr/share/smartmet/test/data/gis/rasters || echo /smartmet/share/gis/rasters )
@@ -69,12 +33,14 @@ clean:
 
 test: $(PROG)
 	@echo Running tests:
+	@echo
+	@echo Using $(GIS_RASTERS_DIR) for rasterdata
 	@rm -f *.err
 	@for prog in $(PROG); do \
 	  ( ./$$prog || touch $$prog.err ) ; \
 	done
 	@test `find . -name \*.err | wc -l` = "0" || ( echo ; echo "The following tests have errors:" ; \
-		for i in *.err ; do echo `basename $$i .err`; done ; rm -f *.err ; false ) 
+		for i in *.err ; do echo `basename $$i .err`; done ; rm -f *.err ; false )
 
 $(PROG) : % : %.cpp ../libsmartmet-gis.so Makefile TestDefs.h
 	$(CXX) $(CFLAGS) -DGIS_VIEWFINDER=\"$(GIS_VIEWFINDER)\" -DGIS_GLOBCOVER=\"$(GIS_GLOBCOVER)\" -DGIS_SMALLTESTDATA=$(GIS_SMALLTESTDATA) -o $@ $@.cpp $(INCLUDES) $(LIBS)

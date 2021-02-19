@@ -19,7 +19,8 @@ void exportToWkt_spatialreference()
 {
   std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
   OGRErr err = srs->SetFromUserInput("WGS84");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create spatial reference WGS84");
 
   std::string result = Fmi::OGR::exportToWkt(*srs);
 
@@ -36,7 +37,8 @@ void exportToProj()
   {
     std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
     OGRErr err = srs->SetFromUserInput("WGS84");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference WGS84");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference WGS84");
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -60,7 +62,8 @@ void exportToProj()
   {
     std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
     OGRErr err = srs->SetFromUserInput("EPSG:4326");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference +init=epsg:4326");
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -74,7 +77,8 @@ void exportToProj()
   {
     std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
     OGRErr err = srs->SetFromUserInput("EPSG:4326");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference EPSG:4326");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference EPSG:4326");
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -93,7 +97,8 @@ void exportToProj()
   {
     std::unique_ptr<OGRSpatialReference> srs(new OGRSpatialReference);
     OGRErr err = srs->SetFromUserInput("EPSG:2393");
-    if (err != OGRERR_NONE) TEST_FAILED("Failed to create spatial reference EPSG:2393");
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to create spatial reference EPSG:2393");
 
     std::string result = Fmi::OGR::exportToProj(*srs);
 
@@ -129,48 +134,50 @@ void expand_geometry()
   OGRGeometryFactory::destroyGeometry(input_geom);
 
   std::string ok =
-      "POLYGON ((24.9638663056824 60.1921,24.9638109215579 60.1913981124061,24.9636451106461 "
-      "60.1907005372643,24.9633698952262 60.1900115757695,24.962986972093 "
-      "60.1893354762759,24.9624987020948 60.1886764080872,24.9619080955786 "
-      "60.188038435728,24.9612187938299 60.1874254938571,24.9604350466232 "
-      "60.1868413629751,24.9595616860207 60.1862896460795,24.9586040965809 "
-      "60.1857737464111,24.9575681821611 60.1852968464286,24.9564603295183 "
-      "60.1848618881452,24.9552873689323 60.1844715549457,24.9540565320952 "
-      "60.1841282550009,24.9527754075255 60.1838341063794,24.951451893782 "
-      "60.1835909239525,24.9500941507672 60.1834002081713,24.9487105494182 "
-      "60.1832631357875,24.9473096200974 60.1831805525761,24.9459 "
-      "60.1831529681034,24.9444903799026 60.1831805525761,24.9430894505818 "
-      "60.1832631357875,24.9417058492328 60.1834002081713,24.940348106218 "
-      "60.1835909239525,24.9390245924745 60.1838341063794,24.9377434679048 "
-      "60.1841282550009,24.9365126310677 60.1844715549457,24.9353396704817 "
-      "60.1848618881452,24.9342318178389 60.1852968464286,24.9331959034191 "
-      "60.1857737464111,24.9322383139793 60.1862896460795,24.9313649533768 "
-      "60.1868413629751,24.9305812061701 60.1874254938571,24.9298919044214 "
-      "60.188038435728,24.9293012979052 60.1886764080872,24.928813027907 "
-      "60.1893354762759,24.9284301047738 60.1900115757695,24.9281548893539 "
-      "60.1907005372643,24.9279890784421 60.1913981124061,24.9279336943176 "
-      "60.1921,24.9279890784421 60.1928018725331,24.9281548893539 "
-      "60.1934994028709,24.9284301047738 60.1941882909193,24.928813027907 "
-      "60.1948642901323,24.9293012979052 60.1955232336757,24.9298919044214 "
-      "60.196161060094,24.9305812061701 60.196773838322,24.9313649533768 "
-      "60.1973577918885,24.9322383139793 60.1979093221619,24.9331959034191 "
-      "60.1984250304971,24.9342318178389 60.1989017391462,24.9353396704817 "
-      "60.1993365108076,24.9365126310677 60.1997266666915,24.9377434679048 "
-      "60.2000698029934,24.9390245924745 60.200363805674,24.940348106218 "
-      "60.2006068634556,24.9417058492328 60.2007974789563,24.9430894505818 "
-      "60.2009344778936,24.9444903799026 60.2010170163011,24.9459 "
-      "60.2010445857154,24.9473096200974 60.2010170163011,24.9487105494182 "
-      "60.2009344778936,24.9500941507672 60.2007974789563,24.951451893782 "
-      "60.2006068634556,24.9527754075255 60.200363805674,24.9540565320952 "
-      "60.2000698029934,24.9552873689323 60.1997266666915,24.9564603295183 "
-      "60.1993365108076,24.9575681821611 60.1989017391462,24.9586040965809 "
-      "60.1984250304971,24.9595616860207 60.1979093221619,24.9604350466232 "
-      "60.1973577918885,24.9612187938299 60.196773838322,24.9619080955786 "
-      "60.196161060094,24.9624987020948 60.1955232336757,24.962986972093 "
-      "60.1948642901323,24.9633698952262 60.1941882909193,24.9636451106461 "
-      "60.1934994028709,24.9638109215579 60.1928018725331,24.9638663056824 60.1921))";
+      "POLYGON ((24.9638663056824 60.1920999999987,24.9638109215579 "
+      "60.1913981124061,24.9636451106461 60.1907005372643,24.9633698952262 "
+      "60.1900115757695,24.962986972093 60.1893354762759,24.9624987020948 "
+      "60.1886764080872,24.9619080955786 60.188038435728,24.9612187938299 "
+      "60.1874254938571,24.9604350466232 60.1868413629751,24.9595616860207 "
+      "60.1862896460795,24.9586040965809 60.1857737464111,24.9575681821611 "
+      "60.1852968464286,24.9564603295183 60.1848618881452,24.9552873689323 "
+      "60.1844715549457,24.9540565320952 60.1841282550009,24.9527754075255 "
+      "60.1838341063794,24.951451893782 60.1835909239525,24.9500941507672 "
+      "60.1834002081713,24.9487105494182 60.1832631357875,24.9473096200974 "
+      "60.1831805525761,24.9459 60.1831529681034,24.9444903799026 "
+      "60.1831805525761,24.9430894505818 60.1832631357875,24.9417058492328 "
+      "60.1834002081713,24.940348106218 60.1835909239525,24.9390245924745 "
+      "60.1838341063794,24.9377434679048 60.1841282550009,24.9365126310677 "
+      "60.1844715549457,24.9353396704817 60.1848618881452,24.9342318178389 "
+      "60.1852968464286,24.9331959034191 60.1857737464111,24.9322383139793 "
+      "60.1862896460795,24.9313649533768 60.1868413629751,24.9305812061701 "
+      "60.1874254938571,24.9298919044214 60.188038435728,24.9293012979052 "
+      "60.1886764080872,24.928813027907 60.1893354762759,24.9284301047738 "
+      "60.1900115757695,24.9281548893539 60.1907005372643,24.9279890784421 "
+      "60.1913981124061,24.9279336943176 60.1920999999987,24.9279890784421 "
+      "60.1928018725331,24.9281548893539 60.1934994028709,24.9284301047738 "
+      "60.1941882909193,24.928813027907 60.1948642901323,24.9293012979052 "
+      "60.1955232336757,24.9298919044214 60.196161060094,24.9305812061701 "
+      "60.196773838322,24.9313649533768 60.1973577918885,24.9322383139793 "
+      "60.1979093221619,24.9331959034191 60.1984250304971,24.9342318178389 "
+      "60.1989017391462,24.9353396704817 60.1993365108076,24.9365126310677 "
+      "60.1997266666915,24.9377434679048 60.2000698029934,24.9390245924745 "
+      "60.200363805674,24.940348106218 60.2006068634556,24.9417058492328 "
+      "60.2007974789563,24.9430894505818 60.2009344778936,24.9444903799026 "
+      "60.2010170163011,24.9459 60.2010445857154,24.9473096200974 "
+      "60.2010170163011,24.9487105494182 60.2009344778936,24.9500941507672 "
+      "60.2007974789563,24.951451893782 60.2006068634556,24.9527754075255 "
+      "60.200363805674,24.9540565320952 60.2000698029934,24.9552873689323 "
+      "60.1997266666915,24.9564603295183 60.1993365108076,24.9575681821611 "
+      "60.1989017391462,24.9586040965809 60.1984250304971,24.9595616860207 "
+      "60.1979093221619,24.9604350466232 60.1973577918885,24.9612187938299 "
+      "60.196773838322,24.9619080955786 60.196161060094,24.9624987020948 "
+      "60.1955232336757,24.962986972093 60.1948642901323,24.9633698952262 "
+      "60.1941882909193,24.9636451106461 60.1934994028709,24.9638109215579 "
+      "60.1928018725331,24.9638663056824 60.1920999999987))";
 
-  if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+  if (result != ok)
+    TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
 
   // expand circle another 1 km
   OGRGeometry* output_geom2 = Fmi::OGR::expandGeometry(output_geom, 1000);
@@ -261,7 +268,8 @@ void expand_geometry()
        "60.1945508080725,24.9816526930191 60.1938533001532,24.9817633758697 "
        "60.1931530739144,24.9818187599942 60.1924512089148))";
 
-  if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+  if (result != ok)
+    TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
 
   OGRGeometryFactory::createFromWkt(&linestring, &srs, &input_geom);
 
@@ -316,7 +324,8 @@ void expand_geometry()
        "60.1922753966535,24.9369790650763 60.1926255223233,24.9370893742638 "
        "60.1929724042867,24.9770893742638 60.2929697363296))";
 
-  if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+  if (result != ok)
+    TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
 
   TEST_PASSED();
 }
@@ -353,7 +362,8 @@ void exportToSvg_wiki_examples()
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
@@ -361,7 +371,8 @@ void exportToSvg_wiki_examples()
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 10 10 30 40 40";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
@@ -369,7 +380,8 @@ void exportToSvg_wiki_examples()
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 10 40 40 20 40 10 20Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
@@ -377,7 +389,8 @@ void exportToSvg_wiki_examples()
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M35 10 45 45 15 40 10 20ZM20 30 35 35 30 20Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
@@ -385,7 +398,8 @@ void exportToSvg_wiki_examples()
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M10 40M40 30M20 20M30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
@@ -393,7 +407,8 @@ void exportToSvg_wiki_examples()
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M10 40M40 30M20 20M30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
@@ -401,7 +416,8 @@ void exportToSvg_wiki_examples()
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M10 10 20 20 10 40M40 40 30 30 40 20 30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
@@ -409,7 +425,8 @@ void exportToSvg_wiki_examples()
     string result = exportToSvg(*geom, box, precision);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M30 20 45 40 10 40ZM15 5 40 10 10 20 5 10Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
 #if 0
@@ -430,7 +447,8 @@ void exportToSvg_wiki_examples()
     string result = exportToSvg(*geom, box, 0);
     OGRGeometryFactory::destroyGeometry(geom);
     string ok = "M40 40 20 45 45 30ZM20 35 10 30 10 10 30 5 45 20ZM30 20 20 15 20 25Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   TEST_PASSED();
@@ -471,7 +489,8 @@ void exportToSvg_precision()
           "0.95 "
           "0.96 0.97 0.98 0.99";
       string result = exportToSvg(*line, Box::identity(), 2.0);
-      if (result != ok) TEST_FAILED("Precision 2:\n\tExpected: " + ok + "\n\tObtained: " + result);
+      if (result != ok)
+        TEST_FAILED("Precision 2:\n\tExpected: " + ok + "\n\tObtained: " + result);
     }
 
     {
@@ -480,7 +499,8 @@ void exportToSvg_precision()
           "0.5 "
           "0.5 0.5 0.6 0.6 0.6 0.6 0.7 0.7 0.7 0.7 0.8 0.8 0.8 0.8 0.8 0.9 0.9 0.9 0.9 1 1";
       string result = exportToSvg(*line, Box::identity(), 1.0);
-      if (result != ok) TEST_FAILED("Precision 1:\n\tExpected: " + ok + "\n\tObtained: " + result);
+      if (result != ok)
+        TEST_FAILED("Precision 1:\n\tExpected: " + ok + "\n\tObtained: " + result);
     }
 
     {
@@ -684,7 +704,8 @@ void lineclip()
     try
     {
       auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -695,8 +716,8 @@ void lineclip()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
-                  "\n\tGot     : " + ret);
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
+                  std::string(mytests[test][0]) + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
   }
 
   TEST_PASSED();
@@ -862,7 +883,8 @@ void polyclip()
     try
     {
       auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -873,8 +895,8 @@ void polyclip()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
-                  "\n\tGot     : " + ret);
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
+                  std::string(mytests[test][0]) + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
   }
 
   TEST_PASSED();
@@ -1050,7 +1072,8 @@ void linecut()
     try
     {
       auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -1061,8 +1084,8 @@ void linecut()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
-                  "\n\tGot     : " + ret);
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
+                  std::string(mytests[test][0]) + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
   }
 
   TEST_PASSED();
@@ -1222,7 +1245,8 @@ void polycut()
     try
     {
       auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -1233,8 +1257,8 @@ void polycut()
     OGRGeometryFactory::destroyGeometry(input);
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
-      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
-                  "\n\tGot     : " + ret);
+      TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
+                  std::string(mytests[test][0]) + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
   }
 
   TEST_PASSED();
@@ -1288,7 +1312,8 @@ void polyclip_segmentation()
     try
     {
       auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -1336,7 +1361,8 @@ void despeckle()
     try
     {
       auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -1387,7 +1413,8 @@ void despeckle_geography()
     try
     {
       auto err = OGRGeometryFactory::createFromWkt(wkt, &wgs84, &input);
-      if (err != OGRERR_NONE) TEST_FAILED("Failed to parse input " + std::string(wkt));
+      if (err != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + std::string(wkt));
     }
     catch (...)
     {
@@ -1413,7 +1440,8 @@ void grid_north_wgs84()
   Fmi::CoordinateTransformation trans("WGS84", "WGS84");
 
   auto result = Fmi::OGR::gridNorth(trans, 25, 60);
-  if (!result) TEST_FAILED("Failed to establish WGS84 north at 25,60");
+  if (!result)
+    TEST_FAILED("Failed to establish WGS84 north at 25,60");
   if (*result != 0)
     TEST_FAILED("Expecting WGS84 north 0 at 25,60 but got " + std::to_string(*result));
   TEST_PASSED();
@@ -1426,7 +1454,8 @@ void grid_north_epsg_4326()
   Fmi::CoordinateTransformation trans("WGS84", "EPSG:4326");
 
   auto result = Fmi::OGR::gridNorth(trans, 25, 60);
-  if (!result) TEST_FAILED("Failed to establish EPSG:4326 north at 25,60");
+  if (!result)
+    TEST_FAILED("Failed to establish EPSG:4326 north at 25,60");
   if (*result != 0)
     TEST_FAILED("Expecting WGS84 north 0 at 25,60 but got " + std::to_string(*result));
   TEST_PASSED();
@@ -1438,7 +1467,8 @@ void grid_north_epsga_4326()
   Fmi::CoordinateTransformation trans("WGS84", "EPSGA:4326");
 
   auto result = Fmi::OGR::gridNorth(trans, 25, 60);
-  if (!result) TEST_FAILED("Failed to establish EPSGA:4326 north at 25,60");
+  if (!result)
+    TEST_FAILED("Failed to establish EPSGA:4326 north at 25,60");
   if (*result != 0)
     TEST_FAILED("Expecting WGS84 north 0 at 25,60 but got " + std::to_string(*result));
   TEST_PASSED();
@@ -1453,7 +1483,8 @@ void grid_north_epsg_3035()
   // Helsinki
   auto result = Fmi::OGR::gridNorth(trans, 25, 60);
   auto expected = -12.762637;
-  if (!result) TEST_FAILED("Failed to establish EPSG:3035 north at 25,60");
+  if (!result)
+    TEST_FAILED("Failed to establish EPSG:3035 north at 25,60");
   if (std::abs(*result - expected) > 0.0001)
     TEST_FAILED("Expecting EPSG:3035 north " + std::to_string(expected) + " at 25,60 but got " +
                 std::to_string(*result));
@@ -1461,7 +1492,8 @@ void grid_north_epsg_3035()
   // Stockholm
   result = Fmi::OGR::gridNorth(trans, 18, 60);
   expected = -6.815401;
-  if (!result) TEST_FAILED("Failed to establish EPSG:3035 north at 18,60");
+  if (!result)
+    TEST_FAILED("Failed to establish EPSG:3035 north at 18,60");
   if (std::abs(*result - expected) > 0.0001)
     TEST_FAILED("Expecting EPSG:3035 north " + std::to_string(expected) + " at 18,60 but got " +
                 std::to_string(*result));
@@ -1478,7 +1510,8 @@ void grid_north_epsg_3034()
   // Helsinki
   auto result = Fmi::OGR::gridNorth(trans, 25, 60);
   auto expected = -11.630724;
-  if (!result) TEST_FAILED("Failed to establish EPSG:3034 north at 25,60");
+  if (!result)
+    TEST_FAILED("Failed to establish EPSG:3034 north at 25,60");
   if (std::abs(*result - expected) > 0.0001)
     TEST_FAILED("Expecting EPSG:3034 north " + std::to_string(expected) + " at 25,60 but got " +
                 std::to_string(*result));
@@ -1486,7 +1519,8 @@ void grid_north_epsg_3034()
   // Stockholm
   result = Fmi::OGR::gridNorth(trans, 18, 60);
   expected = -6.203053;
-  if (!result) TEST_FAILED("Failed to establish EPSG:3034 north at 18,60");
+  if (!result)
+    TEST_FAILED("Failed to establish EPSG:3034 north at 18,60");
   if (std::abs(*result - expected) > 0.0001)
     TEST_FAILED("Expecting EPSG:3034 north " + std::to_string(expected) + " at 18,60 but got " +
                 std::to_string(*result));
@@ -1505,7 +1539,8 @@ void grid_north_smartmet_editor()
   // Helsinki
   auto result = Fmi::OGR::gridNorth(trans, 25, 60);
   auto expected = -5;
-  if (!result) TEST_FAILED("Failed to establish polster north at 25,60");
+  if (!result)
+    TEST_FAILED("Failed to establish polster north at 25,60");
   if (std::abs(*result - expected) > 0.0001)
     TEST_FAILED("Expecting polster north " + std::to_string(expected) + " at 25,60 but got " +
                 std::to_string(*result));
@@ -1513,7 +1548,8 @@ void grid_north_smartmet_editor()
   // Stockholm
   result = Fmi::OGR::gridNorth(trans, 18, 60);
   expected = 2;
-  if (!result) TEST_FAILED("Failed to establish polster north at 18,60");
+  if (!result)
+    TEST_FAILED("Failed to establish polster north at 18,60");
   if (std::abs(*result - expected) > 0.0001)
     TEST_FAILED("Expecting polster north " + std::to_string(expected) + " at 18,60 but got " +
                 std::to_string(*result));
@@ -1533,7 +1569,8 @@ void grid_north_rotlatlon_proj()
   // Helsinki
   auto result = Fmi::OGR::gridNorth(trans, 25, 60);
   auto expected = -21.499203;
-  if (!result) TEST_FAILED("Failed to establish rotlatlon north at 25,60");
+  if (!result)
+    TEST_FAILED("Failed to establish rotlatlon north at 25,60");
   if (std::abs(*result - expected) > 0.0001)
     TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 25,60 but got " +
                 std::to_string(*result));
@@ -1541,7 +1578,8 @@ void grid_north_rotlatlon_proj()
   // Stockholm
   result = Fmi::OGR::gridNorth(trans, 18, 60);
   expected = -15.527667;
-  if (!result) TEST_FAILED("Failed to establish rotlatlon north at 18,60");
+  if (!result)
+    TEST_FAILED("Failed to establish rotlatlon north at 18,60");
   if (std::abs(*result - expected) > 0.0001)
     TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 18,60 but got " +
                 std::to_string(*result));
@@ -1562,7 +1600,8 @@ void grid_north_rotlatlon_wkt()
   // Helsinki
   auto result = Fmi::OGR::gridNorth(trans, 25, 60);
   auto expected = -21.503683;
-  if (!result) TEST_FAILED("Failed to establish rotlatlon north at 25,60");
+  if (!result)
+    TEST_FAILED("Failed to establish rotlatlon north at 25,60");
   if (std::abs(*result - expected) > 0.0001)
     TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 25,60 but got " +
                 std::to_string(*result));
@@ -1570,7 +1609,8 @@ void grid_north_rotlatlon_wkt()
   // Stockholm
   result = Fmi::OGR::gridNorth(trans, 18, 60);
   expected = -15.529383;
-  if (!result) TEST_FAILED("Failed to establish rotlatlon north at 18,60");
+  if (!result)
+    TEST_FAILED("Failed to establish rotlatlon north at 18,60");
   if (std::abs(*result - expected) > 0.0001)
     TEST_FAILED("Expecting rotlatlon north " + std::to_string(expected) + " at 18,60 but got " +
                 std::to_string(*result));

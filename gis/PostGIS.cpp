@@ -1,11 +1,9 @@
 #ifdef UNIX
 
 #include "PostGIS.h"
-
 #include "CoordinateTransformation.h"
 #include "OGR.h"
 #include "SpatialReference.h"
-
 #include <gdal_version.h>
 #include <iostream>
 #include <ogrsf_frmts.h>
@@ -148,7 +146,8 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
     {
       // owned by feature
       OGRGeometry* geometry = feature->GetGeometryRef();
-      if (geometry != nullptr) out->addGeometry(geometry);  // clones geometry
+      if (geometry != nullptr)
+        out->addGeometry(geometry);  // clones geometry
     }
   }
   else
@@ -181,7 +180,8 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
         auto* clone = OGRGeometryFactory::transformWithOptions(
             geometry, transformation.get(), const_cast<char**>(opts));
 #endif
-        if (clone != nullptr) out->addGeometryDirectly(clone);  // takes ownership
+        if (clone != nullptr)
+          out->addGeometryDirectly(clone);  // takes ownership
       }
     }
   }
@@ -278,14 +278,17 @@ Features read(const Fmi::SpatialReference* theSR,
       OGRFieldDefn* poFieldDefn = poFDefn->GetFieldDefn(iField);
       std::string fieldname(poFieldDefn->GetNameRef());
 
-      if (theFieldNames.find(fieldname) == theFieldNames.end()) continue;
+      if (theFieldNames.find(fieldname) == theFieldNames.end())
+        continue;
       if (feature->IsFieldSet(iField) == 0)
       {
         ret_item->attributes.insert(make_pair(fieldname, ""));
         continue;
       }
 
-      switch (poFieldDefn->GetType())
+      const auto ftype = poFieldDefn->GetType();
+
+      switch (ftype)
       {
         case OFTInteger:
           ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsInteger(iField)));
@@ -295,8 +298,10 @@ Features read(const Fmi::SpatialReference* theSR,
               make_pair(fieldname, static_cast<int>(feature->GetFieldAsInteger64(iField))));
           break;
         case OFTReal:
+        {
           ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsDouble(iField)));
           break;
+        }
         case OFTString:
           ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsString(iField)));
           break;

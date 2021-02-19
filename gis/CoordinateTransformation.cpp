@@ -1,11 +1,14 @@
 #include "CoordinateTransformation.h"
+
 #include "Interrupt.h"
 #include "OGR.h"
 #include "OGRCoordinateTransformationFactory.h"
 #include "ProjInfo.h"
 #include "SpatialReference.h"
 #include "Types.h"
+
 #include <boost/functional/hash.hpp>
+
 #include <gdal_version.h>
 #include <iostream>
 #include <limits>

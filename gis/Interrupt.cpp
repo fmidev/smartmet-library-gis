@@ -1,8 +1,11 @@
 #include "Interrupt.h"
+
 #include "OGR.h"
 #include "ProjInfo.h"
 #include "SpatialReference.h"
+
 #include <boost/math/constants/constants.hpp>
+
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 

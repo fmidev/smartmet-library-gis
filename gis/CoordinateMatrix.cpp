@@ -1,6 +1,9 @@
 #include "CoordinateMatrix.h"
+
 #include "CoordinateTransformation.h"
+
 #include <boost/functional/hash.hpp>
+
 #include <cmath>
 
 namespace Fmi

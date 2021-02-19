@@ -11,7 +11,7 @@ class ProjInfo
 {
  public:
   ProjInfo() = default;
-  ProjInfo(const ProjInfo &) = default;
+  ProjInfo(const ProjInfo&) = default;
   ProjInfo(const std::string& theProj);
 
   const std::string& projStr() const { return itsProjStr; }

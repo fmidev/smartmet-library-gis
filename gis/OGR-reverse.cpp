@@ -1,5 +1,4 @@
 #include "OGR.h"
-
 #include <ogr_geometry.h>
 #include <stdexcept>
 
@@ -20,7 +19,8 @@ OGRGeometry *reverse_winding(const OGRGeometry *theGeom);
 
 OGRLinearRing *reverse_winding(const OGRLinearRing *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *geom = dynamic_cast<OGRLinearRing *>(theGeom->clone());
   geom->reverseWindingOrder();
@@ -35,14 +35,16 @@ OGRLinearRing *reverse_winding(const OGRLinearRing *theGeom)
 
 OGRMultiPolygon *reverse_winding(const OGRMultiPolygon *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *out = new OGRMultiPolygon();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     auto *geom = reverse_winding(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
-    if (geom != nullptr) out->addGeometryDirectly(geom);
+    if (geom != nullptr)
+      out->addGeometryDirectly(geom);
   }
   return out;
 }
@@ -55,14 +57,16 @@ OGRMultiPolygon *reverse_winding(const OGRMultiPolygon *theGeom)
 
 OGRGeometryCollection *reverse_winding(const OGRGeometryCollection *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *out = new OGRGeometryCollection();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     auto *geom = reverse_winding(theGeom->getGeometryRef(i));
-    if (geom != nullptr) out->addGeometryDirectly(geom);
+    if (geom != nullptr)
+      out->addGeometryDirectly(geom);
   }
   return out;
 }
@@ -75,7 +79,8 @@ OGRGeometryCollection *reverse_winding(const OGRGeometryCollection *theGeom)
 
 OGRPolygon *reverse_winding(const OGRPolygon *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *out = new OGRPolygon();
 
@@ -100,7 +105,8 @@ OGRPolygon *reverse_winding(const OGRPolygon *theGeom)
 
 OGRGeometry *reverse_winding(const OGRGeometry *theGeom)
 {
-  if (theGeom == nullptr) return nullptr;
+  if (theGeom == nullptr)
+    return nullptr;
 
   OGRwkbGeometryType id = theGeom->getGeometryType();
 
@@ -119,7 +125,6 @@ OGRGeometry *reverse_winding(const OGRGeometry *theGeom)
       return reverse_winding(dynamic_cast<const OGRMultiPolygon *>(theGeom));
     case wkbGeometryCollection:
       return reverse_winding(dynamic_cast<const OGRGeometryCollection *>(theGeom));
-
     case wkbNone:
       throw std::runtime_error(
           "Encountered a 'none' geometry component while changing winding order of an OGR "

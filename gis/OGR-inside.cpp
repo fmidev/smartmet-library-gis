@@ -1,5 +1,4 @@
 #include "OGR.h"
-
 #include <ogr_geometry.h>
 #include <stdexcept>
 
@@ -14,7 +13,8 @@ bool inside(const OGRGeometry *theGeom, double theX, double theY);
 
 bool inside(const OGRLinearRing *theGeom, double theX, double theY)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return false;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return false;
 
   OGRPoint pt(theX, theY);
   return (theGeom->isPointInRing(&pt, 0) != 0);
@@ -28,7 +28,8 @@ bool inside(const OGRLinearRing *theGeom, double theX, double theY)
 
 bool inside(const OGRPolygon *theGeom, double theX, double theY)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return false;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return false;
 
   return Fmi::OGR::inside(*theGeom, theX, theY);
 }
@@ -41,7 +42,8 @@ bool inside(const OGRPolygon *theGeom, double theX, double theY)
 
 bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return false;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return false;
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     if (inside(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)), theX, theY))
@@ -58,10 +60,12 @@ bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
 
 bool inside(const OGRGeometryCollection *theGeom, double theX, double theY)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return false;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return false;
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
-    if (inside(theGeom->getGeometryRef(i), theX, theY)) return true;
+    if (inside(theGeom->getGeometryRef(i), theX, theY))
+      return true;
   }
   return false;
 }
@@ -75,12 +79,14 @@ bool inside(const OGRGeometryCollection *theGeom, double theX, double theY)
 bool Fmi::OGR::inside(const OGRPolygon &theGeom, double theX, double theY)
 {
   // Outside if outside exterior ring
-  if (!inside(theGeom.getExteriorRing(), theX, theY)) return false;
+  if (!inside(theGeom.getExteriorRing(), theX, theY))
+    return false;
 
   for (int i = 0, n = theGeom.getNumInteriorRings(); i < n; ++i)
   {
     // outside if inside hole
-    if (inside(theGeom.getInteriorRing(i), theX, theY)) return false;
+    if (inside(theGeom.getInteriorRing(i), theX, theY))
+      return false;
   }
 
   return true;
@@ -107,7 +113,8 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
       return false;
     case wkbLineString:
     case wkbLineString25D:
-      if (strcmp(theGeom.getGeometryName(), "LINEARRING") != 0) return false;
+      if (strcmp(theGeom.getGeometryName(), "LINEARRING") != 0)
+        return false;
     // Fall through
     case wkbLinearRing:
       return inside(dynamic_cast<const OGRLinearRing *>(&theGeom), theX, theY);
@@ -137,7 +144,8 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
 
 bool inside(const OGRGeometry *theGeom, double theX, double theY)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return false;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return false;
 
   return Fmi::OGR::inside(*theGeom, theX, theY);
 }
