@@ -21,8 +21,10 @@ const int default_circle_segments = 360;
 // Longitude to -180...180 range
 double modlon(double lon)
 {
-  if (lon > 180) return fmod(lon + 180, 360) - 180;
-  if (lon < -180) return -(fmod(-lon + 180, 360) - 180);
+  if (lon > 180)
+    return fmod(lon + 180, 360) - 180;
+  if (lon < -180)
+    return -(fmod(-lon + 180, 360) - 180);
   return lon;
 }
 
@@ -166,7 +168,8 @@ OGRGeometry* circle_cut(double lon,
 
   auto* rect = make_rect(-180, -90, 180, 90);
   auto* cut = geom->Intersection(rect);
-  if (cut != nullptr && cut->IsEmpty() == 0) result->addGeometryDirectly(cut);
+  if (cut != nullptr && cut->IsEmpty() == 0)
+    result->addGeometryDirectly(cut);
   CPLFree(rect);
 
   if (env.MinX < -180)
@@ -174,7 +177,8 @@ OGRGeometry* circle_cut(double lon,
     auto* rect = make_rect(-540, -90, -180, 90);
     auto* cut = geom->Intersection(rect);
     OGR::translate(cut, +360, 0);
-    if (cut != nullptr && cut->IsEmpty() == 0) result->addGeometryDirectly(cut);
+    if (cut != nullptr && cut->IsEmpty() == 0)
+      result->addGeometryDirectly(cut);
     CPLFree(rect);
   }
 
@@ -183,7 +187,8 @@ OGRGeometry* circle_cut(double lon,
     auto* rect = make_rect(180, -90, 540, 90);
     auto* cut = geom->Intersection(rect);
     OGR::translate(cut, -360, 0);
-    if (cut != nullptr && cut->IsEmpty() == 0) result->addGeometryDirectly(cut);
+    if (cut != nullptr && cut->IsEmpty() == 0)
+      result->addGeometryDirectly(cut);
     CPLFree(rect);
   }
 
@@ -202,20 +207,22 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
 {
   Interrupt result;
 
-  // Geographic: cut everything at lon_wrap antimeridian
+  // Geographic: cut everything at lon_wrap (default=Greenwich) antimeridians
   if (theSRS.isGeographic())
   {
     const auto opt_lon_wrap = theSRS.projInfo().getDouble("o_wrap");
-    const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 180.0);
+    const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 0.0);
 
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap + 180), -90, 90));
-    if (lon_wrap == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap - 180), -90, 90));
+    if (lon_wrap == 0)
+      result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap - 180), -90, 90));
 
     return result;
   }
 
   const auto opt_name = theSRS.projInfo().getString("proj");
-  if (!opt_name) return result;
+  if (!opt_name)
+    return result;
 
   const auto name = *opt_name;
 
@@ -226,7 +233,8 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   const auto lat_0 = opt_lat_0 ? *opt_lat_0 : 0.0;
 
   // Polar projections
-  if (name == "aeqd" || name == "stere" || name == "sterea" || name == "ups") return result;
+  if (name == "aeqd" || name == "stere" || name == "sterea" || name == "ups")
+    return result;
 
   // Spherical cuts
 
@@ -254,7 +262,8 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     // Interrupted Goode Homolosine
 
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-    if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    if (lon_0 == 0)
+      result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 40), 0, 90));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 100), -90, 0));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 20), -90, 0));
@@ -265,7 +274,8 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   if (name == "healpix")
   {
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-    if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    if (lon_0 == 0)
+      result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), -90, -45));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), 45, 90));
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0), -90, -45));
@@ -279,7 +289,8 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   // lon_0 is needed for all remaining geometric projections
 
   result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-  if (lon_0 == 0) result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+  if (lon_0 == 0)
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
 
   return result;
 }
@@ -315,7 +326,8 @@ OGREnvelope interruptEnvelope(const SpatialReference& theSRS)
   // envelopes.
 
   const auto opt_name = theSRS.projInfo().getString("proj");
-  if (!opt_name) return env;
+  if (!opt_name)
+    return env;
   const auto name = *opt_name;
 
   if (name == "cc" || name == "cea" || name == "collg" || name == "comill" || name == "eqc" ||
