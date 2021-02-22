@@ -60,9 +60,6 @@ void CoordinateMatrix::swap(CoordinateMatrix& other)
 
 bool CoordinateMatrix::transform(const CoordinateTransformation& transformation)
 {
-  // Note that the hash value calculation order must match that in the
-  // BilinearCoordinateTransformation constructor or caching will not work properly.
-
   boost::hash_combine(m_hash, transformation.hashValue());  // update hash to the new projection
   return transformation.transform(m_x, m_y);
 }
@@ -70,6 +67,9 @@ bool CoordinateMatrix::transform(const CoordinateTransformation& transformation)
 std::size_t CoordinateMatrix::hashValue(
     std::size_t nx, std::size_t ny, double x1, double y1, double x2, double y2)
 {
+  // Note that the hash value calculation order must match that in the
+  // BilinearCoordinateTransformation constructor or caching will not work properly.
+
   auto hash = boost::hash_value(nx);
   boost::hash_combine(hash, boost::hash_value(ny));
   boost::hash_combine(hash, boost::hash_value(x1));
