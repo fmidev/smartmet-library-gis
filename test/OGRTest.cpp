@@ -904,6 +904,48 @@ void polyclip()
 
 // ----------------------------------------------------------------------
 
+void polyclip_case_hirlam()
+{
+  using namespace Fmi;
+  using Fmi::Box;
+  using OGR::exportToWkt;
+
+  // Real test case when the second column from the left had NaN values at every second row.
+  // The failing case *must* travel along the edge, and then touch it *twice*. Like a saw with
+  // two corners at the left edge plus one flat edge.
+
+  // HIRLAM left edge is at -33.5. Changing the value to -33 works, so test this demonstrates a
+  // rounding issue in the algorithm.
+
+  Box box(-33.5, 0, 100, 100, 100, 100);
+
+  std::string wkt = "POLYGON ((-33.5 2,-33.5 3,-33 3,-33.5 4,-33 4,-33.5 5,-32 5, -32 2, -33.5 2))";
+
+  OGRGeometry* input;
+
+  try
+  {
+    auto err = OGRGeometryFactory::createFromWkt(wkt.c_str(), NULL, &input);
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to parse input " + wkt);
+  }
+  catch (...)
+  {
+    TEST_FAILED("Failed to parse WKT for testing: " + wkt);
+  }
+
+  auto* output = OGR::polyclip(*input, box);
+  string ret = exportToWkt(*output);
+  OGRGeometryFactory::destroyGeometry(input);
+
+  if (ret != wkt)
+    TEST_FAILED("Failed\n\tExpected: " + wkt + "\n\tGot     : " + ret);
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
 void linecut()
 {
   using namespace Fmi;
@@ -1626,6 +1668,7 @@ class tests : public tframe::tests
   // Main test suite
   void test()
   {
+    TEST(polyclip_case_hirlam);
     TEST(expand_geometry);
     TEST(exportToWkt_spatialreference);
     TEST(exportToSvg_precision);
