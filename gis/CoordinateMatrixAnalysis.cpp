@@ -62,14 +62,17 @@ Handedness analyze_cell(
   const auto dy = ymax - ymin;
 
   // Empty cell?
-  if (dx == 0 || dy == 0) return Handedness::Invalid;
+  if (dx == 0 || dy == 0)
+    return Handedness::Invalid;
 
   // Huge cell? (most likely due to projection instabilities)
-  if (dx >= cell_size_limit || dy >= cell_size_limit) return Handedness::Huge;
+  if (dx >= cell_size_limit || dy >= cell_size_limit)
+    return Handedness::Huge;
 
   const auto ratio = dy / dx;
 
-  if (ratio < 0.01 || ratio > 100) return Handedness::Oblong;
+  if (ratio < 0.01 || ratio > 100)
+    return Handedness::Oblong;
 
   // Check for convexness and orientation
 
@@ -78,7 +81,8 @@ Handedness analyze_cell(
   const auto area3 = (x4 - x3) * (y1 - y4) - (y4 - y3) * (x1 - x4);
   const auto area4 = (x1 - x4) * (y2 - y1) - (y1 - y4) * (x2 - x1);
 
-  if (area1 <= 0 && area2 <= 0 && area3 <= 0 && area4 <= 0) return Handedness::ClockwiseConvex;
+  if (area1 <= 0 && area2 <= 0 && area3 <= 0 && area4 <= 0)
+    return Handedness::ClockwiseConvex;
 
   if (area1 >= 0 && area2 >= 0 && area3 >= 0 && area4 >= 0)
     return Handedness::CounterClockwiseConvex;

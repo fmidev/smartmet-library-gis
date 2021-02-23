@@ -124,7 +124,10 @@ namespace Fmi
  */
 // ----------------------------------------------------------------------
 
-bool all_not_inside(int position) { return ((position & Box::Inside) == 0); }
+bool all_not_inside(int position)
+{
+  return ((position & Box::Inside) == 0);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -132,7 +135,10 @@ bool all_not_inside(int position) { return ((position & Box::Inside) == 0); }
  */
 // ----------------------------------------------------------------------
 
-bool all_not_outside(int position) { return ((position & Box::Outside) == 0); }
+bool all_not_outside(int position)
+{
+  return ((position & Box::Outside) == 0);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -176,7 +182,10 @@ bool box_inside_ring(const Box &theBox, const OGRLinearRing &theRing)
  */
 // ----------------------------------------------------------------------
 
-bool different(double x1, double y1, double x2, double y2) { return !(x1 == x2 && y1 == y2); }
+bool different(double x1, double y1, double x2, double y2)
+{
+  return !(x1 == x2 && y1 == y2);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -236,7 +245,8 @@ void do_point(const OGRPoint *theGeom,
               const Box &theBox,
               bool keep_inside)
 {
-  if (theGeom == nullptr) return;
+  if (theGeom == nullptr)
+    return;
 
   double x = theGeom->getX();
   double y = theGeom->getY();
@@ -244,11 +254,13 @@ void do_point(const OGRPoint *theGeom,
   auto pos = theBox.position(x, y);
   if (keep_inside)
   {
-    if (pos == Box::Inside) theBuilder.add(new OGRPoint(x, y));
+    if (pos == Box::Inside)
+      theBuilder.add(new OGRPoint(x, y));
   }
   else
   {
-    if (pos == Box::Outside) theBuilder.add(new OGRPoint(x, y));
+    if (pos == Box::Outside)
+      theBuilder.add(new OGRPoint(x, y));
   }
 }
 
@@ -268,7 +280,8 @@ bool inside(const OGRLinearRing *theGeom, const Box &theBox)
 {
   int n = theGeom->getNumPoints();
 
-  if (theGeom == nullptr || n < 1) return false;
+  if (theGeom == nullptr || n < 1)
+    return false;
 
   for (int i = 0; i < n; ++i)
   {
@@ -277,8 +290,10 @@ bool inside(const OGRLinearRing *theGeom, const Box &theBox)
 
     Box::Position pos = theBox.position(x, y);
 
-    if (pos == Box::Outside) return false;
-    if (pos == Box::Inside) return true;
+    if (pos == Box::Outside)
+      return false;
+    if (pos == Box::Inside)
+      return true;
   }
 
   // Indeterminate answer, should be impossible. We discard the hole
@@ -302,7 +317,8 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
 
   int n = theGeom->getNumPoints();
 
-  if (theGeom == nullptr || n < 1) return position;
+  if (theGeom == nullptr || n < 1)
+    return position;
 
   // For shorthand code
 
@@ -356,7 +372,8 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
         while (i < n && g.getY(i) > theBox.ymax())
           ++i;
 
-      if (i >= n) return position;
+      if (i >= n)
+        return position;
 
       /*
        * 7. out-in
@@ -463,9 +480,11 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
           clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1), theBox);
 
           auto *line = new OGRLineString();
-          if (add_start) line->addPoint(x0, y0);
+          if (add_start)
+            line->addPoint(x0, y0);
           add_start = false;
-          if (start_index <= i - 1) line->addSubLineString(&g, start_index, i - 1);
+          if (start_index <= i - 1)
+            line->addSubLineString(&g, start_index, i - 1);
           line->addPoint(x, y);
           theRect.addExterior(line);
 
@@ -473,10 +492,12 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
         }
         else  // in-edge
         {
-          if (start_index == 0 && i == n - 1) return Box::Inside;  // All inside?
+          if (start_index == 0 && i == n - 1)
+            return Box::Inside;  // All inside?
 
           auto *line = new OGRLineString();
-          if (add_start) line->addPoint(x0, y0);
+          if (add_start)
+            line->addPoint(x0, y0);
           add_start = false;
           line->addSubLineString(&g, start_index, i);
           if (exterior)
@@ -490,7 +511,8 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
       }
 
       // Was everything in? If so, generate no output here, just clone the linestring elsewhere
-      if (start_index == 0 && i >= n) return Box::Inside;
+      if (start_index == 0 && i >= n)
+        return Box::Inside;
 
       // Flush the last line segment if data ended and there is something to flush
       if (pos == Box::Inside && (start_index < i - 1 || add_start))
@@ -593,7 +615,8 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
 
   int n = theGeom->getNumPoints();
 
-  if (theGeom == nullptr || n < 1) return position;
+  if (theGeom == nullptr || n < 1)
+    return position;
 
   // For shorthand code
 
@@ -650,12 +673,14 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
 
       if (i >= n)
       {
-        if (start_index == 0) return position;  // everything was out
+        if (start_index == 0)
+          return position;  // everything was out
 
         if (start_index > 0 && start_index < n)
         {
           auto *line = new OGRLineString();
-          if (add_start) line->addPoint(start_x, start_y);
+          if (add_start)
+            line->addPoint(start_x, start_y);
           line->addSubLineString(&g, start_index, n - 1);
           if (exterior)
             theRect.addExterior(line);
@@ -697,7 +722,8 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
       {
         auto *line = new OGRLineString();
 
-        if (add_start) line->addPoint(start_x, start_y);
+        if (add_start)
+          line->addPoint(start_x, start_y);
         add_start = false;
         line->addSubLineString(&g, start_index, i - 1);
         line->addPoint(x0, y0);
@@ -723,7 +749,8 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
           // then.
           auto *line = new OGRLineString();
 
-          if (add_start) line->addPoint(start_x, start_y);
+          if (add_start)
+            line->addPoint(start_x, start_y);
           line->addSubLineString(&g, start_index, i - 1);
           line->addPoint(x0, y0);
           if (exterior)
@@ -745,10 +772,12 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
       else
       {
         auto *line = new OGRLineString();
-        if (add_start) line->addPoint(start_x, start_y);
+        if (add_start)
+          line->addPoint(start_x, start_y);
         line->addSubLineString(&g, start_index, i - 1);
         line->addPoint(x0, y0);
-        if (x != g.getX(i) || y != g.getY(i)) position |= Box::Inside;
+        if (x != g.getX(i) || y != g.getY(i))
+          position |= Box::Inside;
         if (exterior)
           theRect.addExterior(line);
         else
@@ -777,7 +806,8 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
 
         position |= pos;
 
-        if (pos != Box::Outside) continue;
+        if (pos != Box::Outside)
+          continue;
 
         // Clip the outside point to edges
         clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1), theBox);
@@ -793,7 +823,8 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
       }
 
       // Was everything in? If so, generate no output
-      if (start_index == 0 && i >= n) return position;
+      if (start_index == 0 && i >= n)
+        return position;
     }
     else  // edge
     {
@@ -816,17 +847,20 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
 
         position |= pos;
 
-        if (pos == Box::Inside) continue;
+        if (pos == Box::Inside)
+          continue;
         if (pos != Box::Outside)  // on edge
         {
-          if (!Box::onSameEdge(prev_pos, pos)) position |= Box::Inside;  // visited inside
+          if (!Box::onSameEdge(prev_pos, pos))
+            position |= Box::Inside;  // visited inside
           continue;
         }
 
         // Clip the outside point to edges
         clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1), theBox);
 
-        if (x != g.getX(i) || y != g.getY(i)) position |= Box::Inside;
+        if (x != g.getX(i) || y != g.getY(i))
+          position |= Box::Inside;
 
         start_index = i;
         add_start = true;
@@ -836,7 +870,8 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
       }
 
       // Was everything in? If so, generate no output
-      if (start_index == 0 && i >= n) return position;
+      if (start_index == 0 && i >= n)
+        return position;
     }
   }
 
@@ -867,7 +902,8 @@ int do_rect(const OGRLineString *theGeom,
             bool keep_inside,
             bool exterior)
 {
-  if (keep_inside) return clip_rect(theGeom, theRect, theBox, exterior);
+  if (keep_inside)
+    return clip_rect(theGeom, theRect, theBox, exterior);
   return cut_rect(theGeom, theRect, theBox, exterior);
 }
 
@@ -882,7 +918,8 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
                                const Box &theBox,
                                bool keep_inside)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   // Clip the exterior first to see what's going on
 
@@ -898,7 +935,8 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
   {
     // CLIP: - if all vertices inside box or on the edges, return input as is
     // CUT:  - if all vertices inside box or on the edges, return empty result
-    if (keep_inside) theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+    if (keep_inside)
+      theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
     return;
   }
 
@@ -915,7 +953,8 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
 
     if (keep_inside)
     {
-      if (!box_inside) return;
+      if (!box_inside)
+        return;
     }
     else
     {
@@ -942,7 +981,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
   // - Intact ones become new polygons without holes
 
   // Note that we add the holes as exterior parts
-  
+
   for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
   {
     auto *hole = theGeom->getInteriorRing(i);
@@ -950,7 +989,8 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
 
     if (all_only_inside(holeposition))
     {
-      if (keep_inside) rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+      if (keep_inside)
+        rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
     }
     else if (all_not_inside(holeposition))
     {
@@ -960,12 +1000,14 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       {
         // If the box clip is inside a hole the result is empty
         // Otherwise we can keep the original input
-        if (!keep_inside) theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+        if (!keep_inside)
+          theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
         return;
       }
 
       // Otherwise the hole is outside the box
-      if (!keep_inside) rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+      if (!keep_inside)
+        rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
     }
   }
 
@@ -992,7 +1034,8 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
                             double max_length,
                             bool keep_inside)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   // Clip the exterior first to see what's going on
 
@@ -1004,7 +1047,8 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
   {
     // CLIP: - if all vertices inside box or on the edges, return input as is
     // CUT:  - if all vertices inside box or on the edges, return empty result
-    if (keep_inside) theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+    if (keep_inside)
+      theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
     return;
   }
 
@@ -1021,7 +1065,8 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
 
     if (keep_inside)
     {
-      if (!box_inside) return;
+      if (!box_inside)
+        return;
       rect.addBox();
     }
     else
@@ -1076,7 +1121,8 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
 
     if (all_only_inside(holeposition))
     {
-      if (keep_inside) rect.addInterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+      if (keep_inside)
+        rect.addInterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
     }
     else if (all_not_inside(holeposition))
     {
@@ -1086,12 +1132,14 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       {
         // If the box clip is inside a hole the result is empty
         // Otherwise we can keep the original input
-        if (!keep_inside) theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+        if (!keep_inside)
+          theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
         return;
       }
 
       // Otherwise the hole is outside the box
-      if (!keep_inside) rect.addInterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+      if (!keep_inside)
+        rect.addInterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
     }
   }
 
@@ -1130,7 +1178,8 @@ void do_linestring(const OGRLineString *theGeom,
                    const Box &theBox,
                    bool keep_inside)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   // If everything was in, just clone the original when clipping
 
@@ -1139,11 +1188,13 @@ void do_linestring(const OGRLineString *theGeom,
 
   if (all_only_inside(position))
   {
-    if (keep_inside) theBuilder.add(dynamic_cast<OGRLineString *>(theGeom->clone()));
+    if (keep_inside)
+      theBuilder.add(dynamic_cast<OGRLineString *>(theGeom->clone()));
   }
   else if (all_only_outside(position))
   {
-    if (!keep_inside) theBuilder.add(dynamic_cast<OGRLineString *>(theGeom->clone()));
+    if (!keep_inside)
+      theBuilder.add(dynamic_cast<OGRLineString *>(theGeom->clone()));
   }
   else
   {
@@ -1164,7 +1215,8 @@ void do_multipoint(const OGRMultiPoint *theGeom,
                    const Box &theBox,
                    bool keep_inside)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -1186,7 +1238,8 @@ void do_multilinestring(const OGRMultiLineString *theGeom,
                         const Box &theBox,
                         bool keep_inside)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -1210,7 +1263,8 @@ void do_multipolygon(const OGRMultiPolygon *theGeom,
                      bool keep_polygons,
                      bool keep_inside)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -1245,7 +1299,8 @@ void do_geometrycollection(const OGRGeometryCollection *theGeom,
                            bool keep_polygons,
                            bool keep_inside)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return;
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
@@ -1329,7 +1384,8 @@ OGRGeometry *OGR::lineclip(const OGRGeometry &theGeom, const Box &theBox)
   do_geom(&theGeom, builder, theBox, 0, keep_polygons, keep_inside);
 
   OGRGeometry *geom = builder.build();
-  if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
+  if (geom != nullptr)
+    geom->assignSpatialReference(theGeom.getSpatialReference());
   return geom;
 }
 
@@ -1353,7 +1409,8 @@ OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom,
 
   OGRGeometry *geom = builder.build();
 
-  if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
+  if (geom != nullptr)
+    geom->assignSpatialReference(theGeom.getSpatialReference());
 
   return geom;
 }
@@ -1378,7 +1435,8 @@ OGRGeometry *OGR::linecut(const OGRGeometry &theGeom, const Box &theBox)
   do_geom(&theGeom, builder, theBox, 0, keep_polygons, keep_inside);
 
   OGRGeometry *geom = builder.build();
-  if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
+  if (geom != nullptr)
+    geom->assignSpatialReference(theGeom.getSpatialReference());
   return geom;
 }
 
@@ -1401,7 +1459,8 @@ OGRGeometry *OGR::polycut(const OGRGeometry &theGeom,
   do_geom(&theGeom, builder, theBox, theMaximumSegmentLength, keep_polygons, keep_inside);
 
   OGRGeometry *geom = builder.build();
-  if (geom != nullptr) geom->assignSpatialReference(theGeom.getSpatialReference());
+  if (geom != nullptr)
+    geom->assignSpatialReference(theGeom.getSpatialReference());
 
   return geom;
 }

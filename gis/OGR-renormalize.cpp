@@ -16,13 +16,15 @@ OGRGeometry *renormalize_winding(const OGRGeometry *theGeom);
 
 OGRPolygon *renormalize_winding(const OGRPolygon *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *exterior = dynamic_cast<const OGRLinearRing *>(theGeom->getExteriorRing());
 
   bool is_cw = exterior->isClockwise();
 
-  if (is_cw) return dynamic_cast<OGRPolygon *>(theGeom->clone());
+  if (is_cw)
+    return dynamic_cast<OGRPolygon *>(theGeom->clone());
 
   // Now we must reverse the exterior and make it the interior of a larger envelope.
   // Any holes are simply dropped, they do not belong to the polygon formed
@@ -65,14 +67,16 @@ OGRPolygon *renormalize_winding(const OGRPolygon *theGeom)
 
 OGRMultiPolygon *renormalize_winding(const OGRMultiPolygon *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *out = new OGRMultiPolygon();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     auto *geom = renormalize_winding(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
-    if (geom != nullptr) out->addGeometryDirectly(geom);
+    if (geom != nullptr)
+      out->addGeometryDirectly(geom);
   }
   return out;
 }
@@ -85,14 +89,16 @@ OGRMultiPolygon *renormalize_winding(const OGRMultiPolygon *theGeom)
 
 OGRGeometryCollection *renormalize_winding(const OGRGeometryCollection *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *out = new OGRGeometryCollection();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     auto *geom = renormalize_winding(theGeom->getGeometryRef(i));
-    if (geom != nullptr) out->addGeometryDirectly(geom);
+    if (geom != nullptr)
+      out->addGeometryDirectly(geom);
   }
   return out;
 }
@@ -105,7 +111,8 @@ OGRGeometryCollection *renormalize_winding(const OGRGeometryCollection *theGeom)
 
 OGRGeometry *renormalize_winding(const OGRGeometry *theGeom)
 {
-  if (theGeom == nullptr) return nullptr;
+  if (theGeom == nullptr)
+    return nullptr;
 
   OGRwkbGeometryType id = theGeom->getGeometryType();
 

@@ -120,10 +120,12 @@ OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
   if (err != OGRERR_NONE)
   {
     std::string errStr = "Failed to create OGRGeometry from WKT " + wktString + "";
-    if (err == OGRERR_NOT_ENOUGH_DATA) errStr += " OGRErr: OGRERR_NOT_ENOUGH_DATA";
+    if (err == OGRERR_NOT_ENOUGH_DATA)
+      errStr += " OGRErr: OGRERR_NOT_ENOUGH_DATA";
     if (err == OGRERR_UNSUPPORTED_GEOMETRY_TYPE)
       errStr += " OGRErr: OGRERR_UNSUPPORTED_GEOMETRY_TYPE";
-    if (err == OGRERR_CORRUPT_DATA) errStr += " OGRErr: OGRERR_CORRUPT_DATA";
+    if (err == OGRERR_CORRUPT_DATA)
+      errStr += " OGRErr: OGRERR_CORRUPT_DATA";
 
     throw std::runtime_error(errStr);
   }
@@ -183,7 +185,8 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
 
   for (auto iter = theCoordinates.begin(); iter != theCoordinates.end(); iter++)
   {
-    if (iter != theCoordinates.begin()) wkt += ", ";
+    if (iter != theCoordinates.begin())
+      wkt += ", ";
     wkt += fmt::format("%f %f", iter->first, iter->second);
   }
   wkt += (geomtype == wkbPolygon ? "))" : ")");
@@ -218,7 +221,8 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
   {
     // if no spatial reference, use EPSG:4326
     OGRErr err = SR.importFromEPSGA(4326);
-    if (err != OGRERR_NONE) throw std::runtime_error("EPSG:4326 is unknown!");
+    if (err != OGRERR_NONE)
+      throw std::runtime_error("EPSG:4326 is unknown!");
 
     tmp_geom->assignSpatialReference(&SR);
   }
@@ -282,9 +286,11 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
   poly.addRing(exring);
 
   // polygon is simplified to reduce amount of points
-  if (exring->getNumPoints() > 1000) ret = poly.SimplifyPreserveTopology(0.001);
+  if (exring->getNumPoints() > 1000)
+    ret = poly.SimplifyPreserveTopology(0.001);
 
-  if (ret == nullptr) ret = poly.clone();
+  if (ret == nullptr)
+    ret = poly.clone();
 
   return ret;
 }
@@ -309,7 +315,8 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
     return ret;
   }
 
-  if (theRadiusInMeters <= 0.0) return theGeom->clone();
+  if (theRadiusInMeters <= 0.0)
+    return theGeom->clone();
 
   // in case of  multipolygon, expand each polygon separately
   if (theGeom->getGeometryType() == wkbMultiPolygon)
@@ -373,7 +380,8 @@ boost::optional<double> Fmi::OGR::gridNorth(const CoordinateTransformation& theT
     y1 = theLat - 0.0001;
   }
 
-  if (!theTransformation.transform(x1, y1) || !theTransformation.transform(x2, y2)) return {};
+  if (!theTransformation.transform(x1, y1) || !theTransformation.transform(x2, y2))
+    return {};
 
   // Calculate the azimuth. Note that for us angle 0 is up and not to increasing x
   // as in normal math, hence we have rotated the system by swapping dx and dy in atan2
@@ -422,5 +430,6 @@ void Fmi::OGR::translate(OGRGeometry& theGeom, double dx, double dy)
 
 void Fmi::OGR::translate(OGRGeometry* theGeom, double dx, double dy)
 {
-  if (theGeom != nullptr) translate(*theGeom, dx, dy);
+  if (theGeom != nullptr)
+    translate(*theGeom, dx, dy);
 }

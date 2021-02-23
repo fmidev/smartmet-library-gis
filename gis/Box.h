@@ -138,8 +138,10 @@ class Box
 
 inline Box::Position Box::position(double x, double y) const
 {
-  if (x > itsXMin && x < itsXMax && y > itsYMin && y < itsYMax) return Inside;
-  if (x < itsXMin || x > itsXMax || y < itsYMin || y > itsYMax) return Outside;
+  if (x > itsXMin && x < itsXMax && y > itsYMin && y < itsYMax)
+    return Inside;
+  if (x < itsXMin || x > itsXMax || y < itsYMin || y > itsYMax)
+    return Outside;
 
   unsigned int pos = 0;
   if (x == itsXMin)

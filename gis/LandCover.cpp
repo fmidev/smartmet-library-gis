@@ -95,7 +95,8 @@ LandCover::Type LandCover::Impl::coverType(double lon, double lat) const
 {
   // Normalize the coordinates to ranges (-180,180( and (-90,90(
 
-  if (lon >= 180) lon -= 360;
+  if (lon >= 180)
+    lon -= 360;
 
   // Try the matrices starting from largest tile size and hence most accurate
 
@@ -106,11 +107,13 @@ LandCover::Type LandCover::Impl::coverType(double lon, double lat) const
     if (!std::isnan(value) && (value != SrtmMatrix::missing))
     {
       covertype = Type(value);
-      if (covertype != LandCover::NoData) return covertype;
+      if (covertype != LandCover::NoData)
+        return covertype;
     }
   }
 
-  if (covertype == LandCover::NoData) return LandCover::Sea;
+  if (covertype == LandCover::NoData)
+    return LandCover::Sea;
 
   return covertype;
 }

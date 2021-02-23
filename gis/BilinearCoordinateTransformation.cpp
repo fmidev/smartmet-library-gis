@@ -49,7 +49,8 @@ inline double bilinear(
 bool BilinearCoordinateTransformation::transform(double& x, double& y) const
 {
   // Return false if wanted point is outside the bbox
-  if (x < m_x1 || x > m_x2 || y < m_y1 || y > m_y2) return false;
+  if (x < m_x1 || x > m_x2 || y < m_y1 || y > m_y2)
+    return false;
 
   // Calculate integer and fractional coordinates inside the grid
 
@@ -59,8 +60,10 @@ bool BilinearCoordinateTransformation::transform(double& x, double& y) const
   auto j = static_cast<std::size_t>(ypos);
 
   // Avoid overflow at the edges
-  if (i == m_nx - 1) --i;
-  if (j == m_ny - 1) --j;
+  if (i == m_nx - 1)
+    --i;
+  if (j == m_ny - 1)
+    --j;
 
   const auto xfrac = xpos - i;
   const auto yfrac = ypos - j;

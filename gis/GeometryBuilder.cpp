@@ -26,7 +26,10 @@ GeometryBuilder::~GeometryBuilder()
  */
 // ----------------------------------------------------------------------
 
-void GeometryBuilder::add(OGRPolygon *theGeom) { itsPolygons.push_back(theGeom); }
+void GeometryBuilder::add(OGRPolygon *theGeom)
+{
+  itsPolygons.push_back(theGeom);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -59,7 +62,10 @@ void GeometryBuilder::add(OGRLineString *theGeom)
  * \brief Add point to the final geometry
  */
 // ----------------------------------------------------------------------
-void GeometryBuilder::add(OGRPoint *theGeom) { itsPoints.push_back(theGeom); }
+void GeometryBuilder::add(OGRPoint *theGeom)
+{
+  itsPoints.push_back(theGeom);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -75,7 +81,8 @@ OGRGeometry *GeometryBuilder::build()
 
   // We wish to avoid nullptr pointers due to more prone segfault mistakes
 
-  if (n == 0) return new OGRGeometryCollection;
+  if (n == 0)
+    return new OGRGeometryCollection;
 
   // Simplify to LineString, Polygon or Point if possible
   if (n == 1)

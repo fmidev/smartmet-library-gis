@@ -182,28 +182,40 @@ SrtmTile::SrtmTile(const std::string &path) : impl(new SrtmTile::Impl(path)) {}
  */
 // ----------------------------------------------------------------------
 
-const std::string &SrtmTile::path() const { return impl->path(); }
+const std::string &SrtmTile::path() const
+{
+  return impl->path();
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the size of the tile
  */
 // ----------------------------------------------------------------------
 
-std::size_t SrtmTile::size() const { return impl->size(); }
+std::size_t SrtmTile::size() const
+{
+  return impl->size();
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the lower left corner longitude of the tile
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::longitude() const { return impl->longitude(); }
+int SrtmTile::longitude() const
+{
+  return impl->longitude();
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the lower left corner latitude of the tile
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::latitude() const { return impl->latitude(); }
+int SrtmTile::latitude() const
+{
+  return impl->latitude();
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the value at the given tile coordinate
@@ -213,5 +225,8 @@ int SrtmTile::latitude() const { return impl->latitude(); }
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::value(std::size_t i, std::size_t j) const { return impl->value(i, j); }
+int SrtmTile::value(std::size_t i, std::size_t j) const
+{
+  return impl->value(i, j);
+}
 }  // namespace Fmi

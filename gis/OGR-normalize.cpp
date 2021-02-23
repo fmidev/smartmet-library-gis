@@ -16,20 +16,23 @@ OGRGeometry *normalize_winding(const OGRGeometry *theGeom);
 
 OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *out = new OGRPolygon;
 
   auto *exterior = dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone());
 
-  if (!exterior->isClockwise()) exterior->reverseWindingOrder();
+  if (!exterior->isClockwise())
+    exterior->reverseWindingOrder();
 
   out->addRingDirectly(exterior);
 
   for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; i++)
   {
     auto *geom = dynamic_cast<OGRLinearRing *>(theGeom->getInteriorRing(i)->clone());
-    if (geom->isClockwise()) geom->reverseWindingOrder();
+    if (geom->isClockwise())
+      geom->reverseWindingOrder();
     out->addRingDirectly(geom);
   }
 
@@ -44,14 +47,16 @@ OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
 
 OGRMultiPolygon *normalize_winding(const OGRMultiPolygon *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *out = new OGRMultiPolygon();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     auto *geom = normalize_winding(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
-    if (geom != nullptr) out->addGeometryDirectly(geom);
+    if (geom != nullptr)
+      out->addGeometryDirectly(geom);
   }
   return out;
 }
@@ -64,14 +69,16 @@ OGRMultiPolygon *normalize_winding(const OGRMultiPolygon *theGeom)
 
 OGRGeometryCollection *normalize_winding(const OGRGeometryCollection *theGeom)
 {
-  if (theGeom == nullptr || theGeom->IsEmpty() != 0) return nullptr;
+  if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+    return nullptr;
 
   auto *out = new OGRGeometryCollection();
 
   for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
   {
     auto *geom = normalize_winding(theGeom->getGeometryRef(i));
-    if (geom != nullptr) out->addGeometryDirectly(geom);
+    if (geom != nullptr)
+      out->addGeometryDirectly(geom);
   }
   return out;
 }
@@ -84,7 +91,8 @@ OGRGeometryCollection *normalize_winding(const OGRGeometryCollection *theGeom)
 
 OGRGeometry *normalize_winding(const OGRGeometry *theGeom)
 {
-  if (theGeom == nullptr) return nullptr;
+  if (theGeom == nullptr)
+    return nullptr;
 
   OGRwkbGeometryType id = theGeom->getGeometryType();
 

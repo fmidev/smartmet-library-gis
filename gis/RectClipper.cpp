@@ -37,7 +37,8 @@ void reverse_points(OGRLineString *line, int start, int end)
 
 void normalize_ring(OGRLinearRing *ring)
 {
-  if (ring->IsEmpty() != 0) return;
+  if (ring->IsEmpty() != 0)
+    return;
 
   // Find the "smallest" coordinate
 
@@ -52,7 +53,8 @@ void normalize_ring(OGRLinearRing *ring)
   }
 
   // Quick exit if the ring is already normalized
-  if (best_pos == 0) return;
+  if (best_pos == 0)
+    return;
 
   // Flip hands -algorithm to the part without the
   // duplicate last coordinate at n-1:
@@ -83,7 +85,8 @@ OGRLinearRing *make_exterior(const Fmi::Box &theBox, double max_length = 0)
   ring->addPoint(theBox.xmax(), theBox.ymax());
   ring->addPoint(theBox.xmax(), theBox.ymin());
   ring->addPoint(theBox.xmin(), theBox.ymin());
-  if (max_length > 0) ring->segmentize(max_length);
+  if (max_length > 0)
+    ring->segmentize(max_length);
   return ring;
 }
 
@@ -101,7 +104,8 @@ OGRLinearRing *make_hole(const Fmi::Box &theBox, double max_length = 0)
   ring->addPoint(theBox.xmax(), theBox.ymax());
   ring->addPoint(theBox.xmin(), theBox.ymax());
   ring->addPoint(theBox.xmin(), theBox.ymin());
-  if (max_length > 0) ring->segmentize(max_length);
+  if (max_length > 0)
+    ring->segmentize(max_length);
   return ring;
 }
 
@@ -146,7 +150,8 @@ Fmi::RectClipper::~RectClipper()
 void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper, bool exterior)
 {
   // Nothing to reconnect if there aren't at least two lines
-  if (lines.size() < 2) return;
+  if (lines.size() < 2)
+    return;
 
   for (auto pos1 = lines.begin(); pos1 != lines.end();)
   {
@@ -197,7 +202,8 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
       }
     }
 
-    if (pos1 != lines.end()) ++pos1;
+    if (pos1 != lines.end())
+      ++pos1;
   }
 }
 
@@ -256,7 +262,10 @@ bool Fmi::RectClipper::empty() const
  */
 // ----------------------------------------------------------------------
 
-void Fmi::RectClipper::addBox() { itsAddBoxFlag = true; }
+void Fmi::RectClipper::addBox()
+{
+  itsAddBoxFlag = true;
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -267,7 +276,8 @@ void Fmi::RectClipper::addBox() { itsAddBoxFlag = true; }
 void Fmi::RectClipper::addExterior(OGRLinearRing *theRing)
 {
   normalize_ring(theRing);
-  if (theRing->isClockwise() == 0) theRing->reverseWindingOrder();
+  if (theRing->isClockwise() == 0)
+    theRing->reverseWindingOrder();
   itsExteriorRings.push_back(theRing);
 }
 // ----------------------------------------------------------------------
@@ -296,7 +306,8 @@ void Fmi::RectClipper::addExterior(OGRLineString *theLine)
 void Fmi::RectClipper::addInterior(OGRLinearRing *theRing)
 {
   normalize_ring(theRing);
-  if (theRing->isClockwise() == 1) theRing->reverseWindingOrder();
+  if (theRing->isClockwise() == 1)
+    theRing->reverseWindingOrder();
   itsInteriorRings.push_back(theRing);
 }
 // ----------------------------------------------------------------------
@@ -305,7 +316,10 @@ void Fmi::RectClipper::addInterior(OGRLinearRing *theRing)
  */
 // ----------------------------------------------------------------------
 
-void Fmi::RectClipper::addInterior(OGRLineString *theLine) { itsInteriorLines.push_back(theLine); }
+void Fmi::RectClipper::addInterior(OGRLineString *theLine)
+{
+  itsInteriorLines.push_back(theLine);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -528,10 +542,12 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
                   bool keep_inside,
                   bool exterior)
 {
-  if (theLines.empty()) return;
+  if (theLines.empty())
+    return;
 
   bool cw = false;
-  if (keep_inside) cw = exterior;
+  if (keep_inside)
+    cw = exterior;
 
   OGRLinearRing *ring = nullptr;
 

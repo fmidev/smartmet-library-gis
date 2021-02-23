@@ -70,4 +70,7 @@ Fmi::Box::Box(double theX1, double theY1, double theX2, double theY2)
  */
 // ----------------------------------------------------------------------
 
-Fmi::Box Fmi::Box::identity() { return {0, 1, 1, 0, 1, 1}; }
+Fmi::Box Fmi::Box::identity()
+{
+  return {0, 1, 1, 0, 1, 1};
+}

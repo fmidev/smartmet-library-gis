@@ -71,7 +71,8 @@ CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSo
 bool CoordinateTransformation::transform(double& x, double& y) const
 {
 #if CHECK_AXES
-  if (impl->m_swapInput) std::swap(x, y);
+  if (impl->m_swapInput)
+    std::swap(x, y);
 #endif
 
   bool ok = (impl->m_transformation->Transform(1, &x, &y) != 0);
@@ -97,7 +98,8 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
         "Cannot do coordinate transformation for empty X- and Y-coordinate vectors");
 
 #if CHECK_AXES
-  if (impl->m_swapInput) std::swap(x, y);
+  if (impl->m_swapInput)
+    std::swap(x, y);
 #endif
 
   int n = static_cast<int>(x.size());
@@ -106,7 +108,8 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
   bool ok = (impl->m_transformation->Transform(n, &x[0], &y[0], nullptr, &flags[0]) != 0);
 
 #if CHECK_AXES
-  if (impl->m_swapOutput) std::swap(x, y);
+  if (impl->m_swapOutput)
+    std::swap(x, y);
 #endif
 
   for (std::size_t i = 0; i < flags.size(); i++)
@@ -124,13 +127,15 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
 bool CoordinateTransformation::transform(OGRGeometry& geom) const
 {
 #if CHECK_AXES
-  if (impl->m_swapInput) geom.swapXY();
+  if (impl->m_swapInput)
+    geom.swapXY();
 #endif
 
   bool ok = (geom.transform(impl->m_transformation.get()) != OGRERR_NONE);
 
 #if CHECK_AXES
-  if (ok && impl->m_swapOutput) geom.swapXY();
+  if (ok && impl->m_swapOutput)
+    geom.swapXY();
 #endif
 
   return ok;
@@ -187,7 +192,8 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       for (const auto& box : interrupt.cuts)
       {
         g.reset(OGR::polycut(*g, box, theMaximumSegmentLength));
-        if (!g || g->IsEmpty()) return nullptr;
+        if (!g || g->IsEmpty())
+          return nullptr;
       }
     }
 
@@ -198,12 +204,16 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
     if (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope))
     {
-      if (interrupt.cutGeometry) g.reset(g->Difference(interrupt.cutGeometry.get()));
-      if (!g || g->IsEmpty()) return nullptr;
+      if (interrupt.cutGeometry)
+        g.reset(g->Difference(interrupt.cutGeometry.get()));
+      if (!g || g->IsEmpty())
+        return nullptr;
     }
 
-    if (interrupt.andGeometry) g.reset(g->Intersection(interrupt.andGeometry.get()));
-    if (!g || g->IsEmpty()) return nullptr;
+    if (interrupt.andGeometry)
+      g.reset(g->Intersection(interrupt.andGeometry.get()));
+    if (!g || g->IsEmpty())
+      return nullptr;
   }
 
   // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip that
@@ -218,6 +228,9 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
   return OGR::renormalizeWindingOrder(*g);
 }
 
-std::size_t CoordinateTransformation::hashValue() const { return impl->m_hash; }
+std::size_t CoordinateTransformation::hashValue() const
+{
+  return impl->m_hash;
+}
 
 }  // namespace Fmi
