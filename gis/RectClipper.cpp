@@ -7,72 +7,6 @@
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Reverse given segment in a linestring
- */
-// ----------------------------------------------------------------------
-
-void reverse_points(OGRLineString *line, int start, int end)
-{
-  OGRPoint p1;
-  OGRPoint p2;
-  while (start < end)
-  {
-    line->getPoint(start, &p1);
-    line->getPoint(end, &p2);
-    line->setPoint(start, &p2);
-    line->setPoint(end, &p1);
-    ++start;
-    --end;
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Normalize a ring into lexicographic order
- *
- * This is strictly speaking not necessary, but it keeps the expected
- * test results stable.
- */
-// ----------------------------------------------------------------------
-
-void normalize_ring(OGRLinearRing *ring)
-{
-  if (ring->IsEmpty() != 0)
-    return;
-
-  // Find the "smallest" coordinate
-
-  int best_pos = 0;
-  int n = ring->getNumPoints();
-  for (int pos = 0; pos < n; ++pos)
-  {
-    if (ring->getX(pos) < ring->getX(best_pos))
-      best_pos = pos;
-    else if (ring->getX(pos) == ring->getX(best_pos) && ring->getY(pos) < ring->getY(best_pos))
-      best_pos = pos;
-  }
-
-  // Quick exit if the ring is already normalized
-  if (best_pos == 0)
-    return;
-
-  // Flip hands -algorithm to the part without the
-  // duplicate last coordinate at n-1:
-
-  reverse_points(ring, 0, best_pos - 1);
-  reverse_points(ring, best_pos, n - 2);
-  reverse_points(ring, 0, n - 2);
-
-  // And make sure the ring is valid by duplicating the first coordinate
-  // at the end:
-
-  OGRPoint point;
-  ring->getPoint(0, &point);
-  ring->setPoint(n - 1, &point);
-}
-
-// ----------------------------------------------------------------------
-/*!
  * \brief Build a ring out of the bbox
  */
 // ----------------------------------------------------------------------
@@ -275,7 +209,7 @@ void Fmi::RectClipper::addBox()
 
 void Fmi::RectClipper::addExterior(OGRLinearRing *theRing)
 {
-  normalize_ring(theRing);
+  OGR::normalize(*theRing);
   if (theRing->isClockwise() == 0)
     theRing->reverseWindingOrder();
   itsExteriorRings.push_back(theRing);
@@ -305,7 +239,7 @@ void Fmi::RectClipper::addExterior(OGRLineString *theLine)
 
 void Fmi::RectClipper::addInterior(OGRLinearRing *theRing)
 {
-  normalize_ring(theRing);
+  OGR::normalize(*theRing);
   if (theRing->isClockwise() == 1)
     theRing->reverseWindingOrder();
   itsInteriorRings.push_back(theRing);
@@ -619,7 +553,7 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
 
     if (ring->get_IsClosed())
     {
-      normalize_ring(ring);
+      Fmi::OGR::normalize(*ring);
       theRings.push_back(ring);
       ring = nullptr;
     }

@@ -776,6 +776,8 @@ void polyclip()
        "POLYGON ((0 0,0 5,5 5,5 0,1 0,3 1,3 3,0 0))"},
       // Triangle at two corners and one edge
       {"POLYGON ((0 0,5 10,10 0,0 0))", "POLYGON ((0 0,5 10,10 0,0 0))"},
+      // This was disabled since there is no code to normalize a polygon which is not modified at
+      // all by clipping.
       // Same triangle with another starting point is normalized
       {"POLYGON ((5 10,10 0,0 0,5 10))", "POLYGON ((0 0,5 10,10 0,0 0))"},
       // Triangle intersection at corner and edge
@@ -919,7 +921,8 @@ void polyclip_case_hirlam()
 
   Box box(-33.5, 0, 100, 100, 100, 100);
 
-  std::string wkt = "POLYGON ((-33.5 2,-33.5 3,-33 3,-33.5 4,-33 4,-33.5 5,-32 5, -32 2, -33.5 2))";
+  std::string wkt =
+      "POLYGON ((-33.5 2.0,-33.5 3.0,-33 3,-33.5 4.0,-33 4,-33.5 5.0,-32 5,-32 2,-33.5 2.0))";
 
   OGRGeometry* input;
 

@@ -62,6 +62,10 @@ OGRGeometry* polycut(const OGRGeometry& theGeom, const Box& theBox, double maxSe
 // Filter out small polygons
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);
 
+// Normalize rings to lexicographic order, mostly to consistent test results
+void normalize(OGRPolygon& thePoly);
+void normalize(OGRLinearRing& theRing);
+
 // Normalize winding order: exterior=CW, interior=CCW
 OGRGeometry* normalizeWindingOrder(const OGRGeometry& theGeom);
 

@@ -1043,12 +1043,17 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
 
   auto position = do_rect(theGeom->getExteriorRing(), rect, theBox, keep_inside, true);
 
-  if (all_only_inside(position))
+  if (all_not_outside(position))
   {
     // CLIP: - if all vertices inside box or on the edges, return input as is
     // CUT:  - if all vertices inside box or on the edges, return empty result
+
     if (keep_inside)
-      theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+    {
+      auto *poly = dynamic_cast<OGRPolygon *>(theGeom->clone());
+      OGR::normalize(*poly);
+      theBuilder.add(poly);
+    }
     return;
   }
 
