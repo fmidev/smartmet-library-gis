@@ -1,13 +1,12 @@
 #include "Interrupt.h"
-
 #include "OGR.h"
 #include "ProjInfo.h"
 #include "SpatialReference.h"
-
 #include <boost/math/constants/constants.hpp>
-
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
+
+#include <iostream>
 
 namespace Fmi
 {
@@ -203,9 +202,52 @@ Box make_vertical_cut(double lon, double lat1, double lat2)
   return Box(lon - epsilon, std::min(lat1, lat2), lon + epsilon, std::max(lat1, lat2));
 }
 
+Box make_horizontal_cut(double lat, double lon1, double lon2)
+{
+  return Box(std::min(lon1, lon2), lat - epsilon, std::max(lon1, lon2), lat + epsilon);
+}
+
 Interrupt interruptGeometry(const SpatialReference& theSRS)
 {
   Interrupt result;
+
+  // If general oblique transformation such as rotated latlon, cut the Antarctic in half at the
+  // central meridian. -60 is large enough to make the cut, since Drake passage is below
+  // that latitude. In reality, the cut should be made for any polygon which spans the south pole,
+  // and the cut should be made for that polygon only. Hence this code is not generic enough.
+  // Similar logic would be needed for the north pole should there be a polygon covering it.
+  //
+  // The Interrupt struct should thus contain conditional cuts for individual polygons based
+  // on the envelope of the individual polygon. The current implementation does not support this.
+  //
+  // The code commented out shows various tests used to find out how a nonzero lon_0 should be
+  // handled, but the (random) experimental approach failed.
+
+  if (theSRS.projInfo().getString("proj") == std::string("ob_tran"))
+  {
+    auto opt_lat_p = theSRS.projInfo().getDouble("o_lat_p");
+    if (opt_lat_p)
+    {
+      result.cuts.emplace_back(make_vertical_cut(0, -90, -60));
+#if 0
+      const auto opt_lon_0 = theSRS.projInfo().getDouble("lon_0");
+      const auto lon_0 = (opt_lon_0 ? *opt_lon_0 : 0.0);
+
+      result.cuts.emplace_back(make_vertical_cut(0, -90, -60));
+      result.cuts.emplace_back(make_vertical_cut(lon_0, -90, -60));
+      result.cuts.emplace_back(make_vertical_cut(-lon_0, -90, -60));
+
+      result.cuts.emplace_back(make_vertical_cut(*opt_lat_p, -90, -60));
+      result.cuts.emplace_back(make_vertical_cut(-(*opt_lat_p), -90, -60));
+
+      result.cuts.emplace_back(make_horizontal_cut(-(*opt_lat_p), -180, 180));
+      result.cuts.emplace_back(make_horizontal_cut(-90, -180, 180));
+      result.cuts.emplace_back(make_horizontal_cut(+90, -180, 180));
+      result.cuts.emplace_back(make_vertical_cut(+180, -90, 90));
+      result.cuts.emplace_back(make_vertical_cut(-180, -90, 90));
+#endif
+    }
+  }
 
   // Geographic: cut everything at lon_wrap (default=Greenwich) antimeridians
   if (theSRS.isGeographic())

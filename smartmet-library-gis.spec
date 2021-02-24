@@ -4,7 +4,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 21.2.24
-Release: 3%{?dist}.fmi
+Release: 4%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -80,6 +80,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-4.fmi
+- Added an interrupt of the central meridian for general oblique transformations. Not sufficient when lon_0 is not zero.
+
 * Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-3.fmi
 - Fixed o_wrap to lon_wrap in projection interrupt generation
 
