@@ -495,30 +495,29 @@ void exportToSvg_precision()
 
     {
       string ok =
-          "M-0.1 -0.1 0 0 0 0.1 0.1 0.1 0.1 0.1 0.2 0.2 0.2 0.2 0.3 0.3 0.3 0.3 0.4 0.4 0.4 0.5 "
-          "0.5 "
-          "0.5 0.5 0.6 0.6 0.6 0.6 0.7 0.7 0.7 0.7 0.8 0.8 0.8 0.8 0.8 0.9 0.9 0.9 0.9 1 1";
+          "M-0.1 -0.1 0 0 0 0.1 0.1 0.1 0.1 0.2 0.2 0.2 0.2 0.3 0.3 0.3 0.3 0.4 0.4 0.4 0.4 0.5 "
+          "0.5 0.5 0.5 0.6 0.6 0.6 0.6 0.7 0.7 0.7 0.7 0.8 0.8 0.8 0.8 0.9 0.9 0.9 0.9 1 1 1";
       string result = exportToSvg(*line, Box::identity(), 1.0);
       if (result != ok)
         TEST_FAILED("Precision 1:\n\tExpected: " + ok + "\n\tObtained: " + result);
     }
 
     {
-      string ok = "M-0.1 -0.1 -0.1 -0.1 0.1 0.1 0.3 0.3 0.5 0.5 0.7 0.7 0.9 0.9";
+      string ok = "M-0.2 0 0 0 0.2 0.2 0.4 0.4 0.6 0.6 0.8 0.8 1 1";
       string result = exportToSvg(*line, Box::identity(), 0.7);
       if (result != ok)
         TEST_FAILED("Precision 0.7:\n\tExpected: " + ok + "\n\tObtained: " + result);
     }
 
     {
-      string ok = "M-0.1 -0.1 0.2 0.2 0.5 0.5 0.8 0.8";
+      string ok = "M0 0 0.3 0.3 0.6 0.6 0.9 0.9";
       string result = exportToSvg(*line, Box::identity(), 0.5);
       if (result != ok)
         TEST_FAILED("Precision 0.5:\n\tExpected: " + ok + "\n\tObtained: " + result);
     }
 
     {
-      string ok = "M-0.1 -0.1 0.4 0.4";
+      string ok = "M0 0 0.8 0.8";
       string result = exportToSvg(*line, Box::identity(), 0.1);
       if (result != ok)
         TEST_FAILED("Precision 0.1:\n\tExpected: " + ok + "\n\tObtained: " + result);

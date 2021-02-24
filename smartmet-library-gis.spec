@@ -4,7 +4,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 21.2.24
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -80,6 +80,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-2.fmi
+- Fixed rounding issues in exportToSvg
+
 * Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-1.fmi
 - Fixed polyclip to handle a special case encountered in HIRLAM data
 
