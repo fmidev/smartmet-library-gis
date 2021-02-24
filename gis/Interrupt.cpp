@@ -210,7 +210,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   // Geographic: cut everything at lon_wrap (default=Greenwich) antimeridians
   if (theSRS.isGeographic())
   {
-    const auto opt_lon_wrap = theSRS.projInfo().getDouble("o_wrap");
+    const auto opt_lon_wrap = theSRS.projInfo().getDouble("lon_wrap");
     const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 0.0);
 
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap + 180), -90, 90));
