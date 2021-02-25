@@ -1,5 +1,6 @@
 #include "OGR.h"
 #include <boost/math/constants/constants.hpp>
+#include <ogr_geometry.h>
 #include <stdexcept>
 
 // ----------------------------------------------------------------------
@@ -282,6 +283,9 @@ OGRGeometry *despeckle_geom(const OGRGeometry *theGeom, double theLimit, bool th
           dynamic_cast<const OGRGeometryCollection *>(theGeom), theLimit, theGeogFlag);
     case wkbLinearRing:
       throw std::runtime_error("Direct despeckling of LinearRings is not supported");
+    case wkbNone:
+      throw std::runtime_error(
+          "Encountered a 'none' geometry component when despeckling a geometry");
     default:
       throw std::runtime_error("Encountered an unknown geometry component when clipping polygons");
   }

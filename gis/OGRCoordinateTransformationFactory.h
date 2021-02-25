@@ -10,7 +10,7 @@ namespace Fmi
 namespace OGRCoordinateTransformationFactory
 {
 // The object is stored along with its hash value
-using CacheElement = std::pair<std::size_t, std::unique_ptr<OGRCoordinateTransformation>>;
+using CacheElement = std::pair<std::size_t, OGRCoordinateTransformation *>;
 using OGRCoordinateTransformationPool = std::list<CacheElement>;
 
 // Deleter stores the hash and a reference to cache to which the object is to be returned

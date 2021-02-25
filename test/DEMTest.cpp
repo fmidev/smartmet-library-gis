@@ -1,5 +1,6 @@
 #include "DEM.h"
 #include "TestDefs.h"
+
 #include <regression/tframe.h>
 using namespace std;
 
@@ -49,7 +50,8 @@ void elevation()
   // Ruka
   expected = "449.0";
   value = tostr(dem.elevation(29.1507, 66.1677));
-  if (value != expected) TEST_FAILED("Expected elevation " + expected + " at Ruka, not " + value);
+  if (value != expected)
+    TEST_FAILED("Expected elevation " + expected + " at Ruka, not " + value);
 
     // Matterhorn
 #if GIS_SMALLTESTDATA == 0
@@ -79,20 +81,25 @@ void elevation()
 
   expected = "0.0";
   value = tostr(dem.elevation(0, 0));
-  if (value != expected) TEST_FAILED("Expected elevation " + expected + " at 0,0, not " + value);
+  if (value != expected)
+    TEST_FAILED("Expected elevation " + expected + " at 0,0, not " + value);
   value = tostr(dem.elevation(-180, 0));
-  if (value != expected) TEST_FAILED("Expected elevation " + expected + " at -180,0, not " + value);
+  if (value != expected)
+    TEST_FAILED("Expected elevation " + expected + " at -180,0, not " + value);
   value = tostr(dem.elevation(180, 0));
-  if (value != expected) TEST_FAILED("Expected elevation " + expected + " at 180,0, not " + value);
+  if (value != expected)
+    TEST_FAILED("Expected elevation " + expected + " at 180,0, not " + value);
   value = tostr(dem.elevation(180, 0));
-  if (value != expected) TEST_FAILED("Expected elevation " + expected + " at 180,0, not " + value);
+  if (value != expected)
+    TEST_FAILED("Expected elevation " + expected + " at 180,0, not " + value);
 
     // Alanya had rounding issue with coordinates
 #if GIS_SMALLTESTDATA == 0
   expected = "11.0";
 #endif
   value = tostr(dem.elevation(31.99982, 36.543750000000003));
-  if (value != expected) TEST_FAILED("Expected elevation " + expected + " at Alanya, not " + value);
+  if (value != expected)
+    TEST_FAILED("Expected elevation " + expected + " at Alanya, not " + value);
 
     // Chukotskiy
 #if GIS_SMALLTESTDATA == 0
@@ -122,7 +129,8 @@ void elevation()
   expected = "434.0";
 #endif
   value = tostr(dem.elevation(180, 67));
-  if (value != expected) TEST_FAILED("Expected elevation " + expected + " at 180,67, not " + value);
+  if (value != expected)
+    TEST_FAILED("Expected elevation " + expected + " at 180,67, not " + value);
 
   TEST_PASSED();
 }

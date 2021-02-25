@@ -1,7 +1,9 @@
 #include "Box.h"
 #include "TestDefs.h"
+
 #include <fmt/format.h>
 #include <regression/tframe.h>
+
 #include <gdal_version.h>
 #include <iostream>
 #include <ogr_spatialref.h>
@@ -89,19 +91,23 @@ void wgs84_and_epsg2393()
 {
   std::unique_ptr<OGRSpatialReference> latlon(new OGRSpatialReference);
   auto err = latlon->SetFromUserInput("WGS84");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create WGS84 spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create WGS84 spatial reference");
 
   std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
   err = epsg->importFromEPSG(2393);
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create EPSG:2393 spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create EPSG:2393 spatial reference");
 
   std::unique_ptr<OGRCoordinateTransformation> transformation(
       OGRCreateCoordinateTransformation(latlon.get(), epsg.get()));
-  if (transformation == nullptr) TEST_FAILED("Failed to create coordinate transformation");
+  if (transformation == nullptr)
+    TEST_FAILED("Failed to create coordinate transformation");
 
   std::unique_ptr<OGRCoordinateTransformation> itransformation(
       OGRCreateCoordinateTransformation(epsg.get(), latlon.get()));
-  if (itransformation == nullptr) TEST_FAILED("Failed to create inverse coordinate transformation");
+  if (itransformation == nullptr)
+    TEST_FAILED("Failed to create inverse coordinate transformation");
 
   bool swap_input, swap_output;
   set_swap(*transformation, swap_input, swap_output);
@@ -111,7 +117,7 @@ void wgs84_and_epsg2393()
   double x2 = 40;
   double y2 = 70;
 
-  if (swap_input)
+  if (latlon->EPSGTreatsAsLatLong())
   {
     std::swap(x1, y1);
     std::swap(x2, y2);
@@ -120,13 +126,13 @@ void wgs84_and_epsg2393()
   if (transformation->Transform(1, &x1, &y1) == 0 || transformation->Transform(1, &x2, &y2) == 0)
     TEST_FAILED("Failed to create bbox");
 
-  // std::cout << fmt::format("BBOX: {} {} {} {}\n", x1, y1, x2, y2);
-
-  if (swap_output)
+  if (latlon->EPSGTreatsAsLatLong())
   {
     std::swap(x1, y1);
     std::swap(x2, y2);
   }
+
+  // std::cout << fmt::format("\nBBOX = {} {} - {} {}\n", x1, y1, x2, y2);
 
   Fmi::Box box(x1, y1, x2, y2, 100, 200);
 
@@ -134,13 +140,16 @@ void wgs84_and_epsg2393()
     double x = 25;
     double y = 60;
 
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,60");
-    if (swap_output) std::swap(x, y);
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 25,6");
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
 
-    // std::cout << fmt::format("PROJ: {} {}\n", x, y);
-
+    // std::cout << fmt::format("PROJECTED = {} {}\n", x, y);
     box.transform(x, y);
+    // std::cout << fmt::format("PIXEL = {} {}\n", x, y);
 
     if (!TEST_CLOSE(x, 64.6069) || !TEST_CLOSE(y, 108.93))
       TEST_FAILED(
@@ -151,9 +160,12 @@ void wgs84_and_epsg2393()
     double x = 26;
     double y = 65;
 
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
-    if (swap_output) std::swap(x, y);
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 26,65");
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 68.3769) || !TEST_CLOSE(y, 56.995))
@@ -167,9 +179,12 @@ void wgs84_and_epsg2393()
 
     box.itransform(x, y);
 
-    if (swap_output) std::swap(x, y);
-    if (itransformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to inverse project 25,60");
-    if (swap_input) std::swap(x, y);
+    if (swap_output)
+      std::swap(x, y);
+    if (itransformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to inverse project 25,60");
+    if (swap_input)
+      std::swap(x, y);
 
     if (!TEST_CLOSE(x, 25) || !TEST_CLOSE(y, 60))
       TEST_FAILED(
@@ -185,15 +200,18 @@ void epsg4326_and_epsg2393()
 {
   std::unique_ptr<OGRSpatialReference> latlon(new OGRSpatialReference);
   auto err = latlon->importFromEPSG(4326);
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create EPSG:4326 spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create EPSG:4326 spatial reference");
 
   std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
   err = epsg->importFromEPSG(2393);
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create EPSG:2393 spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create EPSG:2393 spatial reference");
 
   std::unique_ptr<OGRCoordinateTransformation> transformation(
       OGRCreateCoordinateTransformation(latlon.get(), epsg.get()));
-  if (transformation == nullptr) TEST_FAILED("Failed to create coordinate transformation");
+  if (transformation == nullptr)
+    TEST_FAILED("Failed to create coordinate transformation");
 
   bool swap_input, swap_output;
   set_swap(*transformation, swap_input, swap_output);
@@ -203,14 +221,14 @@ void epsg4326_and_epsg2393()
   double x2 = 40;
   double y2 = 70;
 
-  if (swap_input)
+  if (latlon->EPSGTreatsAsLatLong())
   {
     std::swap(x1, y1);
     std::swap(x2, y2);
   }
   if (transformation->Transform(1, &x1, &y1) == 0 || transformation->Transform(1, &x2, &y2) == 0)
     TEST_FAILED("Failed to create bbox");
-  if (swap_output)
+  if (latlon->EPSGTreatsAsLatLong())
   {
     std::swap(x1, y1);
     std::swap(x2, y2);
@@ -221,10 +239,12 @@ void epsg4326_and_epsg2393()
   {
     double x = 25;
     double y = 60;
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,60");
-    if (swap_output) std::swap(x, y);
-    // std::cout << fmt::format("PROJ: {} {}\n", x, y);
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 25,6");
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 64.6069) || !TEST_CLOSE(y, 108.93))
@@ -235,9 +255,12 @@ void epsg4326_and_epsg2393()
   {
     double x = 26;
     double y = 65;
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
-    if (swap_output) std::swap(x, y);
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 26,65");
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 68.3769) || !TEST_CLOSE(y, 56.995))
@@ -254,15 +277,18 @@ void epsga4326_and_epsg2393()
 {
   std::unique_ptr<OGRSpatialReference> latlon(new OGRSpatialReference);
   auto err = latlon->importFromEPSGA(4326);
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create EPSGA:4326 spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create EPSGA:4326 spatial reference");
 
   std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
   err = epsg->importFromEPSG(2393);
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create EPSG:2393 spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create EPSG:2393 spatial reference");
 
   std::unique_ptr<OGRCoordinateTransformation> transformation(
       OGRCreateCoordinateTransformation(latlon.get(), epsg.get()));
-  if (transformation == nullptr) TEST_FAILED("Failed to create coordinate transformation");
+  if (transformation == nullptr)
+    TEST_FAILED("Failed to create coordinate transformation");
 
   bool swap_input, swap_output;
   set_swap(*transformation, swap_input, swap_output);
@@ -271,14 +297,14 @@ void epsga4326_and_epsg2393()
   double y1 = 50;
   double x2 = 40;
   double y2 = 70;
-  if (swap_input)
+  if (latlon->EPSGTreatsAsLatLong())
   {
     std::swap(x1, y1);
     std::swap(x2, y2);
   }
   if (transformation->Transform(1, &x1, &y1) == 0 || transformation->Transform(1, &x2, &y2) == 0)
     TEST_FAILED("Failed to create bbox");
-  if (swap_output)
+  if (latlon->EPSGTreatsAsLatLong())
   {
     std::swap(x1, y1);
     std::swap(x2, y2);
@@ -289,10 +315,12 @@ void epsga4326_and_epsg2393()
   {
     double x = 25;
     double y = 60;
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,60");
-    if (swap_output) std::swap(x, y);
-    // std::cout << fmt::format("PROJ: {} {}\n", x, y);
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 25,6");
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 64.6069) || !TEST_CLOSE(y, 108.93))
@@ -303,9 +331,12 @@ void epsga4326_and_epsg2393()
   {
     double x = 26;
     double y = 65;
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
-    if (swap_output) std::swap(x, y);
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 26,65");
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 68.3769) || !TEST_CLOSE(y, 56.995))
@@ -322,15 +353,18 @@ void epsga4326_and_epsga2393()
 {
   std::unique_ptr<OGRSpatialReference> latlon(new OGRSpatialReference);
   auto err = latlon->SetFromUserInput("EPSGA:4326");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create EPSGA:4326 spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create EPSGA:4326 spatial reference");
 
   std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
   err = epsg->SetFromUserInput("EPSGA:2393");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create EPSGA:2393 spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create EPSGA:2393 spatial reference");
 
   std::unique_ptr<OGRCoordinateTransformation> transformation(
       OGRCreateCoordinateTransformation(latlon.get(), epsg.get()));
-  if (transformation == nullptr) TEST_FAILED("Failed to create coordinate transformation");
+  if (transformation == nullptr)
+    TEST_FAILED("Failed to create coordinate transformation");
 
   bool swap_input, swap_output;
   set_swap(*transformation, swap_input, swap_output);
@@ -339,14 +373,14 @@ void epsga4326_and_epsga2393()
   double y1 = 50;
   double x2 = 40;
   double y2 = 70;
-  if (swap_input)
+  if (latlon->EPSGTreatsAsLatLong())
   {
     std::swap(x1, y1);
     std::swap(x2, y2);
   }
   if (transformation->Transform(1, &x1, &y1) == 0 || transformation->Transform(1, &x2, &y2) == 0)
     TEST_FAILED("Failed to create bbox");
-  if (swap_output)
+  if (latlon->EPSGTreatsAsLatLong())
   {
     std::swap(x1, y1);
     std::swap(x2, y2);
@@ -357,10 +391,12 @@ void epsga4326_and_epsga2393()
   {
     double x = 25;
     double y = 60;
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,60");
-    if (swap_output) std::swap(x, y);
-    // std::cout << fmt::format("PROJ: {} {}\n", x, y);
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 25,6");
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 64.6069) || !TEST_CLOSE(y, 108.93))
@@ -371,9 +407,12 @@ void epsga4326_and_epsga2393()
   {
     double x = 26;
     double y = 65;
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
-    if (swap_output) std::swap(x, y);
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 26,65");
+    if (latlon->EPSGTreatsAsLatLong())
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 68.3769) || !TEST_CLOSE(y, 56.995))
@@ -390,17 +429,20 @@ void wgs84_and_stere()
 {
   std::unique_ptr<OGRSpatialReference> latlon(new OGRSpatialReference);
   auto err = latlon->SetFromUserInput("WGS84");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create WGS84 spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create WGS84 spatial reference");
 
   std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
   err = epsg->SetFromUserInput(
       "+proj=stere +lat_0=90 +lat_ts=60 +lon_0=20 +k=1 +x_0=0 +y_0=0 +a=6371220 +b=6371220 "
       "+units=m +no_defs");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create stere spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create stere spatial reference");
 
   std::unique_ptr<OGRCoordinateTransformation> transformation(
       OGRCreateCoordinateTransformation(latlon.get(), epsg.get()));
-  if (transformation == nullptr) TEST_FAILED("Failed to create coordinate transformation");
+  if (transformation == nullptr)
+    TEST_FAILED("Failed to create coordinate transformation");
 
   bool swap_input, swap_output;
   set_swap(*transformation, swap_input, swap_output);
@@ -428,9 +470,12 @@ void wgs84_and_stere()
   {
     double x = 25;
     double y = 60;
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,60");
-    if (swap_output) std::swap(x, y);
+    if (swap_input)
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 25,60");
+    if (swap_output)
+      std::swap(x, y);
     // std::cout << fmt::format("PROJ: {} {}\n", x, y);
     box.transform(x, y);
 
@@ -442,9 +487,12 @@ void wgs84_and_stere()
   {
     double x = 26;
     double y = 65;
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
-    if (swap_output) std::swap(x, y);
+    if (swap_input)
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 26,65");
+    if (swap_output)
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 69.9345) || !TEST_CLOSE(y, 56.8485))
@@ -461,19 +509,23 @@ void sphere_and_epsg2393()
 {
   std::unique_ptr<OGRSpatialReference> latlon(new OGRSpatialReference);
   auto err = latlon->SetFromUserInput("+proj=longlat +R=6731229 +no_defs +towgs84=0,0,0");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spherical spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create spherical spatial reference");
 
   std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
   err = epsg->importFromEPSG(2393);
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create EPSG:2393 spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create EPSG:2393 spatial reference");
 
   std::unique_ptr<OGRCoordinateTransformation> transformation(
       OGRCreateCoordinateTransformation(latlon.get(), epsg.get()));
-  if (transformation == nullptr) TEST_FAILED("Failed to create coordinate transformation");
+  if (transformation == nullptr)
+    TEST_FAILED("Failed to create coordinate transformation");
 
   std::unique_ptr<OGRCoordinateTransformation> itransformation(
       OGRCreateCoordinateTransformation(epsg.get(), latlon.get()));
-  if (itransformation == nullptr) TEST_FAILED("Failed to create inverse coordinate transformation");
+  if (itransformation == nullptr)
+    TEST_FAILED("Failed to create inverse coordinate transformation");
 
   bool swap_input, swap_output;
   set_swap(*transformation, swap_input, swap_output);
@@ -506,9 +558,12 @@ void sphere_and_epsg2393()
     double x = 25;
     double y = 60;
 
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,60");
-    if (swap_output) std::swap(x, y);
+    if (swap_input)
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 25,60");
+    if (swap_output)
+      std::swap(x, y);
 
     // std::cout << fmt::format("PROJ: {} {}\n", x, y);
 
@@ -523,9 +578,12 @@ void sphere_and_epsg2393()
     double x = 26;
     double y = 65;
 
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
-    if (swap_output) std::swap(x, y);
+    if (swap_input)
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 26,65");
+    if (swap_output)
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 68.4165) || !TEST_CLOSE(y, 56.9242))
@@ -539,9 +597,12 @@ void sphere_and_epsg2393()
 
     box.itransform(x, y);
 
-    if (swap_output) std::swap(x, y);
-    if (itransformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to inverse project 25,60");
-    if (swap_input) std::swap(x, y);
+    if (swap_output)
+      std::swap(x, y);
+    if (itransformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to inverse project 25,60");
+    if (swap_input)
+      std::swap(x, y);
 
     if (!TEST_CLOSE(x, 25) || !TEST_CLOSE(y, 60))
       TEST_FAILED(
@@ -557,17 +618,20 @@ void sphere_and_stere()
 {
   std::unique_ptr<OGRSpatialReference> latlon(new OGRSpatialReference);
   auto err = latlon->SetFromUserInput("+proj=longlat +R=6371229 +no_defs +towgs84=0,0,0");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create spherical spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create spherical spatial reference");
 
   std::unique_ptr<OGRSpatialReference> epsg(new OGRSpatialReference);
   err = epsg->SetFromUserInput(
       "+proj=stere +lat_0=90 +lat_ts=60 +lon_0=20 +k=1 +x_0=0 +y_0=0 +a=6371220 +b=6371220 "
       "+units=m +no_defs");
-  if (err != OGRERR_NONE) TEST_FAILED("Failed to create stere spatial reference");
+  if (err != OGRERR_NONE)
+    TEST_FAILED("Failed to create stere spatial reference");
 
   std::unique_ptr<OGRCoordinateTransformation> transformation(
       OGRCreateCoordinateTransformation(latlon.get(), epsg.get()));
-  if (transformation == nullptr) TEST_FAILED("Failed to create coordinate transformation");
+  if (transformation == nullptr)
+    TEST_FAILED("Failed to create coordinate transformation");
 
   bool swap_input, swap_output;
   set_swap(*transformation, swap_input, swap_output);
@@ -590,17 +654,17 @@ void sphere_and_stere()
     std::swap(x2, y2);
   }
 
-  // std::cout << fmt::format("BBOX: {} {} {} {}\n", x1, y1, x2, y2);
-
   Fmi::Box box(x1, y1, x2, y2, 100, 200);
 
   {
     double x = 25;
     double y = 60;
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 25,60");
-    if (swap_output) std::swap(x, y);
-    // std::cout << fmt::format("PROJ: {} {}\n", x, y);
+    if (swap_input)
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 25,60");
+    if (swap_output)
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 70.0801) || !TEST_CLOSE(y, 105.046))
@@ -611,9 +675,12 @@ void sphere_and_stere()
   {
     double x = 26;
     double y = 65;
-    if (swap_input) std::swap(x, y);
-    if (transformation->Transform(1, &x, &y) == 0) TEST_FAILED("Failed to project 26,65");
-    if (swap_output) std::swap(x, y);
+    if (swap_input)
+      std::swap(x, y);
+    if (transformation->Transform(1, &x, &y) == 0)
+      TEST_FAILED("Failed to project 26,65");
+    if (swap_output)
+      std::swap(x, y);
     box.transform(x, y);
 
     if (!TEST_CLOSE(x, 69.9345) || !TEST_CLOSE(y, 56.8485))

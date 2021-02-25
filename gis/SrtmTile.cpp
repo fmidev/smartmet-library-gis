@@ -1,11 +1,14 @@
 #define BOOST_FILESYSTEM_NO_DEPRECATED
 
 #include "SrtmTile.h"
+
 #include <boost/filesystem/operations.hpp>
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/move/unique_ptr.hpp>
 #include <boost/thread.hpp>
+#include <fmt/format.h>
+
 #include <stdexcept>
 
 using FileMapping = boost::interprocess::file_mapping;
@@ -118,8 +121,8 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
 {
   // Sanity checks
   if (i >= itsSize || j >= itsSize)
-    throw std::runtime_error("SrtmFile indexes " + std::to_string(i) + "," + std::to_string(j) +
-                             " is out of range, size of tile is " + std::to_string(itsSize));
+    throw std::runtime_error(
+        fmt::format("SrtmFile indexes {},{} is out of range, size of tile is {}", i, j, itsSize));
 
   // We use lazy initialization to reduce core sizes in case
   // private mapped files are not disabled in core dumps.
@@ -179,28 +182,40 @@ SrtmTile::SrtmTile(const std::string &path) : impl(new SrtmTile::Impl(path)) {}
  */
 // ----------------------------------------------------------------------
 
-const std::string &SrtmTile::path() const { return impl->path(); }
+const std::string &SrtmTile::path() const
+{
+  return impl->path();
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the size of the tile
  */
 // ----------------------------------------------------------------------
 
-std::size_t SrtmTile::size() const { return impl->size(); }
+std::size_t SrtmTile::size() const
+{
+  return impl->size();
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the lower left corner longitude of the tile
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::longitude() const { return impl->longitude(); }
+int SrtmTile::longitude() const
+{
+  return impl->longitude();
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the lower left corner latitude of the tile
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::latitude() const { return impl->latitude(); }
+int SrtmTile::latitude() const
+{
+  return impl->latitude();
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the value at the given tile coordinate
@@ -210,5 +225,8 @@ int SrtmTile::latitude() const { return impl->latitude(); }
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::value(std::size_t i, std::size_t j) const { return impl->value(i, j); }
+int SrtmTile::value(std::size_t i, std::size_t j) const
+{
+  return impl->value(i, j);
+}
 }  // namespace Fmi

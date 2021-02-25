@@ -28,6 +28,9 @@ class Box
       std::size_t width,
       std::size_t height);
 
+  // Construct identity transformation for clipping purposes only
+  Box(double theX1, double theY1, double theX2, double theY2);
+
   Box() = delete;
 
   // Transform the given coordinate
@@ -135,8 +138,10 @@ class Box
 
 inline Box::Position Box::position(double x, double y) const
 {
-  if (x > itsXMin && x < itsXMax && y > itsYMin && y < itsYMax) return Inside;
-  if (x < itsXMin || x > itsXMax || y < itsYMin || y > itsYMax) return Outside;
+  if (x > itsXMin && x < itsXMax && y > itsYMin && y < itsYMax)
+    return Inside;
+  if (x < itsXMin || x > itsXMax || y < itsYMin || y > itsYMax)
+    return Outside;
 
   unsigned int pos = 0;
   if (x == itsXMin)

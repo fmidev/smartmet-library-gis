@@ -1,5 +1,6 @@
 #include "GEOS.h"
 #include "TestDefs.h"
+
 #include <geos/io/WKTReader.h>
 #include <geos/version.h>
 #include <regression/tframe.h>
@@ -50,63 +51,72 @@ void exportToSvg_wiki_examples()
     geom.reset(WKTREAD(point));
     string result = exportToSvg(*geom);
     string ok = "M30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
     geom.reset(WKTREAD(linestring));
     string result = exportToSvg(*geom);
     string ok = "M30 10 10 30 40 40";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
     geom.reset(WKTREAD(polygon1));
     string result = exportToSvg(*geom);
     string ok = "M30 10 40 40 20 40 10 20Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
     geom.reset(WKTREAD(polygon2));
     string result = exportToSvg(*geom);
     string ok = "M35 10 45 45 15 40 10 20ZM20 30 35 35 30 20Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
     geom.reset(WKTREAD(multipoint1));
     string result = exportToSvg(*geom);
     string ok = "M10 40M40 30M20 20M30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
     geom.reset(WKTREAD(multipoint2));
     string result = exportToSvg(*geom);
     string ok = "M10 40M40 30M20 20M30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
     geom.reset(WKTREAD(multilinestring));
     string result = exportToSvg(*geom);
     string ok = "M10 10 20 20 10 40M40 40 30 30 40 20 30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
     geom.reset(WKTREAD(multipolygon1));
     string result = exportToSvg(*geom);
     string ok = "M30 20 45 40 10 40ZM15 5 40 10 10 20 5 10Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
     geom.reset(WKTREAD(multipolygon2));
     string result = exportToSvg(*geom);
     string ok = "M40 40 20 45 45 30ZM20 35 10 30 10 10 30 5 45 20ZM30 20 20 15 20 25Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   TEST_PASSED();
@@ -134,21 +144,24 @@ void exportToSvg_closing_paths()
     geom.reset(WKTREAD(linestring));
     string result = exportToSvg(*geom);
     string ok = "M30 10 10 30 40 40Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
     geom.reset(WKTREAD(multilinestring1));
     string result = exportToSvg(*geom);
     string ok = "M10 10 20 20 10 40ZM40 40 30 30 40 20 30 10";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   {
     geom.reset(WKTREAD(multilinestring2));
     string result = exportToSvg(*geom);
     string ok = "M10 10 20 20 10 40M40 40 30 30 40 20 30 10Z";
-    if (result != ok) TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
+    if (result != ok)
+      TEST_FAILED("Expected: " + ok + "\n\tObtained: " + result);
   }
 
   TEST_PASSED();

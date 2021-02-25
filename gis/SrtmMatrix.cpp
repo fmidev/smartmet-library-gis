@@ -1,5 +1,8 @@
 #include "SrtmMatrix.h"
+
 #include "SrtmTile.h"
+
+#include <algorithm>
 #include <limits>
 #include <stdexcept>
 #include <vector>
@@ -98,7 +101,8 @@ double SrtmMatrix::Impl::value(double lon, double lat) const
   // cell_j = std::min(cell_j, static_cast<int>(itsSize-1));
 
   const auto& tile = itsTiles[tile_i + 360 * tile_j];
-  if (!tile) return std::numeric_limits<double>::quiet_NaN();
+  if (!tile)
+    return std::numeric_limits<double>::quiet_NaN();
 
   int h = tile->value(cell_i, cell_j);
   return h;
@@ -131,7 +135,10 @@ SrtmMatrix::SrtmMatrix() : impl(new SrtmMatrix::Impl()) {}
  */
 // ----------------------------------------------------------------------
 
-void SrtmMatrix::add(TileType tile) { impl->add(std::move(tile)); }
+void SrtmMatrix::add(TileType tile)
+{
+  impl->add(std::move(tile));
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Calculate the DEM elevation for the given coordinate.
@@ -147,5 +154,8 @@ void SrtmMatrix::add(TileType tile) { impl->add(std::move(tile)); }
  */
 // ----------------------------------------------------------------------
 
-double SrtmMatrix::value(double lon, double lat) const { return impl->value(lon, lat); }
+double SrtmMatrix::value(double lon, double lat) const
+{
+  return impl->value(lon, lat);
+}
 }  // namespace Fmi

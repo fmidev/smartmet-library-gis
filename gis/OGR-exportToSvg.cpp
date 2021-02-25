@@ -20,7 +20,7 @@ void append_number(std::string &out, double num, const char *format)
 {
   char buffer[30]{};  // zero initialized!
   if (strcmp(format, "%.0f") == 0)
-    fmt::format_to(buffer, "%d", static_cast<long>(round(num)));
+    fmt::format_to(buffer, "%d", std::round(num));
   else
   {
     // Does not produce a trailing zero :(
@@ -82,43 +82,45 @@ void writeLinearRingSVG(
   if (geom == nullptr || geom->IsEmpty() != 0)
     return;
 
-  // Note: Loop terminates before last, OGR rings are always explicitly closed
-  //       by duplicating the coordinates but we can just use 'Z'
+  // Convert the numbers to rounded form
+
+  const int n = geom->getNumPoints();
+
+  std::vector<double> xx(n, 0.0);
+  std::vector<double> yy(n, 0.0);
+  for (int i = 0; i < n; ++i)
+  {
+    double x = geom->getX(i);
+    double y = geom->getY(i);
+    box.transform(x, y);
+    xx[i] = std::round(x * rfactor) / rfactor;
+    yy[i] = std::round(y * rfactor) / rfactor;
+  }
 
   // Output the first point immediately so we don't have to test
   // for i==0 in the inner loop
 
-  double x = geom->getX(0);
-  double y = geom->getY(0);
-  box.transform(x, y);
-
-  double previous_rx = std::round(x * rfactor);
-  double previous_ry = std::round(y * rfactor);
+  double prev_x = xx[0];
+  double prev_y = yy[0];
 
   out += 'M';
-  append_number(out, x, format);
+  append_number(out, prev_x, format);
   out += ' ';
-  append_number(out, y, format);
-
-  const int n = geom->getNumPoints();
+  append_number(out, prev_y, format);
 
   for (int i = 1; i < n - 1; ++i)
   {
-    x = geom->getX(i);
-    y = geom->getY(i);
-    box.transform(x, y);
+    double new_x = xx[i];
+    double new_y = yy[i];
 
-    const double new_rx = std::round(x * rfactor);
-    const double new_ry = std::round(y * rfactor);
-
-    if (new_rx != previous_rx || new_ry != previous_ry)
+    if (new_x != prev_x || new_y != prev_y)
     {
       out += ' ';
-      append_number(out, x, format);
+      append_number(out, new_x, format);
       out += ' ';
-      append_number(out, y, format);
-      previous_rx = new_rx;
-      previous_ry = new_ry;
+      append_number(out, new_y, format);
+      prev_x = new_x;
+      prev_y = new_y;
     }
   }
 
@@ -137,41 +139,45 @@ void writeLineStringSVG(
   if (geom == nullptr || geom->IsEmpty() != 0)
     return;
 
-  // Output the first point immediately so we don't have to test
-  // for i==0 in the inner loop
-
-  double x = geom->getX(0);
-  double y = geom->getY(0);
-  box.transform(x, y);
-
-  double previous_rx = std::round(x * rfactor);
-  double previous_ry = std::round(y * rfactor);
-
-  out += 'M';
-  append_number(out, x, format);
-  out += ' ';
-  append_number(out, y, format);
+  // Convert the numbers to rounded form
 
   const int n = geom->getNumPoints();
 
+  std::vector<double> xx(n, 0.0);
+  std::vector<double> yy(n, 0.0);
+  for (int i = 0; i < n; ++i)
+  {
+    double x = geom->getX(i);
+    double y = geom->getY(i);
+    box.transform(x, y);
+    xx[i] = std::round(x * rfactor) / rfactor;
+    yy[i] = std::round(y * rfactor) / rfactor;
+  }
+
+  // Output the first point immediately so we don't have to test
+  // for i==0 in the inner loop
+
+  double prev_x = xx[0];
+  double prev_y = yy[0];
+
+  out += 'M';
+  append_number(out, prev_x, format);
+  out += ' ';
+  append_number(out, prev_y, format);
+
   for (int i = 1; i < n; ++i)
   {
-    x = geom->getX(i);
-    y = geom->getY(i);
+    double new_x = xx[i];
+    double new_y = yy[i];
 
-    box.transform(x, y);
-
-    const double new_rx = std::round(x * rfactor);
-    const double new_ry = std::round(y * rfactor);
-
-    if (new_rx != previous_rx || new_ry != previous_ry)
+    if (new_x != prev_x || new_y != prev_y)
     {
       out += ' ';
-      append_number(out, x, format);
+      append_number(out, new_x, format);
       out += ' ';
-      append_number(out, y, format);
-      previous_rx = new_rx;
-      previous_ry = new_ry;
+      append_number(out, new_y, format);
+      prev_x = new_x;
+      prev_y = new_y;
     }
   }
 }

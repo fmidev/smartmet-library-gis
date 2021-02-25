@@ -4,11 +4,11 @@
 
 namespace geos
 {
-  namespace geom
-  {
-    class Geometry;
-  }
+namespace geom
+{
+class Geometry;
 }
+}  // namespace geos
 
 namespace Fmi
 {

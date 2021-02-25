@@ -1,9 +1,12 @@
 #define BOOST_FILESYSTEM_NO_DEPRECATED
 #include "DEM.h"
+
 #include "SrtmMatrix.h"
 #include "SrtmTile.h"
+
 #include <boost/filesystem.hpp>
 #include <fmt/format.h>
+
 #include <cmath>
 #include <limits>
 #include <list>
@@ -94,7 +97,8 @@ double DEM::Impl::elevation(double lon, double lat) const
 {
   // Normalize the coordinates to ranges (-180,180( and (-90,90(
 
-  if (lon >= 180) lon -= 360;
+  if (lon >= 180)
+    lon -= 360;
 
   // Try the matrices starting from largest tile size and hence most accurate
 
@@ -102,13 +106,15 @@ double DEM::Impl::elevation(double lon, double lat) const
   for (const auto& size_matrix : itsMatrices)
   {
     value = size_matrix.second.value(lon, lat);
-    if (!std::isnan(value) && (value != SrtmMatrix::missing)) return value;
+    if (!std::isnan(value) && (value != SrtmMatrix::missing))
+      return value;
   }
 
   // Now value is either NaN to indicate a value at sea or
   // the missing value -32768, which we convert to NaN
 
-  if (std::isnan(value)) return 0;
+  if (std::isnan(value))
+    return 0;
   return std::numeric_limits<double>::quiet_NaN();
 }
 
@@ -122,7 +128,8 @@ double DEM::Impl::elevation(double lon, double lat, double resolution) const
 {
   // Normalize the coordinates to ranges (-180,180( and (-90,90(
 
-  if (lon >= 180) lon -= 360;
+  if (lon >= 180)
+    lon -= 360;
 
   // Size limit corresponding to the resolution
   // 3601 = 1 second = 30 meters
@@ -139,25 +146,29 @@ double DEM::Impl::elevation(double lon, double lat, double resolution) const
   {
     if (it->first < sizelimit)
     {
-      if (it != itsMatrices.begin()) --it;
+      if (it != itsMatrices.begin())
+        --it;
       break;
     }
     ++it;
   }
-  if (it == itsMatrices.end()) --it;
+  if (it == itsMatrices.end())
+    --it;
 
   double value = SrtmMatrix::missing;
   while (it != itsMatrices.end())
   {
     value = it->second.value(lon, lat);
-    if (!std::isnan(value) && (value != SrtmMatrix::missing)) return value;
+    if (!std::isnan(value) && (value != SrtmMatrix::missing))
+      return value;
     ++it;
   }
 
   // Now value is either NaN to indicate a value at sea or
   // the missing value -32768, which we convert to NaN
 
-  if (std::isnan(value)) return 0;
+  if (std::isnan(value))
+    return 0;
   return std::numeric_limits<double>::quiet_NaN();
 }
 
@@ -207,9 +218,11 @@ double DEM::elevation(double lon, double lat, double resolution) const
         fmt::format("DEM: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
   }
 
-  if (resolution < 0) throw std::runtime_error("Desired DEM resolution cannot be negative");
+  if (resolution < 0)
+    throw std::runtime_error("Desired DEM resolution cannot be negative");
 
-  if (resolution == 0) return impl->elevation(lon, lat);
+  if (resolution == 0)
+    return impl->elevation(lon, lat);
   return impl->elevation(lon, lat, resolution);
 }
 

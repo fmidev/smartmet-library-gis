@@ -1,5 +1,6 @@
 #include "LandCover.h"
 #include "TestDefs.h"
+
 #include <boost/lexical_cast.hpp>
 #include <regression/tframe.h>
 using namespace std;
@@ -133,7 +134,8 @@ void isopenwater()
     TEST_FAILED("Expected open water at coordinate 25,60");
 
   // Kumpula
-  if (cover.isOpenWater(cover.coverType(24.9642, 60.2089))) TEST_FAILED("Expected land at Kumpula");
+  if (cover.isOpenWater(cover.coverType(24.9642, 60.2089)))
+    TEST_FAILED("Expected land at Kumpula");
 
   // Ladoga
   if (!cover.isOpenWater(cover.coverType(31.6, 60.8)))

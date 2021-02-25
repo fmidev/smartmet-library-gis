@@ -44,10 +44,14 @@ void Delete(std::size_t theHash, std::unique_ptr<OGRCoordinateTransformation> th
   WriteLock lock(gMutex);
 
   // Add as the most recently used to the start
-  gPool.push_front(std::make_pair(theHash, std::move(theTransformation)));
+  gPool.push_front(std::make_pair(theHash, theTransformation.release()));
 
   // Pop the least recently used if the cache is too big
-  if (gPool.size() > gMaxSize) gPool.pop_back();
+  if (gPool.size() > gMaxSize)
+  {
+    delete gPool.back().second;
+    gPool.pop_back();
+  }
 }
 
 Ptr Create(const std::string &theSource, const std::string &theTarget)
@@ -66,7 +70,7 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
     if (pos != gPool.end())
     {
       // Take ownership from the CacheElement and return it to the user
-      Ptr ret(pos->second.release(), Deleter(hash, &gPool));
+      Ptr ret(pos->second, Deleter(hash, &gPool));
       gPool.erase(pos);
       return ret;
     }
@@ -80,7 +84,8 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
 
   auto *ptr = OGRCreateCoordinateTransformation(src.get(), tgt.get());
 
-  if (ptr != nullptr) return Ptr(ptr, Deleter(hash, &gPool));
+  if (ptr != nullptr)
+    return Ptr(ptr, Deleter(hash, &gPool));
 
   throw std::runtime_error("Failed to create coordinate transformation from '" + theSource +
                            "' to '" + theTarget + "'");

@@ -3,8 +3,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.1.22
-Release: 1%{?dist}.fmi
+Version: 21.2.24
+Release: 4%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -22,7 +22,7 @@ BuildRequires: gdal32-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
-BuildRequires: smartmet-library-macgyver-devel >= 21.1.14
+BuildRequires: smartmet-library-macgyver-devel >= 21.1.25
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
@@ -33,7 +33,7 @@ Requires: gdal32-libs
 Requires: geos39
 Requires: postgis31_12
 Requires: proj72
-Requires: smartmet-library-macgyver >= 21.1.14
+Requires: smartmet-library-macgyver >= 21.1.25
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -80,6 +80,32 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-4.fmi
+- Added an interrupt of the central meridian for general oblique transformations. Not sufficient when lon_0 is not zero.
+
+* Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-3.fmi
+- Fixed o_wrap to lon_wrap in projection interrupt generation
+
+* Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-2.fmi
+- Fixed rounding issues in exportToSvg
+
+* Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-1.fmi
+- Fixed polyclip to handle a special case encountered in HIRLAM data
+
+* Sat Feb 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.20-1.fmi
+- Fixed lon_wrap handling in projection interrupt generation
+
+* Thu Feb 11 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.11-1.fmi
+- Always use std::shared_ptr for OGRGeometryPtr
+
+* Wed Feb 10 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.10-1.fmi
+- Initialize SpatialReference IsGeographic and IsAxisSwapped booleans on construction for thread safety
+- Added SpatialiteReference construction from a shared pointer to OGRSpatialReference to simplify external code
+
+* Mon Feb  1 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.1-1.fmi
+- Strip lon_0 when extracting the ellipsoid for projections
+- Updated definition of WGS84 to use +datum=WGS84 or tests fail with PROJ 7.9
+
 * Fri Jan 22 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.22-1.fmi
 - Fixed PostGIS to handle the new OFTInteger64 type
 
