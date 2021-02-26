@@ -22,6 +22,7 @@ struct ImplData
   std::shared_ptr<OGRSpatialReference> crs;
   bool is_geographic = false;
   bool is_axis_swapped = false;
+  bool epsg_treats_as_lat_long = false;
   ProjInfo projinfo;
 };
 
@@ -91,6 +92,7 @@ class SpatialReference::Impl
       m_data->hashvalue = boost::hash_value(m_data->projinfo.projStr());
       m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
       m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
+      m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
 
       g_ImplDataCache.insert(theCRS, m_data);
     }
@@ -104,6 +106,7 @@ class SpatialReference::Impl
     m_data->hashvalue = boost::hash_value(m_data->projinfo.projStr());
     m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
     m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
+    m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
   }
 
   Impl &operator=(const Impl &) = delete;
@@ -139,6 +142,11 @@ bool SpatialReference::isGeographic() const
 bool SpatialReference::isAxisSwapped() const
 {
   return impl->m_data->is_axis_swapped;
+}
+
+bool SpatialReference::EPSGTreatsAsLatLong() const
+{
+  return impl->m_data->epsg_treats_as_lat_long;
 }
 
 std::size_t SpatialReference::hashValue() const

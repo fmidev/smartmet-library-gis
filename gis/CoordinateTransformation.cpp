@@ -141,14 +141,14 @@ bool CoordinateTransformation::transform(OGRGeometry& geom) const
   return ok;
 }
 
-const OGRSpatialReference& CoordinateTransformation::getSourceCS() const
+const SpatialReference& CoordinateTransformation::getSourceCS() const
 {
-  return *impl->m_transformation->GetSourceCS();
+  return *impl->m_source;
 }
 
-const OGRSpatialReference& CoordinateTransformation::getTargetCS() const
+const SpatialReference& CoordinateTransformation::getTargetCS() const
 {
-  return *impl->m_transformation->GetTargetCS();
+  return *impl->m_target;
 }
 
 const OGRCoordinateTransformation& CoordinateTransformation::operator*() const
@@ -184,7 +184,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
     OGREnvelope shape_envelope;
     geom.getEnvelope(&shape_envelope);
 
-    Interrupt interrupt = interruptGeometry(getTargetCS());
+    Interrupt interrupt = interruptGeometry(impl->m_target);
 
     // Do quick vertical cuts
     if (!interrupt.cuts.empty())
