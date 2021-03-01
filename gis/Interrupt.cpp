@@ -313,6 +313,21 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     return result;
   }
 
+  if (name == "igh_o")
+  {
+    // Interrupted Goode Homolosine (Oseanic)
+
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    if (lon_0 == 0)
+      result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 100), 0, 90));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 100), 0, 90));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 67), -90, 0));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 147), -90, 0));
+    return result;
+  }
+
   if (name == "healpix")
   {
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
