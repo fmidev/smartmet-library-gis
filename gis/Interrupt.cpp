@@ -304,12 +304,11 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     // Interrupted Goode Homolosine
 
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-    if (lon_0 == 0)
-      result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 40), 0, 90));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 100), -90, 0));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 20), -90, 0));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 80), -90, 0));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    result.cuts.emplace_back(make_vertical_cut(-40, 0, 90));
+    result.cuts.emplace_back(make_vertical_cut(-100, -90, 0));
+    result.cuts.emplace_back(make_vertical_cut(-20, -90, 0));
+    result.cuts.emplace_back(make_vertical_cut(+80, -90, 0));
     return result;
   }
 
@@ -318,13 +317,11 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     // Interrupted Goode Homolosine (Oseanic)
 
     result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-    if (lon_0 == 0)
-      result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 100), 0, 90));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 100), 0, 90));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 67), -90, 0));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 147), -90, 0));
+    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    result.cuts.emplace_back(make_vertical_cut(-100, 0, 90));
+    result.cuts.emplace_back(make_vertical_cut(+100, 0, 90));
+    result.cuts.emplace_back(make_vertical_cut(-67, -90, 0));
+    result.cuts.emplace_back(make_vertical_cut(+147, -90, 0));
     return result;
   }
 
