@@ -23,6 +23,7 @@ BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: smartmet-library-macgyver-devel >= 21.1.25
+BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
