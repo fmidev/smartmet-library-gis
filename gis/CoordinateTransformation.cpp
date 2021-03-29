@@ -143,12 +143,12 @@ bool CoordinateTransformation::transform(OGRGeometry& geom) const
 
 const SpatialReference& CoordinateTransformation::getSourceCS() const
 {
-  return *impl->m_source;
+  return impl->m_source;
 }
 
 const SpatialReference& CoordinateTransformation::getTargetCS() const
 {
-  return *impl->m_target;
+  return impl->m_target;
 }
 
 const OGRCoordinateTransformation& CoordinateTransformation::operator*() const

@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.3.23
+Version: 21.3.29
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -85,6 +85,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Mar 29 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.3.29-1.fmi
+- Fixed CoordinateTransformation::getTargetCS and getSourceCS not to create temporaries
+
 * Tue Mar 23 2021 Andris Pavenis <andris.pavenis@fmi.fi> - 21.3.23-1.fmi
 - Remove explicit RPM dependency on proj72
 - Add missing dependencies for devel package
