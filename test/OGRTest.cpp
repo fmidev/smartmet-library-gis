@@ -825,8 +825,10 @@ void polyclip_spike()
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
-  char* wkt = "POLYGON ((5 5,5 4.9999,-1e-20 5,5 5))";
-  string ok = "POLYGON ((0 5,5 5,5.0 4.9999,0 5))";
+  // char* wkt = "POLYGON ((5 5,5 4.9999,-1e-20 5,5 5))";
+  // string ok = "POLYGON ((0 5,5 5,5.0 4.9999,0 5))";
+  char* wkt = "POLYGON ((-1 5,1e-20 5,-1 0,-1 5))";
+  string ok = "GEOMETRYCOLLECTION EMPTY";
 
   OGRGeometry* input;
   OGRGeometry* output;
