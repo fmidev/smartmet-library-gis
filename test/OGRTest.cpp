@@ -825,8 +825,8 @@ void polyclip_spike()
 
   Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
 
-  // char* wkt = "POLYGON ((5 5,5 4.9999,-1e-20 5,5 5))";
-  // string ok = "POLYGON ((0 5,5 5,5.0 4.9999,0 5))";
+  // This worked fine with 1e-10, but at 1e-20 the accuracy is not sufficient and the result should
+  // be empty
   char* wkt = "POLYGON ((-1 5,1e-20 5,-1 0,-1 5))";
   string ok = "GEOMETRYCOLLECTION EMPTY";
 
@@ -1621,7 +1621,6 @@ class tests : public tframe::tests
   // Main test suite
   void test()
   {
-    TEST(polyclip_case_hirlam);
     TEST(expand_geometry);
     TEST(exportToWkt_spatialreference);
     TEST(exportToSvg_precision);
@@ -1630,8 +1629,8 @@ class tests : public tframe::tests
     TEST(lineclip);
     TEST(polyclip);
     TEST(polyclip_segmentation);
-    TEST(polyclip_spike);
     TEST(polyclip_case_hirlam);
+    TEST(polyclip_spike);
     TEST(linecut);
     TEST(polycut);
     TEST(despeckle);
