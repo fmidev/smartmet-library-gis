@@ -817,6 +817,43 @@ void polyclip()
 
 // ----------------------------------------------------------------------
 
+void polyclip_spike()
+{
+  using namespace Fmi;
+  using Fmi::Box;
+  using OGR::exportToWkt;
+
+  Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
+
+  char* wkt = "POLYGON ((5 5,5 4.9999,-1e-20 5,5 5))";
+  string ok = "POLYGON ((0 5,5 5,5.0 4.9999,0 5))";
+
+  OGRGeometry* input;
+  OGRGeometry* output;
+
+  try
+  {
+    auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
+    if (err != OGRERR_NONE)
+      TEST_FAILED("Failed to parse input " + std::string(wkt));
+  }
+  catch (...)
+  {
+    TEST_FAILED("Failed to parse WKT for testing: " + std::string(wkt));
+  }
+  output = OGR::polyclip(*input, box);
+  string ret = exportToWkt(*output);
+  OGRGeometryFactory::destroyGeometry(input);
+  OGRGeometryFactory::destroyGeometry(output);
+  if (ret != ok)
+    TEST_FAILED("\n\tInput   : " + std::string(wkt) + "\n\tExpected: " + ok +
+                "\n\tGot     : " + ret);
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
 void polyclip_case_hirlam()
 {
   using namespace Fmi;
@@ -1591,6 +1628,8 @@ class tests : public tframe::tests
     TEST(lineclip);
     TEST(polyclip);
     TEST(polyclip_segmentation);
+    TEST(polyclip_spike);
+    TEST(polyclip_case_hirlam);
     TEST(linecut);
     TEST(polycut);
     TEST(despeckle);
