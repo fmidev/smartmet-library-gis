@@ -2,6 +2,8 @@
 #include "OGR.h"
 #include "ProjInfo.h"
 #include "SpatialReference.h"
+#include "Shape_circle.h"
+#include "Shape_rect.h"
 #include <boost/math/constants/constants.hpp>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
@@ -211,6 +213,25 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
 {
   Interrupt result;
 
+  const auto opt_name = theSRS.projInfo().getString("proj");
+  if (!opt_name)
+    return result;
+
+  const auto name = *opt_name;
+
+  const auto opt_lon_0 = theSRS.projInfo().getDouble("lon_0");
+  const auto lon_0 = opt_lon_0 ? *opt_lon_0 : 0.0;
+
+  const auto opt_lat_0 = theSRS.projInfo().getDouble("lat_0");
+  const auto lat_0 = opt_lat_0 ? *opt_lat_0 : 0.0;
+
+
+  // TEST: Shape clipping
+  // result.shapeClips.emplace_back(std::shared_ptr<Shape>(new Shape_rect(-170,-50,170,50)));
+  // result.shapeClips.emplace_back(std::shared_ptr<Shape>(new Shape_circle(lon_0,lat_0,80)));
+  // return result;
+
+
   // If general oblique transformation such as rotated latlon, cut the Antarctic in half at the
   // central meridian. -60 is large enough to make the cut, since Drake passage is below
   // that latitude. In reality, the cut should be made for any polygon which spans the south pole,
@@ -262,17 +283,6 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     return result;
   }
 
-  const auto opt_name = theSRS.projInfo().getString("proj");
-  if (!opt_name)
-    return result;
-
-  const auto name = *opt_name;
-
-  const auto opt_lon_0 = theSRS.projInfo().getDouble("lon_0");
-  const auto lon_0 = opt_lon_0 ? *opt_lon_0 : 0.0;
-
-  const auto opt_lat_0 = theSRS.projInfo().getDouble("lat_0");
-  const auto lat_0 = opt_lat_0 ? *opt_lat_0 : 0.0;
 
   // Polar projections
   if (name == "aeqd" || name == "stere" || name == "sterea" || name == "ups")
