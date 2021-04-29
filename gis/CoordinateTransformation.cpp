@@ -1,11 +1,13 @@
 #include "CoordinateTransformation.h"
 
 #include "Interrupt.h"
+#include "Shape.h"
 #include "OGR.h"
 #include "OGRCoordinateTransformationFactory.h"
 #include "ProjInfo.h"
 #include "SpatialReference.h"
 #include "Types.h"
+#include "GeometryBuilder.h"
 
 #include <boost/functional/hash.hpp>
 
@@ -196,6 +198,32 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
           return nullptr;
       }
     }
+
+    if (!interrupt.shapeCuts.empty())
+    {
+      //printf("***** CUTS ****\n");
+      for (auto shape = interrupt.shapeCuts.begin(); shape != interrupt.shapeCuts.end(); ++shape)
+      {
+        //(*shape)->print(std::cout);
+        g.reset(OGR::polycut(*g, *shape, theMaximumSegmentLength));
+        if (!g || g->IsEmpty())
+          return nullptr;
+      }
+    }
+
+    if (!interrupt.shapeClips.empty())
+    {
+      //printf("***** CLIPS ****\n");
+      GeometryBuilder builder;
+      for (auto shape = interrupt.shapeClips.begin(); shape != interrupt.shapeClips.end(); ++shape)
+      {
+        //(*shape)->print(std::cout);
+        g.reset(OGR::polyclip(*g, *shape, theMaximumSegmentLength));
+        if (!g || g->IsEmpty())
+          return nullptr;
+      }
+    }
+
 
     // If the target envelope is not set, we must try clipping.
     // Otherwise if the geometry contains the target area, no clipping is needed.
