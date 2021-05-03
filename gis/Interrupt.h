@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Box.h"
-#include "SpatialReference.h"
 #include "Shape.h"
+#include "SpatialReference.h"
 
 #include <list>
 #include <memory>

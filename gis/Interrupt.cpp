@@ -199,14 +199,16 @@ OGRGeometry* circle_cut(double lon,
   return result;
 }
 
-Box make_vertical_cut(double lon, double lat1, double lat2)
+Shape_sptr make_vertical_cut(double lon, double lat1, double lat2)
 {
-  return Box(lon - epsilon, std::min(lat1, lat2), lon + epsilon, std::max(lat1, lat2));
+  return std::make_shared<Shape_rect>(
+      lon - epsilon, std::min(lat1, lat2), lon + epsilon, std::max(lat1, lat2));
 }
 
-Box make_horizontal_cut(double lat, double lon1, double lon2)
+Shape_sptr make_horizontal_cut(double lat, double lon1, double lon2)
 {
-  return Box(std::min(lon1, lon2), lat - epsilon, std::max(lon1, lon2), lat + epsilon);
+  return std::make_shared<Shape_rect>(
+      std::min(lon1, lon2), lat - epsilon, std::max(lon1, lon2), lat + epsilon);
 }
 
 Interrupt interruptGeometry(const SpatialReference& theSRS)
@@ -225,11 +227,6 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   const auto opt_lat_0 = theSRS.projInfo().getDouble("lat_0");
   const auto lat_0 = opt_lat_0 ? *opt_lat_0 : 0.0;
 
-  // TEST: Shape clipping
-  // result.shapeClips.emplace_back(std::shared_ptr<Shape>(new Shape_rect(-170,-50,170,50)));
-  // result.shapeClips.emplace_back(std::shared_ptr<Shape>(new Shape_circle(lon_0,lat_0,80)));
-  // return result;
-
   // If general oblique transformation such as rotated latlon, cut the Antarctic in half at the
   // central meridian. -60 is large enough to make the cut, since Drake passage is below
   // that latitude. In reality, the cut should be made for any polygon which spans the south pole,
@@ -247,23 +244,23 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     auto opt_lat_p = theSRS.projInfo().getDouble("o_lat_p");
     if (opt_lat_p)
     {
-      result.cuts.emplace_back(make_vertical_cut(0, -90, -60));
+      result.shapeCuts.emplace_back(make_vertical_cut(0, -90, -60));
 #if 0
       const auto opt_lon_0 = theSRS.projInfo().getDouble("lon_0");
       const auto lon_0 = (opt_lon_0 ? *opt_lon_0 : 0.0);
 
-      result.cuts.emplace_back(make_vertical_cut(0, -90, -60));
-      result.cuts.emplace_back(make_vertical_cut(lon_0, -90, -60));
-      result.cuts.emplace_back(make_vertical_cut(-lon_0, -90, -60));
+      result.shapeCuts.emplace_back(make_vertical_cut(0, -90, -60));
+      result.shapeCuts.emplace_back(make_vertical_cut(lon_0, -90, -60));
+      result.shapeCuts.emplace_back(make_vertical_cut(-lon_0, -90, -60));
 
-      result.cuts.emplace_back(make_vertical_cut(*opt_lat_p, -90, -60));
-      result.cuts.emplace_back(make_vertical_cut(-(*opt_lat_p), -90, -60));
+      result.shapeCuts.emplace_back(make_vertical_cut(*opt_lat_p, -90, -60));
+      result.shapeCuts.emplace_back(make_vertical_cut(-(*opt_lat_p), -90, -60));
 
-      result.cuts.emplace_back(make_horizontal_cut(-(*opt_lat_p), -180, 180));
-      result.cuts.emplace_back(make_horizontal_cut(-90, -180, 180));
-      result.cuts.emplace_back(make_horizontal_cut(+90, -180, 180));
-      result.cuts.emplace_back(make_vertical_cut(+180, -90, 90));
-      result.cuts.emplace_back(make_vertical_cut(-180, -90, 90));
+      result.shapeCuts.emplace_back(make_horizontal_cut(-(*opt_lat_p), -180, 180));
+      result.shapeCuts.emplace_back(make_horizontal_cut(-90, -180, 180));
+      result.shapeCuts.emplace_back(make_horizontal_cut(+90, -180, 180));
+      result.shapeCuts.emplace_back(make_vertical_cut(+180, -90, 90));
+      result.shapeCuts.emplace_back(make_vertical_cut(-180, -90, 90));
 #endif
     }
   }
@@ -274,27 +271,29 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     const auto opt_lon_wrap = theSRS.projInfo().getDouble("lon_wrap");
     const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 0.0);
 
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap + 180), -90, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_wrap + 180), -90, 90));
     if (lon_wrap == 0)
-      result.cuts.emplace_back(make_vertical_cut(modlon(lon_wrap - 180), -90, 90));
+      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_wrap - 180), -90, 90));
 
     return result;
   }
 
   // Polar projections
   if (name == "aeqd" || name == "stere" || name == "sterea" || name == "ups")
+  {
     return result;
+  }
 
   // Spherical cuts
 
   if (name == "laea")
   {
     // No idea yet
-    // Wikipedia on ALEA: In practice the projection is often restricted to the hemisphere centered
-    // at that point; the other hemisphere can be mapped separately, using a second projection
-    // centered at the antipode. The equator is on a circle of radius sqrt(2) instead of 2 for
-    // the full view, hence zooming would work differently from the global view. Should consider
-    // using a circle cut of 90 degrees here though.
+    // Wikipedia on ALEA: In practice the projection is often restricted to the hemisphere
+    // centered at that point; the other hemisphere can be mapped separately, using a second
+    // projection centered at the antipode. The equator is on a circle of radius sqrt(2) instead
+    // of 2 for the full view, hence zooming would work differently from the global view. Should
+    // consider using a circle cut of 90 degrees here though.
     return result;
   }
 
@@ -332,13 +331,15 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   if (name == "igh")
   {
     // Interrupted Goode Homolosine
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    if (lon_0 == 0)
+      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
 
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-    result.cuts.emplace_back(make_vertical_cut(-40, 0, 90));
-    result.cuts.emplace_back(make_vertical_cut(-100, -90, 0));
-    result.cuts.emplace_back(make_vertical_cut(-20, -90, 0));
-    result.cuts.emplace_back(make_vertical_cut(+80, -90, 0));
+    result.shapeCuts.emplace_back(make_vertical_cut(-40, 0, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(-100, -90, 0));
+    result.shapeCuts.emplace_back(make_vertical_cut(-20, -90, 0));
+    result.shapeCuts.emplace_back(make_vertical_cut(+80, -90, 0));
+
     return result;
   }
 
@@ -346,35 +347,40 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   {
     // Interrupted Goode Homolosine (Oseanic)
 
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-    result.cuts.emplace_back(make_vertical_cut(-100, 0, 90));
-    result.cuts.emplace_back(make_vertical_cut(+100, 0, 90));
-    result.cuts.emplace_back(make_vertical_cut(-67, -90, 0));
-    result.cuts.emplace_back(make_vertical_cut(+147, -90, 0));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(-100, 0, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(+100, 0, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(-67, -90, 0));
+    result.shapeCuts.emplace_back(make_vertical_cut(+147, -90, 0));
     return result;
   }
 
   if (name == "healpix")
   {
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
     if (lon_0 == 0)
-      result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), -90, -45));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), 45, 90));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0), -90, -45));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0), 45, 90));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), -90, -45));
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), 45, 90));
+      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), -90, -45));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), 45, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0), -90, -45));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0), 45, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), -90, -45));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), 45, 90));
+
     return result;
   }
+
+  // proj=nicol is hard to handle correctly near the poles, simply cutting out more
+  // stuff does not seem to work
 
   // Regular geometric: cut everything at lon_0+180 antimeridian
   // lon_0 is needed for all remaining geometric projections
 
-  result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+  result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
   if (lon_0 == 0)
-    result.cuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
 
   return result;
 }
