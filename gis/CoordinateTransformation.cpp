@@ -1,13 +1,13 @@
 #include "CoordinateTransformation.h"
 
+#include "GeometryBuilder.h"
 #include "Interrupt.h"
-#include "Shape.h"
 #include "OGR.h"
 #include "OGRCoordinateTransformationFactory.h"
 #include "ProjInfo.h"
+#include "Shape.h"
 #include "SpatialReference.h"
 #include "Types.h"
-#include "GeometryBuilder.h"
 
 #include <boost/functional/hash.hpp>
 
@@ -145,12 +145,12 @@ bool CoordinateTransformation::transform(OGRGeometry& geom) const
 
 const SpatialReference& CoordinateTransformation::getSourceCS() const
 {
-  return *impl->m_source;
+  return impl->m_source;
 }
 
 const SpatialReference& CoordinateTransformation::getTargetCS() const
 {
-  return *impl->m_target;
+  return impl->m_target;
 }
 
 const OGRCoordinateTransformation& CoordinateTransformation::operator*() const
@@ -201,7 +201,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
     if (!interrupt.shapeCuts.empty())
     {
-      //printf("***** CUTS ****\n");
+      // printf("***** CUTS ****\n");
       for (auto shape = interrupt.shapeCuts.begin(); shape != interrupt.shapeCuts.end(); ++shape)
       {
         //(*shape)->print(std::cout);
@@ -213,7 +213,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
     if (!interrupt.shapeClips.empty())
     {
-      //printf("***** CLIPS ****\n");
+      // printf("***** CLIPS ****\n");
       GeometryBuilder builder;
       for (auto shape = interrupt.shapeClips.begin(); shape != interrupt.shapeClips.end(); ++shape)
       {
@@ -223,7 +223,6 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
           return nullptr;
       }
     }
-
 
     // If the target envelope is not set, we must try clipping.
     // Otherwise if the geometry contains the target area, no clipping is needed.
