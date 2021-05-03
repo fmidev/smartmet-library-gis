@@ -1,9 +1,9 @@
 #include "Interrupt.h"
 #include "OGR.h"
 #include "ProjInfo.h"
-#include "SpatialReference.h"
 #include "Shape_circle.h"
 #include "Shape_rect.h"
+#include "SpatialReference.h"
 #include <boost/math/constants/constants.hpp>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
@@ -225,12 +225,10 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   const auto opt_lat_0 = theSRS.projInfo().getDouble("lat_0");
   const auto lat_0 = opt_lat_0 ? *opt_lat_0 : 0.0;
 
-
   // TEST: Shape clipping
   // result.shapeClips.emplace_back(std::shared_ptr<Shape>(new Shape_rect(-170,-50,170,50)));
   // result.shapeClips.emplace_back(std::shared_ptr<Shape>(new Shape_circle(lon_0,lat_0,80)));
   // return result;
-
 
   // If general oblique transformation such as rotated latlon, cut the Antarctic in half at the
   // central meridian. -60 is large enough to make the cut, since Drake passage is below
@@ -283,7 +281,6 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     return result;
   }
 
-
   // Polar projections
   if (name == "aeqd" || name == "stere" || name == "sterea" || name == "ups")
     return result;
@@ -301,11 +298,34 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     return result;
   }
 
-  if (name == "airy" || name == "geos" || name == "gnom" || name == "ortho" || name == "tpeqd")
+  if (name == "airy" || name == "geos" || name == "gnom" || name == "ortho")
   {
     // We take less than a full 90 degree view to avoid boundary effects
     const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
     result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+
+  if (name == "tpeqd")
+  {
+    const auto opt_lon_1 = theSRS.projInfo().getDouble("lon_1");
+    const auto lon_1 = opt_lon_1 ? *opt_lon_1 : 0.0;
+
+    const auto opt_lat_1 = theSRS.projInfo().getDouble("lat_1");
+    const auto lat_1 = opt_lat_1 ? *opt_lat_1 : 0.0;
+
+    const auto opt_lon_2 = theSRS.projInfo().getDouble("lon_2");
+    const auto lon_2 = opt_lon_2 ? *opt_lon_2 : 0.0;
+
+    const auto opt_lat_2 = theSRS.projInfo().getDouble("lat_2");
+    const auto lat_2 = opt_lat_2 ? *opt_lat_2 : 0.0;
+
+    // Hack solution: rough estimate on the center
+    const auto lon = 0.5 * (lon_1 + lon_2);
+    const auto lat = 0.5 * (lat_1 + lat_2);
+
+    const auto radius = 145 * wgs84radius * boost::math::double_constants::degree;
+    result.andGeometry.reset(circle_cut(lon, lat, radius));
     return result;
   }
 
