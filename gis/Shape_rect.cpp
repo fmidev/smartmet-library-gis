@@ -867,6 +867,8 @@ LineIterator Shape_rect::search_cw(OGRLinearRing *ring,std::list<OGRLineString *
 {
   try
   {
+    x2 = x1;
+    y2 = y1;
     auto best = lines.end();
 
     if (y1 == itsYMin && x1 > itsXMin)
@@ -970,6 +972,8 @@ LineIterator Shape_rect::search_ccw(OGRLinearRing *ring,std::list<OGRLineString 
 {
   try
   {
+    x2 = x1;
+    y2 = y1;
     auto best = lines.end();
 
     if (y1 == itsYMin && x1 < itsXMax)

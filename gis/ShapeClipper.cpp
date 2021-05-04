@@ -406,7 +406,6 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
     double x2 = ring->getX(0);
     double y2 = ring->getY(0);
 
-    //printf("RING %f,%f => %f,%f  %d\n", ring->getX(0), ring->getY(0), x1, y1, nr);
     // No linestring to move onto found next - meaning we'd
     // either move to the next corner or close the current ring.
 
@@ -414,23 +413,21 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
     {
 
       auto best = (cw ? itsShape->search_cw(ring, theLines, x1, y1, x2, y2) : itsShape->search_ccw(ring, theLines, x1, y1, x2, y2));
-
       if (best != theLines.end())
       {
         // Found a matching linestring to continue to from the same edge we were studying. Move to it
         // and continue building. The line might continue from the same point, in which case we must
         // skip the first point.
 
-        double xx = (*best)->getX(0);
-        double yy = (*best)->getY(0);
-
-        if (x1 != xx || y1 != yy)
+        if (x1 != (*best)->getX(0) || y1 != (*best)->getY(0))
         {
-          if (cw)
-            itsShape->connectPoints_cw(*ring,x1,y1,xx,yy,theMaximumSegmentLength);
-          else
-            itsShape->connectPoints_ccw(*ring,x1,y1,xx,yy,theMaximumSegmentLength);
-
+          if (x2 != (*best)->getX(0) || y2 != (*best)->getY(0))
+          {
+            if (cw)
+              itsShape->connectPoints_cw(*ring,x1,y1,x2,y2,theMaximumSegmentLength);
+            else
+              itsShape->connectPoints_ccw(*ring,x1,y1,x2,y2,theMaximumSegmentLength);
+          }
           ring->addSubLineString(*best);
         }
         else
@@ -442,17 +439,16 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
       }
       else
       {
-        double xx = ring->getX(0);
-        double yy = ring->getY(0);
-
-        if (x1 != xx || y1 != yy)
+        if (x1 != x2 || y1 != y2)
         {
           if (cw)
-            itsShape->connectPoints_cw(*ring,x1,y1,xx,yy,theMaximumSegmentLength);
+            itsShape->connectPoints_cw(*ring,x1,y1,x2,y2,theMaximumSegmentLength);
           else
-            itsShape->connectPoints_ccw(*ring,x1,y1,xx,yy,theMaximumSegmentLength);
+            itsShape->connectPoints_ccw(*ring,x1,y1,x2,y2,theMaximumSegmentLength);
         }
-        ring->closeRings();
+
+        if (x2 == ring->getX(0) && y2 == ring->getY(0))
+          ring->closeRings();
       }
     }
 
