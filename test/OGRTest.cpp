@@ -1590,7 +1590,7 @@ void polycut_shape_rect()
       {"POLYGON ((-15 1,-15 15,15 15,15 1,-15 1),(-1 3,-1 2,1 2,1 3,-1 3))",
        "POLYGON ((-15 1,-15 15,15 15,15 1,10 1,10 10,0 10,0 3,-1 3,-1 2,0 2,0 1,-15 1))"}};
 
-  for (int test = 15; test < ntests; ++test)
+  for (int test = 0; test < ntests; ++test)
   {
     OGRGeometry* input;
     OGRGeometry* output;
@@ -1982,9 +1982,6 @@ class tests : public tframe::tests
   // Main test suite
   void test()
   {
-    TEST(polycut_shape_rect);
-    return;
-
     TEST(expand_geometry);
     TEST(exportToWkt_spatialreference);
     TEST(exportToSvg_precision);
@@ -1998,6 +1995,7 @@ class tests : public tframe::tests
     TEST(linecut);
     TEST(polycut);
     TEST(linecut_shape_rect);
+    TEST(polycut_shape_rect);
     TEST(despeckle);
     TEST(despeckle_geography);
     TEST(grid_north_wgs84);
