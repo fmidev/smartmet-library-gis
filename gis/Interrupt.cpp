@@ -244,24 +244,23 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     auto opt_lat_p = theSRS.projInfo().getDouble("o_lat_p");
     if (opt_lat_p)
     {
-      result.shapeCuts.emplace_back(make_vertical_cut(0, -90, -60));
-#if 0
       const auto opt_lon_0 = theSRS.projInfo().getDouble("lon_0");
       const auto lon_0 = (opt_lon_0 ? *opt_lon_0 : 0.0);
 
-      result.shapeCuts.emplace_back(make_vertical_cut(0, -90, -60));
-      result.shapeCuts.emplace_back(make_vertical_cut(lon_0, -90, -60));
-      result.shapeCuts.emplace_back(make_vertical_cut(-lon_0, -90, -60));
+      const auto lat_p = *opt_lat_p;
 
-      result.shapeCuts.emplace_back(make_vertical_cut(*opt_lat_p, -90, -60));
-      result.shapeCuts.emplace_back(make_vertical_cut(-(*opt_lat_p), -90, -60));
+      result.shapeCuts.emplace_back(make_vertical_cut(0, -90, lat_p - 90));
+      result.shapeCuts.emplace_back(make_vertical_cut(lon_0, -90, lat_p - 90));
+      result.shapeCuts.emplace_back(make_vertical_cut(-lon_0, -90, lat_p - 90));
 
-      result.shapeCuts.emplace_back(make_horizontal_cut(-(*opt_lat_p), -180, 180));
+      result.shapeCuts.emplace_back(make_vertical_cut(lat_p, -90, lat_p - 90));
+      result.shapeCuts.emplace_back(make_vertical_cut(-lat_p, -90, lat_p - 90));
+
+      result.shapeCuts.emplace_back(make_horizontal_cut(-lat_p, -180, 180));
       result.shapeCuts.emplace_back(make_horizontal_cut(-90, -180, 180));
       result.shapeCuts.emplace_back(make_horizontal_cut(+90, -180, 180));
       result.shapeCuts.emplace_back(make_vertical_cut(+180, -90, 90));
       result.shapeCuts.emplace_back(make_vertical_cut(-180, -90, 90));
-#endif
     }
   }
 
@@ -278,30 +277,130 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     return result;
   }
 
-  // Polar projections
-  if (name == "aeqd" || name == "stere" || name == "sterea" || name == "ups")
-  {
-    return result;
-  }
-
-  // Spherical cuts
-
   if (name == "laea")
   {
-    // No idea yet
-    // Wikipedia on ALEA: In practice the projection is often restricted to the hemisphere
-    // centered at that point; the other hemisphere can be mapped separately, using a second
-    // projection centered at the antipode. The equator is on a circle of radius sqrt(2) instead
-    // of 2 for the full view, hence zooming would work differently from the global view. Should
-    // consider using a circle cut of 90 degrees here though.
+    // Poles always project to x-coordinate zero, we need to cut them out too
+    // Cannot use epsilon here, the cut would be too small for PROJ.7
+    result.shapeClips.push_back(std::make_shared<Shape_rect>(-178, -89.99, 178, 89.99));
     return result;
   }
 
-  if (name == "airy" || name == "geos" || name == "gnom" || name == "ortho")
+  if (name == "nicol")
   {
-    // We take less than a full 90 degree view to avoid boundary effects
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    if (lon_0 == 0)
+      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+
+    // TODO: proj=nicol is hard to handle correctly since the projection seems to wrap
+    // around itself around -+90 longitudes
+    //
+    // Very slow:
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), -90, 90));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), -90, 90));
+    return result;
+  }
+
+  if (name == "nsper")
+  {
+    // TODO: Something odd, maybe the result is shifted?
     const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
     result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+
+  if (name == "tcc")
+  {
+    // TODO: Figure out what's wrong in longitude range 90...130
+    result.shapeCuts.emplace_back(std::make_shared<Shape_rect>(90, -90, 130, 90));
+    return result;
+  }
+
+  if (name == "lcc")
+  {
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    if (lon_0 == 0)
+      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    result.shapeCuts.emplace_back(make_horizontal_cut(-90, -180, 180));
+  }
+
+  if (name == "imw_p")
+  {
+    // TODO: Slow as hell, disabled for now
+    // const auto radius = 80 * wgs84radius * boost::math::double_constants::degree;
+    // result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+
+  if (name == "aeqd")
+  {
+    // TODO: 130 is just an experimental value getting some things right, but
+    // this clipping is not even close to correct. Not sure what kind of clipping this needs.
+    //
+    // Also: The antarctic is missing completely. Probably the fault of the current
+    // version of circle cutting.
+
+    const auto radius = 130 * wgs84radius * boost::math::double_constants::degree;
+    result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+
+  if (name == "tmerc")
+  {
+    // TODO: This is just experimental to get something out
+    const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
+    result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+  if (name == "gstmerc")
+  {
+    // 90 causes errors
+    const auto radius = 89.5 * wgs84radius * boost::math::double_constants::degree;
+    result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+
+  if (name == "gnom")
+  {
+    // TODO: Nothing seems to work, result is full of NaN values
+    const auto radius = 89 * wgs84radius * boost::math::double_constants::degree;
+    result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+
+  if (name == "airy" || name == "ortho")
+  {
+    const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
+    result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+
+  if (name == "tpers")
+  {
+    // 50 was found experimentally
+    const auto radius = 50 * wgs84radius * boost::math::double_constants::degree;
+    result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+
+  if (name == "geos")
+  {
+    // 80 was found experimentally
+    const auto radius = 80 * wgs84radius * boost::math::double_constants::degree;
+    result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+
+  if (name == "adams_hemi")
+  {
+    // TODO: Just something that works on small scales not up to the maximum
+    const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
+    result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    return result;
+  }
+
+  if (name == "bertin1953" || name == "peirce_q")
+  {
+    // TODO: No idea how to fix these
     return result;
   }
 
@@ -350,10 +449,10 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
     if (lon_0 == 0)
       result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 100), 0, 90));
-    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 100), 0, 90));
-    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 67), -90, 0));
-    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 147), -90, 0));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), 0, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 60), 0, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 60), -90, 0));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), -90, 0));
     return result;
   }
 
@@ -373,8 +472,28 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     return result;
   }
 
-  // proj=nicol is hard to handle correctly near the poles, simply cutting out more
-  // stuff does not seem to work
+  if (name == "isea")
+  {
+    // Icosahedral Snyder Equal Area.
+    // TODO: PROJ.7 implementation seems to have the cuts at odd locations, perhaps a bug?
+
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+    if (lon_0 == 0)
+      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 108), 30, 90));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 36), 30, 90));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 36), 30, 90));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 108), 30, 90));
+    //
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 144), -90, -30));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 72), -90, -30));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 0), -90, -30));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 72), -90, -30));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 144), -90, -30));
+
+    return result;
+  }
 
   // Regular geometric: cut everything at lon_0+180 antimeridian
   // lon_0 is needed for all remaining geometric projections

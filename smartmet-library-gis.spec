@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.5.4
+Version: 21.5.5
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -85,6 +85,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed May  5 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.5-1.fmi
+- Fixed several projection interrupts
+
 * Mon May  3 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.4-1.fmi
 - Added circle clipping code, refactored common parts with rectangle clipping
 
