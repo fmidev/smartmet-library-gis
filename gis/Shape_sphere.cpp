@@ -659,7 +659,7 @@ int Shape_sphere::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
 
     getMetricCoordinates(xA,yA,xxA,yyA);
 
-    auto posA = getPosition(xxA,yyA);
+    auto posA = getPositionByMetricCoordinates(xxA,yyA);
     auto posB = posA;
     auto position = posA;
 
@@ -674,7 +674,7 @@ int Shape_sphere::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
       double yyB = yB;
       getMetricCoordinates(xB,yB,xxB,yyB);
 
-      posB = getPosition(xxB, yyB);
+      posB = getPositionByMetricCoordinates(xxB, yyB);
       position |= posB;
 
       double pX1 = 0, pY1 = 0, pX2 = 0, pY2 = 0;
@@ -722,6 +722,8 @@ int Shape_sphere::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
       posA = posB;
       xA = xB;
       yA = yB;
+      xxA = xxB;
+      yyA = yyB;
     }
 
     if (line->getNumPoints() > 0)
@@ -1156,12 +1158,16 @@ bool Shape_sphere::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,dou
     double angle1 = 0;
     double angle2 = 0;
 
+    //printf(" ** connect points ccw %f,%f => %f,%f\n",x1,y1,x2,y2);
+
     if (!isOnEdge(xx1, yy1, angle1) || !isOnEdge(xx2, yy2, angle2))
       return false;  // The end points are not on the edge of the sphere
 
     double xd = distance(xx1,xx2);
     double yd = distance(yy1,yy2);
     double dist = sqrt(xd*xd+yd*yd);
+
+    //printf(" ** angles %f  %f  dist=%f\n",angle1,angle2,dist);
     if (dist < itsBorderStep)
       return false;
 
@@ -1191,13 +1197,14 @@ bool Shape_sphere::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,dou
     double ad = angleDiff / points;
     for (uint t = 0; t < points; t++)
     {
-      getLatLonPointByAngle(angle1, xx, yy);
+      getMetricPointByAngle(angle1, xx, yy);
       //printf("** getPoint %f   %f,%f\n", angle1, xx, yy);
       getLatLonCoordinates(xx,yy,x,y);
       ring.addPoint(x, y);
       angle1 = angle1 + ad;
     }
 
+    //printf("-- add %f,%f\n",x2,y2);
     ring.addPoint(x2, y2);
 
     return true;
@@ -1236,7 +1243,7 @@ void Shape_sphere::getLatLonCoordinates(double x,double y,double& lon, double& l
     lon = x;
     lat = y;
     reverseTransformation->Transform(1,&lon,&lat);
-    //printf("LATCOORD %f,%f => %f,%f\n",lon,lat,x,y);
+    //printf("LATCOORD %f,%f => %f,%f\n",x,y,lon,lat);
   }
   catch (...)
   {
