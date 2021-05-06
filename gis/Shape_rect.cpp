@@ -758,25 +758,6 @@ bool Shape_rect::isInsideRing(const OGRLinearRing &theRing) const
 
 
 
-bool Shape_rect::isOnEdge(double x, double y) const
-{
-  try
-  {
-    if ((x == itsXMin || x == itsXMax)  &&  (y == itsYMin || y == itsYMax))
-      return true;
-
-    return false;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-
-
-
-
 bool Shape_rect::isRingInside(const OGRLinearRing& theRing) const
 {
   try

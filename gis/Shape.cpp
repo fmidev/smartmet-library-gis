@@ -63,12 +63,12 @@ int Shape::getPosition(double x, double y) const
 
 
 
-
+/*
 int Shape::getLineIntersectionPoints(double aX, double aY, double bX, double bY,double& pX1, double& pY1, double& pX2, double& pY2) const
 {
   throw Fmi::Exception(BCP,"Not implemented!");
 }
-
+*/
 
 
 
@@ -81,12 +81,12 @@ bool Shape::isInsideRing(const OGRLinearRing &theRing) const
 
 
 
-
+/*
 bool Shape::isOnEdge(double x, double y) const
 {
   throw Fmi::Exception(BCP,"Not implemented!");
 }
-
+*/
 
 
 
@@ -101,6 +101,15 @@ bool Shape::isRingInside(const OGRLinearRing& theRing) const
 
 
 OGRLinearRing* Shape::makeRing(double theMaximumSegmentLength) const
+{
+  throw Fmi::Exception(BCP,"Not implemented!");
+}
+
+
+
+
+
+OGRLineString* Shape::makeLineRing(double theMaximumSegmentLength) const
 {
   throw Fmi::Exception(BCP,"Not implemented!");
 }

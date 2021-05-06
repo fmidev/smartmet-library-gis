@@ -103,7 +103,7 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
         const int n2 = line2->getNumPoints();
 
         // Continue if the ends do not match
-        if (pos1 == pos2 || n2 == 0 || line1->getX(n1 - 1) != line2->getX(0) || line1->getY(n1 - 1) != line2->getY(0))
+        if (line1 == nullptr || pos1 == pos2 || n2 == 0 || line1->getX(n1 - 1) != line2->getX(0) || line1->getY(n1 - 1) != line2->getY(0))
         {
           ++pos2;
           continue;
@@ -113,6 +113,7 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
 
         line1->addSubLineString(line2, 1, n2 - 1);
         delete line2;
+        line2 = nullptr;
         pos2 = lines.erase(pos2);
 
         // The merge may have closed a linearring if the intersections
@@ -129,6 +130,7 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
           else
             addInterior(ring);
           delete line1;
+          line1 = nullptr;
           pos1 = lines.erase(pos1);
           pos2 = lines.begin();  // safety measure
         }
@@ -406,6 +408,8 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
     double x2 = ring->getX(0);
     double y2 = ring->getY(0);
 
+    //printf("RING %f,%f => %f,%f\n",x1,y1,x2,y2);
+
     // No linestring to move onto found next - meaning we'd
     // either move to the next corner or close the current ring.
 
@@ -421,6 +425,7 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
 
         if (x1 != (*best)->getX(0) || y1 != (*best)->getY(0))
         {
+          //printf(" -- connect %f,%f => %f,%f\n",x1,y1,x2,y2);
           if (x2 != (*best)->getX(0) || y2 != (*best)->getY(0))
           {
             if (cw)
@@ -441,6 +446,7 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
       {
         if (x1 != x2 || y1 != y2)
         {
+          //printf(" ++ connect %f,%f => %f,%f\n",x1,y1,x2,y2);
           if (cw)
             itsShape->connectPoints_cw(*ring,x1,y1,x2,y2,theMaximumSegmentLength);
           else

@@ -27,12 +27,13 @@ class Shape
     virtual bool            connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,double x2,double y2,double theMaximumSegmentLength) const;
 
     virtual int             getPosition(double x, double y) const;
-    virtual int             getLineIntersectionPoints(double aX, double aY, double bX, double bY,double& pX1, double& pY1, double& pX2, double& pY2) const;
+    //virtual int             getLineIntersectionPoints(double aX, double aY, double bX, double bY,double& pX1, double& pY1, double& pX2, double& pY2) const;
 
     virtual bool            isInsideRing(const OGRLinearRing &theRing) const;
-    virtual bool            isOnEdge(double x, double y) const;
+    //virtual bool            isOnEdge(double x, double y) const;
     virtual bool            isRingInside(const OGRLinearRing& theRing) const;
 
+    virtual OGRLineString*  makeLineRing(double theMaximumSegmentLength) const;
     virtual OGRLinearRing*  makeRing(double theMaximumSegmentLength) const;
     virtual OGRLinearRing*  makeHole(double theMaximumSegmentLength) const;
 
