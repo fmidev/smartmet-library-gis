@@ -1,4 +1,4 @@
-#include "Shape_circle.h"
+#include "Shape_sphere.h"
 #include "ShapeClipper.h"
 #include <macgyver/Exception.h>
 #include <ogr_geometry.h>
@@ -12,13 +12,17 @@ namespace Fmi
 #ifndef PI
   #define PI 3.14159265358979323846
   #define PI2 6.28318530718
+  #define EARTH_RADIUS 6378137
+  #define DEG_TO_RAD 0.0174532925199
 #endif
 
 #define DELTA 1000000000
 
 
 
-Shape_circle::Shape_circle(double theX, double theY, double theRadius)
+
+
+Shape_sphere::Shape_sphere(double theX, double theY, double theRadius)
 {
   try
   {
@@ -28,11 +32,40 @@ Shape_circle::Shape_circle(double theX, double theY, double theRadius)
     itsRadius2 = theRadius*theRadius;
     itsXDelta = theX + DELTA;
     itsYDelta = theY + DELTA;
-    itsXMin = itsX - itsRadius;
-    itsYMin = itsY - itsRadius;
-    itsXMax = itsX + itsRadius;
-    itsYMax = itsY + itsRadius;
-    itsBorderStep = 3.1415926535898 / 180;
+    itsBorderStep = 10000;
+    itsBorderAngleStep = PI/360;
+
+    sr_latlon.importFromEPSG(4326);
+    sr_latlon.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+
+    sr.SetAE(itsX,itsY,0,0);
+    sr.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    /*
+    // Mercator
+    sr.importFromEPSG(3395);
+    sr.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+*/
+
+    transformation = OGRCreateCoordinateTransformation(&sr_latlon,&sr);
+    reverseTransformation = OGRCreateCoordinateTransformation(&sr,&sr_latlon);
+
+    getMetricCoordinates(itsX,itsY,itsXX,itsYY);
+/*
+    double xx = 0;
+    double yy = 0;
+    getLatLonCoordinates(itsXX,itsYY,xx,yy);
+    if (itsX != xx  || itsY != yy )
+    {
+      printf("REVERSE FAILED %f,%f => %f,%f  (%f,%f)\n",itsXX,itsYY,xx,yy,itsX,itsY);
+      exit(1);
+    }
+*/
+    itsXXMin = itsXX - itsRadius;
+    itsYYMin = itsYY - itsRadius;
+    itsXXMax = itsXX + itsRadius;
+    itsYYMax = itsYY + itsRadius;
+    itsXXDelta = itsXX + DELTA;
+    itsYYDelta = itsYY + DELTA;
 
   }
   catch (...)
@@ -45,15 +78,20 @@ Shape_circle::Shape_circle(double theX, double theY, double theRadius)
 
 
 
-Shape_circle::~Shape_circle()
+Shape_sphere::~Shape_sphere()
 {
+  if (transformation != nullptr)
+    OCTDestroyCoordinateTransformation(transformation);
+
+  if (reverseTransformation != nullptr)
+    OCTDestroyCoordinateTransformation(reverseTransformation);
 }
 
 
 
 
 
-double Shape_circle::angleDistance_cw(double a,double b) const
+double Shape_sphere::angleDistance_cw(double a,double b) const
 {
   try
   {
@@ -72,7 +110,7 @@ double Shape_circle::angleDistance_cw(double a,double b) const
 
 
 
-double Shape_circle::angleDistance_ccw(double a,double b) const
+double Shape_sphere::angleDistance_ccw(double a,double b) const
 {
   try
   {
@@ -91,7 +129,7 @@ double Shape_circle::angleDistance_ccw(double a,double b) const
 
 
 
-double Shape_circle::distance(double a,double b) const
+double Shape_sphere::distance(double a,double b) const
 {
   try
   {
@@ -107,12 +145,29 @@ double Shape_circle::distance(double a,double b) const
 
 
 
-int Shape_circle::getPosition(double x, double y) const
+int Shape_sphere::getPosition(double x, double y) const
 {
   try
   {
-    double dx = distance(x+DELTA,itsXDelta);
-    double dy = distance(y+DELTA,itsYDelta);
+    getMetricCoordinates(x,y,x,y);
+    return getPositionByMetricCoordinates(x,y);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+
+
+
+
+int Shape_sphere::getPositionByMetricCoordinates(double x, double y) const
+{
+  try
+  {
+    double dx = distance(x+DELTA,itsXXDelta);
+    double dy = distance(y+DELTA,itsYYDelta);
     double r2 = (dx * dx) + (dy * dy);
 
     if (r2 <= itsRadius2)
@@ -130,12 +185,14 @@ int Shape_circle::getPosition(double x, double y) const
 
 
 
-void Shape_circle::getPointByAngle(double angle,double& x, double& y) const
+void Shape_sphere::getLatLonPointByAngle(double angle,double& x, double& y) const
 {
   try
   {
-    x = itsX + cos(angle)*itsRadius;
-    y = itsY + sin(angle)*itsRadius;
+    x = itsXX + cos(angle)*itsRadius;
+    y = itsYY + sin(angle)*itsRadius;
+
+    getLatLonCoordinates(x,y,x,y);
   }
   catch (...)
   {
@@ -147,7 +204,24 @@ void Shape_circle::getPointByAngle(double angle,double& x, double& y) const
 
 
 
-void Shape_circle::setBorderStep(double theBorderStep)
+void Shape_sphere::getMetricPointByAngle(double angle,double& x, double& y) const
+{
+  try
+  {
+    x = itsXX + cos(angle)*itsRadius;
+    y = itsYY + sin(angle)*itsRadius;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+
+
+
+
+void Shape_sphere::setBorderStep(double theBorderStep)
 {
   try
   {
@@ -163,7 +237,7 @@ void Shape_circle::setBorderStep(double theBorderStep)
 
 
 
-void Shape_circle::setRadius(double theRadius)
+void Shape_sphere::setRadius(double theRadius)
 {
   try
   {
@@ -180,12 +254,12 @@ void Shape_circle::setRadius(double theRadius)
 
 
 
-double Shape_circle::getAngle(double x, double y) const
+double Shape_sphere::getAngle(double x, double y) const
 {
   try
   {
-    double dx = distance(x + DELTA, itsXDelta);
-    double dy = distance(y + DELTA, itsYDelta);
+    double dx = distance(x + DELTA, itsX + DELTA);
+    double dy = distance(y + DELTA, itsY + DELTA);
 
     double r = sqrt((dx * dx) + (dy * dy));
 
@@ -213,38 +287,38 @@ double Shape_circle::getAngle(double x, double y) const
 
 
 
-bool Shape_circle::isOnEdge(double x, double y, double& angle) const
+bool Shape_sphere::isOnEdge(double xx, double yy, double& angle) const
 {
   try
   {
-    double dx = distance(x + DELTA, itsXDelta);
-    double dy = distance(y + DELTA, itsYDelta);
+    double dx = distance(xx + DELTA, itsXXDelta);
+    double dy = distance(yy + DELTA, itsYYDelta);
 
     double r2 = (dx * dx) + (dy * dy);
     double dist = distance(r2, itsRadius2);
-    //printf("OnEdge %f,%f  %f %f   %f\n", x, y, r2, itsRadius2, dist);
+    //printf("    -- OnEdge %f,%f (%f,%f)  %f %f   %f\n", xx, yy, itsXXDelta, itsYYDelta, r2, itsRadius2, dist);
 
-    if (dist < 0.0001)
+    if (dist < 10.0)
     {
-      if (x >= itsX && y >= itsY)
+      if (xx >= itsXX && yy >= itsYY)
       {
         angle = asin(dy / itsRadius);
         return true;
       }
 
-      if (x < itsX && y >= itsY)
+      if (xx < itsXX && yy >= itsYY)
       {
         angle = PI - asin(dy / itsRadius);
         return true;
       }
 
-      if (x < itsX && y < itsY)
+      if (xx < itsXX && yy < itsYY)
       {
         angle = PI + asin(dy / itsRadius);
         return true;
       }
 
-      if (x >= itsX && y < itsY)
+      if (xx >= itsXX && yy < itsYY)
       {
         angle = PI2 - asin(dy / itsRadius);
         return true;
@@ -263,17 +337,17 @@ bool Shape_circle::isOnEdge(double x, double y, double& angle) const
 
 
 
-bool Shape_circle::isOnEdge(double x, double y) const
+bool Shape_sphere::isOnEdge(double xx, double yy) const
 {
   try
   {
-    double dx = distance(x + DELTA, itsXDelta);
-    double dy = distance(y + DELTA, itsYDelta);
+    double dx = distance(xx + DELTA, itsXXDelta);
+    double dy = distance(yy + DELTA, itsYYDelta);
 
     double r2 = (dx * dx) + (dy * dy);
     double dist = distance(r2, itsRadius2);
 
-    if (dist < 0.0001)
+    if (dist < 10.0)
       return true;
 
     return false;
@@ -288,7 +362,7 @@ bool Shape_circle::isOnEdge(double x, double y) const
 
 
 
-int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, double bY, double& pX1, double& pY1, double& pX2, double& pY2) const
+int Shape_sphere::getLineIntersectionPoints(double aX, double aY, double bX, double bY, double& pX1, double& pY1, double& pX2, double& pY2) const
 {
   try
   {
@@ -297,16 +371,16 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
     // Fast checks before more detailed x calculations. Checking if the both
     // end points on the same side of the ring (=> No intersection)
 
-    if (aX < itsXMin  &&  bX < itsXMin)
+    if (aX < itsXXMin  &&  bX < itsXXMin)
       return 0;
 
-    if (aX > itsXMax  &&  bX > itsXMax)
+    if (aX > itsXXMax  &&  bX > itsXXMax)
       return 0;
 
-    if (aY < itsYMin  &&  bY < itsYMin)
+    if (aY < itsYYMin  &&  bY < itsYYMin)
       return 0;
 
-    if (aY > itsYMax  &&  bY > itsYMax)
+    if (aY > itsYYMax  &&  bY > itsYYMax)
       return 0;
 
     // Shifting coordinates so that they are all positive numbers, because
@@ -327,15 +401,15 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
       return 5;
     }
 
-    double caX = itsXDelta - aX;
-    double caY = itsYDelta - aY;
-    double cbX = itsXDelta - bX;
-    double cbY = itsYDelta - bY;
+    double caX = itsXXDelta - aX;
+    double caY = itsYYDelta - aY;
+    double cbX = itsXXDelta - bX;
+    double cbY = itsYYDelta - bY;
 
     double ar2 = (caX * caX) + (caY * caY);
     double br2 = (cbX * cbX) + (cbY * cbY);
 
-    // Both endpoint are inside the circle
+    // Both endpoint are inside the sphere
     if (ar2 <= itsRadius2 && br2 <= itsRadius2)
       return 1;
 
@@ -363,6 +437,9 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
     pX2 = aX - baX * abScalingFactor2;
     pY2 = aY - baY * abScalingFactor2;
 
+    if (std::isnan(pX1) || std::isnan(pY1) || std::isnan(pX2) || std::isnan(pY2))
+      return 0;
+
     if (std::max(aX, bX) < std::min(pX1, pX2))
       return 0;
 
@@ -378,11 +455,11 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
 
     int res = 0;
     if (ar2 <= itsRadius2 && br2 > itsRadius2)
-      res = 2;  // The first endpoint is inside the circle
+      res = 2;  // The first endpoint is inside the sphere
 
 
     if (ar2 > itsRadius2 && br2 <= itsRadius2)
-      res = 3;  // The second endpoint is inside the circle
+      res = 3;  // The second endpoint is inside the sphere
 
     if (res != 0)
     {
@@ -446,7 +523,7 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
     double dd = (distX) * (distX) + (distY) * (distY);
     if (dd > abDist2)
     {
-      // Both points are on the same side of the circle
+      // Both points are on the same side of the sphere
       //printf("Same side %f %f\n",dd,a);
       return 0;
     }
@@ -465,6 +542,7 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
       pY1 = pY2 - DELTA;
       pX2 = tX - DELTA;
       pY2 = tY - DELTA;
+
       return 4;
     }
 
@@ -472,6 +550,7 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
     pY1 = pY1 - DELTA;
     pX2 = pX2 - DELTA;
     pY2 = pY2 - DELTA;
+
     return 4;
   }
   catch (...)
@@ -484,7 +563,7 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
 
 
 
-OGRLinearRing* Shape_circle::makeRing(double theMaximumSegmentLength) const
+OGRLinearRing* Shape_sphere::makeRing(double theMaximumSegmentLength) const
 {
   try
   {
@@ -494,9 +573,9 @@ OGRLinearRing* Shape_circle::makeRing(double theMaximumSegmentLength) const
     {
       double xx = 0;
       double yy = 0;
-      getPointByAngle(angle, xx, yy);
+      getLatLonPointByAngle(angle, xx, yy);
       ring->addPoint(xx, yy);
-      angle = angle - itsBorderStep;
+      angle = angle - itsBorderAngleStep;
     }
 
     if (theMaximumSegmentLength > 0)
@@ -514,7 +593,37 @@ OGRLinearRing* Shape_circle::makeRing(double theMaximumSegmentLength) const
 
 
 
-OGRLinearRing* Shape_circle::makeHole(double theMaximumSegmentLength) const
+OGRLineString* Shape_sphere::makeLineRing(double theMaximumSegmentLength) const
+{
+  try
+  {
+    OGRLineString *ring = new OGRLineString;
+    double angle = PI2;
+    while (angle > 0)
+    {
+      double xx = 0;
+      double yy = 0;
+      getLatLonPointByAngle(angle, xx, yy);
+      ring->addPoint(xx, yy);
+      angle = angle - itsBorderAngleStep;
+    }
+
+    if (theMaximumSegmentLength > 0)
+      ring->segmentize(theMaximumSegmentLength);
+
+    return ring;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+  }
+}
+
+
+
+
+
+OGRLinearRing* Shape_sphere::makeHole(double theMaximumSegmentLength) const
 {
   try
   {
@@ -533,7 +642,7 @@ OGRLinearRing* Shape_circle::makeHole(double theMaximumSegmentLength) const
 
 
 
-int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
+int Shape_sphere::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
 {
   try
   {
@@ -545,7 +654,12 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
     auto *line = new OGRLineString();
     double xA = g.getX(0);
     double yA = g.getY(0);
-    auto posA = getPosition(xA, yA);
+    double xxA = xA;
+    double yyA = xA;
+
+    getMetricCoordinates(xA,yA,xxA,yyA);
+
+    auto posA = getPosition(xxA,yyA);
     auto posB = posA;
     auto position = posA;
 
@@ -556,11 +670,15 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
     {
       double xB = g.getX(i);
       double yB = g.getY(i);
-      posB = getPosition(xB, yB);
+      double xxB = xB;
+      double yyB = yB;
+      getMetricCoordinates(xB,yB,xxB,yyB);
+
+      posB = getPosition(xxB, yyB);
       position |= posB;
 
       double pX1 = 0, pY1 = 0, pX2 = 0, pY2 = 0;
-      int res = getLineIntersectionPoints(xA, yA, xB, yB, pX1, pY1, pX2, pY2);
+      int res = getLineIntersectionPoints(xxA, yyA, xxB, yyB, pX1, pY1, pX2, pY2);
       //printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA, xB, yB, pX1, pY1, pX2, pY2,res);
 
       switch (res)
@@ -570,11 +688,13 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
           break;
 
         case 2: // The first point is inside, the second point is outside
+          getLatLonCoordinates(pX1,pY1,pX1,pY1);
           line->addPoint(pX1, pY1);
           line->addPoint(xB, yB);
           break;
 
         case 3:   // The first point is outside, the second point is inside
+          getLatLonCoordinates(pX1,pY1,pX1,pY1);
           line->addPoint(pX1, pY1);
           if (exterior)
             theClipper.addExterior(line);
@@ -584,8 +704,9 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
           line = new OGRLineString();
           break;
 
-        case 4:   // Both end point are outside, but the line intersects with the circle
-          position |= Shape_circle::Outside;
+        case 4:   // Both end point are outside, but the line intersects with the sphere
+          position |= Shape_sphere::Outside;
+          getLatLonCoordinates(pX1,pY1,pX1,pY1);
           line->addPoint(pX1, pY1);
           if (exterior)
             theClipper.addExterior(line);
@@ -593,6 +714,7 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
             theClipper.addInterior(line);
 
           line = new OGRLineString();
+          getLatLonCoordinates(pX2,pY2,pX2,pY2);
           line->addPoint(pX2, pY2);
           break;
       }
@@ -625,7 +747,7 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
 
 
 
-int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
+int Shape_sphere::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
 {
   try
   {
@@ -637,7 +759,12 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
     auto *line = new OGRLineString();
     double xA = g.getX(0);
     double yA = g.getY(0);
-    auto posA = getPosition(xA, yA);
+    double xxA = xA;
+    double yyA = xA;
+
+    getMetricCoordinates(xA,yA,xxA,yyA);
+
+    auto posA = getPositionByMetricCoordinates(xxA, yyA);
     auto posB = posA;
     auto position = posA;
 
@@ -650,13 +777,18 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
 
       double xB = g.getX(i);
       double yB = g.getY(i);
-      posB = getPosition(xB, yB);
+      double xxB = xB;
+      double yyB = yB;
+      getMetricCoordinates(xB,yB,xxB,yyB);
+
+      posB = getPositionByMetricCoordinates(xxB, yyB);
 
       position |= posB;
 
       double pX1 = 0, pY1 = 0, pX2 = 0, pY2 = 0;
-      int res = getLineIntersectionPoints(xA, yA, xB, yB, pX1, pY1, pX2, pY2);
-      //printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA, xB, yB, pX1, pY1, pX2, pY2,res);
+      int res = getLineIntersectionPoints(xxA, yyA, xxB, yyB, pX1, pY1, pX2, pY2);
+      //printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xxA, yyA, xxB, yyB, pX1, pY1, pX2, pY2,res);
+      //printf("*getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA, xB, yB, pX1, pY1, pX2, pY2,res);
 
       switch (res)
       {
@@ -665,6 +797,7 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
           break;
 
         case 2: // The first point is inside, the second point is outside
+          getLatLonCoordinates(pX1,pY1,pX1,pY1);
           line->addPoint(pX1, pY1);
           if (exterior)
             theClipper.addExterior(line);
@@ -674,12 +807,15 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
           break;
 
         case 3: // The first point is outside, the second point is inside
+          getLatLonCoordinates(pX1,pY1,pX1,pY1);
           line->addPoint(pX1, pY1);
           line->addPoint(xB, yB);
           break;
 
-        case 4: // Both end point are outside, but the line intersects with the circle
-          position |= Shape_circle::Inside;
+        case 4: // Both end point are outside, but the line intersects with the sphere
+          position |= Shape_sphere::Inside;
+          getLatLonCoordinates(pX1,pY1,pX1,pY1);
+          getLatLonCoordinates(pX2,pY2,pX2,pY2);
           line->addPoint(pX1, pY1);
           line->addPoint(pX2, pY2);
           if (exterior)
@@ -693,6 +829,8 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
       posA = posB;
       xA = xB;
       yA = yB;
+      xxA = xxB;
+      yyA = yyB;
     }
 
     if (line->getNumPoints() > 0)
@@ -719,11 +857,11 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
 
 
 
-bool Shape_circle::isInsideRing(const OGRLinearRing &theRing) const
+bool Shape_sphere::isInsideRing(const OGRLinearRing &theRing) const
 {
   try
   {
-    Shape_circle circle(itsX,itsY,itsRadius-0.0001);
+    Shape_sphere sphere(itsX,itsY,itsRadius-0.0001);
 
     uint points = 36;
     double step = 2*PI / (double)points;
@@ -731,7 +869,7 @@ bool Shape_circle::isInsideRing(const OGRLinearRing &theRing) const
     for (uint t=0; t<points; t++)
     {
       double xx = 0, yy = 0;
-      circle.getPointByAngle(angle,xx,yy);
+      sphere.getLatLonPointByAngle(angle,xx,yy);
       if (!OGR::inside(theRing,xx,yy))
         return false;
 
@@ -748,7 +886,7 @@ bool Shape_circle::isInsideRing(const OGRLinearRing &theRing) const
 
 
 
-bool Shape_circle::isRingInside(const OGRLinearRing& theRing) const
+bool Shape_sphere::isRingInside(const OGRLinearRing& theRing) const
 {
   try
   {
@@ -788,19 +926,26 @@ bool Shape_circle::isRingInside(const OGRLinearRing& theRing) const
  */
 // ----------------------------------------------------------------------
 
-LineIterator Shape_circle::search_cw(OGRLinearRing *ring,std::list<OGRLineString *> &lines,
+LineIterator Shape_sphere::search_cw(OGRLinearRing *ring,std::list<OGRLineString *> &lines,
                                double x1,double y1,double &x2,double &y2) const
 {
   try
   {
+    double xx1 = x1;
+    double yy1 = y1;
+    double xx2 = x2;
+    double yy2 = y2;
+    getMetricCoordinates(x1,y1,xx1,yy1);
+    getMetricCoordinates(x2,y2,xx2,yy2);
+
     auto best = lines.end();
     double angle1 = 0;
     double bestAngleDiff = 1000;
 
-    if (isOnEdge(x1,y1,angle1))
+    if (isOnEdge(xx1,yy1,angle1))
     {
       double angle2 = 0;
-      if (isOnEdge(x2,y2,angle2))
+      if (isOnEdge(xx2,yy2,angle2))
       {
         // Sometimes the best option is to connect the end points
         // of the current line.
@@ -821,8 +966,11 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,std::list<OGRLineString
       {
         double x = (*iter)->getX(0);
         double y = (*iter)->getY(0);
+        double xx = x;
+        double yy = y;
+        getMetricCoordinates(x,y,xx,yy);
 
-        if (isOnEdge(x,y,angle2))
+        if (isOnEdge(xx,yy,angle2))
         {
           double angleDiff = angle1 - angle2;
           if (angle2 > angle1)
@@ -858,20 +1006,27 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,std::list<OGRLineString
  */
 // ----------------------------------------------------------------------
 
-LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,std::list<OGRLineString *> &lines,
+LineIterator Shape_sphere::search_ccw(OGRLinearRing *ring,std::list<OGRLineString *> &lines,
                                 double x1,double y1,double &x2,double &y2) const
 {
   try
   {
+    double xx1 = x1;
+    double yy1 = y1;
+    double xx2 = x2;
+    double yy2 = y2;
+    getMetricCoordinates(x1,y1,xx1,yy1);
+    getMetricCoordinates(x2,y2,xx2,yy2);
+
     auto best = lines.end();
     double angle1 = 0;
     double bestAngleDiff = 1000;
 
-    if (isOnEdge(x1,y1,angle1))
+    if (isOnEdge(xx1,yy1,angle1))
     {
 
       double angle2 = 0;
-      if (isOnEdge(x2,y2,angle2))
+      if (isOnEdge(xx2,yy2,angle2))
       {
         double angleDiff = angle2 - angle1;
         if (angleDiff > PI)
@@ -887,8 +1042,11 @@ LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,std::list<OGRLineStrin
       {
         double x = (*iter)->getX(0);
         double y = (*iter)->getY(0);
+        double xx = x;
+        double yy = y;
+        getMetricCoordinates(x,y,xx,yy);
 
-        if (isOnEdge(x,y,angle2))
+        if (isOnEdge(xx,yy,angle2))
         {
           double angleDiff = angle2 - angle1;
           if (angle2 < angle1)
@@ -917,18 +1075,32 @@ LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,std::list<OGRLineStrin
 
 
 
-bool Shape_circle::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,double x2,double y2,double theMaximumSegmentLength) const
+bool Shape_sphere::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,double x2,double y2,double theMaximumSegmentLength) const
 {
   try
   {
+    double xx1 = x1;
+    double yy1 = y1;
+    double xx2 = x2;
+    double yy2 = y2;
+    getMetricCoordinates(x1,y1,xx1,yy1);
+    getMetricCoordinates(x2,y2,xx2,yy2);
 
     double angle1 = 0;
     double angle2 = 0;
 
-    if (!isOnEdge(x1, y1, angle1) || !isOnEdge(x2, y2, angle2))
-      return false;  // The end points are not on the edge of the circle
+    //printf(" ** connect points %f,%f => %f,%f\n",x1,y1,x2,y2);
+    if (!isOnEdge(xx1, yy1, angle1) || !isOnEdge(xx2, yy2, angle2))
+      return false;  // The end points are not on the edge of the sphere
 
-    Shape_circle outerCircle(itsX,itsY,itsRadius + 0.0001);
+    double xd = distance(xx1,xx2);
+    double yd = distance(yy1,yy2);
+    double dist = sqrt(xd*xd+yd*yd);
+    if (dist < itsBorderStep)
+      return false;
+
+    //printf(" ** angles %f  %f  dist=%f\n",angle1,angle2,dist);
+    Shape_sphere outerCircle(itsX,itsY,itsRadius + 0.0001);
 
     double angleDiff = 0;
     angleDiff = -angleDistance_cw(angle1, angle2);
@@ -939,28 +1111,27 @@ bool Shape_circle::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,doub
     if (angleDiff < -PI)
       angleDiff = PI2 + angleDiff;
 
-    if (fabs(angleDiff) > 0.2)
+    double xx = 0, yy = 0;
+    outerCircle.getMetricPointByAngle(angle1, xx, yy);
+
+    double x = xx, y = yy;
+    getLatLonCoordinates(xx,yy,x,y);
+
+    ring.addPoint(x1, y1);
+    ring.addPoint(x, y);
+    ring.addPoint(x1, y1);
+
+    uint points = dist / itsBorderStep;
+    double ad = angleDiff / points;
+    for (uint t = 0; t < points; t++)
     {
-      double xx = 0, yy = 0;
-      outerCircle.getPointByAngle(angle1, xx, yy);
-
-      ring.addPoint(x1, y1);
-      ring.addPoint(xx, yy);
-      ring.addPoint(x1, y1);
-
-      uint points = abs(angleDiff / itsBorderStep);
-      double ad = angleDiff / points;
-      for (uint t = 0; t < points; t++)
-      {
-        getPointByAngle(angle1, xx, yy);
-        //printf("** getPoint %f   %f,%f\n", angle1, xx, yy);
-        ring.addPoint(xx, yy);
-        angle1 = angle1 + ad;
-      }
-      if (points > 0)
-        return true;
+      getMetricPointByAngle(angle1, xx, yy);
+      //printf("** getPoint %f   %f,%f\n", angle1, xx, yy);
+      getLatLonCoordinates(xx,yy,x,y);
+      ring.addPoint(x, y);
+      angle1 = angle1 + ad;
     }
-    return false;
+    return true;
   }
   catch (...)
   {
@@ -971,18 +1142,30 @@ bool Shape_circle::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,doub
 
 
 
-bool Shape_circle::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,double x2,double y2,double theMaximumSegmentLength) const
+bool Shape_sphere::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,double x2,double y2,double theMaximumSegmentLength) const
 {
   try
   {
+    double xx1 = x1;
+    double yy1 = y1;
+    double xx2 = x2;
+    double yy2 = y2;
+    getMetricCoordinates(x1,y1,xx1,yy1);
+    getMetricCoordinates(x2,y2,xx2,yy2);
 
     double angle1 = 0;
     double angle2 = 0;
 
-    if (!isOnEdge(x1, y1, angle1) || !isOnEdge(x2, y2, angle2))
-      return false;  // The end points are not on the edge of the circle
+    if (!isOnEdge(xx1, yy1, angle1) || !isOnEdge(xx2, yy2, angle2))
+      return false;  // The end points are not on the edge of the sphere
 
-    Shape_circle innerCircle(itsX,itsY,itsRadius - 0.0001);
+    double xd = distance(xx1,xx2);
+    double yd = distance(yy1,yy2);
+    double dist = sqrt(xd*xd+yd*yd);
+    if (dist < itsBorderStep)
+      return false;
+
+    Shape_sphere innerCircle(itsX,itsY,itsRadius - 0.0001);
 
     double angleDiff = 0;
     angleDiff = angleDistance_ccw(angle1, angle2);
@@ -993,30 +1176,31 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,dou
     if (angleDiff < -PI)
       angleDiff = PI2 + angleDiff;
 
-    if (fabs(angleDiff) > 0.2)
+    double xx = 0, yy = 0;
+    innerCircle.getMetricPointByAngle(angle1, xx, yy);
+
+    double x = xx, y = yy;
+    getLatLonCoordinates(xx,yy,x,y);
+
+    ring.addPoint(x1, y1);
+    ring.addPoint(x, y);
+    ring.addPoint(x1, y1);
+
+    uint points = dist / itsBorderStep;
+    //printf("POINTS %u  = %f / %f\n",points,dist,itsBorderStep);
+    double ad = angleDiff / points;
+    for (uint t = 0; t < points; t++)
     {
-      double xx = 0, yy = 0;
-      innerCircle.getPointByAngle(angle1, xx, yy);
-
-      ring.addPoint(x1, y1);
-      ring.addPoint(xx, yy);
-      ring.addPoint(x1, y1);
-
-      uint points = abs(angleDiff / itsBorderStep);
-      double ad = angleDiff / points;
-      for (uint t = 0; t < points; t++)
-      {
-        getPointByAngle(angle1, xx, yy);
-        //printf("** getPoint %f   %f,%f\n", angle1, xx, yy);
-        ring.addPoint(xx, yy);
-        angle1 = angle1 + ad;
-      }
-
-      ring.addPoint(x2, y2);
-
-      return true;
+      getLatLonPointByAngle(angle1, xx, yy);
+      //printf("** getPoint %f   %f,%f\n", angle1, xx, yy);
+      getLatLonCoordinates(xx,yy,x,y);
+      ring.addPoint(x, y);
+      angle1 = angle1 + ad;
     }
-    return false;
+
+    ring.addPoint(x2, y2);
+
+    return true;
   }
   catch (...)
   {
@@ -1027,7 +1211,43 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,dou
 
 
 
-void Shape_circle::print(std::ostream& stream)
+void Shape_sphere::getMetricCoordinates(double lon,double lat,double& x, double& y) const
+{
+  try
+  {
+    x = lon;
+    y = lat;
+    transformation->Transform(1,&x,&y);
+    //printf("** COORD %f,%f => %f,%f\n",lon,lat,x,y);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+  }
+}
+
+
+
+
+void Shape_sphere::getLatLonCoordinates(double x,double y,double& lon, double& lat) const
+{
+  try
+  {
+    lon = x;
+    lat = y;
+    reverseTransformation->Transform(1,&lon,&lat);
+    //printf("LATCOORD %f,%f => %f,%f\n",lon,lat,x,y);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+  }
+}
+
+
+
+
+void Shape_sphere::print(std::ostream& stream)
 {
   try
   {
@@ -1035,10 +1255,10 @@ void Shape_circle::print(std::ostream& stream)
     stream << "- itsX           = " << itsX << "\n";
     stream << "- itsY           = " << itsY << "\n";
     stream << "- itsRadius      = " << itsRadius << "\n";
-    stream << "- itsXMin        = " << itsXMin << "\n";
-    stream << "- itsYMin        = " << itsYMin << "\n";
-    stream << "- itsXMax        = " << itsXMax << "\n";
-    stream << "- itsYMax        = " << itsYMax << "\n";
+    stream << "- itsXXMin       = " << itsXXMin << "\n";
+    stream << "- itsYYMin       = " << itsYYMin << "\n";
+    stream << "- itsXXMax       = " << itsXXMax << "\n";
+    stream << "- itsXYMax       = " << itsYYMax << "\n";
     stream << "- itsBorderStep  = " << itsBorderStep << "\n";
 
   }

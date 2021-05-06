@@ -19,10 +19,9 @@ class Shape_rect : public Shape
     bool            connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,double x2,double y2,double theMaximumSegmentLength) const;
 
     int             getPosition(double x, double y) const;
-    int             getLineIntersectionPoints(double aX, double aY, double bX, double bY,double& pX1, double& pY1, double& pX2, double& pY2) const;
 
     bool            isInsideRing(const OGRLinearRing &theRing) const;
-    bool            isOnEdge(double x, double y) const;
+    //bool            isOnEdge(double x, double y) const;
     bool            isRingInside(const OGRLinearRing& theRing) const;
 
     OGRLinearRing*  makeRing(double theMaximumSegmentLength) const;
@@ -34,6 +33,8 @@ class Shape_rect : public Shape
     void            print(std::ostream& stream);
 
   protected:
+
+    int             getLineIntersectionPoints(double aX, double aY, double bX, double bY,double& pX1, double& pY1, double& pX2, double& pY2) const;
 
     void            clip_one_edge(double &x1, double &y1, double x2, double y2, double limit) const;
     void            clip_to_edges(double &x1, double &y1, double x2, double y2) const;
