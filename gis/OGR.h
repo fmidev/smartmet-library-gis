@@ -35,6 +35,7 @@ typedef std::shared_ptr<Shape> Shape_sptr;
 namespace OGR
 {
 std::string exportToWkt(const OGRSpatialReference& theSRS);
+std::string exportToWkt(const OGRGeometry& theGeom,int precision);
 std::string exportToPrettyWkt(const OGRSpatialReference& theSRS);
 std::string exportToProj(const OGRSpatialReference& theSRS);
 std::string exportToWkt(const OGRGeometry& theGeom);
