@@ -73,6 +73,16 @@ std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom)
   return ret;
 }
 
+
+
+std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom,int precision)
+{
+  OGRWktOptions options;
+  options.precision = precision;
+  return theGeom.exportToWkt(options,nullptr);
+}
+
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Convert GEOS geometry to OGR
