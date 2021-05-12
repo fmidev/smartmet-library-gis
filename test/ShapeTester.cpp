@@ -143,8 +143,6 @@ class tests : public tframe::tests
 
         if (flags == 0x1F)
         {
-          out << "Test " << testId << " : ";
-
           flags = 0;
           std::shared_ptr<Fmi::Shape> shape;
 
@@ -155,6 +153,7 @@ class tests : public tframe::tests
             {
               if (sz != 5 && sz != 6)
               {
+                out << "Test " << testId << " : ";
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
                 out << "\tReason   : "
@@ -177,6 +176,7 @@ class tests : public tframe::tests
             {
               if (sz != 4 && sz != 5)
               {
+                out << "Test " << testId << " : ";
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
                 out << "\tReason   : "
@@ -196,6 +196,7 @@ class tests : public tframe::tests
             {
               if (sz != 4 && sz != 5)
               {
+                out << "Test " << testId << " : ";
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
                 out << "\tReason   : "
@@ -213,6 +214,7 @@ class tests : public tframe::tests
             }
             else
             {
+              out << "Test " << testId << " : ";
               out << "*** FAILED ***\n";
               out << "\tFile     : " << filename << " (" << line << ")\n";
               out << "\tReason   : "
@@ -232,6 +234,7 @@ class tests : public tframe::tests
               if (err != OGRERR_NONE)
               {
                 fail++;
+                out << "Test " << testId << " : ";
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
                 out << "\tReason   : "
@@ -242,6 +245,7 @@ class tests : public tframe::tests
             catch (...)
             {
               fail++;
+              out << "Test " << testId << " : ";
               out << "*** FAILED ***\n";
               out << "\tFile     : " << filename << " (" << line << ")\n";
               out << "\tReason   : "
@@ -270,6 +274,7 @@ class tests : public tframe::tests
               else
               {
                 fail++;
+                out << "Test " << testId << " : ";
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
                 out << "\tReason   : Unknown functionality (" << functionality << ")\n";
@@ -290,6 +295,7 @@ class tests : public tframe::tests
                 if (ret != outWkt)
                 {
                   fail++;
+                  out << "Test " << testId << " : ";
                   out << "*** FAILED ***\n";
                   out << "\tFile     : " << filename << " (" << line << ")\n";
                   out << "\tInput    : " << inWkt << "\n";
@@ -298,7 +304,7 @@ class tests : public tframe::tests
                 }
                 else
                 {
-                  out << "Ok \n";
+                  // out << "Test " << testId << " : Ok \n";
                   pass++;
                 }
               }
@@ -329,7 +335,7 @@ int main(int argc, char *argv[])
 
   int totalRes = 0;
 
-  cout << endl << "Shape tester" << endl << "==========" << endl;
+  cout << endl << "Shape tester" << endl << "============" << endl;
   for (int t = 1; t < argc; t++)
   {
     Tests::tests test;
