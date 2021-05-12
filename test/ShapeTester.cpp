@@ -16,10 +16,9 @@ const int precision = 2;
 
 namespace Tests
 {
-
 // ----------------------------------------------------------------------
 
-char* toUpperString(char *str)
+char *toUpperString(char *str)
 {
   char *p = str;
   while (*p != '\0')
@@ -29,9 +28,6 @@ char* toUpperString(char *str)
   }
   return str;
 }
-
-
-
 
 void splitString(const char *str, char separator, std::vector<std::string> &partList)
 {
@@ -65,13 +61,11 @@ void splitString(const char *str, char separator, std::vector<std::string> &part
   }
 }
 
-
-
 // Test driver
 class tests : public tframe::tests
 {
-  public:
-    std::string filename;
+ public:
+  std::string filename;
 
   void ogr_tests()
   {
@@ -81,12 +75,13 @@ class tests : public tframe::tests
     cout << "---------------------------------------------------------\n";
     cout << "TEST FILE : " << filename << "\n";
     cout << "---------------------------------------------------------\n";
-    FILE *file = fopen(filename.c_str(),"r");
+    FILE *file = fopen(filename.c_str(), "r");
     if (file == nullptr)
     {
       out << "*** FAILED ***\n";
       out << "\tFile     : " << filename << "\n";
-      out << "\tReason   : " << "Cannot open the test file\n";
+      out << "\tReason   : "
+          << "Cannot open the test file\n";
       fail++;
       return;
     }
@@ -106,42 +101,42 @@ class tests : public tframe::tests
 
     while (!feof(file))
     {
-      if (fgets(st,10000,file) != nullptr)
+      if (fgets(st, 10000, file) != nullptr)
       {
         lineCnt++;
-        char *p = strstr(st,"\n");
+        char *p = strstr(st, "\n");
         if (p != nullptr)
           *p = '\0';
 
-        //printf("%s\n",st);
+        // printf("%s\n",st);
         switch (st[0])
         {
           case 'T':
             line = lineCnt;
-            testId = st+2;
+            testId = st + 2;
             sParams.clear();
             precision = -1;
             flags = flags | 1;
             break;
 
           case 'F':
-            functionality = toUpperString(st+2);
+            functionality = toUpperString(st + 2);
             flags = flags | 2;
             break;
 
           case 'S':
-            shapeStr = st+2;
-            splitString(toUpperString(st+2),',',sParams);
+            shapeStr = st + 2;
+            splitString(toUpperString(st + 2), ',', sParams);
             flags = flags | 4;
             break;
 
           case 'I':
-            inWkt = st+2;
+            inWkt = st + 2;
             flags = flags | 8;
             break;
 
           case 'O':
-            outWkt = st+2;
+            outWkt = st + 2;
             flags = flags | 16;
             break;
         }
@@ -158,54 +153,60 @@ class tests : public tframe::tests
           {
             if (sParams[0] == "RECT")
             {
-              if (sz !=5  &&  sz != 6)
+              if (sz != 5 && sz != 6)
               {
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
-                out << "\tReason   : " << "Invalid number of parameters for Shape_rect!\n";
+                out << "\tReason   : "
+                    << "Invalid number of parameters for Shape_rect!\n";
                 out << "\tParams   : " << sz << "\n";
                 out << "\tShape    : " << shapeStr << "\n";
                 fail++;
               }
               else
               {
-                shape.reset(new Fmi::Shape_rect(atof(sParams[1].c_str()),atof(sParams[2].c_str()),atof(sParams[3].c_str()),atof(sParams[4].c_str())));
+                shape.reset(new Fmi::Shape_rect(atof(sParams[1].c_str()),
+                                                atof(sParams[2].c_str()),
+                                                atof(sParams[3].c_str()),
+                                                atof(sParams[4].c_str())));
                 if (sz == 6)
                   precision = atoi(sParams[5].c_str());
               }
             }
-            else
-            if (sParams[0] == "CIRCLE")
+            else if (sParams[0] == "CIRCLE")
             {
-              if (sz != 4  &&  sz != 5)
+              if (sz != 4 && sz != 5)
               {
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
-                out << "\tReason   : " << "Invalid number of parameters for Shape_circle!\n";
+                out << "\tReason   : "
+                    << "Invalid number of parameters for Shape_circle!\n";
                 out << "\tShape    : " << shapeStr << "\n";
                 fail++;
               }
               else
               {
-                shape.reset(new Fmi::Shape_circle(atof(sParams[1].c_str()),atof(sParams[2].c_str()),atof(sParams[3].c_str())));
+                shape.reset(new Fmi::Shape_circle(
+                    atof(sParams[1].c_str()), atof(sParams[2].c_str()), atof(sParams[3].c_str())));
                 if (sz == 5)
                   precision = atoi(sParams[4].c_str());
               }
             }
-            else
-            if (sParams[0] == "SPHERE")
+            else if (sParams[0] == "SPHERE")
             {
-              if (sz != 4  &&  sz != 5)
+              if (sz != 4 && sz != 5)
               {
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
-                out << "\tReason   : " << "Invalid number of parameters for Shape_circle!\n";
+                out << "\tReason   : "
+                    << "Invalid number of parameters for Shape_circle!\n";
                 out << "\tShape    : " << shapeStr << "\n";
                 fail++;
               }
               else
               {
-                shape.reset(new Fmi::Shape_sphere(atof(sParams[1].c_str()),atof(sParams[2].c_str()),atof(sParams[3].c_str())));
+                shape.reset(new Fmi::Shape_sphere(
+                    atof(sParams[1].c_str()), atof(sParams[2].c_str()), atof(sParams[3].c_str())));
                 if (sz == 5)
                   precision = atoi(sParams[4].c_str());
               }
@@ -214,15 +215,16 @@ class tests : public tframe::tests
             {
               out << "*** FAILED ***\n";
               out << "\tFile     : " << filename << " (" << line << ")\n";
-              out << "\tReason   : " << "Shape not defined!\n";
+              out << "\tReason   : "
+                  << "Shape not defined!\n";
               fail++;
             }
           }
 
           if (shape)
           {
-            OGRGeometry* input = nullptr;
-            OGRGeometry* output = nullptr;
+            OGRGeometry *input = nullptr;
+            OGRGeometry *output = nullptr;
 
             try
             {
@@ -232,7 +234,8 @@ class tests : public tframe::tests
                 fail++;
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
-                out << "\tReason   : " << "Failed to parse input\n";
+                out << "\tReason   : "
+                    << "Failed to parse input\n";
                 out << "\tInput    : " << inWkt << "\n";
               }
             }
@@ -241,7 +244,8 @@ class tests : public tframe::tests
               fail++;
               out << "*** FAILED ***\n";
               out << "\tFile     : " << filename << " (" << line << ")\n";
-              out << "\tReason   : " << "Failed to parse input\n";
+              out << "\tReason   : "
+                  << "Failed to parse input\n";
               out << "\tInput    : " << inWkt << "\n";
             }
 
@@ -251,18 +255,15 @@ class tests : public tframe::tests
               {
                 output = OGR::linecut(*input, shape);
               }
-              else
-              if (functionality == "LINECLIP")
+              else if (functionality == "LINECLIP")
               {
                 output = OGR::lineclip(*input, shape);
               }
-              else
-              if (functionality == "POLYCUT")
+              else if (functionality == "POLYCUT")
               {
                 output = OGR::polycut(*input, shape);
               }
-              else
-              if (functionality == "POLYCLIP")
+              else if (functionality == "POLYCLIP")
               {
                 output = OGR::polyclip(*input, shape);
               }
@@ -280,7 +281,7 @@ class tests : public tframe::tests
               if (output)
               {
                 if (precision >= 0)
-                  ret = exportToWkt(*output,precision);
+                  ret = exportToWkt(*output, precision);
                 else
                   ret = exportToWkt(*output);
 
@@ -309,37 +310,27 @@ class tests : public tframe::tests
     fclose(file);
   }
 
-
-
-
   // Overridden message separator
-  virtual const char* error_message_prefix() const
-  {
-    return "\n\t";
-  }
+  virtual const char *error_message_prefix() const { return "\n\t"; }
 
   // Main test suite
-  void test()
-  {
-    ogr_tests();
-  }
+  void test() { ogr_tests(); }
 };  // class tests
 
 }  // namespace Tests
 
-
-int main(int argc,char *argv[])
+int main(int argc, char *argv[])
 {
   if (argc == 1)
   {
-     std::cout << "USAGE: OGRTests <testFile1> [ <testFile2> ... <testFileN>]\n";
-     return -1;
+    std::cout << "USAGE: ShapeTester <testFile1> [ <testFile2> ... <testFileN>]\n";
+    return -1;
   }
 
   int totalRes = 0;
 
-  cout << endl << "OGR tester" << endl << "==========" << endl;
-  for (int t=1; t<argc; t++)
+  cout << endl << "Shape tester" << endl << "==========" << endl;
+  for (int t = 1; t < argc; t++)
   {
     Tests::tests test;
     test.filename = argv[t];
