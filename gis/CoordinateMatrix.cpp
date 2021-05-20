@@ -1,9 +1,6 @@
 #include "CoordinateMatrix.h"
-
 #include "CoordinateTransformation.h"
-
-#include <boost/functional/hash.hpp>
-
+#include <macgyver/Hash.h>
 #include <cmath>
 
 namespace Fmi
@@ -60,7 +57,7 @@ void CoordinateMatrix::swap(CoordinateMatrix& other)
 
 bool CoordinateMatrix::transform(const CoordinateTransformation& transformation)
 {
-  boost::hash_combine(m_hash, transformation.hashValue());  // update hash to the new projection
+  Fmi::hash_combine(m_hash, transformation.hashValue());  // update hash to the new projection
   return transformation.transform(m_x, m_y);
 }
 
@@ -70,12 +67,12 @@ std::size_t CoordinateMatrix::hashValue(
   // Note that the hash value calculation order must match that in the
   // BilinearCoordinateTransformation constructor or caching will not work properly.
 
-  auto hash = boost::hash_value(nx);
-  boost::hash_combine(hash, boost::hash_value(ny));
-  boost::hash_combine(hash, boost::hash_value(x1));
-  boost::hash_combine(hash, boost::hash_value(y1));
-  boost::hash_combine(hash, boost::hash_value(x2));
-  boost::hash_combine(hash, boost::hash_value(y2));
+  auto hash = Fmi::hash_value(nx);
+  Fmi::hash_combine(hash, Fmi::hash_value(ny));
+  Fmi::hash_combine(hash, Fmi::hash_value(x1));
+  Fmi::hash_combine(hash, Fmi::hash_value(y1));
+  Fmi::hash_combine(hash, Fmi::hash_value(x2));
+  Fmi::hash_combine(hash, Fmi::hash_value(y2));
   return hash;
 }
 

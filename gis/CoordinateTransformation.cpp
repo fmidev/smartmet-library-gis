@@ -1,5 +1,4 @@
 #include "CoordinateTransformation.h"
-
 #include "GeometryBuilder.h"
 #include "Interrupt.h"
 #include "OGR.h"
@@ -8,9 +7,7 @@
 #include "Shape.h"
 #include "SpatialReference.h"
 #include "Types.h"
-
-#include <boost/functional/hash.hpp>
-
+#include <macgyver/Hash.h>
 #include <gdal_version.h>
 #include <iostream>
 #include <limits>
@@ -48,7 +45,7 @@ class CoordinateTransformation::Impl
                                                                     theTarget.projInfo().projStr()))
   {
     m_hash = theSource.hashValue();
-    boost::hash_combine(m_hash, theTarget.hashValue());
+    Fmi::hash_combine(m_hash, theTarget.hashValue());
   }
 
   Impl& operator=(const Impl&) = delete;

@@ -1,8 +1,8 @@
 #include "OGRCoordinateTransformationFactory.h"
 #include "OGRSpatialReferenceFactory.h"
-#include <boost/functional/hash.hpp>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
+#include <macgyver/Hash.h>
 #include <ogr_spatialref.h>
 
 namespace Fmi
@@ -56,8 +56,8 @@ void Delete(std::size_t theHash, std::unique_ptr<OGRCoordinateTransformation> th
 
 Ptr Create(const std::string &theSource, const std::string &theTarget)
 {
-  auto hash = boost::hash_value(theSource);
-  boost::hash_combine(hash, boost::hash_value(theTarget));
+  auto hash = Fmi::hash_value(theSource);
+  Fmi::hash_combine(hash, Fmi::hash_value(theTarget));
 
   // Return transformation object from the pool if there is one
   {

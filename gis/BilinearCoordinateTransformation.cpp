@@ -1,10 +1,8 @@
 #include "BilinearCoordinateTransformation.h"
-
 #include "CoordinateMatrix.h"
 #include "CoordinateMatrixCache.h"
 #include "CoordinateTransformation.h"
-
-#include <boost/functional/hash.hpp>
+#include <macgyver/Hash.h>
 
 namespace Fmi
 {
@@ -22,7 +20,7 @@ BilinearCoordinateTransformation::BilinearCoordinateTransformation(
   // CoordinateMatrix::transform or the cache will not work properly.
 
   auto m_hash = CoordinateMatrix::hashValue(nx, ny, x1, y1, x2, y2);
-  boost::hash_combine(m_hash, theTransformation.hashValue());
+  Fmi::hash_combine(m_hash, theTransformation.hashValue());
   m_matrix = CoordinateMatrixCache::Find(m_hash);
 
   if (!m_matrix)
