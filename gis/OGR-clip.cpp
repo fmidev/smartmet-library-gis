@@ -479,14 +479,22 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
           // Clip the outside point to edges
           clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1), theBox);
 
-          auto *line = new OGRLineString();
-          if (add_start)
-            line->addPoint(x0, y0);
+          // Note that if there is a spike that enters and exits the box
+          // at the same coordinate, we must discard the spike.
+
+          const bool spike = (add_start && x0 == x && y0 == y && i - start_index < 2);
+
+          if (!spike)
+          {
+            auto *line = new OGRLineString();
+            if (add_start)
+              line->addPoint(x0, y0);
+            if (start_index <= i - 1)
+              line->addSubLineString(&g, start_index, i - 1);
+            line->addPoint(x, y);
+            theRect.addExterior(line);
+          }
           add_start = false;
-          if (start_index <= i - 1)
-            line->addSubLineString(&g, start_index, i - 1);
-          line->addPoint(x, y);
-          theRect.addExterior(line);
 
           break;  // going to outside the loop
         }

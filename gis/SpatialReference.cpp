@@ -1,12 +1,10 @@
 #include "SpatialReference.h"
-
 #include "OGR.h"
 #include "OGRSpatialReferenceFactory.h"
 #include "ProjInfo.h"
-
-#include <boost/functional/hash.hpp>
 #include <fmt/format.h>
 #include <macgyver/Cache.h>
+#include <macgyver/Hash.h>
 
 #include <ogr_geometry.h>
 
@@ -89,7 +87,7 @@ class SpatialReference::Impl
       m_data = std::make_shared<ImplData>();
       m_data->crs = OGRSpatialReferenceFactory::Create(theCRS);
       m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
-      m_data->hashvalue = boost::hash_value(m_data->projinfo.projStr());
+      m_data->hashvalue = Fmi::hash_value(m_data->projinfo.projStr());
       m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
       m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
       m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
@@ -103,7 +101,7 @@ class SpatialReference::Impl
     m_data = std::make_shared<ImplData>();
     m_data->crs.reset(other.Clone());
     m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
-    m_data->hashvalue = boost::hash_value(m_data->projinfo.projStr());
+    m_data->hashvalue = Fmi::hash_value(m_data->projinfo.projStr());
     m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
     m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
     m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);

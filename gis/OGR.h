@@ -25,10 +25,15 @@ namespace Fmi
 class CoordinateTransformation;
 class Box;
 class SpatialReference;
+class GeometryBuilder;
+class Shape;
+
+typedef std::shared_ptr<Shape> Shape_sptr;
 
 namespace OGR
 {
 std::string exportToWkt(const OGRSpatialReference& theSRS);
+std::string exportToWkt(const OGRGeometry& theGeom, int precision);
 std::string exportToPrettyWkt(const OGRSpatialReference& theSRS);
 std::string exportToProj(const OGRSpatialReference& theSRS);
 std::string exportToWkt(const OGRGeometry& theGeom);
@@ -99,6 +104,23 @@ boost::optional<double> gridNorth(const CoordinateTransformation& theTransformat
 
 // Create OGRGeometry from WKT-string, if theEPSGNumber > 0 assign spatial reference to geometry
 OGRGeometry* createFromWkt(const std::string& wktString, unsigned int theEPSGNumber = 0);
+
+// ### Clipping and cutting for different shapes (box, circle, etc)
+
+OGRGeometry* lineclip(const OGRGeometry& theGeom, Shape_sptr& theShape);
+OGRGeometry* linecut(const OGRGeometry& theGeom, Shape_sptr& theShape);
+OGRGeometry* polycut(const OGRGeometry& theGeom, Shape_sptr& theShape, double maxSegmentLength = 0);
+OGRGeometry* polyclip(const OGRGeometry& theGeom, Shape_sptr& theShape, double maxSegmenLength = 0);
+
+// Clipping and cutting results returned in the GeometryBuilder
+void polycut(GeometryBuilder& builder,
+             const OGRGeometry& theGeom,
+             Shape_sptr& theShape,
+             double theMaximumSegmentLength);
+void polyclip(GeometryBuilder& builder,
+              const OGRGeometry& theGeom,
+              Shape_sptr& theShape,
+              double theMaximumSegmentLength);
 
 }  // namespace OGR
 }  // namespace Fmi

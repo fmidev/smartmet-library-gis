@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.2.26
+Version: 21.5.20
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -22,7 +22,8 @@ BuildRequires: gdal32-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
-BuildRequires: smartmet-library-macgyver-devel >= 21.1.25
+BuildRequires: smartmet-library-macgyver-devel >= 21.5.19
+BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
@@ -32,8 +33,7 @@ Requires: fmt >= 7.1.3
 Requires: gdal32-libs
 Requires: geos39
 Requires: postgis31_12
-Requires: proj72
-Requires: smartmet-library-macgyver >= 21.1.25
+Requires: smartmet-library-macgyver >= 21.5.19
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -69,7 +69,12 @@ rm -rf $RPM_BUILD_ROOT
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
 Requires: %{SPECNAME} = %{version}-%{release}
-BuildRequires: geos39-devel
+Requires: geos39-devel
+Requires: boost169-devel
+Requires: fmt-devel >= 7.1.3
+Requires: gcc-c++
+Requires: gdal32-devel
+Requires: smartmet-library-macgyver-devel >= 21.5.19
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -80,6 +85,25 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu May 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.20-1.fmi
+- Use Fmi hash functions, boost::combine_hash produces too many collisions
+
+* Wed May  5 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.5-1.fmi
+- Fixed several projection interrupts
+
+* Mon May  3 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.4-1.fmi
+- Added circle clipping code, refactored common parts with rectangle clipping
+
+* Tue Apr 13 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.4.13-1.fmi
+- Fixed clipping of very narrow spikes just barely visiting the box
+
+* Mon Mar 29 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.3.29-1.fmi
+- Fixed CoordinateTransformation::getTargetCS and getSourceCS not to create temporaries
+
+* Tue Mar 23 2021 Andris Pavenis <andris.pavenis@fmi.fi> - 21.3.23-1.fmi
+- Remove explicit RPM dependency on proj72
+- Add missing dependencies for devel package
+
 * Fri Feb 26 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.26-1.fmi
 - CoordinateTransformation now returns SpatialReference instead of OGRSpatialReference
 - SpatialReference now caches EPSGTreatsAsLatlong on construction

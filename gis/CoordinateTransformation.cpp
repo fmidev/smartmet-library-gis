@@ -1,14 +1,13 @@
 #include "CoordinateTransformation.h"
-
+#include "GeometryBuilder.h"
 #include "Interrupt.h"
 #include "OGR.h"
 #include "OGRCoordinateTransformationFactory.h"
 #include "ProjInfo.h"
+#include "Shape.h"
 #include "SpatialReference.h"
 #include "Types.h"
-
-#include <boost/functional/hash.hpp>
-
+#include <macgyver/Hash.h>
 #include <gdal_version.h>
 #include <iostream>
 #include <limits>
@@ -46,7 +45,7 @@ class CoordinateTransformation::Impl
                                                                     theTarget.projInfo().projStr()))
   {
     m_hash = theSource.hashValue();
-    boost::hash_combine(m_hash, theTarget.hashValue());
+    Fmi::hash_combine(m_hash, theTarget.hashValue());
   }
 
   Impl& operator=(const Impl&) = delete;
@@ -143,12 +142,12 @@ bool CoordinateTransformation::transform(OGRGeometry& geom) const
 
 const SpatialReference& CoordinateTransformation::getSourceCS() const
 {
-  return *impl->m_source;
+  return impl->m_source;
 }
 
 const SpatialReference& CoordinateTransformation::getTargetCS() const
 {
-  return *impl->m_target;
+  return impl->m_target;
 }
 
 const OGRCoordinateTransformation& CoordinateTransformation::operator*() const
@@ -192,6 +191,31 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       for (const auto& box : interrupt.cuts)
       {
         g.reset(OGR::polycut(*g, box, theMaximumSegmentLength));
+        if (!g || g->IsEmpty())
+          return nullptr;
+      }
+    }
+
+    if (!interrupt.shapeCuts.empty())
+    {
+      // printf("***** CUTS ****\n");
+      for (auto shape = interrupt.shapeCuts.begin(); shape != interrupt.shapeCuts.end(); ++shape)
+      {
+        //(*shape)->print(std::cout);
+        g.reset(OGR::polycut(*g, *shape, theMaximumSegmentLength));
+        if (!g || g->IsEmpty())
+          return nullptr;
+      }
+    }
+
+    if (!interrupt.shapeClips.empty())
+    {
+      // printf("***** CLIPS ****\n");
+      GeometryBuilder builder;
+      for (auto shape = interrupt.shapeClips.begin(); shape != interrupt.shapeClips.end(); ++shape)
+      {
+        //(*shape)->print(std::cout);
+        g.reset(OGR::polyclip(*g, *shape, theMaximumSegmentLength));
         if (!g || g->IsEmpty())
           return nullptr;
       }
