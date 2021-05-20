@@ -1,22 +1,17 @@
 #include "Shape_circle.h"
+#include "OGR.h"
 #include "ShapeClipper.h"
 #include <macgyver/Exception.h>
 #include <ogr_geometry.h>
-#include "OGR.h"
-
 
 namespace Fmi
 {
-
-
 #ifndef PI
-  #define PI 3.14159265358979323846
-  #define PI2 6.28318530718
+#define PI 3.14159265358979323846
+#define PI2 6.28318530718
 #endif
 
 #define DELTA 1000000000
-
-
 
 Shape_circle::Shape_circle(double theX, double theY, double theRadius)
 {
@@ -25,7 +20,7 @@ Shape_circle::Shape_circle(double theX, double theY, double theRadius)
     itsX = theX;
     itsY = theY;
     itsRadius = theRadius;
-    itsRadius2 = theRadius*theRadius;
+    itsRadius2 = theRadius * theRadius;
     itsXDelta = theX + DELTA;
     itsYDelta = theY + DELTA;
     itsXMin = itsX - itsRadius;
@@ -33,7 +28,6 @@ Shape_circle::Shape_circle(double theX, double theY, double theRadius)
     itsXMax = itsX + itsRadius;
     itsYMax = itsY + itsRadius;
     itsBorderStep = 3.1415926535898 / 180;
-
   }
   catch (...)
   {
@@ -41,24 +35,14 @@ Shape_circle::Shape_circle(double theX, double theY, double theRadius)
   }
 }
 
+Shape_circle::~Shape_circle() {}
 
-
-
-
-Shape_circle::~Shape_circle()
-{
-}
-
-
-
-
-
-double Shape_circle::angleDistance_cw(double a,double b) const
+double Shape_circle::angleDistance_cw(double a, double b) const
 {
   try
   {
     if (b <= a)
-      return (a-b);
+      return (a - b);
 
     return (PI2 - (b - a));
   }
@@ -68,16 +52,12 @@ double Shape_circle::angleDistance_cw(double a,double b) const
   }
 }
 
-
-
-
-
-double Shape_circle::angleDistance_ccw(double a,double b) const
+double Shape_circle::angleDistance_ccw(double a, double b) const
 {
   try
   {
     if (a <= b)
-      return (b-a);
+      return (b - a);
 
     return (PI2 - (a - b));
   }
@@ -87,15 +67,11 @@ double Shape_circle::angleDistance_ccw(double a,double b) const
   }
 }
 
-
-
-
-
-double Shape_circle::distance(double a,double b) const
+double Shape_circle::distance(double a, double b) const
 {
   try
   {
-    return fabs(fabs(a)-fabs(b));
+    return fabs(fabs(a) - fabs(b));
   }
   catch (...)
   {
@@ -103,16 +79,12 @@ double Shape_circle::distance(double a,double b) const
   }
 }
 
-
-
-
-
 int Shape_circle::getPosition(double x, double y) const
 {
   try
   {
-    double dx = distance(x+DELTA,itsXDelta);
-    double dy = distance(y+DELTA,itsYDelta);
+    double dx = distance(x + DELTA, itsXDelta);
+    double dy = distance(y + DELTA, itsYDelta);
     double r2 = (dx * dx) + (dy * dy);
 
     if (r2 <= itsRadius2)
@@ -126,26 +98,18 @@ int Shape_circle::getPosition(double x, double y) const
   }
 }
 
-
-
-
-
-void Shape_circle::getPointByAngle(double angle,double& x, double& y) const
+void Shape_circle::getPointByAngle(double angle, double &x, double &y) const
 {
   try
   {
-    x = itsX + cos(angle)*itsRadius;
-    y = itsY + sin(angle)*itsRadius;
+    x = itsX + cos(angle) * itsRadius;
+    y = itsY + sin(angle) * itsRadius;
   }
   catch (...)
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 void Shape_circle::setBorderStep(double theBorderStep)
 {
@@ -159,10 +123,6 @@ void Shape_circle::setBorderStep(double theBorderStep)
   }
 }
 
-
-
-
-
 void Shape_circle::setRadius(double theRadius)
 {
   try
@@ -175,10 +135,6 @@ void Shape_circle::setRadius(double theRadius)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 double Shape_circle::getAngle(double x, double y) const
 {
@@ -209,11 +165,7 @@ double Shape_circle::getAngle(double x, double y) const
   }
 }
 
-
-
-
-
-bool Shape_circle::isOnEdge(double x, double y, double& angle) const
+bool Shape_circle::isOnEdge(double x, double y, double &angle) const
 {
   try
   {
@@ -222,7 +174,7 @@ bool Shape_circle::isOnEdge(double x, double y, double& angle) const
 
     double r2 = (dx * dx) + (dy * dy);
     double dist = distance(r2, itsRadius2);
-    //printf("OnEdge %f,%f  %f %f   %f\n", x, y, r2, itsRadius2, dist);
+    // printf("OnEdge %f,%f  %f %f   %f\n", x, y, r2, itsRadius2, dist);
 
     if (dist < 0.0001)
     {
@@ -259,10 +211,6 @@ bool Shape_circle::isOnEdge(double x, double y, double& angle) const
   }
 }
 
-
-
-
-
 bool Shape_circle::isOnEdge(double x, double y) const
 {
   try
@@ -284,29 +232,32 @@ bool Shape_circle::isOnEdge(double x, double y) const
   }
 }
 
-
-
-
-
-int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, double bY, double& pX1, double& pY1, double& pX2, double& pY2) const
+int Shape_circle::getLineIntersectionPoints(double aX,
+                                            double aY,
+                                            double bX,
+                                            double bY,
+                                            double &pX1,
+                                            double &pY1,
+                                            double &pX2,
+                                            double &pY2) const
 {
   try
   {
-    //printf("Intersection %f,%f,%f,%f   %f,%f r=%f\n", aX, aY, bX, bY, centerX, centerY, radius);
+    // printf("Intersection %f,%f,%f,%f   %f,%f r=%f\n", aX, aY, bX, bY, centerX, centerY, radius);
 
     // Fast checks before more detailed x calculations. Checking if the both
     // end points on the same side of the ring (=> No intersection)
 
-    if (aX < itsXMin  &&  bX < itsXMin)
+    if (aX < itsXMin && bX < itsXMin)
       return 0;
 
-    if (aX > itsXMax  &&  bX > itsXMax)
+    if (aX > itsXMax && bX > itsXMax)
       return 0;
 
-    if (aY < itsYMin  &&  bY < itsYMin)
+    if (aY < itsYMin && bY < itsYMin)
       return 0;
 
-    if (aY > itsYMax  &&  bY > itsYMax)
+    if (aY > itsYMax && bY > itsYMax)
       return 0;
 
     // Shifting coordinates so that they are all positive numbers, because
@@ -321,7 +272,7 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
     double baX = bX - aX;
     double baY = bY - aY;
 
-    if (baX > -0.0001  &&  baX < 0.0001  &&  baY > -0.0001  &&  baY < 0.0001)
+    if (baX > -0.0001 && baX < 0.0001 && baY > -0.0001 && baY < 0.0001)
     {
       // Both end points are almost the same (=> same point, not a line)
       return 5;
@@ -346,10 +297,10 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
     double q = c / abDist2;
     double d = pBy2 * pBy2 - q;
 
-    if (d < 0)    // No intersection points
+    if (d < 0)  // No intersection points
       return 0;
 
-    if (d == 0)   // One intersection point (= tangent). We can ignore it.
+    if (d == 0)  // One intersection point (= tangent). We can ignore it.
       return 0;
 
     double tmpSqrt = sqrt(d);
@@ -375,11 +326,9 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
     if (std::min(aY, bY) > std::max(pY1, pY2))
       return 0;
 
-
     int res = 0;
     if (ar2 <= itsRadius2 && br2 > itsRadius2)
       res = 2;  // The first endpoint is inside the circle
-
 
     if (ar2 > itsRadius2 && br2 <= itsRadius2)
       res = 3;  // The second endpoint is inside the circle
@@ -447,7 +396,7 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
     if (dd > abDist2)
     {
       // Both points are on the same side of the circle
-      //printf("Same side %f %f\n",dd,a);
+      // printf("Same side %f %f\n",dd,a);
       return 0;
     }
 
@@ -480,11 +429,7 @@ int Shape_circle::getLineIntersectionPoints(double aX, double aY, double bX, dou
   }
 }
 
-
-
-
-
-OGRLinearRing* Shape_circle::makeRing(double theMaximumSegmentLength) const
+OGRLinearRing *Shape_circle::makeRing(double theMaximumSegmentLength) const
 {
   try
   {
@@ -510,17 +455,13 @@ OGRLinearRing* Shape_circle::makeRing(double theMaximumSegmentLength) const
   }
 }
 
-
-
-
-
-OGRLinearRing* Shape_circle::makeHole(double theMaximumSegmentLength) const
+OGRLinearRing *Shape_circle::makeHole(double theMaximumSegmentLength) const
 {
   try
   {
-    OGRLinearRing* ring = makeRing(theMaximumSegmentLength);
+    OGRLinearRing *ring = makeRing(theMaximumSegmentLength);
     ring->reverseWindingOrder();
-    //ring->reversePoints();
+    // ring->reversePoints();
     return ring;
   }
   catch (...)
@@ -528,10 +469,6 @@ OGRLinearRing* Shape_circle::makeHole(double theMaximumSegmentLength) const
     throw Fmi::Exception(BCP, "Operation failed!", nullptr);
   }
 }
-
-
-
-
 
 int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
 {
@@ -561,20 +498,21 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
 
       double pX1 = 0, pY1 = 0, pX2 = 0, pY2 = 0;
       int res = getLineIntersectionPoints(xA, yA, xB, yB, pX1, pY1, pX2, pY2);
-      //printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA, xB, yB, pX1, pY1, pX2, pY2,res);
+      // printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA, xB, yB, pX1,
+      // pY1, pX2, pY2,res);
 
       switch (res)
       {
-        case 0:   // Both points are outside
+        case 0:  // Both points are outside
           line->addPoint(xB, yB);
           break;
 
-        case 2: // The first point is inside, the second point is outside
+        case 2:  // The first point is inside, the second point is outside
           line->addPoint(pX1, pY1);
           line->addPoint(xB, yB);
           break;
 
-        case 3:   // The first point is outside, the second point is inside
+        case 3:  // The first point is outside, the second point is inside
           line->addPoint(pX1, pY1);
           if (exterior)
             theClipper.addExterior(line);
@@ -584,7 +522,7 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
           line = new OGRLineString();
           break;
 
-        case 4:   // Both end point are outside, but the line intersects with the circle
+        case 4:  // Both end point are outside, but the line intersects with the circle
           position |= Shape_circle::Outside;
           line->addPoint(pX1, pY1);
           if (exterior)
@@ -622,9 +560,6 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
   }
 }
 
-
-
-
 int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
 {
   try
@@ -656,15 +591,16 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
 
       double pX1 = 0, pY1 = 0, pX2 = 0, pY2 = 0;
       int res = getLineIntersectionPoints(xA, yA, xB, yB, pX1, pY1, pX2, pY2);
-      //printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA, xB, yB, pX1, pY1, pX2, pY2,res);
+      // printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA, xB, yB, pX1,
+      // pY1, pX2, pY2,res);
 
       switch (res)
       {
-        case 1: // Both points are inside
+        case 1:  // Both points are inside
           line->addPoint(xB, yB);
           break;
 
-        case 2: // The first point is inside, the second point is outside
+        case 2:  // The first point is inside, the second point is outside
           line->addPoint(pX1, pY1);
           if (exterior)
             theClipper.addExterior(line);
@@ -673,12 +609,12 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
           line = new OGRLineString();
           break;
 
-        case 3: // The first point is outside, the second point is inside
+        case 3:  // The first point is outside, the second point is inside
           line->addPoint(pX1, pY1);
           line->addPoint(xB, yB);
           break;
 
-        case 4: // Both end point are outside, but the line intersects with the circle
+        case 4:  // Both end point are outside, but the line intersects with the circle
           position |= Shape_circle::Inside;
           line->addPoint(pX1, pY1);
           line->addPoint(pX2, pY2);
@@ -715,24 +651,20 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
   }
 }
 
-
-
-
-
 bool Shape_circle::isInsideRing(const OGRLinearRing &theRing) const
 {
   try
   {
-    Shape_circle circle(itsX,itsY,itsRadius-0.0001);
+    Shape_circle circle(itsX, itsY, itsRadius - 0.0001);
 
     uint points = 36;
-    double step = 2*PI / (double)points;
+    double step = 2 * PI / (double)points;
     double angle = 0;
-    for (uint t=0; t<points; t++)
+    for (uint t = 0; t < points; t++)
     {
       double xx = 0, yy = 0;
-      circle.getPointByAngle(angle,xx,yy);
-      if (!OGR::inside(theRing,xx,yy))
+      circle.getPointByAngle(angle, xx, yy);
+      if (!OGR::inside(theRing, xx, yy))
         return false;
 
       angle = angle + step;
@@ -745,10 +677,7 @@ bool Shape_circle::isInsideRing(const OGRLinearRing &theRing) const
   }
 }
 
-
-
-
-bool Shape_circle::isRingInside(const OGRLinearRing& theRing) const
+bool Shape_circle::isRingInside(const OGRLinearRing &theRing) const
 {
   try
   {
@@ -778,18 +707,18 @@ bool Shape_circle::isRingInside(const OGRLinearRing& theRing) const
   }
 }
 
-
-
-
-
 // ----------------------------------------------------------------------
 /*!
  * \brief Search for matching line segment clockwise (clipping)
  */
 // ----------------------------------------------------------------------
 
-LineIterator Shape_circle::search_cw(OGRLinearRing *ring,std::list<OGRLineString *> &lines,
-                               double x1,double y1,double &x2,double &y2) const
+LineIterator Shape_circle::search_cw(OGRLinearRing *ring,
+                                     std::list<OGRLineString *> &lines,
+                                     double x1,
+                                     double y1,
+                                     double &x2,
+                                     double &y2) const
 {
   try
   {
@@ -797,10 +726,10 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,std::list<OGRLineString
     double angle1 = 0;
     double bestAngleDiff = 1000;
 
-    if (isOnEdge(x1,y1,angle1))
+    if (isOnEdge(x1, y1, angle1))
     {
       double angle2 = 0;
-      if (isOnEdge(x2,y2,angle2))
+      if (isOnEdge(x2, y2, angle2))
       {
         // Sometimes the best option is to connect the end points
         // of the current line.
@@ -808,10 +737,10 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,std::list<OGRLineString
         double angleDiff = angle1 - angle2;
 
         if (angleDiff > PI)
-          angleDiff = PI2-angleDiff;
+          angleDiff = PI2 - angleDiff;
 
         if (angleDiff < -PI)
-          angleDiff = PI2+angleDiff;
+          angleDiff = PI2 + angleDiff;
 
         if (angleDiff > 0)
           bestAngleDiff = angleDiff;
@@ -822,7 +751,7 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,std::list<OGRLineString
         double x = (*iter)->getX(0);
         double y = (*iter)->getY(0);
 
-        if (isOnEdge(x,y,angle2))
+        if (isOnEdge(x, y, angle2))
         {
           double angleDiff = angle1 - angle2;
           if (angle2 > angle1)
@@ -835,7 +764,7 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,std::list<OGRLineString
             best = iter;
             bestAngleDiff = angleDiff;
             if (angle2 > angle1)
-              angle2 = angle2 - 2*PI;
+              angle2 = angle2 - 2 * PI;
           }
         }
       }
@@ -848,18 +777,18 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,std::list<OGRLineString
   }
 }
 
-
-
-
-
 // ----------------------------------------------------------------------
 /*!
  * \brief Search for matching line segment counter-clockwise (cutting)
  */
 // ----------------------------------------------------------------------
 
-LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,std::list<OGRLineString *> &lines,
-                                double x1,double y1,double &x2,double &y2) const
+LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,
+                                      std::list<OGRLineString *> &lines,
+                                      double x1,
+                                      double y1,
+                                      double &x2,
+                                      double &y2) const
 {
   try
   {
@@ -867,18 +796,17 @@ LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,std::list<OGRLineStrin
     double angle1 = 0;
     double bestAngleDiff = 1000;
 
-    if (isOnEdge(x1,y1,angle1))
+    if (isOnEdge(x1, y1, angle1))
     {
-
       double angle2 = 0;
-      if (isOnEdge(x2,y2,angle2))
+      if (isOnEdge(x2, y2, angle2))
       {
         double angleDiff = angle2 - angle1;
         if (angleDiff > PI)
-          angleDiff = PI2-angleDiff;
+          angleDiff = PI2 - angleDiff;
 
         if (angleDiff < -PI)
-          angleDiff = PI2+angleDiff;
+          angleDiff = PI2 + angleDiff;
 
         bestAngleDiff = angleDiff;
       }
@@ -888,7 +816,7 @@ LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,std::list<OGRLineStrin
         double x = (*iter)->getX(0);
         double y = (*iter)->getY(0);
 
-        if (isOnEdge(x,y,angle2))
+        if (isOnEdge(x, y, angle2))
         {
           double angleDiff = angle2 - angle1;
           if (angle2 < angle1)
@@ -900,7 +828,7 @@ LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,std::list<OGRLineStrin
             y2 = y;
             best = iter;
             bestAngleDiff = angleDiff;
-            //printf("BEST ANGLE %f %f %f\n",angle1,angle2,angleDiff);
+            // printf("BEST ANGLE %f %f %f\n",angle1,angle2,angleDiff);
           }
         }
       }
@@ -913,22 +841,22 @@ LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,std::list<OGRLineStrin
   }
 }
 
-
-
-
-
-bool Shape_circle::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,double x2,double y2,double theMaximumSegmentLength) const
+bool Shape_circle::connectPoints_cw(OGRLinearRing &ring,
+                                    double x1,
+                                    double y1,
+                                    double x2,
+                                    double y2,
+                                    double theMaximumSegmentLength) const
 {
   try
   {
-
     double angle1 = 0;
     double angle2 = 0;
 
     if (!isOnEdge(x1, y1, angle1) || !isOnEdge(x2, y2, angle2))
       return false;  // The end points are not on the edge of the circle
 
-    Shape_circle outerCircle(itsX,itsY,itsRadius + 0.0001);
+    Shape_circle outerCircle(itsX, itsY, itsRadius + 0.0001);
 
     double angleDiff = 0;
     angleDiff = -angleDistance_cw(angle1, angle2);
@@ -953,7 +881,7 @@ bool Shape_circle::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,doub
       for (uint t = 0; t < points; t++)
       {
         getPointByAngle(angle1, xx, yy);
-        //printf("** getPoint %f   %f,%f\n", angle1, xx, yy);
+        // printf("** getPoint %f   %f,%f\n", angle1, xx, yy);
         ring.addPoint(xx, yy);
         angle1 = angle1 + ad;
       }
@@ -968,21 +896,22 @@ bool Shape_circle::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,doub
   }
 }
 
-
-
-
-bool Shape_circle::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,double x2,double y2,double theMaximumSegmentLength) const
+bool Shape_circle::connectPoints_ccw(OGRLinearRing &ring,
+                                     double x1,
+                                     double y1,
+                                     double x2,
+                                     double y2,
+                                     double theMaximumSegmentLength) const
 {
   try
   {
-
     double angle1 = 0;
     double angle2 = 0;
 
     if (!isOnEdge(x1, y1, angle1) || !isOnEdge(x2, y2, angle2))
       return false;  // The end points are not on the edge of the circle
 
-    Shape_circle innerCircle(itsX,itsY,itsRadius - 0.0001);
+    Shape_circle innerCircle(itsX, itsY, itsRadius - 0.0001);
 
     double angleDiff = 0;
     angleDiff = angleDistance_ccw(angle1, angle2);
@@ -1007,7 +936,7 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,dou
       for (uint t = 0; t < points; t++)
       {
         getPointByAngle(angle1, xx, yy);
-        //printf("** getPoint %f   %f,%f\n", angle1, xx, yy);
+        // printf("** getPoint %f   %f,%f\n", angle1, xx, yy);
         ring.addPoint(xx, yy);
         angle1 = angle1 + ad;
       }
@@ -1024,10 +953,7 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,dou
   }
 }
 
-
-
-
-void Shape_circle::print(std::ostream& stream)
+void Shape_circle::print(std::ostream &stream)
 {
   try
   {
@@ -1040,13 +966,11 @@ void Shape_circle::print(std::ostream& stream)
     stream << "- itsXMax        = " << itsXMax << "\n";
     stream << "- itsYMax        = " << itsYMax << "\n";
     stream << "- itsBorderStep  = " << itsBorderStep << "\n";
-
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
   }
 }
-
 
 }  // namespace Fmi

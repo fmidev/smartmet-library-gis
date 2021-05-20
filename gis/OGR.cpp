@@ -73,15 +73,12 @@ std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom)
   return ret;
 }
 
-
-
-std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom,int precision)
+std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom, int precision)
 {
   OGRWktOptions options;
   options.precision = precision;
-  return theGeom.exportToWkt(options,nullptr);
+  return theGeom.exportToWkt(options, nullptr);
 }
-
 
 // ----------------------------------------------------------------------
 /*!

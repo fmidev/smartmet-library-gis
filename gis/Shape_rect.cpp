@@ -1,11 +1,9 @@
 #include "Shape_rect.h"
-#include "ShapeClipper.h"
 #include "OGR.h"
+#include "ShapeClipper.h"
 
 namespace Fmi
 {
-
-
 Shape_rect::Shape_rect(double theX1, double theY1, double theX2, double theY2)
     : itsX1(theX1),
       itsY1(theY1),
@@ -18,17 +16,7 @@ Shape_rect::Shape_rect(double theX1, double theY1, double theX2, double theY2)
 {
 }
 
-
-
-
-
-Shape_rect::~Shape_rect()
-{
-}
-
-
-
-
+Shape_rect::~Shape_rect() {}
 
 int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
 {
@@ -138,8 +126,8 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
           auto prev_pos = getPosition(x0, y0);
           pos = getPosition(x, y);
 
-          if (different(x0, y0, x, y) &&  // discard corners etc
-              onEdge(prev_pos) &&    // discard if does not intersect rect
+          if (different(x0, y0, x, y) &&                 // discard corners etc
+              onEdge(prev_pos) &&                        // discard if does not intersect rect
               onEdge(pos) && !onSameEdge(prev_pos, pos)  // discard if travels along edge
           )
           {
@@ -329,10 +317,6 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
   }
 }
 
-
-
-
-
 int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
 {
   try
@@ -469,7 +453,7 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
           position |= pos;
 
           if (different(x0, y0, x, y) &&  // discard corners etc
-              onEdge(prev_pos))      // discard if does not intersect rect
+              onEdge(prev_pos))           // discard if does not intersect rect
           {
             // Intersection occurred. Must generate a linestring from start to intersection point
             // then.
@@ -621,11 +605,12 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
   }
 }
 
-
-
-
-
-bool Shape_rect::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,double x2,double y2,double theMaximumSegmentLength) const
+bool Shape_rect::connectPoints_cw(OGRLinearRing &ring,
+                                  double x1,
+                                  double y1,
+                                  double x2,
+                                  double y2,
+                                  double theMaximumSegmentLength) const
 {
   try
   {
@@ -654,11 +639,12 @@ bool Shape_rect::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,double
   }
 }
 
-
-
-
-
-bool Shape_rect::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,double x2,double y2,double theMaximumSegmentLength) const
+bool Shape_rect::connectPoints_ccw(OGRLinearRing &ring,
+                                   double x1,
+                                   double y1,
+                                   double x2,
+                                   double y2,
+                                   double theMaximumSegmentLength) const
 {
   try
   {
@@ -686,10 +672,6 @@ bool Shape_rect::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,doubl
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 int Shape_rect::getPosition(double x, double y) const
 {
@@ -719,11 +701,14 @@ int Shape_rect::getPosition(double x, double y) const
   }
 }
 
-
-
-
-
-int Shape_rect::getLineIntersectionPoints(double aX, double aY, double bX, double bY,double& pX1, double& pY1, double& pX2, double& pY2) const
+int Shape_rect::getLineIntersectionPoints(double aX,
+                                          double aY,
+                                          double bX,
+                                          double bY,
+                                          double &pX1,
+                                          double &pY1,
+                                          double &pX2,
+                                          double &pY2) const
 {
   try
   {
@@ -735,18 +720,12 @@ int Shape_rect::getLineIntersectionPoints(double aX, double aY, double bX, doubl
   }
 }
 
-
-
-
-
 bool Shape_rect::isInsideRing(const OGRLinearRing &theRing) const
 {
   try
   {
-    return (OGR::inside(theRing, itsXMin, itsYMin) &&
-            OGR::inside(theRing, itsXMin, itsYMax) &&
-            OGR::inside(theRing, itsXMax, itsYMin) &&
-            OGR::inside(theRing, itsXMax, itsYMax));
+    return (OGR::inside(theRing, itsXMin, itsYMin) && OGR::inside(theRing, itsXMin, itsYMax) &&
+            OGR::inside(theRing, itsXMax, itsYMin) && OGR::inside(theRing, itsXMax, itsYMax));
   }
   catch (...)
   {
@@ -754,11 +733,7 @@ bool Shape_rect::isInsideRing(const OGRLinearRing &theRing) const
   }
 }
 
-
-
-
-
-bool Shape_rect::isRingInside(const OGRLinearRing& theRing) const
+bool Shape_rect::isRingInside(const OGRLinearRing &theRing) const
 {
   try
   {
@@ -788,11 +763,7 @@ bool Shape_rect::isRingInside(const OGRLinearRing& theRing) const
   }
 }
 
-
-
-
-
-OGRLinearRing* Shape_rect::makeRing(double theMaximumSegmentLength) const
+OGRLinearRing *Shape_rect::makeRing(double theMaximumSegmentLength) const
 {
   try
   {
@@ -814,11 +785,7 @@ OGRLinearRing* Shape_rect::makeRing(double theMaximumSegmentLength) const
   }
 }
 
-
-
-
-
-OGRLinearRing* Shape_rect::makeHole(double theMaximumSegmentLength) const
+OGRLinearRing *Shape_rect::makeHole(double theMaximumSegmentLength) const
 {
   try
   {
@@ -840,11 +807,12 @@ OGRLinearRing* Shape_rect::makeHole(double theMaximumSegmentLength) const
   }
 }
 
-
-
-
-
-LineIterator Shape_rect::search_cw(OGRLinearRing *ring,std::list<OGRLineString *> &lines,double x1,double y1,double &x2,double &y2) const
+LineIterator Shape_rect::search_cw(OGRLinearRing *ring,
+                                   std::list<OGRLineString *> &lines,
+                                   double x1,
+                                   double y1,
+                                   double &x2,
+                                   double &y2) const
 {
   try
   {
@@ -945,11 +913,12 @@ LineIterator Shape_rect::search_cw(OGRLinearRing *ring,std::list<OGRLineString *
   }
 }
 
-
-
-
-
-LineIterator Shape_rect::search_ccw(OGRLinearRing *ring,std::list<OGRLineString *> &lines,double x1,double y1,double &x2,double &y2) const
+LineIterator Shape_rect::search_ccw(OGRLinearRing *ring,
+                                    std::list<OGRLineString *> &lines,
+                                    double x1,
+                                    double y1,
+                                    double &x2,
+                                    double &y2) const
 {
   try
   {
@@ -1050,10 +1019,6 @@ LineIterator Shape_rect::search_ccw(OGRLinearRing *ring,std::list<OGRLineString 
   }
 }
 
-
-
-
-
 // ----------------------------------------------------------------------
 /*!
  * \brief Calculate a line intersection point
@@ -1080,10 +1045,6 @@ void Shape_rect::clip_one_edge(double &x1, double &y1, double x2, double y2, dou
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -1117,26 +1078,15 @@ void Shape_rect::clip_to_edges(double &x1, double &y1, double x2, double y2) con
   }
 }
 
-
-
-
 bool Shape_rect::onEdge(int pos)
 {
   return (pos > Outside);
 }
 
-
-
-
-
 bool Shape_rect::onSameEdge(int pos1, int pos2)
 {
   return onEdge(Position(pos1 & pos2));
 }
-
-
-
-
 
 int Shape_rect::nextEdge(int pos)
 {
@@ -1167,18 +1117,12 @@ int Shape_rect::nextEdge(int pos)
   }
 }
 
-
-
-
 bool Shape_rect::different(double x1, double y1, double x2, double y2)
 {
   return !(x1 == x2 && y1 == y2);
 }
 
-
-
-
-void Shape_rect::print(std::ostream& stream)
+void Shape_rect::print(std::ostream &stream)
 {
   try
   {
@@ -1191,14 +1135,11 @@ void Shape_rect::print(std::ostream& stream)
     stream << "- itsYMin  = " << itsYMin << "\n";
     stream << "- itsXMax  = " << itsXMax << "\n";
     stream << "- itsYMax  = " << itsYMax << "\n";
-
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
   }
 }
 
-
-}
-
+}  // namespace Fmi

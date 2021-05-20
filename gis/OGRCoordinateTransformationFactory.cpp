@@ -63,9 +63,9 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
   {
     WriteLock lock(gMutex);
 
-    auto pos = std::find_if(gPool.begin(), gPool.end(), [hash](const CacheElement &element) {
-      return hash == element.first;
-    });
+    auto pos = std::find_if(gPool.begin(),
+                            gPool.end(),
+                            [hash](const CacheElement &element) { return hash == element.first; });
 
     if (pos != gPool.end())
     {

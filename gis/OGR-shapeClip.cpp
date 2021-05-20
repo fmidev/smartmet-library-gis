@@ -107,9 +107,9 @@
 
  */
 
+#include "GeometryBuilder.h"
 #include "OGR.h"
 #include "ShapeClipper.h"
-#include "GeometryBuilder.h"
 #include "Shape_circle.h"
 #include <iomanip>
 #include <iostream>
@@ -118,10 +118,10 @@
 
 namespace Fmi
 {
-
-
-
-void do_point(const OGRPoint *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, bool keep_inside)
+void do_point(const OGRPoint *theGeom,
+              GeometryBuilder &theBuilder,
+              Shape_sptr &theShape,
+              bool keep_inside)
 {
   try
   {
@@ -149,16 +149,16 @@ void do_point(const OGRPoint *theGeom, GeometryBuilder &theBuilder, Shape_sptr& 
   }
 }
 
-
-
-
-
 // ----------------------------------------------------------------------
 /*!
  * \brief Clip or cut with circle
  */
 // ----------------------------------------------------------------------
-int do_circle(const OGRLineString *theGeom, ShapeClipper &theClipper, Shape_sptr& theShape, bool keep_inside, bool exterior)
+int do_circle(const OGRLineString *theGeom,
+              ShapeClipper &theClipper,
+              Shape_sptr &theShape,
+              bool keep_inside,
+              bool exterior)
 {
   try
   {
@@ -176,17 +176,16 @@ int do_circle(const OGRLineString *theGeom, ShapeClipper &theClipper, Shape_sptr
   }
 }
 
-
-
-
-
 // ----------------------------------------------------------------------
 /*!
  * \brief Clip polygon, do not close clipped ones
  */
 // ----------------------------------------------------------------------
 
-void do_polygon_to_linestrings(const OGRPolygon *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, bool keep_inside)
+void do_polygon_to_linestrings(const OGRPolygon *theGeom,
+                               GeometryBuilder &theBuilder,
+                               Shape_sptr &theShape,
+                               bool keep_inside)
 {
   try
   {
@@ -195,13 +194,14 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom, GeometryBuilder &theBu
 
     // Clip the exterior first to see what's going on
 
-    ShapeClipper clipper(theShape,keep_inside);
+    ShapeClipper clipper(theShape, keep_inside);
 
     bool all_exterior = true;
 
     // If everything was in, just clone the original
 
-    auto position = do_circle(theGeom->getExteriorRing(), clipper, theShape, keep_inside, all_exterior);
+    auto position =
+        do_circle(theGeom->getExteriorRing(), clipper, theShape, keep_inside, all_exterior);
 
     if (Shape::all_only_inside(position))
     {
@@ -294,10 +294,6 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom, GeometryBuilder &theBu
   }
 }
 
-
-
-
-
 // ----------------------------------------------------------------------
 /*!
  * \brief Clip polygon, close clipped ones
@@ -310,7 +306,11 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom, GeometryBuilder &theBu
  */
 // ----------------------------------------------------------------------
 
-void do_polygon_to_polygons(const OGRPolygon *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, double max_length, bool keep_inside)
+void do_polygon_to_polygons(const OGRPolygon *theGeom,
+                            GeometryBuilder &theBuilder,
+                            Shape_sptr &theShape,
+                            double max_length,
+                            bool keep_inside)
 {
   try
   {
@@ -319,7 +319,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom, GeometryBuilder &theBuild
 
     // Clip the exterior first to see what's going on
 
-    ShapeClipper clipper(theShape,keep_inside);
+    ShapeClipper clipper(theShape, keep_inside);
 
     auto position = do_circle(theGeom->getExteriorRing(), clipper, theShape, keep_inside, true);
 
@@ -336,7 +336,6 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom, GeometryBuilder &theBuild
 
       return;
     }
-
 
     if (Shape::all_not_inside(position))
     {
@@ -430,7 +429,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom, GeometryBuilder &theBuild
       }
     }
 
-    clipper.reconnect();                      // trivial reconnect of endpoints
+    clipper.reconnect();                     // trivial reconnect of endpoints
     clipper.reconnectWithShape(max_length);  // reconnect along circle boundaries
     clipper.release(theBuilder);
   }
@@ -440,11 +439,12 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom, GeometryBuilder &theBuild
   }
 }
 
-
-
-
-
-void do_polygon(const OGRPolygon *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, double max_length, bool keep_polygons, bool keep_inside)
+void do_polygon(const OGRPolygon *theGeom,
+                GeometryBuilder &theBuilder,
+                Shape_sptr &theShape,
+                double max_length,
+                bool keep_polygons,
+                bool keep_inside)
 {
   try
   {
@@ -459,11 +459,10 @@ void do_polygon(const OGRPolygon *theGeom, GeometryBuilder &theBuilder, Shape_sp
   }
 }
 
-
-
-
-
-void do_linestring(const OGRLineString *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, bool keep_inside)
+void do_linestring(const OGRLineString *theGeom,
+                   GeometryBuilder &theBuilder,
+                   Shape_sptr &theShape,
+                   bool keep_inside)
 {
   try
   {
@@ -472,7 +471,7 @@ void do_linestring(const OGRLineString *theGeom, GeometryBuilder &theBuilder, Sh
 
     // If everything was in, just clone the original when clipping
 
-    ShapeClipper clipper(theShape,keep_inside);
+    ShapeClipper clipper(theShape, keep_inside);
     auto position = do_circle(theGeom, clipper, theShape, keep_inside, true);
 
     if (Shape::all_only_inside(position))
@@ -498,11 +497,10 @@ void do_linestring(const OGRLineString *theGeom, GeometryBuilder &theBuilder, Sh
   }
 }
 
-
-
-
-
-void do_multipoint(const OGRMultiPoint *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, bool keep_inside)
+void do_multipoint(const OGRMultiPoint *theGeom,
+                   GeometryBuilder &theBuilder,
+                   Shape_sptr &theShape,
+                   bool keep_inside)
 {
   try
   {
@@ -511,7 +509,10 @@ void do_multipoint(const OGRMultiPoint *theGeom, GeometryBuilder &theBuilder, Sh
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_point(dynamic_cast<const OGRPoint *>(theGeom->getGeometryRef(i)), theBuilder, theShape, keep_inside);
+      do_point(dynamic_cast<const OGRPoint *>(theGeom->getGeometryRef(i)),
+               theBuilder,
+               theShape,
+               keep_inside);
     }
   }
   catch (...)
@@ -520,11 +521,10 @@ void do_multipoint(const OGRMultiPoint *theGeom, GeometryBuilder &theBuilder, Sh
   }
 }
 
-
-
-
-
-void do_multilinestring(const OGRMultiLineString *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, bool keep_inside)
+void do_multilinestring(const OGRMultiLineString *theGeom,
+                        GeometryBuilder &theBuilder,
+                        Shape_sptr &theShape,
+                        bool keep_inside)
 {
   try
   {
@@ -533,7 +533,10 @@ void do_multilinestring(const OGRMultiLineString *theGeom, GeometryBuilder &theB
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_linestring(dynamic_cast<const OGRLineString *>(theGeom->getGeometryRef(i)), theBuilder, theShape, keep_inside);
+      do_linestring(dynamic_cast<const OGRLineString *>(theGeom->getGeometryRef(i)),
+                    theBuilder,
+                    theShape,
+                    keep_inside);
     }
   }
   catch (...)
@@ -542,11 +545,12 @@ void do_multilinestring(const OGRMultiLineString *theGeom, GeometryBuilder &theB
   }
 }
 
-
-
-
-
-void do_multipolygon(const OGRMultiPolygon *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, double max_length, bool keep_polygons, bool keep_inside)
+void do_multipolygon(const OGRMultiPolygon *theGeom,
+                     GeometryBuilder &theBuilder,
+                     Shape_sptr &theShape,
+                     double max_length,
+                     bool keep_polygons,
+                     bool keep_inside)
 {
   try
   {
@@ -555,7 +559,12 @@ void do_multipolygon(const OGRMultiPolygon *theGeom, GeometryBuilder &theBuilder
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_polygon(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)), theBuilder, theShape, max_length, keep_polygons, keep_inside);
+      do_polygon(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)),
+                 theBuilder,
+                 theShape,
+                 max_length,
+                 keep_polygons,
+                 keep_inside);
     }
   }
   catch (...)
@@ -563,20 +572,21 @@ void do_multipolygon(const OGRMultiPolygon *theGeom, GeometryBuilder &theBuilder
     throw Fmi::Exception(BCP, "Operation failed!", nullptr);
   }
 }
-
-
-
-
 
 // Needed since two functions call each other
-void do_geom(const OGRGeometry *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, double max_length, bool keep_polygons, bool keep_inside);
+void do_geom(const OGRGeometry *theGeom,
+             GeometryBuilder &theBuilder,
+             Shape_sptr &theShape,
+             double max_length,
+             bool keep_polygons,
+             bool keep_inside);
 
-
-
-
-
-
-void do_geometrycollection(const OGRGeometryCollection *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, double max_length, bool keep_polygons, bool keep_inside)
+void do_geometrycollection(const OGRGeometryCollection *theGeom,
+                           GeometryBuilder &theBuilder,
+                           Shape_sptr &theShape,
+                           double max_length,
+                           bool keep_polygons,
+                           bool keep_inside)
 {
   try
   {
@@ -585,7 +595,8 @@ void do_geometrycollection(const OGRGeometryCollection *theGeom, GeometryBuilder
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_geom(theGeom->getGeometryRef(i), theBuilder, theShape, max_length, keep_polygons, keep_inside);
+      do_geom(
+          theGeom->getGeometryRef(i), theBuilder, theShape, max_length, keep_polygons, keep_inside);
     }
   }
   catch (...)
@@ -594,11 +605,12 @@ void do_geometrycollection(const OGRGeometryCollection *theGeom, GeometryBuilder
   }
 }
 
-
-
-
-
-void do_geom(const OGRGeometry *theGeom, GeometryBuilder &theBuilder, Shape_sptr& theShape, double max_length, bool keep_polygons, bool keep_inside)
+void do_geom(const OGRGeometry *theGeom,
+             GeometryBuilder &theBuilder,
+             Shape_sptr &theShape,
+             double max_length,
+             bool keep_polygons,
+             bool keep_inside)
 {
   try
   {
@@ -609,21 +621,40 @@ void do_geom(const OGRGeometry *theGeom, GeometryBuilder &theBuilder, Shape_sptr
       case wkbPoint:
         return do_point(dynamic_cast<const OGRPoint *>(theGeom), theBuilder, theShape, keep_inside);
       case wkbLineString:
-        return do_linestring(dynamic_cast<const OGRLineString *>(theGeom), theBuilder, theShape, keep_inside);
+        return do_linestring(
+            dynamic_cast<const OGRLineString *>(theGeom), theBuilder, theShape, keep_inside);
       case wkbPolygon:
-        return do_polygon(dynamic_cast<const OGRPolygon *>(theGeom), theBuilder, theShape, max_length, keep_polygons, keep_inside);
+        return do_polygon(dynamic_cast<const OGRPolygon *>(theGeom),
+                          theBuilder,
+                          theShape,
+                          max_length,
+                          keep_polygons,
+                          keep_inside);
       case wkbMultiPoint:
-        return do_multipoint(dynamic_cast<const OGRMultiPoint *>(theGeom), theBuilder, theShape, keep_inside);
+        return do_multipoint(
+            dynamic_cast<const OGRMultiPoint *>(theGeom), theBuilder, theShape, keep_inside);
       case wkbMultiLineString:
-        return do_multilinestring(dynamic_cast<const OGRMultiLineString *>(theGeom), theBuilder, theShape, keep_inside);
+        return do_multilinestring(
+            dynamic_cast<const OGRMultiLineString *>(theGeom), theBuilder, theShape, keep_inside);
       case wkbMultiPolygon:
-        return do_multipolygon(dynamic_cast<const OGRMultiPolygon *>(theGeom), theBuilder, theShape, max_length, keep_polygons, keep_inside);
+        return do_multipolygon(dynamic_cast<const OGRMultiPolygon *>(theGeom),
+                               theBuilder,
+                               theShape,
+                               max_length,
+                               keep_polygons,
+                               keep_inside);
       case wkbGeometryCollection:
-        return do_geometrycollection(dynamic_cast<const OGRGeometryCollection *>(theGeom), theBuilder, theShape, max_length, keep_polygons, keep_inside);
+        return do_geometrycollection(dynamic_cast<const OGRGeometryCollection *>(theGeom),
+                                     theBuilder,
+                                     theShape,
+                                     max_length,
+                                     keep_polygons,
+                                     keep_inside);
       case wkbLinearRing:
         throw std::runtime_error("Direct clipping of LinearRings is not supported");
       default:
-        throw std::runtime_error("Encountered an unknown geometry component when clipping polygons");
+        throw std::runtime_error(
+            "Encountered an unknown geometry component when clipping polygons");
     }
   }
   catch (...)
@@ -632,11 +663,7 @@ void do_geom(const OGRGeometry *theGeom, GeometryBuilder &theBuilder, Shape_sptr
   }
 }
 
-
-
-
-
-OGRGeometry *OGR::lineclip(const OGRGeometry &theGeom, Shape_sptr& theShape)
+OGRGeometry *OGR::lineclip(const OGRGeometry &theGeom, Shape_sptr &theShape)
 {
   try
   {
@@ -658,11 +685,10 @@ OGRGeometry *OGR::lineclip(const OGRGeometry &theGeom, Shape_sptr& theShape)
   }
 }
 
-
-
-
-
-void OGR::polyclip(GeometryBuilder& builder,const OGRGeometry &theGeom, Shape_sptr& theShape, double theMaximumSegmentLength)
+void OGR::polyclip(GeometryBuilder &builder,
+                   const OGRGeometry &theGeom,
+                   Shape_sptr &theShape,
+                   double theMaximumSegmentLength)
 {
   try
   {
@@ -677,16 +703,14 @@ void OGR::polyclip(GeometryBuilder& builder,const OGRGeometry &theGeom, Shape_sp
   }
 }
 
-
-
-
-
-OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom, Shape_sptr& theShape, double theMaximumSegmentLength)
+OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom,
+                           Shape_sptr &theShape,
+                           double theMaximumSegmentLength)
 {
   try
   {
     GeometryBuilder builder;
-    polyclip(builder,theGeom,theShape,theMaximumSegmentLength);
+    polyclip(builder, theGeom, theShape, theMaximumSegmentLength);
 
     OGRGeometry *geom = builder.build();
     if (geom != nullptr)
@@ -700,11 +724,7 @@ OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom, Shape_sptr& theShape, dou
   }
 }
 
-
-
-
-
-OGRGeometry *OGR::linecut(const OGRGeometry &theGeom, Shape_sptr& theShape)
+OGRGeometry *OGR::linecut(const OGRGeometry &theGeom, Shape_sptr &theShape)
 {
   try
   {
@@ -726,11 +746,10 @@ OGRGeometry *OGR::linecut(const OGRGeometry &theGeom, Shape_sptr& theShape)
   }
 }
 
-
-
-
-
-void OGR::polycut(GeometryBuilder& builder,const OGRGeometry &theGeom, Shape_sptr& theShape, double theMaximumSegmentLength)
+void OGR::polycut(GeometryBuilder &builder,
+                  const OGRGeometry &theGeom,
+                  Shape_sptr &theShape,
+                  double theMaximumSegmentLength)
 {
   try
   {
@@ -745,16 +764,14 @@ void OGR::polycut(GeometryBuilder& builder,const OGRGeometry &theGeom, Shape_spt
   }
 }
 
-
-
-
-
-OGRGeometry *OGR::polycut(const OGRGeometry &theGeom, Shape_sptr& theShape, double theMaximumSegmentLength)
+OGRGeometry *OGR::polycut(const OGRGeometry &theGeom,
+                          Shape_sptr &theShape,
+                          double theMaximumSegmentLength)
 {
   try
   {
     GeometryBuilder builder;
-    polycut(builder,theGeom,theShape,theMaximumSegmentLength);
+    polycut(builder, theGeom, theShape, theMaximumSegmentLength);
 
     OGRGeometry *geom = builder.build();
     if (geom != nullptr)
@@ -767,7 +784,5 @@ OGRGeometry *OGR::polycut(const OGRGeometry &theGeom, Shape_sptr& theShape, doub
     throw Fmi::Exception(BCP, "Operation failed!", nullptr);
   }
 }
-
-
 
 }  // namespace Fmi
