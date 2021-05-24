@@ -347,8 +347,8 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
   if (name == "tmerc")
   {
     // TODO: This is just experimental to get something out
-    const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
-    result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+    // const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
+    // result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
     return result;
   }
   if (name == "gstmerc")
