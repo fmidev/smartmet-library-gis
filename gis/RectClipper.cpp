@@ -132,6 +132,7 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
           clipper.addInterior(ring);
         delete line1;
         pos1 = lines.erase(pos1);
+        line1 = *pos1;
         pos2 = lines.begin();  // safety measure
       }
     }
