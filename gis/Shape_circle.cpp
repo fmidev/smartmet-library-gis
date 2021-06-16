@@ -488,7 +488,7 @@ OGRLinearRing* Shape_circle::makeRing(double theMaximumSegmentLength) const
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -507,7 +507,7 @@ OGRLinearRing* Shape_circle::makeHole(double theMaximumSegmentLength) const
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -604,7 +604,7 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -701,7 +701,7 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -731,7 +731,7 @@ bool Shape_circle::isInsideRing(const OGRLinearRing &theRing) const
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -764,7 +764,7 @@ bool Shape_circle::isRingInside(const OGRLinearRing& theRing) const
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -836,7 +836,7 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,std::list<OGRLineString
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -901,7 +901,7 @@ LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,std::list<OGRLineStrin
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -956,7 +956,7 @@ bool Shape_circle::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,doub
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -1012,7 +1012,7 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,dou
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 

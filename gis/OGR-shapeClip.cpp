@@ -111,10 +111,10 @@
 #include "OGR.h"
 #include "ShapeClipper.h"
 #include "Shape_circle.h"
+#include <macgyver/Exception.h>
 #include <iomanip>
 #include <iostream>
 #include <list>
-#include <stdexcept>
 
 namespace Fmi
 {
@@ -145,7 +145,7 @@ void do_point(const OGRPoint *theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -172,7 +172,7 @@ int do_circle(const OGRLineString *theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -275,6 +275,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
 
           if (!keep_inside)
             theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+
           return;
         }
 
@@ -290,7 +291,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -435,7 +436,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -455,7 +456,7 @@ void do_polygon(const OGRPolygon *theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -493,7 +494,7 @@ void do_linestring(const OGRLineString *theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -517,7 +518,7 @@ void do_multipoint(const OGRMultiPoint *theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -541,7 +542,7 @@ void do_multilinestring(const OGRMultiLineString *theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -569,7 +570,7 @@ void do_multipolygon(const OGRMultiPolygon *theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -601,7 +602,7 @@ void do_geometrycollection(const OGRGeometryCollection *theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -651,15 +652,15 @@ void do_geom(const OGRGeometry *theGeom,
                                      keep_polygons,
                                      keep_inside);
       case wkbLinearRing:
-        throw std::runtime_error("Direct clipping of LinearRings is not supported");
+        throw Fmi::Exception::Trace(BCP, "Direct clipping of LinearRings is not supported");
       default:
-        throw std::runtime_error(
+        throw Fmi::Exception::Trace(BCP,
             "Encountered an unknown geometry component when clipping polygons");
     }
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -681,7 +682,7 @@ OGRGeometry *OGR::lineclip(const OGRGeometry &theGeom, Shape_sptr &theShape)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -699,7 +700,7 @@ void OGR::polyclip(GeometryBuilder &builder,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -720,7 +721,7 @@ OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -742,7 +743,7 @@ OGRGeometry *OGR::linecut(const OGRGeometry &theGeom, Shape_sptr &theShape)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -760,7 +761,7 @@ void OGR::polycut(GeometryBuilder &builder,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -781,7 +782,7 @@ OGRGeometry *OGR::polycut(const OGRGeometry &theGeom,
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 

@@ -80,11 +80,19 @@ Shape_sphere::Shape_sphere(double theX, double theY, double theRadius)
 
 Shape_sphere::~Shape_sphere()
 {
-  if (transformation != nullptr)
-    OCTDestroyCoordinateTransformation(transformation);
+  try
+  {
+    if (transformation != nullptr)
+      OCTDestroyCoordinateTransformation(transformation);
 
-  if (reverseTransformation != nullptr)
-    OCTDestroyCoordinateTransformation(reverseTransformation);
+    if (reverseTransformation != nullptr)
+      OCTDestroyCoordinateTransformation(reverseTransformation);
+  }
+  catch (...)
+  {
+    Fmi::Exception exception(BCP,"Destructor failed",nullptr);
+    exception.printError();
+  }
 }
 
 
@@ -567,7 +575,7 @@ OGRLinearRing* Shape_sphere::makeRing(double theMaximumSegmentLength) const
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -597,7 +605,7 @@ OGRLineString* Shape_sphere::makeLineRing(double theMaximumSegmentLength) const
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -616,7 +624,7 @@ OGRLinearRing* Shape_sphere::makeHole(double theMaximumSegmentLength) const
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -730,7 +738,7 @@ int Shape_sphere::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -840,7 +848,7 @@ int Shape_sphere::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -870,7 +878,7 @@ bool Shape_sphere::isInsideRing(const OGRLinearRing &theRing) const
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -903,7 +911,7 @@ bool Shape_sphere::isRingInside(const OGRLinearRing& theRing) const
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -984,7 +992,7 @@ LineIterator Shape_sphere::search_cw(OGRLinearRing *ring,std::list<OGRLineString
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -1059,7 +1067,7 @@ LineIterator Shape_sphere::search_ccw(OGRLinearRing *ring,std::list<OGRLineStrin
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -1127,7 +1135,7 @@ bool Shape_sphere::connectPoints_cw(OGRLinearRing& ring,double x1,double y1,doub
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -1200,7 +1208,7 @@ bool Shape_sphere::connectPoints_ccw(OGRLinearRing& ring,double x1,double y1,dou
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 

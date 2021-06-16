@@ -1138,7 +1138,7 @@ void Shape_rect::print(std::ostream &stream)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
