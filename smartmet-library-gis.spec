@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.6.7
+Version: 21.6.16
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -22,7 +22,7 @@ BuildRequires: gdal32-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
-BuildRequires: smartmet-library-macgyver-devel >= 21.5.20
+BuildRequires: smartmet-library-macgyver-devel >= 21.6.16
 BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
@@ -33,7 +33,7 @@ Requires: fmt >= 7.1.3
 Requires: gdal32-libs
 Requires: geos39
 Requires: postgis31_12
-Requires: smartmet-library-macgyver >= 21.5.20
+Requires: smartmet-library-macgyver >= 21.6.16
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -41,6 +41,7 @@ Requires: smartmet-library-macgyver >= 21.5.20
 #TestRequires: geos39-devel
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
+#TestRequires: smartmet-library-macgyver
 #TestRequires: smartmet-library-regression
 #TestRequires: smartmet-test-data
 
@@ -74,7 +75,7 @@ Requires: boost169-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal32-devel
-Requires: smartmet-library-macgyver-devel >= 21.5.20
+Requires: smartmet-library-macgyver-devel >= 21.6.16
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -85,6 +86,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Jun 16 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.6.16-1.fmi
+- Use Fmi::Exception
+
 * Mon Jun  7 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.6.7-1.fmi
 - Fixed possible reference to freed memory
 
