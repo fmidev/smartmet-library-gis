@@ -4,7 +4,6 @@
 #include <macgyver/StringConversion.h>
 #include <gdal_version.h>
 #include <ogrsf_frmts.h>
-#include <stdexcept>
 
 namespace Fmi
 {
@@ -35,12 +34,19 @@ Host::Host(const std::string& theHostname,
 
 std::string Host::dataSource() const
 {
-  return fmt::format("PG:host='{}' port='{}' dbname='{}' user='{}' password='{}'",
-                     itsHostname,
-                     itsPort,
-                     itsDatabase,
-                     itsUsername,
-                     itsPassword);
+  try
+  {
+    return fmt::format("PG:host='{}' port='{}' dbname='{}' user='{}' password='{}'",
+                       itsHostname,
+                       itsPort,
+                       itsDatabase,
+                       itsUsername,
+                       itsPassword);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -51,32 +57,39 @@ std::string Host::dataSource() const
 
 GDALDataPtr Host::connect() const
 {
+  try
+  {
 #if GDAL_VERSION_MAJOR < 2
-  auto* driver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("PostgreSQL");
+    auto* driver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("PostgreSQL");
 #else
-  auto* driver = GetGDALDriverManager()->GetDriverByName("PostgreSQL");
+    auto* driver = GetGDALDriverManager()->GetDriverByName("PostgreSQL");
 #endif
-  if (driver == nullptr)
-    throw std::runtime_error("PostgreSQL driver not installed!");
+    if (driver == nullptr)
+      throw Fmi::Exception::Trace(BCP,"PostgreSQL driver not installed!");
 
-  auto src = dataSource();
+    auto src = dataSource();
 
 #if GDAL_VERSION_MAJOR < 2
-  auto ptr = GDALDataPtr(driver->Open(src.c_str()));
+    auto ptr = GDALDataPtr(driver->Open(src.c_str()));
 #else
-  GDALOpenInfo info(src.c_str(), GA_ReadOnly);
-  auto ptr = GDALDataPtr(driver->pfnOpen(&info));
+    GDALOpenInfo info(src.c_str(), GA_ReadOnly);
+    auto ptr = GDALDataPtr(driver->pfnOpen(&info));
 #endif
 
-  if (!ptr)
-    throw Fmi::Exception(BCP, "Failed to open connection to database")
-        .addParameter("Host", itsHostname)
-        .addParameter("Database", itsDatabase)
-        .addParameter("User", itsUsername)
-        .addParameter("Port", Fmi::to_string(itsPort));
+    if (!ptr)
+      throw Fmi::Exception(BCP, "Failed to open connection to database")
+          .addParameter("Host", itsHostname)
+          .addParameter("Database", itsDatabase)
+          .addParameter("User", itsUsername)
+          .addParameter("Port", Fmi::to_string(itsPort));
 
-  ptr->ExecuteSQL("SET CLIENT_ENCODING TO 'UTF8'", nullptr, nullptr);
-  return ptr;
+    ptr->ExecuteSQL("SET CLIENT_ENCODING TO 'UTF8'", nullptr, nullptr);
+    return ptr;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 }  // namespace Fmi

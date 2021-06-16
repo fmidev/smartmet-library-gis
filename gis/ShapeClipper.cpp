@@ -19,7 +19,7 @@ ShapeClipper::ShapeClipper(Shape_sptr &theShape, bool keep_inside)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -135,7 +135,7 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -148,7 +148,7 @@ void Fmi::ShapeClipper::reconnect()
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -172,7 +172,7 @@ void Fmi::ShapeClipper::release(GeometryBuilder &theBuilder)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -194,7 +194,7 @@ void Fmi::ShapeClipper::clear()
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -213,7 +213,7 @@ bool Fmi::ShapeClipper::empty() const
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -231,7 +231,7 @@ void Fmi::ShapeClipper::addShape()
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -252,7 +252,7 @@ void Fmi::ShapeClipper::addExterior(OGRLinearRing *theRing)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -276,7 +276,7 @@ void Fmi::ShapeClipper::addExterior(OGRLineString *theLine)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -298,7 +298,7 @@ void Fmi::ShapeClipper::addInterior(OGRLinearRing *theRing)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -316,7 +316,7 @@ void Fmi::ShapeClipper::addInterior(OGRLineString *theLine)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -520,7 +520,7 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -600,7 +600,7 @@ void Fmi::ShapeClipper::reconnectWithoutShape()
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
