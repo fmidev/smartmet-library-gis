@@ -83,7 +83,7 @@ Fmi::RectClipper::~RectClipper()
   }
   catch (...)
   {
-    Fmi::Exception exception(BCP,"Destructor failed",nullptr);
+    Fmi::Exception exception(BCP, "Destructor failed", nullptr);
     exception.printError();
   }
 }
@@ -115,7 +115,7 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
     for (auto pos1 = lines.begin(); pos1 != lines.end();)
     {
       auto *line1 = *pos1;
-      const int n1 = line1->getNumPoints();
+      int n1 = line1->getNumPoints();
 
       if (n1 == 0)  // safety check
       {
@@ -155,9 +155,15 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
             clipper.addExterior(ring);
           else
             clipper.addInterior(ring);
+
           delete line1;
+
           pos1 = lines.erase(pos1);
+          if (pos1 == lines.end())
+            return;
+
           line1 = *pos1;
+          n1 = line1->getNumPoints();
           pos2 = lines.begin();  // safety measure
         }
       }
@@ -626,9 +632,9 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
 
       if (best != theLines.end())
       {
-        // Found a matching linestring to continue to from the same edge we were studying. Move to it
-        // and continue building. The line might continue from the same point, in which case we must
-        // skip the first point.
+        // Found a matching linestring to continue to from the same edge we were studying. Move to
+        // it and continue building. The line might continue from the same point, in which case we
+        // must skip the first point.
 
         if (x1 != (*best)->getX(0) || y1 != (*best)->getY(0))
           ring->addSubLineString(*best);
@@ -726,8 +732,12 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
       itsInteriorLines.clear();
     }
 
-    connectLines(
-        itsExteriorRings, itsExteriorLines, itsBox, theMaximumSegmentLength, itsKeepInsideFlag, true);
+    connectLines(itsExteriorRings,
+                 itsExteriorLines,
+                 itsBox,
+                 theMaximumSegmentLength,
+                 itsKeepInsideFlag,
+                 true);
 
     connectLines(itsInteriorRings,
                  itsInteriorLines,
@@ -768,7 +778,8 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
 
     // Merge all unjoinable lines to one list of lines
 
-    std::move(itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
+    std::move(
+        itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
 
     itsInteriorRings.clear();
   }
@@ -837,7 +848,8 @@ void Fmi::RectClipper::reconnectWithoutBox()
 
     // Merge all unjoinable lines to one list of lines
 
-    std::move(itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
+    std::move(
+        itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
 
     itsInteriorRings.clear();
     itsInteriorLines.clear();

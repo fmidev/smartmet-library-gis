@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.6.16
+Version: 21.6.18
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -86,6 +86,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri Jun 18 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.6.18-1.fmi
+- Fixed reconnectLines bug causing a segfault
+
 * Wed Jun 16 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.6.16-1.fmi
 - Use Fmi::Exception
 
