@@ -1,0 +1,226 @@
+#########################################################################
+# LINE IDENTIFIERS (first character on the line)
+#########################################################################
+#
+# T = Test identifier (number or string)
+# F = Functionality to test (LINECLIP,LINECUT,POLYCLIP,POLYCUT)
+# S = Shape definition (cutting/clipping shape)
+#         RECT,x1,y2,x2,y2[,precision] 
+#         CIRCLE,centerX,centerY,radius[,precision] 
+#         SPHERE,centerX,centerY,radius[,precision] 
+# I = Input WKT  (= geometry to clip/cut by the given shape)
+# O = Output WKT (= expected result)
+# 
+#########################################################################
+
+
+#########################################################################
+# LINECUT: SPHERE
+#########################################################################
+
+ # inside
+T:1
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (-1 -1,0 1,1 0,0 -1)
+O:GEOMETRYCOLLECTION EMPTY
+
+#########################################################################
+
+# outside
+T:2
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (-9 -9,-9 11,9 11)
+O:LINESTRING (-9 -9,-9 11,9 11)
+
+#########################################################################
+
+# go in from left
+T:3
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (-10 5,-6 0,0 0)
+O:LINESTRING (-10 5,-6 0,-1.8 0.0)
+
+#########################################################################
+
+# go out from right
+T:4
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (1 1,1 0,10 0)
+O:LINESTRING (1.8 0.0,10 0)
+
+#########################################################################
+
+# go in and out
+T:5
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (-10 0,0 0,0 10)
+O:MULTILINESTRING ((-10 0,-1.8 0.0),(0.0 1.81,0 10))
+
+#########################################################################
+
+# cut left edge
+T:6
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (-1.7 -3,-1.7 5,-7 7)
+O:MULTILINESTRING ((-1.7 -3,-1.7 -0.592),(-1.7 0.593,-1.7 5.0,-7 7))
+
+#########################################################################
+
+# go out from left edge
+T:7
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (-1.796631 0,-5 0,-8 1)
+O:LINESTRING (-1.8 0.0,-5 0,-8 1)
+
+#########################################################################
+
+# go in from left edge
+T:8
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (-5 0,-1.796631 0,0 0,1 1)
+O:LINESTRING (-5 0,-1.8 0.0,-1.8 0.0)
+
+#########################################################################
+
+# triangle corner at bottom left corner
+T:9
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (-9 0,0 0,-9 -5)
+O:MULTILINESTRING ((-9 0,-1.8 0.0),(-1.57 -0.878,-9 -5))
+
+#########################################################################
+
+# go from in to edge and back in
+T:10
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (0 0,-1.796631 0,1 1,1 0)
+O:LINESTRING (-1.8 0.0,-1.8 0.0)
+
+#########################################################################
+
+# go from in to edge and then straight out
+T:11
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (0 0,-1.796631 0,-2 9)
+O:LINESTRING (-1.8 0.0,-2 9)
+
+#########################################################################
+
+# triangle corner at left edge
+T:12
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (1 1,-1.796631 0,1 -1)
+O:LINESTRING (-1.8 0.0,-1.8 -0.0)
+
+#########################################################################
+
+# polygon completely inside
+T:13
+F:LINECUT
+S:SPHERE,0,0,400000,3
+I:POLYGON ((1 1,1 2,2 2,2 1,1 1))
+O:GEOMETRYCOLLECTION EMPTY
+
+#########################################################################
+
+# polygon completely outside
+T:14
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:POLYGON ((15 15,15 16,16 16,16 15,15 15))
+O:POLYGON ((15 15,15 16,16 16,16 15,15 15))
+
+#########################################################################
+
+# polygon surrounds the circle
+T:15
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:POLYGON ((-9 -9,-9 9,9 9,9 -9,-9 -9))
+O:GEOMETRYCOLLECTION (POLYGON ((-9 -9,-9 9,9 9,9 -9,-9 -9)),LINESTRING (-9 -9,-9 9,9 9,9 -9,-9 -9))
+
+#########################################################################
+
+# polygon cuts the circle
+T:16
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:POLYGON ((-7 0,1 0,1 1,0 1,-7 0))
+O:LINESTRING (-1.63 0.767,-7 0,-1.8 0.0)
+
+#########################################################################
+
+# polygon with hole cuts the circle
+T:17
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:POLYGON ((-4 -1,-4 1,1 1,1 -1,-4 -1), (-3 0,-2 0.5,-2 0,-3 0))
+O:GEOMETRYCOLLECTION (POLYGON ((-3 0,-2 0.5,-2 0,-3 0)),MULTILINESTRING ((-1.5 -1,-4 -1,-4 1,-1.5 1.0),(-3 0,-2 0.5,-2 0,-3 0)))
+
+#########################################################################
+
+# circle cuts both the polygon and the hole
+T:18
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:POLYGON ((-4 0,-4 7,7 7,7 0,-4 0), (-3 0.5,-3 1,4 1,4 0.5,-3 0.5))
+O:MULTILINESTRING ((-1.8 0.0,-4 0,-4 7,7 7,7 0,1.8 0.0),(1.5 1.0,4 1,4.0 0.5,1.73 0.5),(-1.73 0.5,-3 0.5,-3 1,-1.5 1.0))
+
+#########################################################################
+
+# Inside triangle with all corners on the edge
+T:19
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:POLYGON ((-1.796631 0,0 1.808733,1.796630 0,-1.796631 0))
+O:MULTILINESTRING ((-1.8 0.0,-1.8 0.0),(-0.0 1.81,0.0 1.81,0.0 1.81))
+      
+#########################################################################
+      
+# From outside to nearest edge etc
+T:20
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (-10 0,-1.796631 0)
+O:LINESTRING (-10 0,-1.8 0.0)
+
+#########################################################################
+      
+# From outside to opposite edge etc
+T:21
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:LINESTRING (-10 0,1.796630 0)
+O:LINESTRING (-10 0,-1.8 0.0)
+
+#########################################################################
+
+# Polygon with hole which surrounds the circle
+T:22
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:POLYGON ((-9 -9,-9 9,9 9,9 -9,-9 -9),(-8 -8,8 -8,8 8,-8 8,-8 -8))
+O:POLYGON ((-9 -9,-9 9,9 9,9 -9,-9 -9),(-8 -8,8 -8,8 8,-8 8,-8 -8))
+
+#########################################################################
+
+# Polygon surrounding the circle, but with a hole inside the circle
+T:23
+F:LINECUT
+S:SPHERE,0,0,200000,3
+I:POLYGON ((-9 -9,-9 9,9 9,9 -9,-9 -9),(-1 -1,1 -1,1 1,-1 1,-1 -1))
+O:GEOMETRYCOLLECTION (POLYGON ((-9 -9,-9 9,9 9,9 -9,-9 -9)),LINESTRING (-9 -9,-9 9,9 9,9 -9,-9 -9))
+
+#########################################################################

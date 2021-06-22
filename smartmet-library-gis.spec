@@ -3,7 +3,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.2.10
+Version: 21.6.18
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -22,7 +22,8 @@ BuildRequires: gdal32-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
-BuildRequires: smartmet-library-macgyver-devel >= 21.1.14
+BuildRequires: smartmet-library-macgyver-devel >= 21.6.16
+BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
@@ -32,8 +33,7 @@ Requires: fmt >= 7.1.3
 Requires: gdal32-libs
 Requires: geos39
 Requires: postgis31_12
-Requires: proj72
-Requires: smartmet-library-macgyver >= 21.1.14
+Requires: smartmet-library-macgyver >= 21.6.16
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -41,6 +41,7 @@ Requires: smartmet-library-macgyver >= 21.1.14
 #TestRequires: geos39-devel
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
+#TestRequires: smartmet-library-macgyver
 #TestRequires: smartmet-library-regression
 #TestRequires: smartmet-test-data
 
@@ -69,7 +70,12 @@ rm -rf $RPM_BUILD_ROOT
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
 Requires: %{SPECNAME} = %{version}-%{release}
-BuildRequires: geos39-devel
+Requires: geos39-devel
+Requires: boost169-devel
+Requires: fmt-devel >= 7.1.3
+Requires: gcc-c++
+Requires: gdal32-devel
+Requires: smartmet-library-macgyver-devel >= 21.6.16
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -80,6 +86,68 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri Jun 18 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.6.18-1.fmi
+- Fixed reconnectLines bug causing a segfault
+
+* Wed Jun 16 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.6.16-1.fmi
+- Use Fmi::Exception
+
+* Mon Jun  7 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.6.7-1.fmi
+- Fixed possible reference to freed memory
+
+* Mon May 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.24-1.fmi
+- Disabled incorrect tmerc interrupt geometry
+
+* Thu May 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.20-3.fmi
+- Fixed to shape clipping algorithm
+
+* Thu May 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.20-2.fmi
+- Repackaged with improved hashing functions
+
+* Thu May 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.20-1.fmi
+- Use Fmi hash functions, boost::combine_hash produces too many collisions
+
+* Wed May  5 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.5-1.fmi
+- Fixed several projection interrupts
+
+* Mon May  3 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.4-1.fmi
+- Added circle clipping code, refactored common parts with rectangle clipping
+
+* Tue Apr 13 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.4.13-1.fmi
+- Fixed clipping of very narrow spikes just barely visiting the box
+
+* Mon Mar 29 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.3.29-1.fmi
+- Fixed CoordinateTransformation::getTargetCS and getSourceCS not to create temporaries
+
+* Tue Mar 23 2021 Andris Pavenis <andris.pavenis@fmi.fi> - 21.3.23-1.fmi
+- Remove explicit RPM dependency on proj72
+- Add missing dependencies for devel package
+
+* Fri Feb 26 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.26-1.fmi
+- CoordinateTransformation now returns SpatialReference instead of OGRSpatialReference
+- SpatialReference now caches EPSGTreatsAsLatlong on construction
+
+* Thu Feb 25 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.25-1.fmi
+- Added interrupt of igh_o projection (ocean oriented interrupted Goode homolosine)
+
+* Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-4.fmi
+- Added an interrupt of the central meridian for general oblique transformations. Not sufficient when lon_0 is not zero.
+
+* Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-3.fmi
+- Fixed o_wrap to lon_wrap in projection interrupt generation
+
+* Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-2.fmi
+- Fixed rounding issues in exportToSvg
+
+* Wed Feb 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.24-1.fmi
+- Fixed polyclip to handle a special case encountered in HIRLAM data
+
+* Sat Feb 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.20-1.fmi
+- Fixed lon_wrap handling in projection interrupt generation
+
+* Thu Feb 11 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.11-1.fmi
+- Always use std::shared_ptr for OGRGeometryPtr
+
 * Wed Feb 10 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.10-1.fmi
 - Initialize SpatialReference IsGeographic and IsAxisSwapped booleans on construction for thread safety
 - Added SpatialiteReference construction from a shared pointer to OGRSpatialReference to simplify external code

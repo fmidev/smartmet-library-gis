@@ -3,6 +3,7 @@
 #include "CoordinateMatrix.h"
 
 #include <macgyver/Cache.h>
+#include <macgyver/Exception.h>
 
 namespace Fmi
 {
@@ -21,19 +22,44 @@ namespace CoordinateMatrixCache
 // Return cached matrix or empty shared_ptr
 std::shared_ptr<CoordinateMatrix> Find(std::size_t theHash)
 {
-  const auto& obj = g_coordinateMatrixCache.find(theHash);
-  if (!obj) return {};
-  return *obj;
+  try
+  {
+    const auto& obj = g_coordinateMatrixCache.find(theHash);
+    if (!obj)
+      return {};
+    return *obj;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // Insert new matrix into the cache
 void Insert(std::size_t theHash, std::shared_ptr<CoordinateMatrix> theMatrix)
 {
-  g_coordinateMatrixCache.insert(theHash, theMatrix);
+  try
+  {
+    g_coordinateMatrixCache.insert(theHash, theMatrix);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // Resize the cache from the default
-void SetCacheSize(std::size_t newMaxSize) { g_coordinateMatrixCache.resize(newMaxSize); }
+void SetCacheSize(std::size_t newMaxSize)
+{
+  try
+  {
+    g_coordinateMatrixCache.resize(newMaxSize);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
 
 }  // namespace CoordinateMatrixCache
 }  // namespace Fmi

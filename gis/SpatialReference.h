@@ -40,6 +40,7 @@ class SpatialReference
   // Common accessors
   bool isAxisSwapped() const;
   bool isGeographic() const;
+  bool EPSGTreatsAsLatLong() const;
 
   // Proj.4 info
   const ProjInfo &projInfo() const;

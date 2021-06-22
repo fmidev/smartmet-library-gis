@@ -1,10 +1,10 @@
 #include "GEOS.h"
 
+#include <macgyver/Exception.h>
 #include <geos/geom/Geometry.h>
 #include <geos/io/WKBWriter.h>
 
 #include <sstream>
-#include <stdexcept>
 
 // ----------------------------------------------------------------------
 /*!
@@ -14,8 +14,15 @@
 
 std::string Fmi::GEOS::exportToWkb(const geos::geom::Geometry& theGeom)
 {
-  std::ostringstream out;
-  geos::io::WKBWriter writer;
-  writer.write(theGeom, out);
-  return out.str();
+  try
+  {
+    std::ostringstream out;
+    geos::io::WKBWriter writer;
+    writer.write(theGeom, out);
+    return out.str();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }

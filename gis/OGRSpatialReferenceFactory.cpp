@@ -1,6 +1,7 @@
 #include "OGRSpatialReferenceFactory.h"
 #include "OGR.h"
 #include "ProjInfo.h"
+#include <macgyver/Exception.h>
 #include <fmt/format.h>
 #include <macgyver/Cache.h>
 #include <gdal_version.h>
@@ -87,46 +88,60 @@ std::map<std::string, std::string> known_ellipsoids = {
 // Utility function for creating spatial references from defining string.
 std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
 {
-  if (theDesc.empty())
-    throw std::runtime_error("Cannot create spatial reference from empty string");
-
-  auto cacheObject = g_spatialReferenceCache.find(theDesc);
-  if (cacheObject)
-    return *cacheObject;
-
-  // Wasn't in the cache, must generate new object
-
-  // Substitute for known datums/ellipsoids
-  auto desc = theDesc;
-  auto pos = known_datums.find(desc);
-  if (pos != known_datums.end())
-    desc = std::string("+proj=longlat ") + pos->second;
-  else
+  try
   {
-    pos = known_ellipsoids.find(desc);
-    if (pos != known_ellipsoids.end())
+    if (theDesc.empty())
+      throw Fmi::Exception::Trace(BCP, "Cannot create spatial reference from empty string");
+
+    auto cacheObject = g_spatialReferenceCache.find(theDesc);
+    if (cacheObject)
+      return *cacheObject;
+
+    // Wasn't in the cache, must generate new object
+
+    // Substitute for known datums/ellipsoids
+    auto desc = theDesc;
+    auto pos = known_datums.find(desc);
+    if (pos != known_datums.end())
       desc = std::string("+proj=longlat ") + pos->second;
-  }
+    else
+    {
+      pos = known_ellipsoids.find(desc);
+      if (pos != known_ellipsoids.end())
+        desc = std::string("+proj=longlat ") + pos->second;
+    }
 
-  auto sr = std::make_shared<OGRSpatialReference>();
-  auto err = sr->SetFromUserInput(desc.c_str());
-  if (err != OGRERR_NONE)
+    auto sr = std::make_shared<OGRSpatialReference>();
+    auto err = sr->SetFromUserInput(desc.c_str());
+    if (err != OGRERR_NONE)
+    {
+      if (theDesc == desc)
+      {
+        Fmi::Exception exception(BCP, "Failed to create spatial reference!");
+        exception.addParameter("theDesc",theDesc);
+        throw exception;
+      }
+
+      Fmi::Exception exception(BCP, "Failed to create spatial reference!");
+      exception.addParameter("theDesc",theDesc);
+      exception.addParameter("desc",desc);
+      throw exception;
+    }
+
+    // This is done here instead of SpatialReference constructors to make the modification
+    // thread safe. Note that changing the strategy leads to calling proj_destroy
+    // on the projection, and recreating it.
+
+    sr->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+
+    g_spatialReferenceCache.insert(theDesc, sr);
+
+    return sr;
+  }
+  catch (...)
   {
-    if (theDesc == desc)
-      throw std::runtime_error("Failed to create spatial reference from '" + theDesc + "'");
-    throw std::runtime_error("Failed to create spatial reference from '" + theDesc + "' ('" + desc +
-                             "')");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
-
-  // This is done here instead of SpatialReference constructors to make the modification
-  // thread safe. Note that changing the strategy leads to calling proj_destroy
-  // on the projection, and recreating it.
-
-  sr->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-
-  g_spatialReferenceCache.insert(theDesc, sr);
-
-  return sr;
 }
 
 }  // namespace
@@ -135,18 +150,39 @@ namespace OGRSpatialReferenceFactory
 {
 std::shared_ptr<OGRSpatialReference> Create(const std::string& theDesc)
 {
-  return make_crs(theDesc);
+  try
+  {
+    return make_crs(theDesc);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 std::shared_ptr<OGRSpatialReference> Create(int epsg)
 {
-  auto desc = fmt::format("EPSG:{}", epsg);
-  return make_crs(desc);
+  try
+  {
+    auto desc = fmt::format("EPSG:{}", epsg);
+    return make_crs(desc);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 void SetCacheSize(std::size_t newMaxSize)
 {
-  g_spatialReferenceCache.resize(newMaxSize);
+  try
+  {
+    g_spatialReferenceCache.resize(newMaxSize);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 }  // namespace OGRSpatialReferenceFactory

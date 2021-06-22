@@ -33,8 +33,8 @@ class CoordinateTransformation
   // Intelligent transform handling antemeridians etc
   OGRGeometry* transformGeometry(const OGRGeometry& geom, double theMaximumSegmentLength = 0) const;
 
-  const OGRSpatialReference& getSourceCS() const;
-  const OGRSpatialReference& getTargetCS() const;
+  const SpatialReference& getSourceCS() const;
+  const SpatialReference& getTargetCS() const;
 
   std::size_t hashValue() const;
 
