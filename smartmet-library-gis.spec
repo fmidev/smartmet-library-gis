@@ -1,3 +1,4 @@
+%bcond_with tests
 %define DIRNAME gis
 %define LIBNAME smartmet-%{DIRNAME}
 %define SPECNAME smartmet-library-%{DIRNAME}
@@ -24,6 +25,10 @@ BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: smartmet-library-macgyver-devel >= 21.6.16
 BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
+%if %{with tests}
+BuildRequires: smartmet-library-regression
+BuildRequires: smartmet-test-data
+%endif
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
@@ -55,6 +60,9 @@ rm -rf $RPM_BUILD_ROOT
  
 %build
 make %{_smp_mflags}
+%if %{with tests}
+make test %{_smp_mflags} CI=Y
+%endif
 
 %install
 %makeinstall
