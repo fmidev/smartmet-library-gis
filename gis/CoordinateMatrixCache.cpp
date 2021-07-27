@@ -36,7 +36,7 @@ std::shared_ptr<CoordinateMatrix> Find(std::size_t theHash)
 }
 
 // Insert new matrix into the cache
-void Insert(std::size_t theHash, std::shared_ptr<CoordinateMatrix> theMatrix)
+void Insert(std::size_t theHash, const std::shared_ptr<CoordinateMatrix>& theMatrix)
 {
   try
   {

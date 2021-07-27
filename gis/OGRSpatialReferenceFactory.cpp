@@ -86,7 +86,7 @@ std::map<std::string, std::string> known_ellipsoids = {
     {"sphere", "+a=6370997 +b=6370997"}};
 
 // Utility function for creating spatial references from defining string.
-std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
+std::shared_ptr<OGRSpatialReference> make_crs(const std::string& theDesc)
 {
   try
   {
