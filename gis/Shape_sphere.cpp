@@ -298,10 +298,7 @@ bool Shape_sphere::isOnEdge(double xx, double yy) const
     // printf(" -- OnEdge %f,%f (%f,%f)  %f %f   %f\n", xx, yy, itsXXDelta, itsYYDelta, r2,
     // itsRadius2, dist);
 
-    if (dist < 10.0)
-      return true;
-
-    return false;
+    return (dist < 10.0);
   }
   catch (...)
   {

@@ -221,10 +221,7 @@ bool Shape_circle::isOnEdge(double x, double y) const
     double r2 = (dx * dx) + (dy * dy);
     double dist = distance(r2, itsRadius2);
 
-    if (dist < 0.0001)
-      return true;
-
-    return false;
+    return (dist < 0.0001);
   }
   catch (...)
   {

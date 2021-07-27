@@ -448,7 +448,7 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
 
     if (itsKeepInsideFlag && itsAddShapeFlag && itsExteriorLines.empty())
     {
-      auto ring = itsShape->makeRing(theMaximumSegmentLength);
+      auto *ring = itsShape->makeRing(theMaximumSegmentLength);
       itsExteriorRings.push_back(ring);
     }
 
@@ -456,7 +456,7 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
 
     if (!itsKeepInsideFlag && itsAddShapeFlag && itsInteriorLines.empty())
     {
-      auto ring = itsShape->makeHole(theMaximumSegmentLength);
+      auto *ring = itsShape->makeHole(theMaximumSegmentLength);
       itsInteriorRings.push_back(ring);
     }
 
@@ -555,7 +555,7 @@ void Fmi::ShapeClipper::reconnectWithoutShape()
     if (!itsKeepInsideFlag && itsAddShapeFlag && !itsInteriorLines.empty())
     {
       // auto *ring = make_hole(itsShape);
-      auto ring = itsShape->makeHole(0);
+      auto *ring = itsShape->makeHole(0);
       itsInteriorRings.push_back(ring);
     }
 
