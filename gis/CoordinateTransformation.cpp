@@ -258,37 +258,30 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       Interrupt interrupt = interruptGeometry(impl->m_target);
 
       // Do quick vertical cuts
-      if (!interrupt.cuts.empty())
+      for (const auto& box : interrupt.cuts)
       {
-        for (const auto& box : interrupt.cuts)
-        {
-          g.reset(OGR::polycut(*g, box, theMaximumSegmentLength));
-          if (!g || g->IsEmpty())
-            return nullptr;
-        }
+        g.reset(OGR::polycut(*g, box, theMaximumSegmentLength));
+        if (!g || g->IsEmpty())
+          return nullptr;
       }
 
-      if (!interrupt.shapeCuts.empty())
+      // printf("***** CUTS ****\n");
+      for (auto& shape : interrupt.shapeCuts)
       {
-        // printf("***** CUTS ****\n");
-        for (auto shape = interrupt.shapeCuts.begin(); shape != interrupt.shapeCuts.end(); ++shape)
-        {
-          //(*shape)->print(std::cout);
-          g.reset(OGR::polycut(*g, *shape, theMaximumSegmentLength));
-          if (!g || g->IsEmpty())
-            return nullptr;
-        }
+        // shape.print(std::cout);
+        g.reset(OGR::polycut(*g, shape, theMaximumSegmentLength));
+        if (!g || g->IsEmpty())
+          return nullptr;
       }
 
       if (!interrupt.shapeClips.empty())
       {
         // printf("***** CLIPS ****\n");
         GeometryBuilder builder;
-        for (auto shape = interrupt.shapeClips.begin(); shape != interrupt.shapeClips.end();
-             ++shape)
+        for (auto& shape : interrupt.shapeClips)
         {
-          //(*shape)->print(std::cout);
-          g.reset(OGR::polyclip(*g, *shape, theMaximumSegmentLength));
+          // shape.print(std::cout);
+          g.reset(OGR::polyclip(*g, shape, theMaximumSegmentLength));
           if (!g || g->IsEmpty())
             return nullptr;
         }
