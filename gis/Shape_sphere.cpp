@@ -577,7 +577,6 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
     getMetricCoordinates(xA, yA, xxA, yyA);
 
     auto posA = getPositionByMetricCoordinates(xxA, yyA);
-    auto posB = posA;
     auto position = posA;
 
     if (posA == Position::Outside)
@@ -591,7 +590,7 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
       double yyB = yB;
       getMetricCoordinates(xB, yB, xxB, yyB);
 
-      posB = getPositionByMetricCoordinates(xxB, yyB);
+      auto posB = getPositionByMetricCoordinates(xxB, yyB);
       position |= posB;
 
       double pX1 = 0, pY1 = 0, pX2 = 0, pY2 = 0;
@@ -643,9 +642,6 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
           break;
       }
 
-      posA = posB;
-      xA = xB;
-      yA = yB;
       xxA = xxB;
       yyA = yyB;
     }
@@ -688,7 +684,6 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
     getMetricCoordinates(xA, yA, xxA, yyA);
 
     auto posA = getPositionByMetricCoordinates(xxA, yyA);
-    auto posB = posA;
     auto position = posA;
 
     if (posA == Position::Inside)
@@ -704,7 +699,7 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
       double yyB = yB;
       getMetricCoordinates(xB, yB, xxB, yyB);
 
-      posB = getPositionByMetricCoordinates(xxB, yyB);
+      auto posB = getPositionByMetricCoordinates(xxB, yyB);
 
       position |= posB;
 
@@ -751,9 +746,6 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
           break;
       }
 
-      posA = posB;
-      xA = xB;
-      yA = yB;
       xxA = xxB;
       yyA = yyB;
     }
