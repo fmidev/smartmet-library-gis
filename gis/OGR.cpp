@@ -132,7 +132,7 @@ OGRGeometry* Fmi::OGR::importFromGeos(const geos::geom::Geometry& theGeom,
 
     // Read to OGR using as hideous casts as is required
 
-    unsigned char* cwkb = reinterpret_cast<unsigned char*>(const_cast<char*>(wkb.c_str()));
+    auto* cwkb = reinterpret_cast<unsigned char*>(const_cast<char*>(wkb.c_str()));
 
     OGRGeometry* ogeom = nullptr;
     OGRErr err = OGRGeometryFactory::createFromWkb(cwkb, theSRS, &ogeom);

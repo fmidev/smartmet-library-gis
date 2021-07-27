@@ -767,7 +767,7 @@ OGRLinearRing *Shape_rect::makeRing(double theMaximumSegmentLength) const
 {
   try
   {
-    OGRLinearRing *ring = new OGRLinearRing;
+    auto *ring = new OGRLinearRing;
     ring->addPoint(itsXMin, itsYMin);
     ring->addPoint(itsXMin, itsYMax);
     ring->addPoint(itsXMax, itsYMax);
@@ -789,7 +789,7 @@ OGRLinearRing *Shape_rect::makeHole(double theMaximumSegmentLength) const
 {
   try
   {
-    OGRLinearRing *ring = new OGRLinearRing;
+    auto *ring = new OGRLinearRing;
     ring->addPoint(itsXMin, itsYMin);
     ring->addPoint(itsXMax, itsYMin);
     ring->addPoint(itsXMax, itsYMax);

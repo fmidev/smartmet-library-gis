@@ -42,8 +42,8 @@ OGRPolygon* make_circle(double lon, double lat, double radius, int segments)
 {
   try
   {
-    OGRPolygon* poly = new OGRPolygon;
-    OGRLinearRing* ring = new OGRLinearRing;
+    auto* poly = new OGRPolygon;
+    auto* ring = new OGRLinearRing;
 
     // We start from -180 instead of zero for southern circles to avoid extra joining work
     const auto angle_offset = (lat >= 0 ? 0.0 : -M_PI);
@@ -144,8 +144,8 @@ OGRPolygon* make_rect(double x1, double y1, double x2, double y2)
 {
   try
   {
-    OGRPolygon* poly = new OGRPolygon;
-    OGRLinearRing* ring = new OGRLinearRing;
+    auto* poly = new OGRPolygon;
+    auto* ring = new OGRLinearRing;
 
     ring->addPoint(x1, y1);
     ring->addPoint(x1, y2);
@@ -188,7 +188,7 @@ OGRGeometry* circle_cut(double lon,
 
     // Otherwise we must take at least 2 intersections, maybe 3
 
-    OGRGeometryCollection* result = new OGRGeometryCollection;
+    auto* result = new OGRGeometryCollection;
 
     auto* rect = make_rect(-180, -90, 180, 90);
     auto* cut = geom->Intersection(rect);

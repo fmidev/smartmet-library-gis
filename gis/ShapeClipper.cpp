@@ -115,7 +115,7 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
 
         if (line1->get_IsClosed())
         {
-          OGRLinearRing *ring = new OGRLinearRing;
+          auto *ring = new OGRLinearRing;
           ring->addSubLineString(line1, 0, -1);
           if (exterior)
             addExterior(ring);

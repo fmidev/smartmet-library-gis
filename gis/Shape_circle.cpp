@@ -416,7 +416,7 @@ OGRLinearRing *Shape_circle::makeRing(double theMaximumSegmentLength) const
 {
   try
   {
-    OGRLinearRing *ring = new OGRLinearRing;
+    auto *ring = new OGRLinearRing;
     double angle = PI2;
     while (angle > 0)
     {

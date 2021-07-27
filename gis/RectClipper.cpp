@@ -16,7 +16,7 @@ OGRLinearRing *make_exterior(const Fmi::Box &theBox, double max_length = 0)
 {
   try
   {
-    OGRLinearRing *ring = new OGRLinearRing;
+    auto *ring = new OGRLinearRing;
     ring->addPoint(theBox.xmin(), theBox.ymin());
     ring->addPoint(theBox.xmin(), theBox.ymax());
     ring->addPoint(theBox.xmax(), theBox.ymax());
@@ -42,7 +42,7 @@ OGRLinearRing *make_hole(const Fmi::Box &theBox, double max_length = 0)
 {
   try
   {
-    OGRLinearRing *ring = new OGRLinearRing;
+    auto *ring = new OGRLinearRing;
     ring->addPoint(theBox.xmin(), theBox.ymin());
     ring->addPoint(theBox.xmax(), theBox.ymin());
     ring->addPoint(theBox.xmax(), theBox.ymax());
@@ -149,7 +149,7 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
 
         if (line1->get_IsClosed())
         {
-          OGRLinearRing *ring = new OGRLinearRing;
+          auto *ring = new OGRLinearRing;
           ring->addSubLineString(line1, 0, -1);
           if (exterior)
             clipper.addExterior(ring);

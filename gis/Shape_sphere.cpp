@@ -496,7 +496,7 @@ OGRLinearRing* Shape_sphere::makeRing(double theMaximumSegmentLength) const
 {
   try
   {
-    OGRLinearRing* ring = new OGRLinearRing;
+    auto* ring = new OGRLinearRing;
     double angle = PI2;
     while (angle > 0)
     {
@@ -522,7 +522,7 @@ OGRLineString* Shape_sphere::makeLineRing(double theMaximumSegmentLength) const
 {
   try
   {
-    OGRLineString* ring = new OGRLineString;
+    auto* ring = new OGRLineString;
     double angle = PI2;
     while (angle > 0)
     {
