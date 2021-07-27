@@ -1,8 +1,8 @@
 #include "OGRCoordinateTransformationFactory.h"
 #include "OGRSpatialReferenceFactory.h"
-#include <macgyver/Exception.h>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
+#include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 #include <ogr_spatialref.h>
 
@@ -23,11 +23,8 @@ std::size_t gMaxSize = 40 * 40;
 
 }  // namespace
 
-// Deleter stores the hash and a reference to cache to which the object is to be returned
-Deleter::Deleter(std::size_t theHash, OGRCoordinateTransformationPool *thePool)
-    : itsHash(theHash), itsPool(thePool)
-{
-}
+// Deleter stores the hash
+Deleter::Deleter(std::size_t theHash) : itsHash(theHash) {}
 
 void Deleter::operator()(OGRCoordinateTransformation *ptr)
 {
@@ -87,14 +84,15 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
     {
       WriteLock lock(gMutex);
 
-      auto pos = std::find_if(gPool.begin(),
-                              gPool.end(),
-                              [hash](const CacheElement &element) { return hash == element.first; });
+      auto pos =
+          std::find_if(gPool.begin(),
+                       gPool.end(),
+                       [hash](const CacheElement &element) { return hash == element.first; });
 
       if (pos != gPool.end())
       {
         // Take ownership from the CacheElement and return it to the user
-        Ptr ret(pos->second, Deleter(hash, &gPool));
+        Ptr ret(pos->second, Deleter(hash));
         gPool.erase(pos);
         return ret;
       }
@@ -109,10 +107,11 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
     auto *ptr = OGRCreateCoordinateTransformation(src.get(), tgt.get());
 
     if (ptr != nullptr)
-      return Ptr(ptr, Deleter(hash, &gPool));
+      return Ptr(ptr, Deleter(hash));
 
-    throw Fmi::Exception::Trace(BCP, "Failed to create coordinate transformation from '" + theSource +
-                             "' to '" + theTarget + "'");
+    throw Fmi::Exception::Trace(BCP,
+                                "Failed to create coordinate transformation from '" + theSource +
+                                    "' to '" + theTarget + "'");
   }
   catch (...)
   {

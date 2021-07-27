@@ -4,8 +4,8 @@
 #include "Shape_circle.h"
 #include "Shape_rect.h"
 #include "SpatialReference.h"
-#include <macgyver/Exception.h>
 #include <boost/math/constants/constants.hpp>
+#include <macgyver/Exception.h>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 
@@ -14,7 +14,6 @@
 namespace Fmi
 {
 const double epsilon = 1e-6;
-const double poleshift = 0.1;  // extend the cut beyond the poles for boolean operations
 
 const double wgs84radius = 6378137.0;
 
