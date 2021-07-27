@@ -593,7 +593,10 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
       auto posB = getPositionByMetricCoordinates(xxB, yyB);
       position |= posB;
 
-      double pX1 = 0, pY1 = 0, pX2 = 0, pY2 = 0;
+      double pX1 = 0;
+      double pY1 = 0;
+      double pX2 = 0;
+      double pY2 = 0;
       int res = getLineIntersectionPoints(xxA, yyA, xxB, yyB, pX1, pY1, pX2, pY2);
       // printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA,
       // xB, yB, xxA, yyA, xxB, yyB, pX1, pY1, pX2, pY2,res);
@@ -703,7 +706,10 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
 
       position |= posB;
 
-      double pX1 = 0, pY1 = 0, pX2 = 0, pY2 = 0;
+      double pX1 = 0;
+      double pY1 = 0;
+      double pX2 = 0;
+      double pY2 = 0;
       int res = getLineIntersectionPoints(xxA, yyA, xxB, yyB, pX1, pY1, pX2, pY2);
       // printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA,
       // xB, yB, xxA, yyA, xxB, yyB, pX1, pY1, pX2, pY2,res);
@@ -781,7 +787,8 @@ bool Shape_sphere::isInsideRing(const OGRLinearRing& theRing) const
     double angle = 0;
     for (uint t = 0; t < points; t++)
     {
-      double xx = 0, yy = 0;
+      double xx = 0;
+      double yy = 0;
       sphere.getLatLonPointByAngle(angle, xx, yy);
       if (!OGR::inside(theRing, xx, yy))
         return false;
@@ -1025,7 +1032,8 @@ bool Shape_sphere::connectPoints_cw(OGRLinearRing& ring,
     if (angleDiff < -PI)
       angleDiff = PI2 + angleDiff;
 
-    double xx = 0, yy = 0;
+    double xx = 0;
+    double yy = 0;
     outerCircle.getMetricPointByAngle(angle1, xx, yy);
 
     double x = xx, y = yy;
@@ -1095,7 +1103,8 @@ bool Shape_sphere::connectPoints_ccw(OGRLinearRing& ring,
     if (angleDiff < -PI)
       angleDiff = PI2 + angleDiff;
 
-    double xx = 0, yy = 0;
+    double xx = 0;
+    double yy = 0;
     innerCircle.getMetricPointByAngle(angle1, xx, yy);
 
     double x = xx, y = yy;

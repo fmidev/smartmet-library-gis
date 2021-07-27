@@ -479,7 +479,10 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
       posB = getPosition(xB, yB);
       position |= posB;
 
-      double pX1 = 0, pY1 = 0, pX2 = 0, pY2 = 0;
+      double pX1 = 0;
+      double pY1 = 0;
+      double pX2 = 0;
+      double pY2 = 0;
       int res = getLineIntersectionPoints(xA, yA, xB, yB, pX1, pY1, pX2, pY2);
       // printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA, xB, yB, pX1,
       // pY1, pX2, pY2,res);
@@ -577,7 +580,10 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
       // printf("%f,%f %d    %f,%f %d\n",xA,yA,posA,xB,yB,posB);
       position |= posB;
 
-      double pX1 = 0, pY1 = 0, pX2 = 0, pY2 = 0;
+      double pX1 = 0;
+      double pY1 = 0;
+      double pX2 = 0;
+      double pY2 = 0;
       int res = getLineIntersectionPoints(xA, yA, xB, yB, pX1, pY1, pX2, pY2);
       // printf("getLineIntersectionPoints(%f,%f,%f,%f  %f,%f,%f,%f) = %d\n",xA, yA, xB, yB, pX1,
       // pY1, pX2, pY2,res);
