@@ -3,7 +3,6 @@
 // GEOS does not seem to include <memory> as it should for Point.h
 #include <memory>
 
-#include <macgyver/Exception.h>
 #include <boost/numeric/conversion/cast.hpp>
 #include <fmt/format.h>
 #include <fmt/printf.h>
@@ -17,7 +16,7 @@
 #include <geos/geom/Point.h>
 #include <geos/geom/Polygon.h>
 #include <geos/geom/PrecisionModel.h>
-
+#include <macgyver/Exception.h>
 
 using geos::geom::Coordinate;
 using geos::geom::Geometry;
@@ -130,10 +129,8 @@ void writeLinearRingSVG(std::string& out, const LinearRing* geom, const char* fo
     {
       if (i == 0)
         out += 'M';
-      else if (i == 1)
-        out += ' ';  // implicit lineto, we could also write an 'L'
       else
-        out += ' ';
+        out += ' ';  // No need to write an 'L', lineto is implicit for i>0
       writeCoordinateSVG(out, geom->getCoordinateN(boost::numeric_cast<int>(i)), format);
     }
     out += 'Z';
@@ -162,10 +159,8 @@ void writeLineStringSVG(std::string& out, const LineString* geom, const char* fo
     {
       if (i == 0)
         out += 'M';
-      else if (i == 1)
-        out += ' ';  // implicit lineto, we could also write an 'L'
       else
-        out += ' ';
+        out += ' ';  // No need to write an 'L', lineto is implicit for i>0
       writeCoordinateSVG(out, geom->getCoordinateN(boost::numeric_cast<int>(i)), format);
     }
 

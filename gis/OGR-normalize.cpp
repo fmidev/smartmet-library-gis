@@ -162,11 +162,13 @@ OGRGeometry *normalize_winding(const OGRGeometry *theGeom)
         return normalize_winding(dynamic_cast<const OGRGeometryCollection *>(theGeom));
 
       case wkbNone:
-        throw Fmi::Exception::Trace(BCP,
+        throw Fmi::Exception::Trace(
+            BCP,
             "Encountered a 'none' geometry component while changing winding order of an OGR "
             "geometry");
       default:
-        throw Fmi::Exception::Trace(BCP,
+        throw Fmi::Exception::Trace(
+            BCP,
             "Encountered an unknown geometry component while changing winding order of an OGR "
             "geometry");
     }
@@ -221,16 +223,15 @@ void Fmi::OGR::normalize(OGRLinearRing &theRing)
     if (theRing.IsEmpty() != 0)
       return;
 
-    // Find the "smallest" coordinate
+    // Find the "smallest" coordinate using lexicographic ordering
 
     int best_pos = 0;
     int n = theRing.getNumPoints();
     for (int pos = 0; pos < n; ++pos)
     {
-      if (theRing.getX(pos) < theRing.getX(best_pos))
-        best_pos = pos;
-      else if (theRing.getX(pos) == theRing.getX(best_pos) &&
-               theRing.getY(pos) < theRing.getY(best_pos))
+      if ((theRing.getX(pos) < theRing.getX(best_pos)) ||
+          (theRing.getX(pos) == theRing.getX(best_pos) &&
+           theRing.getY(pos) < theRing.getY(best_pos)))
         best_pos = pos;
     }
 
