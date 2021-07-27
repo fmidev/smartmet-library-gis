@@ -28,7 +28,7 @@ class SpatialReference;
 class GeometryBuilder;
 class Shape;
 
-typedef std::shared_ptr<Shape> Shape_sptr;
+using Shape_sptr = std::shared_ptr<Shape>;
 
 namespace OGR
 {

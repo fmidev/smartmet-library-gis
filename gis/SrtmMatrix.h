@@ -10,7 +10,7 @@ class SrtmTile;
 class SrtmMatrix
 {
  public:
-  typedef std::unique_ptr<SrtmTile> TileType;
+  using TileType = std::unique_ptr<SrtmTile>;
 
   ~SrtmMatrix();
   SrtmMatrix();

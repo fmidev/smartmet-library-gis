@@ -6,7 +6,7 @@
 
 namespace Fmi
 {
-typedef std::list<OGRLineString *>::iterator LineIterator;
+using LineIterator = std::list<OGRLineString *>::iterator;
 
 class ShapeClipper;
 
@@ -79,6 +79,6 @@ class Shape
   };
 };
 
-typedef std::shared_ptr<Shape> Shape_sptr;
+using Shape_sptr = std::shared_ptr<Shape>;
 
 }  // namespace Fmi
