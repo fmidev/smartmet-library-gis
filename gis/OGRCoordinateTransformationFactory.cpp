@@ -26,7 +26,7 @@ std::size_t gMaxSize = 40 * 40;
 // Deleter stores the hash
 Deleter::Deleter(std::size_t theHash) : itsHash(theHash) {}
 
-void Deleter::operator()(OGRCoordinateTransformation *ptr)
+void Deleter::operator()(OGRCoordinateTransformation *ptr) const
 {
   try
   {

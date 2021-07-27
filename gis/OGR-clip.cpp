@@ -1042,7 +1042,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
     {
-      auto *hole = theGeom->getInteriorRing(i);
+      const auto *hole = theGeom->getInteriorRing(i);
       auto holeposition = do_rect(hole, rect, theBox, keep_inside, all_exterior);
 
       if (all_only_inside(holeposition))
@@ -1185,7 +1185,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
     {
-      auto *hole = theGeom->getInteriorRing(i);
+      const auto *hole = theGeom->getInteriorRing(i);
 
       auto holeposition = do_rect(hole, rect, theBox, keep_inside, false);
 

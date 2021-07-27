@@ -21,7 +21,7 @@ OGRPolygon *renormalize_winding(const OGRPolygon *theGeom)
     if (theGeom == nullptr || theGeom->IsEmpty() != 0)
       return nullptr;
 
-    auto *exterior = dynamic_cast<const OGRLinearRing *>(theGeom->getExteriorRing());
+    const auto *exterior = dynamic_cast<const OGRLinearRing *>(theGeom->getExteriorRing());
 
     bool is_cw = exterior->isClockwise();
 

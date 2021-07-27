@@ -102,7 +102,7 @@ OGRPolygon *despeckle_polygon(const OGRPolygon *theGeom, double theLimit, bool t
   {
     // Quick exit if the exterior is too small
 
-    auto *exterior = theGeom->getExteriorRing();
+    const auto *exterior = theGeom->getExteriorRing();
     double area = (theGeogFlag ? geographic_area(exterior) : exterior->get_Area());
 
     if (area < theLimit)
@@ -117,7 +117,7 @@ OGRPolygon *despeckle_polygon(const OGRPolygon *theGeom, double theLimit, bool t
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
     {
-      auto *hole = theGeom->getInteriorRing(i);
+      const auto *hole = theGeom->getInteriorRing(i);
       area = (theGeogFlag ? geographic_area(hole) : hole->get_Area());
       if (area >= theLimit)
         out->addRingDirectly(dynamic_cast<OGRLinearRing *>(hole->clone()));

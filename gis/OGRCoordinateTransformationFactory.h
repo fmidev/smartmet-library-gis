@@ -18,7 +18,7 @@ class Deleter
 {
  public:
   explicit Deleter(std::size_t theHash);
-  void operator()(OGRCoordinateTransformation *ptr);
+  void operator()(OGRCoordinateTransformation *ptr) const;
 
  private:
   std::size_t itsHash;
