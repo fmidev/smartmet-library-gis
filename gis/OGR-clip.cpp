@@ -1532,7 +1532,7 @@ OGRGeometry *OGR::lineclip(const OGRGeometry &theGeom, const Box &theBox)
 
 OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom,
                            const Box &theBox,
-                           double theMaximumSegmentLength)
+                           double theMaxSegmentLength)
 {
   try
   {
@@ -1540,7 +1540,7 @@ OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom,
     bool keep_inside = true;
 
     GeometryBuilder builder;
-    do_geom(&theGeom, builder, theBox, theMaximumSegmentLength, keep_polygons, keep_inside);
+    do_geom(&theGeom, builder, theBox, theMaxSegmentLength, keep_polygons, keep_inside);
 
     OGRGeometry *geom = builder.build();
 
@@ -1595,9 +1595,7 @@ OGRGeometry *OGR::linecut(const OGRGeometry &theGeom, const Box &theBox)
  */
 // ----------------------------------------------------------------------
 
-OGRGeometry *OGR::polycut(const OGRGeometry &theGeom,
-                          const Box &theBox,
-                          double theMaximumSegmentLength)
+OGRGeometry *OGR::polycut(const OGRGeometry &theGeom, const Box &theBox, double theMaxSegmentLength)
 {
   try
   {
@@ -1605,7 +1603,7 @@ OGRGeometry *OGR::polycut(const OGRGeometry &theGeom,
     bool keep_inside = false;
 
     GeometryBuilder builder;
-    do_geom(&theGeom, builder, theBox, theMaximumSegmentLength, keep_polygons, keep_inside);
+    do_geom(&theGeom, builder, theBox, theMaxSegmentLength, keep_polygons, keep_inside);
 
     OGRGeometry *geom = builder.build();
     if (geom != nullptr)

@@ -20,6 +20,6 @@ struct CoordinateAnalysis
   bool needs_flipping{false};  // if the grid seems to be upside down
 };
 
-CoordinateAnalysis analysis(const CoordinateMatrix& matrix);
+CoordinateAnalysis analysis(const CoordinateMatrix& coords);
 
 }  // namespace Fmi

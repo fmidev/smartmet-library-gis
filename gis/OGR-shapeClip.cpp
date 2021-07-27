@@ -687,14 +687,14 @@ OGRGeometry *OGR::lineclip(const OGRGeometry &theGeom, Shape_sptr &theShape)
 void OGR::polyclip(GeometryBuilder &builder,
                    const OGRGeometry &theGeom,
                    Shape_sptr &theShape,
-                   double theMaximumSegmentLength)
+                   double theMaxSegmentLength)
 {
   try
   {
     bool keep_polygons = true;
     bool keep_inside = true;
 
-    do_geom(&theGeom, builder, theShape, theMaximumSegmentLength, keep_polygons, keep_inside);
+    do_geom(&theGeom, builder, theShape, theMaxSegmentLength, keep_polygons, keep_inside);
   }
   catch (...)
   {
@@ -704,12 +704,12 @@ void OGR::polyclip(GeometryBuilder &builder,
 
 OGRGeometry *OGR::polyclip(const OGRGeometry &theGeom,
                            Shape_sptr &theShape,
-                           double theMaximumSegmentLength)
+                           double theMaxSegmentLength)
 {
   try
   {
     GeometryBuilder builder;
-    polyclip(builder, theGeom, theShape, theMaximumSegmentLength);
+    polyclip(builder, theGeom, theShape, theMaxSegmentLength);
 
     OGRGeometry *geom = builder.build();
     if (geom != nullptr)
@@ -748,14 +748,14 @@ OGRGeometry *OGR::linecut(const OGRGeometry &theGeom, Shape_sptr &theShape)
 void OGR::polycut(GeometryBuilder &builder,
                   const OGRGeometry &theGeom,
                   Shape_sptr &theShape,
-                  double theMaximumSegmentLength)
+                  double theMaxSegmentLength)
 {
   try
   {
     bool keep_polygons = true;
     bool keep_inside = false;
 
-    do_geom(&theGeom, builder, theShape, theMaximumSegmentLength, keep_polygons, keep_inside);
+    do_geom(&theGeom, builder, theShape, theMaxSegmentLength, keep_polygons, keep_inside);
   }
   catch (...)
   {
@@ -765,12 +765,12 @@ void OGR::polycut(GeometryBuilder &builder,
 
 OGRGeometry *OGR::polycut(const OGRGeometry &theGeom,
                           Shape_sptr &theShape,
-                          double theMaximumSegmentLength)
+                          double theMaxSegmentLength)
 {
   try
   {
     GeometryBuilder builder;
-    polycut(builder, theGeom, theShape, theMaximumSegmentLength);
+    polycut(builder, theGeom, theShape, theMaxSegmentLength);
 
     OGRGeometry *geom = builder.build();
     if (geom != nullptr)

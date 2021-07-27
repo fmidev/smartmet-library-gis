@@ -173,9 +173,9 @@ SpatialReference::SpatialReference(const std::shared_ptr<OGRSpatialReference> &o
 {
 }
 
-SpatialReference::SpatialReference(const char *theCRS) : impl(new Impl(std::string(theCRS))) {}
+SpatialReference::SpatialReference(const char *theDesc) : impl(new Impl(std::string(theDesc))) {}
 
-SpatialReference::SpatialReference(const std::string &theCRS) : impl(new Impl(theCRS)) {}
+SpatialReference::SpatialReference(const std::string &theDesc) : impl(new Impl(theDesc)) {}
 
 SpatialReference::SpatialReference(int epsg) : impl(new Impl(epsg)) {}
 
