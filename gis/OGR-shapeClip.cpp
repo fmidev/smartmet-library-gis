@@ -235,10 +235,8 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
           theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
           return;
         }
-        else
-        {
-          clipper.addExterior(dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone()));
-        }
+
+        clipper.addExterior(dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone()));
       }
     }
 

@@ -600,7 +600,8 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
             start_index = i - 1;
             break;  // And continue main loop on the inside
           }
-          else if (pos == Box::Outside)  // edge-out
+
+          if (pos == Box::Outside)  // edge-out
           {
             // Clip the outside point to edges
             clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1), theBox);
@@ -1023,10 +1024,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
           theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
           return;
         }
-        else
-        {
-          rect.addExterior(dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone()));
-        }
+        rect.addExterior(dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone()));
       }
     }
 

@@ -310,32 +310,27 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
 
     if (polygon == nullptr)
     {
-      if (type == wkbMultiLineString)
-      {
-        // Iterare OGRLineStrings inside OGRMultiLineString  and expand one by one
-        boost::scoped_ptr<OGRMultiLineString> multilinestring;
-        multilinestring.reset(dynamic_cast<OGRMultiLineString*>(tmp_geom->clone()));
-        int n_geometries(multilinestring->getNumGeometries());
+      if (type != wkbMultiLineString)
+        throw Fmi::Exception::Trace(BCP, "OGRGeometry::Buffer() function call failed!");
 
-        // Expanded geometries are put inside OGRMultiPolygon
-        OGRMultiPolygon mpoly;
-        for (int i = 0; i < n_geometries; i++)
-        {
-          boost::scoped_ptr<OGRGeometry> linestring;
-          linestring.reset(multilinestring->getGeometryRef(i)->Buffer(radius, 20));
-          mpoly.addGeometry(linestring.get());
-        }
-        // Convert back to original geometry
-        if (mpoly.transform(CT2.get()) != OGRERR_NONE)
-          throw Fmi::Exception::Trace(BCP, "OGRMultiPolygon::transform() function call failed");
+      // Iterare OGRLineStrings inside OGRMultiLineString  and expand one by one
+      boost::scoped_ptr<OGRMultiLineString> multilinestring;
+      multilinestring.reset(dynamic_cast<OGRMultiLineString*>(tmp_geom->clone()));
+      int n_geometries(multilinestring->getNumGeometries());
 
-        return mpoly.clone();
-      }
-      else
+      // Expanded geometries are put inside OGRMultiPolygon
+      OGRMultiPolygon mpoly;
+      for (int i = 0; i < n_geometries; i++)
       {
-        if (polygon == nullptr)
-          throw Fmi::Exception::Trace(BCP, "OGRGeometry::Buffer() function call failed!");
+        boost::scoped_ptr<OGRGeometry> linestring;
+        linestring.reset(multilinestring->getGeometryRef(i)->Buffer(radius, 20));
+        mpoly.addGeometry(linestring.get());
       }
+      // Convert back to original geometry
+      if (mpoly.transform(CT2.get()) != OGRERR_NONE)
+        throw Fmi::Exception::Trace(BCP, "OGRMultiPolygon::transform() function call failed");
+
+      return mpoly.clone();
     }
 
     // get exterior ring of polygon

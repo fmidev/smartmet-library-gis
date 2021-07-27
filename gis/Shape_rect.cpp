@@ -271,7 +271,8 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
             start_index = i - 1;
             break;  // And continue main loop on the inside
           }
-          else if (pos == Position::Outside)  // edge-out
+
+          if (pos == Position::Outside)  // edge-out
           {
             // Clip the outside point to edges
             clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1));
