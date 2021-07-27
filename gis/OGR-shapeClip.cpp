@@ -654,8 +654,8 @@ void do_geom(const OGRGeometry *theGeom,
       case wkbLinearRing:
         throw Fmi::Exception::Trace(BCP, "Direct clipping of LinearRings is not supported");
       default:
-        throw Fmi::Exception::Trace(BCP,
-            "Encountered an unknown geometry component when clipping polygons");
+        throw Fmi::Exception::Trace(
+            BCP, "Encountered an unknown geometry component when clipping polygons");
     }
   }
   catch (...)

@@ -7,8 +7,8 @@
 #include "Shape.h"
 #include "SpatialReference.h"
 #include "Types.h"
-#include <macgyver/Hash.h>
 #include <macgyver/Exception.h>
+#include <macgyver/Hash.h>
 #include <gdal_version.h>
 #include <iostream>
 #include <limits>
@@ -109,23 +109,23 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
       throw Fmi::Exception::Trace(BCP, "X- and Y-coordinate vector sizes do not match");
 
     if (x.empty())
-      throw Fmi::Exception::Trace(BCP,
-          "Cannot do coordinate transformation for empty X- and Y-coordinate vectors");
+      throw Fmi::Exception::Trace(
+          BCP, "Cannot do coordinate transformation for empty X- and Y-coordinate vectors");
 
-  #if CHECK_AXES
+#if CHECK_AXES
     if (impl->m_swapInput)
       std::swap(x, y);
-  #endif
+#endif
 
     int n = static_cast<int>(x.size());
     std::vector<int> flags(n, 0);
 
     bool ok = (impl->m_transformation->Transform(n, &x[0], &y[0], nullptr, &flags[0]) != 0);
 
-  #if CHECK_AXES
+#if CHECK_AXES
     if (impl->m_swapOutput)
       std::swap(x, y);
-  #endif
+#endif
 
     for (std::size_t i = 0; i < flags.size(); i++)
     {
@@ -153,7 +153,7 @@ bool CoordinateTransformation::transform(OGRGeometry& geom) const
       geom.swapXY();
 #endif
 
-  bool ok = (geom.transform(impl->m_transformation.get()) != OGRERR_NONE);
+    bool ok = (geom.transform(impl->m_transformation.get()) != OGRERR_NONE);
 
 #if CHECK_AXES
     if (ok && impl->m_swapOutput)
@@ -284,7 +284,8 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       {
         // printf("***** CLIPS ****\n");
         GeometryBuilder builder;
-        for (auto shape = interrupt.shapeClips.begin(); shape != interrupt.shapeClips.end(); ++shape)
+        for (auto shape = interrupt.shapeClips.begin(); shape != interrupt.shapeClips.end();
+             ++shape)
         {
           //(*shape)->print(std::cout);
           g.reset(OGR::polyclip(*g, *shape, theMaximumSegmentLength));
@@ -312,8 +313,8 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
         return nullptr;
     }
 
-    // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip that
-    // for now since almost all our data is in WGS84.
+    // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip
+    // that for now since almost all our data is in WGS84.
 
     if (!this->transform(*g))
     {

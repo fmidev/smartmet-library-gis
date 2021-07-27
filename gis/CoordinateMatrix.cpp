@@ -1,7 +1,7 @@
 #include "CoordinateMatrix.h"
 #include "CoordinateTransformation.h"
-#include <macgyver/Hash.h>
 #include <macgyver/Exception.h>
+#include <macgyver/Hash.h>
 #include <cmath>
 
 namespace Fmi

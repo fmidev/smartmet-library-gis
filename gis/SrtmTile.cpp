@@ -2,14 +2,13 @@
 
 #include "SrtmTile.h"
 
-#include <macgyver/Exception.h>
 #include <boost/filesystem/operations.hpp>
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/move/unique_ptr.hpp>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
-
+#include <macgyver/Exception.h>
 
 using FileMapping = boost::interprocess::file_mapping;
 using MappedRegion = boost::interprocess::mapped_region;
@@ -110,7 +109,8 @@ SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
     if (!valid_path(path))
       throw Fmi::Exception::Trace(BCP, "Not a valid filename for a .hgt file: '" + path + "'");
     if (!valid_size(path))
-      throw Fmi::Exception::Trace(BCP, "Not a valid size of form 2*N*N for a .hgt file: '" + path + "'");
+      throw Fmi::Exception::Trace(BCP,
+                                  "Not a valid size of form 2*N*N for a .hgt file: '" + path + "'");
 
     auto sz = boost::filesystem::file_size(path);
     itsSize = static_cast<std::size_t>(sqrt(sz / 2.0));
@@ -144,7 +144,8 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
   {
     // Sanity checks
     if (i >= itsSize || j >= itsSize)
-      throw Fmi::Exception::Trace(BCP,
+      throw Fmi::Exception::Trace(
+          BCP,
           fmt::format("SrtmFile indexes {},{} is out of range, size of tile is {}", i, j, itsSize));
 
     // We use lazy initialization to reduce core sizes in case
@@ -164,8 +165,8 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
       if (!itsFileMapping)
       {
         // std::cout << "Mapping " << itsPath << std::endl;
-        itsFileMapping =
-            boost::movelib::make_unique<FileMapping>(itsPath.c_str(), boost::interprocess::read_only);
+        itsFileMapping = boost::movelib::make_unique<FileMapping>(itsPath.c_str(),
+                                                                  boost::interprocess::read_only);
 
         itsMappedRegion = boost::movelib::make_unique<MappedRegion>(
             *itsFileMapping, boost::interprocess::read_only, 0, 2 * itsSize * itsSize);

@@ -1418,7 +1418,8 @@ void do_geometrycollection(const OGRGeometryCollection *theGeom,
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_geom(theGeom->getGeometryRef(i), theBuilder, theBox, max_length, keep_polygons, keep_inside);
+      do_geom(
+          theGeom->getGeometryRef(i), theBuilder, theBox, max_length, keep_polygons, keep_inside);
     }
   }
   catch (...)
@@ -1481,7 +1482,8 @@ void do_geom(const OGRGeometry *theGeom,
       case wkbLinearRing:
         throw Fmi::Exception::Trace(BCP, "Direct clipping of LinearRings is not supported");
       default:
-        throw Fmi::Exception::Trace(BCP, "Encountered an unknown geometry component when clipping polygons");
+        throw Fmi::Exception::Trace(
+            BCP, "Encountered an unknown geometry component when clipping polygons");
     }
   }
   catch (...)

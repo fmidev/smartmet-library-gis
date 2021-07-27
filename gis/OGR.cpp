@@ -3,10 +3,10 @@
 #include "CoordinateTransformation.h"
 #include "GEOS.h"
 #include "SpatialReference.h"
-#include <macgyver/Exception.h>
 #include <boost/math/constants/constants.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <fmt/format.h>
+#include <macgyver/Exception.h>
 #include <cmath>
 #include <ogr_geometry.h>
 

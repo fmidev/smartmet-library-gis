@@ -166,8 +166,10 @@ LandCover::Type LandCover::coverType(double lon, double lat) const
   {
     if (lon < -180 || lon > 180 || lat < -90 || lat > 90)
     {
-      throw Fmi::Exception::Trace(BCP, fmt::format(
-          "LandCover: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
+      throw Fmi::Exception::Trace(
+          BCP,
+          fmt::format(
+              "LandCover: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
     }
 
     return impl->coverType(lon, lat);

@@ -1,10 +1,10 @@
 #include "ProjInfo.h"
 
-#include <macgyver/Exception.h>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <fmt/format.h>
+#include <macgyver/Exception.h>
 
 #include <string>
 #include <vector>
@@ -91,7 +91,8 @@ ProjInfo::ProjInfo(const std::string& theProj) : itsProjStr(theProj)
         }
       }
       else
-        throw Fmi::Exception::Trace(BCP, "PROJ option '" + option + "' contains too many '=' characters");
+        throw Fmi::Exception::Trace(
+            BCP, "PROJ option '" + option + "' contains too many '=' characters");
     }
   }
   catch (...)

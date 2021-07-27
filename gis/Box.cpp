@@ -5,7 +5,6 @@
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 
-
 // ----------------------------------------------------------------------
 /*!
  * \brief Construct the box
@@ -34,11 +33,11 @@ Fmi::Box::Box(
   {
     if (itsXMin == itsXMax || itsYMin == itsYMax)
     {
-      Fmi::Exception exception(BCP,"Empty Fmi::Box constructed!");
-      exception.addParameter("X1",std::to_string(itsX1));
-      exception.addParameter("Y1",std::to_string(itsY1));
-      exception.addParameter("X2",std::to_string(itsX2));
-      exception.addParameter("Y2",std::to_string(itsY2));
+      Fmi::Exception exception(BCP, "Empty Fmi::Box constructed!");
+      exception.addParameter("X1", std::to_string(itsX1));
+      exception.addParameter("Y1", std::to_string(itsY1));
+      exception.addParameter("X2", std::to_string(itsX2));
+      exception.addParameter("Y2", std::to_string(itsY2));
       throw exception;
     }
 

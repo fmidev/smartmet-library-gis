@@ -167,8 +167,8 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
       case wkbGeometryCollection25D:
         return inside(dynamic_cast<const OGRGeometryCollection *>(&theGeom), theX, theY);
       default:
-        throw Fmi::Exception::Trace(BCP,
-            "Encountered an unknown geometry component in OGR to SVG conversion");
+        throw Fmi::Exception::Trace(
+            BCP, "Encountered an unknown geometry component in OGR to SVG conversion");
     }
 
     // NOT REACHED

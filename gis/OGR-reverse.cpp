@@ -156,11 +156,13 @@ OGRGeometry *reverse_winding(const OGRGeometry *theGeom)
       case wkbGeometryCollection:
         return reverse_winding(dynamic_cast<const OGRGeometryCollection *>(theGeom));
       case wkbNone:
-        throw Fmi::Exception::Trace(BCP,
+        throw Fmi::Exception::Trace(
+            BCP,
             "Encountered a 'none' geometry component while changing winding order of an OGR "
             "geometry");
       default:
-        throw Fmi::Exception::Trace(BCP,
+        throw Fmi::Exception::Trace(
+            BCP,
             "Encountered an unknown geometry component while changing winding order of an OGR "
             "geometry");
     }

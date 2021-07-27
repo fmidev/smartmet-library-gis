@@ -65,7 +65,7 @@ GDALDataPtr Host::connect() const
     auto* driver = GetGDALDriverManager()->GetDriverByName("PostgreSQL");
 #endif
     if (driver == nullptr)
-      throw Fmi::Exception::Trace(BCP,"PostgreSQL driver not installed!");
+      throw Fmi::Exception::Trace(BCP, "PostgreSQL driver not installed!");
 
     auto src = dataSource();
 

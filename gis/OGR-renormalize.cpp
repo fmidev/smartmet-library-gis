@@ -83,7 +83,8 @@ OGRMultiPolygon *renormalize_winding(const OGRMultiPolygon *theGeom)
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      auto *geom = renormalize_winding(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
+      auto *geom =
+          renormalize_winding(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
       if (geom != nullptr)
         out->addGeometryDirectly(geom);
     }
@@ -154,11 +155,13 @@ OGRGeometry *renormalize_winding(const OGRGeometry *theGeom)
         return renormalize_winding(dynamic_cast<const OGRGeometryCollection *>(theGeom));
 
       case wkbNone:
-        throw Fmi::Exception::Trace(BCP,
+        throw Fmi::Exception::Trace(
+            BCP,
             "Encountered a 'none' geometry component while changing winding order of an OGR "
             "geometry");
       default:
-        throw Fmi::Exception::Trace(BCP,
+        throw Fmi::Exception::Trace(
+            BCP,
             "Encountered an unknown geometry component while changing winding order of an OGR "
             "geometry");
     }

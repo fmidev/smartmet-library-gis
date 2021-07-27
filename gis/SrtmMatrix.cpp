@@ -58,9 +58,10 @@ void SrtmMatrix::Impl::add(TileType tile)
     if (itsSize == 0)
       itsSize = tile->size();
     else if (itsSize != tile->size())
-      throw Fmi::Exception::Trace(BCP, "Attempting to add a SRTM tile of size " +
-                               std::to_string(tile->size()) + " to a 2D matrix with tile size " +
-                               std::to_string(itsSize));
+      throw Fmi::Exception::Trace(BCP,
+                                  "Attempting to add a SRTM tile of size " +
+                                      std::to_string(tile->size()) +
+                                      " to a 2D matrix with tile size " + std::to_string(itsSize));
 
     // Shift to 0..360,0..180 coordinates
     int lon = tile->longitude() + 180;

@@ -2,8 +2,8 @@
 #include "CoordinateMatrix.h"
 #include "CoordinateMatrixCache.h"
 #include "CoordinateTransformation.h"
-#include <macgyver/Hash.h>
 #include <macgyver/Exception.h>
+#include <macgyver/Hash.h>
 
 namespace Fmi
 {

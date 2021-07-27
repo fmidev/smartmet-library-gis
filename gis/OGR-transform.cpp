@@ -241,8 +241,8 @@ void tr(OGRGeometry *geom, const Box &box)
       case wkbGeometryCollection:
         return tr(dynamic_cast<OGRGeometryCollection *>(geom), box);
       default:
-        throw Fmi::Exception::Trace(BCP,
-            "Encountered an unknown geometry component in OGRGeometry transform call");
+        throw Fmi::Exception::Trace(
+            BCP, "Encountered an unknown geometry component in OGRGeometry transform call");
     }
   }
   catch (...)

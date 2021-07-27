@@ -4,8 +4,8 @@
 #include "ProjInfo.h"
 #include <fmt/format.h>
 #include <macgyver/Cache.h>
-#include <macgyver/Hash.h>
 #include <macgyver/Exception.h>
+#include <macgyver/Hash.h>
 
 #include <ogr_geometry.h>
 
@@ -85,7 +85,8 @@ class SpatialReference::Impl
     try
     {
       if (!other)
-        throw Fmi::Exception::Trace(BCP, "Initialization of SpatialReference from empty shared ptr not allowed");
+        throw Fmi::Exception::Trace(
+            BCP, "Initialization of SpatialReference from empty shared ptr not allowed");
 
       init(*other);
     }

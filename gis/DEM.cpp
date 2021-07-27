@@ -227,8 +227,10 @@ double DEM::elevation(double lon, double lat) const
   {
     if (lon < -180 || lon > 180 || lat < -90 || lat > 90)
     {
-      throw Fmi::Exception::Trace(BCP,
-          fmt::format("DEM: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
+      throw Fmi::Exception::Trace(
+          BCP,
+          fmt::format(
+              "DEM: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
     }
 
     return impl->elevation(lon, lat);
@@ -251,12 +253,14 @@ double DEM::elevation(double lon, double lat, double resolution) const
   {
     if (lon < -180 || lon > 180 || lat < -90 || lat > 90)
     {
-      throw Fmi::Exception::Trace(BCP,
-          fmt::format("DEM: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
+      throw Fmi::Exception::Trace(
+          BCP,
+          fmt::format(
+              "DEM: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
     }
 
     if (resolution < 0)
-      throw Fmi::Exception::Trace(BCP,"Desired DEM resolution cannot be negative");
+      throw Fmi::Exception::Trace(BCP, "Desired DEM resolution cannot be negative");
 
     if (resolution == 0)
       return impl->elevation(lon, lat);

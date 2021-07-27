@@ -1,9 +1,9 @@
 #include "OGRSpatialReferenceFactory.h"
 #include "OGR.h"
 #include "ProjInfo.h"
-#include <macgyver/Exception.h>
 #include <fmt/format.h>
 #include <macgyver/Cache.h>
+#include <macgyver/Exception.h>
 #include <gdal_version.h>
 #include <ogr_geometry.h>
 
@@ -118,13 +118,13 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
       if (theDesc == desc)
       {
         Fmi::Exception exception(BCP, "Failed to create spatial reference!");
-        exception.addParameter("theDesc",theDesc);
+        exception.addParameter("theDesc", theDesc);
         throw exception;
       }
 
       Fmi::Exception exception(BCP, "Failed to create spatial reference!");
-      exception.addParameter("theDesc",theDesc);
-      exception.addParameter("desc",desc);
+      exception.addParameter("theDesc", theDesc);
+      exception.addParameter("desc", desc);
       throw exception;
     }
 

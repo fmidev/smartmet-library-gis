@@ -1,8 +1,8 @@
 #include "Box.h"
 #include "OGR.h"
-#include <macgyver/Exception.h>
 #include <fmt/format.h>
 #include <fmt/printf.h>
+#include <macgyver/Exception.h>
 #include <ogr_geometry.h>
 
 using Fmi::Box;
@@ -390,8 +390,8 @@ void writeSVG(
         return writeGeometryCollectionSVG(
             out, dynamic_cast<const OGRGeometryCollection *>(geom), box, rfactor, format);
       default:
-        throw Fmi::Exception::Trace(BCP,
-            "Encountered an unknown geometry component in OGR to SVG conversion");
+        throw Fmi::Exception::Trace(
+            BCP, "Encountered an unknown geometry component in OGR to SVG conversion");
     }
   }
   catch (...)

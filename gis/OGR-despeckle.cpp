@@ -1,6 +1,6 @@
 #include "OGR.h"
-#include <macgyver/Exception.h>
 #include <boost/math/constants/constants.hpp>
+#include <macgyver/Exception.h>
 #include <ogr_geometry.h>
 
 // ----------------------------------------------------------------------
@@ -356,10 +356,11 @@ OGRGeometry *despeckle_geom(const OGRGeometry *theGeom, double theLimit, bool th
       case wkbLinearRing:
         throw Fmi::Exception::Trace(BCP, "Direct despeckling of LinearRings is not supported");
       case wkbNone:
-        throw Fmi::Exception::Trace(BCP,
-            "Encountered a 'none' geometry component when despeckling a geometry");
+        throw Fmi::Exception::Trace(
+            BCP, "Encountered a 'none' geometry component when despeckling a geometry");
       default:
-        throw Fmi::Exception::Trace(BCP, "Encountered an unknown geometry component when clipping polygons");
+        throw Fmi::Exception::Trace(
+            BCP, "Encountered an unknown geometry component when clipping polygons");
     }
 
     // NOT REACHED
