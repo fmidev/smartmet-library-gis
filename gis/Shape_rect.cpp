@@ -16,7 +16,7 @@ Shape_rect::Shape_rect(double theX1, double theY1, double theX2, double theY2)
 {
 }
 
-Shape_rect::~Shape_rect() {}
+Shape_rect::~Shape_rect() = default;
 
 int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
 {

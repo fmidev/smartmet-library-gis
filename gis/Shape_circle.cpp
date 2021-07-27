@@ -35,7 +35,7 @@ Shape_circle::Shape_circle(double theX, double theY, double theRadius)
   }
 }
 
-Shape_circle::~Shape_circle() {}
+Shape_circle::~Shape_circle() = default;
 
 double Shape_circle::angleDistance_cw(double a, double b) const
 {

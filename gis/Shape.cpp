@@ -3,9 +3,9 @@
 
 namespace Fmi
 {
-Shape::Shape() {}
+Shape::Shape() = default;
 
-Shape::~Shape() {}
+Shape::~Shape() = default;
 
 int Shape::clip(const OGRLineString * /* theGeom */,
                 ShapeClipper & /*theClipper */,
