@@ -8,47 +8,47 @@ class Shape_rect : public Shape
 {
  public:
   Shape_rect(double theX1, double theY1, double theX2, double theY2);
-  virtual ~Shape_rect();
+  ~Shape_rect() override;
 
-  int clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const;
-  int cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const;
+  int clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const override;
+  int cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const override;
 
   bool connectPoints_cw(OGRLinearRing &ring,
                         double x1,
                         double y1,
                         double x2,
                         double y2,
-                        double theMaximumSegmentLength) const;
+                        double theMaximumSegmentLength) const override;
   bool connectPoints_ccw(OGRLinearRing &ring,
                          double x1,
                          double y1,
                          double x2,
                          double y2,
-                         double theMaximumSegmentLength) const;
+                         double theMaximumSegmentLength) const override;
 
-  int getPosition(double x, double y) const;
+  int getPosition(double x, double y) const override;
 
-  bool isInsideRing(const OGRLinearRing &theRing) const;
-  // bool            isOnEdge(double x, double y) const;
-  bool isRingInside(const OGRLinearRing &theRing) const;
+  bool isInsideRing(const OGRLinearRing &theRing) const override;
+  // bool            isOnEdge(double x, double y) const override;
+  bool isRingInside(const OGRLinearRing &theRing) const override;
 
-  OGRLinearRing *makeRing(double theMaximumSegmentLength) const;
-  OGRLinearRing *makeHole(double theMaximumSegmentLength) const;
+  OGRLinearRing *makeRing(double theMaximumSegmentLength) const override;
+  OGRLinearRing *makeHole(double theMaximumSegmentLength) const override;
 
   LineIterator search_cw(OGRLinearRing *ring,
                          std::list<OGRLineString *> &lines,
                          double x1,
                          double y1,
                          double &x2,
-                         double &y2) const;
+                         double &y2) const override;
   LineIterator search_ccw(OGRLinearRing *ring,
                           std::list<OGRLineString *> &lines,
                           double x1,
                           double y1,
                           double &x2,
-                          double &y2) const;
+                          double &y2) const override;
 
-  void print(std::ostream &stream);
+  void print(std::ostream &stream) override;
 
  protected:
   int getLineIntersectionPoints(double aX,

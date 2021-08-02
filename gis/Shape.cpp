@@ -3,41 +3,45 @@
 
 namespace Fmi
 {
-Shape::Shape() {}
+Shape::Shape() = default;
 
-Shape::~Shape() {}
+Shape::~Shape() = default;
 
-int Shape::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
+int Shape::clip(const OGRLineString * /* theGeom */,
+                ShapeClipper & /*theClipper */,
+                bool /* exterior */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
 
-int Shape::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
+int Shape::cut(const OGRLineString * /* theGeom */,
+               ShapeClipper & /* theClipper */,
+               bool /* exterior */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
 
-bool Shape::connectPoints_cw(OGRLinearRing &ring,
-                             double x1,
-                             double y1,
-                             double x2,
-                             double y2,
-                             double theMaximumSegmentLength) const
+bool Shape::connectPoints_cw(OGRLinearRing & /* ring */,
+                             double /* x1 */,
+                             double /* y1 */,
+                             double /* x2 */,
+                             double /* y2 */,
+                             double /* theMaximumSegmentLength */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
 
-bool Shape::connectPoints_ccw(OGRLinearRing &ring,
-                              double x1,
-                              double y1,
-                              double x2,
-                              double y2,
-                              double theMaximumSegmentLength) const
+bool Shape::connectPoints_ccw(OGRLinearRing & /* ring */,
+                              double /* x1 */,
+                              double /* y1 */,
+                              double /* x2 */,
+                              double /* y2 */,
+                              double /* theMaximumSegmentLength */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
 
-int Shape::getPosition(double x, double y) const
+int Shape::getPosition(double /* x */, double /* y */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
@@ -50,7 +54,7 @@ pY1, double& pX2, double& pY2) const
 }
 */
 
-bool Shape::isInsideRing(const OGRLinearRing &theRing) const
+bool Shape::isInsideRing(const OGRLinearRing & /* theRing */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
@@ -62,47 +66,47 @@ bool Shape::isOnEdge(double x, double y) const
 }
 */
 
-bool Shape::isRingInside(const OGRLinearRing &theRing) const
+bool Shape::isRingInside(const OGRLinearRing & /* theRing */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
 
-OGRLinearRing *Shape::makeRing(double theMaximumSegmentLength) const
+OGRLinearRing *Shape::makeRing(double /* theMaximumSegmentLength */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
 
-OGRLineString *Shape::makeLineRing(double theMaximumSegmentLength) const
+OGRLineString *Shape::makeLineRing(double /* theMaximumSegmentLength */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
 
-OGRLinearRing *Shape::makeHole(double theMaximumSegmentLength) const
+OGRLinearRing *Shape::makeHole(double /* theMaximumSegmentLength */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
 
-LineIterator Shape::search_cw(OGRLinearRing *ring,
-                              std::list<OGRLineString *> &lines,
-                              double x1,
-                              double y1,
-                              double &x2,
-                              double &y2) const
+LineIterator Shape::search_cw(OGRLinearRing * /* ring */,
+                              std::list<OGRLineString *> & /* lines */,
+                              double /* x1 */,
+                              double /* y1 */,
+                              double & /* x2 */,
+                              double & /* y2 */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
 
-LineIterator Shape::search_ccw(OGRLinearRing *ring,
-                               std::list<OGRLineString *> &lines,
-                               double x1,
-                               double y1,
-                               double &x2,
-                               double &y2) const
+LineIterator Shape::search_ccw(OGRLinearRing * /* ring */,
+                               std::list<OGRLineString *> & /* lines */,
+                               double /* x1 */,
+                               double /* y1 */,
+                               double & /* x2 */,
+                               double & /* y2 */) const
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }
 
-void Shape::print(std::ostream &stream)
+void Shape::print(std::ostream & /* stream */)
 {
   throw Fmi::Exception(BCP, "Not implemented!");
 }

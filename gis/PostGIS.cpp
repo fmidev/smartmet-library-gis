@@ -307,7 +307,13 @@ Features read(const Fmi::SpatialReference* theSR,
           break;
         case OFTDateTime:
         {
-          int year, month, day, hour, min, sec, tzFlag;
+          int year;
+          int month;
+          int day;
+          int hour;
+          int min;
+          int sec;
+          int tzFlag;
           feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
           boost::posix_time::ptime timestamp(boost::gregorian::date(year, month, day),
                                              boost::posix_time::time_duration(hour, min, sec));

@@ -4,6 +4,7 @@
 #include "ProjInfo.h"
 #include <fmt/format.h>
 #include <macgyver/Cache.h>
+#include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 
 #include <ogr_geometry.h>
@@ -30,20 +31,27 @@ ImplDataCache g_ImplDataCache{default_cache_size};
 
 bool is_axis_swapped(const OGRSpatialReference &crs)
 {
+  try
+  {
 #if GDAL_VERSION_MAJOR > 1
-  auto strategy = crs.GetAxisMappingStrategy();
-  if (strategy == OAMS_TRADITIONAL_GIS_ORDER)
-    return false;
-  if (strategy == OAMS_CUSTOM)
-    return false;  // Don't really know what to do in this case
-  if (strategy != OAMS_AUTHORITY_COMPLIANT)
-    return false;  // Unknown case
+    auto strategy = crs.GetAxisMappingStrategy();
+    if (strategy == OAMS_TRADITIONAL_GIS_ORDER)
+      return false;
+    if (strategy == OAMS_CUSTOM)
+      return false;  // Don't really know what to do in this case
+    if (strategy != OAMS_AUTHORITY_COMPLIANT)
+      return false;  // Unknown case
 
-  return (crs.EPSGTreatsAsLatLong() || crs.EPSGTreatsAsNorthingEasting());
+    return (crs.EPSGTreatsAsLatLong() || crs.EPSGTreatsAsNorthingEasting());
 #else
-  // GDAL1 does not seem to obey EPSGA flags at all
-  return false;
+    // GDAL1 does not seem to obey EPSGA flags at all
+    return false;
 #endif
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 }  // namespace
@@ -62,49 +70,88 @@ class SpatialReference::Impl
 
   explicit Impl(OGRSpatialReference &other)
   {
-    init(const_cast<const OGRSpatialReference &>(other));
+    try
+    {
+      init(const_cast<const OGRSpatialReference &>(other));
+    }
+    catch (...)
+    {
+      throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    }
   }
 
   explicit Impl(const std::shared_ptr<OGRSpatialReference> &other)
   {
-    if (!other)
-      throw std::runtime_error(
-          "Initialization of SpatialReference from empty shared ptr not allowed");
-    init(*other);
+    try
+    {
+      if (!other)
+        throw Fmi::Exception::Trace(
+            BCP, "Initialization of SpatialReference from empty shared ptr not allowed");
+
+      init(*other);
+    }
+    catch (...)
+    {
+      throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    }
   }
 
   explicit Impl(const std::string &theCRS) { init(theCRS); }
 
-  explicit Impl(int epsg) { init(fmt::format("EPSG:{}", epsg)); }
+  explicit Impl(int epsg)
+  {
+    try
+    {
+      init(fmt::format("EPSG:{}", epsg));
+    }
+    catch (...)
+    {
+      throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    }
+  }
 
   void init(const std::string &theCRS)
   {
-    auto obj = g_ImplDataCache.find(theCRS);
-    if (obj)
-      m_data = *obj;
-    else
+    try
     {
-      m_data = std::make_shared<ImplData>();
-      m_data->crs = OGRSpatialReferenceFactory::Create(theCRS);
-      m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
-      m_data->hashvalue = Fmi::hash_value(m_data->projinfo.projStr());
-      m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
-      m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
-      m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
+      auto obj = g_ImplDataCache.find(theCRS);
+      if (obj)
+        m_data = *obj;
+      else
+      {
+        m_data = std::make_shared<ImplData>();
+        m_data->crs = OGRSpatialReferenceFactory::Create(theCRS);
+        m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
+        m_data->hashvalue = Fmi::hash_value(m_data->projinfo.projStr());
+        m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
+        m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
+        m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
 
-      g_ImplDataCache.insert(theCRS, m_data);
+        g_ImplDataCache.insert(theCRS, m_data);
+      }
+    }
+    catch (...)
+    {
+      throw Fmi::Exception::Trace(BCP, "Operation failed!");
     }
   }
 
   void init(const OGRSpatialReference &other)
   {
-    m_data = std::make_shared<ImplData>();
-    m_data->crs.reset(other.Clone());
-    m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
-    m_data->hashvalue = Fmi::hash_value(m_data->projinfo.projStr());
-    m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
-    m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
-    m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
+    try
+    {
+      m_data = std::make_shared<ImplData>();
+      m_data->crs.reset(other.Clone());
+      m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
+      m_data->hashvalue = Fmi::hash_value(m_data->projinfo.projStr());
+      m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
+      m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
+      m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
+    }
+    catch (...)
+    {
+      throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    }
   }
 
   Impl &operator=(const Impl &) = delete;
@@ -126,65 +173,142 @@ SpatialReference::SpatialReference(const std::shared_ptr<OGRSpatialReference> &o
 {
 }
 
-SpatialReference::SpatialReference(const char *theCRS) : impl(new Impl(std::string(theCRS))) {}
+SpatialReference::SpatialReference(const char *theDesc) : impl(new Impl(std::string(theDesc))) {}
 
-SpatialReference::SpatialReference(const std::string &theCRS) : impl(new Impl(theCRS)) {}
+SpatialReference::SpatialReference(const std::string &theDesc) : impl(new Impl(theDesc)) {}
 
 SpatialReference::SpatialReference(int epsg) : impl(new Impl(epsg)) {}
 
 bool SpatialReference::isGeographic() const
 {
-  return impl->m_data->is_geographic;
+  try
+  {
+    return impl->m_data->is_geographic;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 bool SpatialReference::isAxisSwapped() const
 {
-  return impl->m_data->is_axis_swapped;
+  try
+  {
+    return impl->m_data->is_axis_swapped;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 bool SpatialReference::EPSGTreatsAsLatLong() const
 {
-  return impl->m_data->epsg_treats_as_lat_long;
+  try
+  {
+    return impl->m_data->epsg_treats_as_lat_long;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 std::size_t SpatialReference::hashValue() const
 {
-  return impl->m_data->hashvalue;
+  try
+  {
+    return impl->m_data->hashvalue;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 const OGRSpatialReference &SpatialReference::operator*() const
 {
-  return *impl->m_data->crs;
+  try
+  {
+    return *impl->m_data->crs;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 OGRSpatialReference *SpatialReference::get() const
 {
-  return impl->m_data->crs.get();
+  try
+  {
+    return impl->m_data->crs.get();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 SpatialReference::operator OGRSpatialReference &() const
 {
-  return *impl->m_data->crs;
+  try
+  {
+    return *impl->m_data->crs;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 SpatialReference::operator OGRSpatialReference *() const
 {
-  return impl->m_data->crs.get();
+  try
+  {
+    return impl->m_data->crs.get();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 const ProjInfo &SpatialReference::projInfo() const
 {
-  return impl->m_data->projinfo;
+  try
+  {
+    return impl->m_data->projinfo;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 const std::string &SpatialReference::projStr() const
 {
-  return impl->m_data->projinfo.projStr();
+  try
+  {
+    return impl->m_data->projinfo.projStr();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 void SpatialReference::setCacheSize(std::size_t newMaxSize)
 {
-  g_ImplDataCache.resize(newMaxSize);
+  try
+  {
+    g_ImplDataCache.resize(newMaxSize);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 }  // namespace Fmi

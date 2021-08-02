@@ -16,7 +16,7 @@ Shape_rect::Shape_rect(double theX1, double theY1, double theX2, double theY2)
 {
 }
 
-Shape_rect::~Shape_rect() {}
+Shape_rect::~Shape_rect() = default;
 
 int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
 {
@@ -271,7 +271,8 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
             start_index = i - 1;
             break;  // And continue main loop on the inside
           }
-          else if (pos == Position::Outside)  // edge-out
+
+          if (pos == Position::Outside)  // edge-out
           {
             // Clip the outside point to edges
             clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1));
@@ -767,7 +768,7 @@ OGRLinearRing *Shape_rect::makeRing(double theMaximumSegmentLength) const
 {
   try
   {
-    OGRLinearRing *ring = new OGRLinearRing;
+    auto *ring = new OGRLinearRing;
     ring->addPoint(itsXMin, itsYMin);
     ring->addPoint(itsXMin, itsYMax);
     ring->addPoint(itsXMax, itsYMax);
@@ -789,7 +790,7 @@ OGRLinearRing *Shape_rect::makeHole(double theMaximumSegmentLength) const
 {
   try
   {
-    OGRLinearRing *ring = new OGRLinearRing;
+    auto *ring = new OGRLinearRing;
     ring->addPoint(itsXMin, itsYMin);
     ring->addPoint(itsXMax, itsYMin);
     ring->addPoint(itsXMax, itsYMax);
@@ -1138,7 +1139,7 @@ void Shape_rect::print(std::ostream &stream)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP, "Operation failed!", nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 

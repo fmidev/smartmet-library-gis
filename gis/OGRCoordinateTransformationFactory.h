@@ -17,12 +17,11 @@ using OGRCoordinateTransformationPool = std::list<CacheElement>;
 class Deleter
 {
  public:
-  explicit Deleter(std::size_t theHash, OGRCoordinateTransformationPool *thePool);
-  void operator()(OGRCoordinateTransformation *ptr);
+  explicit Deleter(std::size_t theHash);
+  void operator()(OGRCoordinateTransformation *ptr) const;
 
  private:
   std::size_t itsHash;
-  OGRCoordinateTransformationPool *itsPool;
 };
 
 using Ptr = std::unique_ptr<OGRCoordinateTransformation, Deleter>;

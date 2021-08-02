@@ -6,14 +6,12 @@
 
 namespace Fmi
 {
-
-
-ShapeClipper::ShapeClipper(Shape_sptr& theShape, bool keep_inside)
+ShapeClipper::ShapeClipper(Shape_sptr &theShape, bool keep_inside)
 {
   try
   {
     if (theShape == nullptr)
-      throw Fmi::Exception(BCP,"The 'theShape' parameter points to NULL!");
+      throw Fmi::Exception(BCP, "The 'theShape' parameter points to NULL!");
 
     itsShape = theShape;
     itsKeepInsideFlag = keep_inside;
@@ -21,12 +19,9 @@ ShapeClipper::ShapeClipper(Shape_sptr& theShape, bool keep_inside)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -53,14 +48,10 @@ Fmi::ShapeClipper::~ShapeClipper()
   }
   catch (...)
   {
-    Fmi::Exception exception(BCP,"Operation failed!",nullptr);
+    Fmi::Exception exception(BCP, "Operation failed!", nullptr);
     exception.printError();
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -103,7 +94,8 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
         const int n2 = line2->getNumPoints();
 
         // Continue if the ends do not match
-        if (line1 == nullptr || pos1 == pos2 || n2 == 0 || line1->getX(n1 - 1) != line2->getX(0) || line1->getY(n1 - 1) != line2->getY(0))
+        if (line1 == nullptr || pos1 == pos2 || n2 == 0 || line1->getX(n1 - 1) != line2->getX(0) ||
+            line1->getY(n1 - 1) != line2->getY(0))
         {
           ++pos2;
           continue;
@@ -123,7 +115,7 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
 
         if (line1->get_IsClosed())
         {
-          OGRLinearRing *ring = new OGRLinearRing;
+          auto *ring = new OGRLinearRing;
           ring->addSubLineString(line1, 0, -1);
           if (exterior)
             addExterior(ring);
@@ -132,6 +124,7 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
           delete line1;
           line1 = nullptr;
           pos1 = lines.erase(pos1);
+          line1 = *pos1;
           pos2 = lines.begin();  // safety measure
         }
       }
@@ -142,13 +135,9 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 void Fmi::ShapeClipper::reconnect()
 {
@@ -159,13 +148,9 @@ void Fmi::ShapeClipper::reconnect()
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -187,13 +172,9 @@ void Fmi::ShapeClipper::release(GeometryBuilder &theBuilder)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -213,13 +194,9 @@ void Fmi::ShapeClipper::clear()
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -231,17 +208,14 @@ bool Fmi::ShapeClipper::empty() const
 {
   try
   {
-    return itsExteriorRings.empty() && itsExteriorLines.empty() && itsInteriorRings.empty() && itsInteriorLines.empty();
+    return itsExteriorRings.empty() && itsExteriorLines.empty() && itsInteriorRings.empty() &&
+           itsInteriorLines.empty();
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -257,13 +231,9 @@ void Fmi::ShapeClipper::addShape()
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -282,13 +252,9 @@ void Fmi::ShapeClipper::addExterior(OGRLinearRing *theRing)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -310,13 +276,9 @@ void Fmi::ShapeClipper::addExterior(OGRLineString *theLine)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -336,13 +298,9 @@ void Fmi::ShapeClipper::addInterior(OGRLinearRing *theRing)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -358,13 +316,9 @@ void Fmi::ShapeClipper::addInterior(OGRLineString *theLine)
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -373,10 +327,10 @@ void Fmi::ShapeClipper::addInterior(OGRLineString *theLine)
 // ----------------------------------------------------------------------
 
 void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
-                  std::list<OGRLineString *> &theLines,
-                  double theMaximumSegmentLength,
-                  bool keep_inside,
-                  bool exterior)
+                                     std::list<OGRLineString *> &theLines,
+                                     double theMaximumSegmentLength,
+                                     bool keep_inside,
+                                     bool exterior)
 {
   if (theLines.empty())
     return;
@@ -415,21 +369,22 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
 
     if (!ring->get_IsClosed())
     {
-
-      auto best = (cw ? itsShape->search_cw(ring, theLines, x1, y1, x2, y2) : itsShape->search_ccw(ring, theLines, x1, y1, x2, y2));
+      auto best = (cw ? itsShape->search_cw(ring, theLines, x1, y1, x2, y2)
+                      : itsShape->search_ccw(ring, theLines, x1, y1, x2, y2));
       if (best != theLines.end())
       {
-        // Found a matching linestring to continue to from the same edge we were studying. Move to it
-        // and continue building. The line might continue from the same point, in which case we must
-        // skip the first point.
+        // Found a matching linestring to continue to from the same edge we were studying. Move to
+        // it and continue building. The line might continue from the same point, in which case we
+        // must skip the first point.
 
         if (x1 != (*best)->getX(0) || y1 != (*best)->getY(0))
         {
-          // printf(" -- connect %f,%f => %f,%f  %f,%f\n",x1,y1,x2,y2,(*best)->getX(0),(*best)->getY(0));
+          // printf(" -- connect %f,%f => %f,%f
+          // %f,%f\n",x1,y1,x2,y2,(*best)->getX(0),(*best)->getY(0));
           if (cw)
-            itsShape->connectPoints_cw(*ring,x1,y1,x2,y2,theMaximumSegmentLength);
+            itsShape->connectPoints_cw(*ring, x1, y1, x2, y2, theMaximumSegmentLength);
           else
-            itsShape->connectPoints_ccw(*ring,x1,y1,x2,y2,theMaximumSegmentLength);
+            itsShape->connectPoints_ccw(*ring, x1, y1, x2, y2, theMaximumSegmentLength);
 
           if (x2 != (*best)->getX(0) || y2 != (*best)->getY(0))
             ring->addSubLineString(*best);
@@ -449,9 +404,9 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
         {
           // printf(" ++ connect %f,%f => %f,%f\n",x1,y1,x2,y2);
           if (cw)
-            itsShape->connectPoints_cw(*ring,x1,y1,x2,y2,theMaximumSegmentLength);
+            itsShape->connectPoints_cw(*ring, x1, y1, x2, y2, theMaximumSegmentLength);
           else
-            itsShape->connectPoints_ccw(*ring,x1,y1,x2,y2,theMaximumSegmentLength);
+            itsShape->connectPoints_ccw(*ring, x1, y1, x2, y2, theMaximumSegmentLength);
         }
 
         if (x2 == ring->getX(0) && y2 == ring->getY(0))
@@ -468,8 +423,6 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
   }
   theLines.clear();
 }
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -495,7 +448,7 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
 
     if (itsKeepInsideFlag && itsAddShapeFlag && itsExteriorLines.empty())
     {
-      auto ring = itsShape->makeRing(theMaximumSegmentLength);
+      auto *ring = itsShape->makeRing(theMaximumSegmentLength);
       itsExteriorRings.push_back(ring);
     }
 
@@ -503,7 +456,7 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
 
     if (!itsKeepInsideFlag && itsAddShapeFlag && itsInteriorLines.empty())
     {
-      auto ring = itsShape->makeHole(theMaximumSegmentLength);
+      auto *ring = itsShape->makeHole(theMaximumSegmentLength);
       itsInteriorRings.push_back(ring);
     }
 
@@ -514,12 +467,15 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
 
     if (!itsExteriorLines.empty() && !itsInteriorLines.empty())
     {
-      std::move(itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
+      std::move(
+          itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
       itsInteriorLines.clear();
     }
 
-    connectLines(itsExteriorRings, itsExteriorLines, theMaximumSegmentLength, itsKeepInsideFlag, true);
-    connectLines(itsInteriorRings, itsInteriorLines, theMaximumSegmentLength, itsKeepInsideFlag, false);
+    connectLines(
+        itsExteriorRings, itsExteriorLines, theMaximumSegmentLength, itsKeepInsideFlag, true);
+    connectLines(
+        itsInteriorRings, itsInteriorLines, theMaximumSegmentLength, itsKeepInsideFlag, false);
 
     // Build polygons starting from the built exterior rings
 
@@ -538,8 +494,7 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
     {
       if (itsPolygons.size() == 0)
         ;
-      else
-      if (itsPolygons.size() == 1)
+      else if (itsPolygons.size() == 1)
         itsPolygons.front()->addRingDirectly(hole);
       else
       {
@@ -558,17 +513,16 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
 
     // Merge all unjoinable lines to one list of lines
 
-    std::move(itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
+    std::move(
+        itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
 
     itsInteriorRings.clear();
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -591,7 +545,7 @@ void Fmi::ShapeClipper::reconnectWithoutShape()
 
     if (itsKeepInsideFlag && itsAddShapeFlag && itsExteriorLines.empty())
     {
-      //auto *ring = make_exterior(itsShape);
+      // auto *ring = make_exterior(itsShape);
       auto *ring = itsShape->makeRing(0);
       itsExteriorRings.push_back(ring);
     }
@@ -600,8 +554,8 @@ void Fmi::ShapeClipper::reconnectWithoutShape()
 
     if (!itsKeepInsideFlag && itsAddShapeFlag && !itsInteriorLines.empty())
     {
-      //auto *ring = make_hole(itsShape);
-      auto ring = itsShape->makeHole(0);
+      // auto *ring = make_hole(itsShape);
+      auto *ring = itsShape->makeHole(0);
       itsInteriorRings.push_back(ring);
     }
 
@@ -638,16 +592,16 @@ void Fmi::ShapeClipper::reconnectWithoutShape()
 
     // Merge all unjoinable lines to one list of lines
 
-    std::move(itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
+    std::move(
+        itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
 
     itsInteriorRings.clear();
     itsInteriorLines.clear();
   }
   catch (...)
   {
-    throw Fmi::Exception(BCP,"Operation failed!",nullptr);
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
-
-}
+}  // namespace Fmi

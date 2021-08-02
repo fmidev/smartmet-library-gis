@@ -28,7 +28,7 @@ class SpatialReference;
 class GeometryBuilder;
 class Shape;
 
-typedef std::shared_ptr<Shape> Shape_sptr;
+using Shape_sptr = std::shared_ptr<Shape>;
 
 namespace OGR
 {
@@ -55,14 +55,16 @@ OGRGeometry* lineclip(const OGRGeometry& theGeom, const Box& theBox);
 
 // Clip to rectangle, polygons are preserved. Optional maximum length for new edges along the box
 // boundaries.
-OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox, double maxSegmenLength = 0);
+OGRGeometry* polyclip(const OGRGeometry& theGeom,
+                      const Box& theBox,
+                      double theMaxSegmentLength = 0);
 
 // Cut rectangle out, polygons may break into polylines
 OGRGeometry* linecut(const OGRGeometry& theGeom, const Box& theBox);
 
 // Cut rectangle out, polygons are preserved. Optional maximum length for new edges along the box
 // boundaries.
-OGRGeometry* polycut(const OGRGeometry& theGeom, const Box& theBox, double maxSegmentLength = 0);
+OGRGeometry* polycut(const OGRGeometry& theGeom, const Box& theBox, double theMaxSegmentLength = 0);
 
 // Filter out small polygons
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);
@@ -109,18 +111,22 @@ OGRGeometry* createFromWkt(const std::string& wktString, unsigned int theEPSGNum
 
 OGRGeometry* lineclip(const OGRGeometry& theGeom, Shape_sptr& theShape);
 OGRGeometry* linecut(const OGRGeometry& theGeom, Shape_sptr& theShape);
-OGRGeometry* polycut(const OGRGeometry& theGeom, Shape_sptr& theShape, double maxSegmentLength = 0);
-OGRGeometry* polyclip(const OGRGeometry& theGeom, Shape_sptr& theShape, double maxSegmenLength = 0);
+OGRGeometry* polycut(const OGRGeometry& theGeom,
+                     Shape_sptr& theShape,
+                     double theMaxSegmentLength = 0);
+OGRGeometry* polyclip(const OGRGeometry& theGeom,
+                      Shape_sptr& theShape,
+                      double theMaxSegmentLength = 0);
 
 // Clipping and cutting results returned in the GeometryBuilder
 void polycut(GeometryBuilder& builder,
              const OGRGeometry& theGeom,
              Shape_sptr& theShape,
-             double theMaximumSegmentLength);
+             double theMaxSegmentLength);
 void polyclip(GeometryBuilder& builder,
               const OGRGeometry& theGeom,
               Shape_sptr& theShape,
-              double theMaximumSegmentLength);
+              double theMaxSegmentLength);
 
 }  // namespace OGR
 }  // namespace Fmi

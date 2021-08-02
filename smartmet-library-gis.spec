@@ -1,10 +1,11 @@
+%bcond_with tests
 %define DIRNAME gis
 %define LIBNAME smartmet-%{DIRNAME}
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.5.20
-Release: 3%{?dist}.fmi
+Version: 21.7.27
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -22,8 +23,12 @@ BuildRequires: gdal32-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
-BuildRequires: smartmet-library-macgyver-devel >= 21.5.20
+BuildRequires: smartmet-library-macgyver-devel >= 21.7.20
 BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
+%if %{with tests}
+BuildRequires: smartmet-library-regression
+BuildRequires: smartmet-test-data
+%endif
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
@@ -33,7 +38,7 @@ Requires: fmt >= 7.1.3
 Requires: gdal32-libs
 Requires: geos39
 Requires: postgis31_12
-Requires: smartmet-library-macgyver >= 21.5.20
+Requires: smartmet-library-macgyver >= 21.7.20
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -41,6 +46,7 @@ Requires: smartmet-library-macgyver >= 21.5.20
 #TestRequires: geos39-devel
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
+#TestRequires: smartmet-library-macgyver
 #TestRequires: smartmet-library-regression
 #TestRequires: smartmet-test-data
 
@@ -54,6 +60,9 @@ rm -rf $RPM_BUILD_ROOT
  
 %build
 make %{_smp_mflags}
+%if %{with tests}
+make test %{_smp_mflags} CI=Y
+%endif
 
 %install
 %makeinstall
@@ -74,7 +83,7 @@ Requires: boost169-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal32-devel
-Requires: smartmet-library-macgyver-devel >= 21.5.20
+Requires: smartmet-library-macgyver-devel >= 21.7.20
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -85,6 +94,21 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Jul 27 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.7.27-1.fmi
+- Silenced several CodeChecker warnings
+
+* Fri Jun 18 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.6.18-1.fmi
+- Fixed reconnectLines bug causing a segfault
+
+* Wed Jun 16 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.6.16-1.fmi
+- Use Fmi::Exception
+
+* Mon Jun  7 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.6.7-1.fmi
+- Fixed possible reference to freed memory
+
+* Mon May 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.24-1.fmi
+- Disabled incorrect tmerc interrupt geometry
+
 * Thu May 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.5.20-3.fmi
 - Fixed to shape clipping algorithm
 
