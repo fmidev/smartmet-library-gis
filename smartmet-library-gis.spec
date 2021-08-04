@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.7.27
+Version: 21.8.3
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -94,6 +94,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Aug  3 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.8.3-1.fmi
+- Preserve +type setting when parsing PROJ strings
+
 * Tue Jul 27 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.7.27-1.fmi
 - Silenced several CodeChecker warnings
 

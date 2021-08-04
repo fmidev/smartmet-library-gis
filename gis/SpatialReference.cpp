@@ -121,7 +121,16 @@ class SpatialReference::Impl
       {
         m_data = std::make_shared<ImplData>();
         m_data->crs = OGRSpatialReferenceFactory::Create(theCRS);
-        m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
+
+        try
+        {
+          // exportToProj may lose the original +type=crs setting, hence we try direct parsing first
+          m_data->projinfo = ProjInfo(theCRS);
+        }
+        catch (...)
+        {
+          m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
+        }
         m_data->hashvalue = Fmi::hash_value(m_data->projinfo.projStr());
         m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
         m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
