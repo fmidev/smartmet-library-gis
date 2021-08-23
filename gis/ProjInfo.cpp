@@ -20,7 +20,7 @@ namespace
 // can be both a double and a city name
 
 const std::set<std::string> g_str_keepers{
-    "proj", "datum", "ellps", "towgs84", "o_proj", "pm", "axis"};
+    "type", "proj", "datum", "ellps", "towgs84", "o_proj", "pm", "axis"};
 
 // Note: lon_0 must be stripped in newer PROJ versions
 
