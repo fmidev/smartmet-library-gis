@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <macgyver/Cache.h>
 
 class OGRSpatialReference;
 
@@ -52,6 +53,9 @@ class SpatialReference
 
   // Internal cache size
   static void setCacheSize(std::size_t newMaxSize);
+
+  // Get cache statistics
+  static const Cache::CacheStats& getCacheStats();
 
  private:
   class Impl;

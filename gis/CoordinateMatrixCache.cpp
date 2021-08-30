@@ -2,7 +2,6 @@
 
 #include "CoordinateMatrix.h"
 
-#include <macgyver/Cache.h>
 #include <macgyver/Exception.h>
 
 namespace Fmi
@@ -59,6 +58,11 @@ void SetCacheSize(std::size_t newMaxSize)
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+const Cache::CacheStats& getCacheStats()
+{
+  return g_coordinateMatrixCache.statistics();
 }
 
 }  // namespace CoordinateMatrixCache

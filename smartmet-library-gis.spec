@@ -23,7 +23,7 @@ BuildRequires: gdal32-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
-BuildRequires: smartmet-library-macgyver-devel >= 21.7.20
+BuildRequires: smartmet-library-macgyver-devel >= 21.7.30
 BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -38,7 +38,7 @@ Requires: fmt >= 7.1.3
 Requires: gdal32-libs
 Requires: geos39
 Requires: postgis31_12
-Requires: smartmet-library-macgyver >= 21.7.20
+Requires: smartmet-library-macgyver >= 21.7.30
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -94,6 +94,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Aug 30 2021 Anssi Reponen <anssi.reponen@fmi.fi> - 21.8.30-1.fmi
+- Cache counters added (BRAINSTORM-1005)
+
 * Tue Aug  3 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.8.3-1.fmi
 - Preserve +type setting when parsing PROJ strings
 
