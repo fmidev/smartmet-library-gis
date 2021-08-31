@@ -2,7 +2,6 @@
 #include "OGR.h"
 #include "ProjInfo.h"
 #include <fmt/format.h>
-#include <macgyver/Cache.h>
 #include <macgyver/Exception.h>
 #include <gdal_version.h>
 #include <ogr_geometry.h>
@@ -183,6 +182,11 @@ void SetCacheSize(std::size_t newMaxSize)
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+const Cache::CacheStats& getCacheStats()
+{
+  return g_spatialReferenceCache.statistics();
 }
 
 }  // namespace OGRSpatialReferenceFactory

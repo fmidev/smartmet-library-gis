@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <macgyver/Cache.h>
 
 namespace Fmi
 {
@@ -12,5 +13,8 @@ void Insert(std::size_t theHash, const std::shared_ptr<CoordinateMatrix>& theMat
 
 void SetCacheSize(std::size_t newMaxSize);
 
+// Get cache statistics
+const Cache::CacheStats& getCacheStats();
+ 
 }  // namespace CoordinateMatrixCache
 }  // namespace Fmi

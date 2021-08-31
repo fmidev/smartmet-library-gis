@@ -3,7 +3,6 @@
 #include "OGRSpatialReferenceFactory.h"
 #include "ProjInfo.h"
 #include <fmt/format.h>
-#include <macgyver/Cache.h>
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 
@@ -320,4 +319,17 @@ void SpatialReference::setCacheSize(std::size_t newMaxSize)
   }
 }
 
+const Cache::CacheStats& SpatialReference::getCacheStats()
+{
+  try
+    {
+      return g_ImplDataCache.statistics();
+    }
+  
+  catch (...)
+    {
+      throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    }     
+}
+  
 }  // namespace Fmi
