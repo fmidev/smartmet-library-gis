@@ -115,16 +115,10 @@ std::shared_ptr<OGRSpatialReference> make_crs(const std::string& theDesc)
     if (err != OGRERR_NONE)
     {
       if (theDesc == desc)
-      {
-        Fmi::Exception exception(BCP, "Failed to create spatial reference!");
-        exception.addParameter("theDesc", theDesc);
-        throw exception;
-      }
+        throw Fmi::Exception(BCP, "Failed to create spatial reference: " + theDesc);
 
-      Fmi::Exception exception(BCP, "Failed to create spatial reference!");
-      exception.addParameter("theDesc", theDesc);
-      exception.addParameter("desc", desc);
-      throw exception;
+      throw Fmi::Exception(BCP,
+                           "Failed to create spatial reference: " + theDesc + " (" + desc + ")");
     }
 
     // This is done here instead of SpatialReference constructors to make the modification
