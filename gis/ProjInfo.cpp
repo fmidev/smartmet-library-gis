@@ -5,7 +5,7 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
-
+#include <macgyver/StringConversion.h>
 #include <string>
 #include <vector>
 
@@ -76,19 +76,11 @@ ProjInfo::ProjInfo(const std::string& theProj) : itsProjStr(theProj)
 
         // Store value as double or string
 
-        try
-        {
-          std::size_t pos = 0;
-          auto value = std::stod(string_value, &pos);
-          if (pos == string_value.size())
-            itsDoubles[name] = value;
-          else
-            itsStrings[name] = string_value;
-        }
-        catch (...)
-        {
+        auto opt_value = Fmi::stod_opt(string_value);
+        if (opt_value)
+          itsDoubles[name] = *opt_value;
+        else
           itsStrings[name] = string_value;
-        }
       }
       else
         throw Fmi::Exception::Trace(
