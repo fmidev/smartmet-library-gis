@@ -1982,11 +1982,11 @@ class tests : public tframe::tests
   // Main test suite
   void test()
   {
-    TEST(expand_geometry);
+    TEST(exportToSvg_wiki_examples);
     TEST(exportToWkt_spatialreference);
     TEST(exportToSvg_precision);
-    TEST(exportToSvg_wiki_examples);
     TEST(exportToProj);
+    TEST(expand_geometry);
     TEST(lineclip);
     TEST(polyclip);
     TEST(polyclip_segmentation);

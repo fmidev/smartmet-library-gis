@@ -4,8 +4,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.9.13
-Release: 2%{?dist}.fmi
+Version: 21.9.23
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -23,6 +23,7 @@ BuildRequires: gdal32-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
+BuildRequires: double-conversion-devel
 BuildRequires: smartmet-library-macgyver-devel >= 21.9.13
 BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
 %if %{with tests}
@@ -35,6 +36,7 @@ Provides: %{LIBNAME}
 Requires: boost169-filesystem
 Requires: boost169-thread
 Requires: fmt >= 7.1.3
+Requires: double-conversion
 Requires: gdal32-libs
 Requires: geos39
 Requires: postgis31_12
