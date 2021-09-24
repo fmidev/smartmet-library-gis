@@ -27,6 +27,14 @@ void append_number(std::string &out, double num, const char * /* format */, int 
 {
   try
   {
+    // Fast special case for integer formatting
+    if (decimals <= 0)
+    {
+      fmt::format_int f(std::lround(num));
+      out.append(f.data(), f.size());  // avoids strlen
+      return;
+    }
+
     using namespace double_conversion;
 
     const int kBufferSize = 168;
@@ -41,22 +49,24 @@ void append_number(std::string &out, double num, const char * /* format */, int 
     DoubleToStringConverter dc(flags, "Infinity", "NaN", 'e', 0, 0, 0, 0);
 
     if (!dc.ToFixed(num, decimals, &builder))
+    {
       out.append("NaN");
+      return;
+    }
 
     // Remove trailing zeros and decimal point if possible. This can be removed
     // when NO_TRAILING_ZEROS becomes available.
 
-    auto n = builder.position();  // must be called before next row!
-    builder.Finalize();           // required to avoid asserts in debug mode
+    auto pos = builder.position();  // must be called before next row!
+    builder.Finalize();             // required to avoid asserts in debug mode
 
-    auto pos = n;
     while (pos > 0 && buffer[--pos] == '0')
     {
     }
-    if (buffer[pos] == ',' || buffer[pos] == '.')
-      n = pos;
+    if (buffer[pos] != ',' && buffer[pos] != '.')
+      ++pos;
 
-    out.append(buffer, n);
+    out.append(buffer, pos);
   }
   catch (...)
   {

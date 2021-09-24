@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.9.23
+Version: 21.9.24
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -96,6 +96,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri Sep 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.9.24-1.fmi
+- Fixed OGR::exportToSvg to properly handle failures and trailing zeros
+
 * Mon Sep 13 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.9.13-2.fmi
 - Repackaged due to Fmi::Cache statistics fixes
 
