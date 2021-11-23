@@ -19,12 +19,12 @@ BuildRequires: devtoolset-7-gcc-c++
 BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 7.1.3
 BuildRequires: gcc-c++
-BuildRequires: gdal32-devel
+BuildRequires: gdal33-devel
 BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
-BuildRequires: smartmet-library-macgyver-devel >= 21.9.13
+BuildRequires: smartmet-library-macgyver-devel >= 21.10.4
 BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -37,14 +37,14 @@ Requires: boost169-filesystem
 Requires: boost169-thread
 Requires: fmt >= 7.1.3
 Requires: double-conversion
-Requires: gdal32-libs
+Requires: gdal33-libs
 Requires: geos39
-Requires: postgis31_12
-Requires: smartmet-library-macgyver >= 21.9.13
+Requires: postgis31_13
+Requires: smartmet-library-macgyver >= 21.10.4
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
-#TestRequires: gdal32-devel
+#TestRequires: gdal33-devel
 #TestRequires: geos39-devel
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
@@ -84,8 +84,8 @@ Requires: geos39-devel
 Requires: boost169-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
-Requires: gdal32-devel
-Requires: smartmet-library-macgyver-devel >= 21.9.13
+Requires: gdal33-devel
+Requires: smartmet-library-macgyver-devel >= 21.10.4
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
