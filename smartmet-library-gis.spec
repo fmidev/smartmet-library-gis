@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.9.24
+Version: 21.11.30
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
