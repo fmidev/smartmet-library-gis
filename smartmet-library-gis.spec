@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.11.30
+Version: 21.12.01
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -24,7 +24,7 @@ BuildRequires: geos39-devel
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
-BuildRequires: smartmet-library-macgyver-devel >= 21.10.4
+BuildRequires: smartmet-library-macgyver-devel >= 21.12.1
 BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -40,7 +40,7 @@ Requires: double-conversion
 Requires: gdal33-libs
 Requires: geos39
 Requires: postgis31_13
-Requires: smartmet-library-macgyver >= 21.10.4
+Requires: smartmet-library-macgyver >= 21.12.1
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -59,7 +59,7 @@ FMI GIS library
 rm -rf $RPM_BUILD_ROOT
 
 %setup -q -n %{SPECNAME}
- 
+
 %build
 make %{_smp_mflags}
 %if %{with tests}
