@@ -6,7 +6,7 @@ CXX_STD=c++11
 
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
-FLAGS = -std=$(CXX_STD) -Wall -W -Wno-unused-parameter
+FLAGS += -std=$(CXX_STD) -Wall -W -Wno-unused-parameter
 
 ifeq ($(TSAN), yes)
   FLAGS += -fsanitize=thread
