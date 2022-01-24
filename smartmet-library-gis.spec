@@ -40,6 +40,7 @@ Requires: double-conversion
 Requires: gdal34-libs
 Requires: geos310
 Requires: postgis32_13
+Obsoletes: postgis31_13
 Requires: smartmet-library-macgyver >= 21.1.21
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
