@@ -24,8 +24,6 @@ class RectClipper
 
   void addBox();  // add box as exterior or interior depending on KeepInsideFlag
 
-  void add(OGRLineString *theLine, bool exterior);
-
   void addExterior(OGRLinearRing *theRing);
   void addExterior(OGRLineString *theLine);
 

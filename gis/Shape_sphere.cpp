@@ -641,9 +641,13 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
     }
 
     if (line->getNumPoints() > 0)
+    {
       theClipper.add(line, exterior);
+    }
     else
+    {
       delete line;
+    }
 
     return position;
   }
@@ -735,9 +739,13 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
     }
 
     if (line->getNumPoints() > 0)
+    {
       theClipper.add(line, exterior);
+    }
     else
+    {
       delete line;
+    }
 
     return position;
   }

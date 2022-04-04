@@ -277,20 +277,6 @@ void Fmi::RectClipper::addBox()
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Add intermediate polyline
- */
-// ----------------------------------------------------------------------
-
-void Fmi::RectClipper::add(OGRLineString *theLine, bool exterior)
-{
-  if (exterior)
-    addExterior(theLine);
-  else
-    addInterior(theLine);
-}
-
-// ----------------------------------------------------------------------
-/*!
  * \brief Add intermediate OGR Polygon
  */
 // ----------------------------------------------------------------------
