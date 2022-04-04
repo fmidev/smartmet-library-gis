@@ -143,8 +143,23 @@ void Fmi::ShapeClipper::reconnect()
 {
   try
   {
+    std::cout << "Exterior lines:\n";
+    for (auto *line : itsExteriorLines)
+      std::cout << OGR::exportToWkt(*line) << "\n";
+    std::cout << "Interior lines:\n";
+    for (auto *line : itsInteriorLines)
+      std::cout << OGR::exportToWkt(*line) << "\n";
+
     reconnectLines(itsExteriorLines, true);
     reconnectLines(itsInteriorLines, false);
+
+    std::cout << "\n\n\nAFTER:\n\n";
+    std::cout << "Exterior lines:\n";
+    for (auto *line : itsExteriorLines)
+      std::cout << OGR::exportToWkt(*line) << "\n";
+    std::cout << "Interior lines:\n";
+    for (auto *line : itsInteriorLines)
+      std::cout << OGR::exportToWkt(*line) << "\n";
   }
   catch (...)
   {

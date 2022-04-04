@@ -1,0 +1,27 @@
+#########################################################################
+# LINE IDENTIFIERS (first character on the line)
+#########################################################################
+#
+# T = Test identifier (number or string)
+# F = Functionality to test (LINECLIP,LINECUT,POLYCLIP,POLYCUT)
+# S = Shape definition (cutting/clipping shape)
+#         RECT,x1,y2,x2,y2[,precision] 
+#         CIRCLE,centerX,centerY,radius[,precision] 
+#         SPHERE,centerX,centerY,radius[,precision] 
+# I = Input WKT  (= geometry to clip/cut by the given shape)
+# O = Output WKT (= expected result)
+# 
+#########################################################################
+
+
+#########################################################################
+# Real world case with simplified GFS data
+#########################################################################
+
+T:1
+F:POLYCLIP
+S:RECT,0,0,6,4
+I:POLYGON ((2 3,1 3,1 6,5 6,5 1,2 1,2 3),(2 3,3 2,4 2,4 5,2 5,2 3))
+O:MULTIPOLYGON (((1 3,1 4,2 4,2 3,1 3)),((2 1,2 3,3 2,4 2,4 2,5 4,5 1,2 1)))
+
+
