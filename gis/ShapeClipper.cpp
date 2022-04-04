@@ -80,7 +80,7 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
     for (auto pos1 = lines.begin(); pos1 != lines.end();)
     {
       auto *line1 = *pos1;
-      const int n1 = line1->getNumPoints();
+      int n1 = line1->getNumPoints();
 
       if (n1 == 0)  // safety check
       {
@@ -104,6 +104,7 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
         // The lines are joinable
 
         line1->addSubLineString(line2, 1, n2 - 1);
+        n1 = line1->getNumPoints();
         delete line2;
         line2 = nullptr;
         pos2 = lines.erase(pos2);
@@ -122,9 +123,12 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
           else
             addInterior(ring);
           delete line1;
-          line1 = nullptr;
           pos1 = lines.erase(pos1);
+          if (pos1 == lines.end())
+            return;
+
           line1 = *pos1;
+          n1 = line1->getNumPoints();
           pos2 = lines.begin();  // safety measure
         }
       }
@@ -143,16 +147,19 @@ void Fmi::ShapeClipper::reconnect()
 {
   try
   {
+#if 0    
     std::cout << "Exterior lines:\n";
     for (auto *line : itsExteriorLines)
       std::cout << OGR::exportToWkt(*line) << "\n";
     std::cout << "Interior lines:\n";
     for (auto *line : itsInteriorLines)
       std::cout << OGR::exportToWkt(*line) << "\n";
+#endif
 
     reconnectLines(itsExteriorLines, true);
     reconnectLines(itsInteriorLines, false);
 
+#if 0    
     std::cout << "\n\n\nAFTER:\n\n";
     std::cout << "Exterior lines:\n";
     for (auto *line : itsExteriorLines)
@@ -160,6 +167,7 @@ void Fmi::ShapeClipper::reconnect()
     std::cout << "Interior lines:\n";
     for (auto *line : itsInteriorLines)
       std::cout << OGR::exportToWkt(*line) << "\n";
+#endif
   }
   catch (...)
   {
