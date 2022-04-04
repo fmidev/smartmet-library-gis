@@ -1,11 +1,64 @@
 #include "ShapeClipper.h"
 #include "GeometryBuilder.h"
 #include "OGR.h"
+#include <boost/math/constants/constants.hpp>
 #include <cassert>
 #include <iostream>
 
 namespace Fmi
 {
+namespace
+{
+double turn_angle(double angle1, double angle2)
+{
+  // max turn left > -180 and max turn right < 180
+  auto turn = fmod(angle1 - angle2, 360.0);
+  if (turn < -180)
+    turn += 360;
+  else if (turn > 180)
+    turn -= 360;
+  return turn;
+}
+
+using OGRLineStringList = std::list<OGRLineString *>;
+using OGRLineStringMatches = std::list<OGRLineStringList::iterator>;
+
+OGRLineStringList::iterator best_match(const OGRLineString &line1,
+                                       const OGRLineStringMatches &matches)
+{
+  auto pos2 = matches.front();
+
+  if (matches.size() > 1)  // only two matches should be possible though
+  {
+    using boost::math::double_constants::radian;
+    const auto n1 = line1.getNumPoints();
+    const auto dy1 = line1.getY(n1 - 1) - line1.getY(n1 - 2);
+    const auto dx1 = line1.getX(n1 - 1) - line1.getX(n1 - 2);
+    const auto angle1 = atan2(dy1, dx1) * radian;
+
+    // Choose rightmost turn to satisfy OGC rules
+    double best_turn = -999;
+    for (auto &p : matches)
+    {
+      auto *line = *p;
+      const auto dy = line->getY(1) - line->getY(0);
+      const auto dx = line->getX(1) - line->getX(0);
+      const auto angle2 = atan2(dy, dx) * radian;
+      const auto turn = turn_angle(angle1, angle2);
+
+      if (turn > best_turn)
+      {
+        best_turn = turn;
+        pos2 = p;
+      }
+    }
+  }
+
+  return pos2;
+}
+
+}  // namespace
+
 ShapeClipper::ShapeClipper(Shape_sptr &theShape, bool keep_inside)
 {
   try
@@ -80,57 +133,59 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
     for (auto pos1 = lines.begin(); pos1 != lines.end();)
     {
       auto *line1 = *pos1;
-      const int n1 = line1->getNumPoints();
+      int n1 = line1->getNumPoints();
 
-      if (n1 == 0)  // safety check
+      // Find matching continuations for line1, if any
+
+      OGRLineStringMatches matches;
+
+      for (auto pos2 = lines.begin(); pos2 != lines.end(); ++pos2)
+      {
+        auto *line2 = *pos2;
+        const int n2 = line2->getNumPoints();
+
+        // Find matching continuations
+        if (n1 != 0 && n2 != 0 && pos1 != pos2 && line1->getX(n1 - 1) == line2->getX(0) &&
+            line1->getY(n1 - 1) == line2->getY(0))
+        {
+          matches.push_back(pos2);
+        }
+      }
+
+      if (matches.empty())
       {
         ++pos1;
         continue;
       }
 
-      for (auto pos2 = lines.begin(); pos2 != lines.end();)
+      auto pos2 = best_match(*line1, matches);
+
+      // Join the best match at pos2 to line1
+      auto line2 = *pos2;
+      auto n2 = line2->getNumPoints();
+
+      line1->addSubLineString(line2, 1, n2 - 1);
+      delete line2;
+      lines.erase(pos2);
+
+      // The merge may have closed a linearring if the intersections
+      // have collapsed to a single point. This can happen if there is
+      // a tiny sliver polygon just outside the rectangle, and the
+      // intersection coordinates will be identical.
+
+      if (line1->get_IsClosed())
       {
-        auto *line2 = *pos2;
-        const int n2 = line2->getNumPoints();
-
-        // Continue if the ends do not match
-        if (line1 == nullptr || pos1 == pos2 || n2 == 0 || line1->getX(n1 - 1) != line2->getX(0) ||
-            line1->getY(n1 - 1) != line2->getY(0))
-        {
-          ++pos2;
-          continue;
-        }
-
-        // The lines are joinable
-
-        line1->addSubLineString(line2, 1, n2 - 1);
-        delete line2;
-        line2 = nullptr;
-        pos2 = lines.erase(pos2);
-
-        // The merge may have closed a linearring if the intersections
-        // have collapsed to a single point. This can happen if there is
-        // a tiny sliver polygon just outside the rectangle, and the
-        // intersection coordinates will be identical.
-
-        if (line1->get_IsClosed())
-        {
-          auto *ring = new OGRLinearRing;
-          ring->addSubLineString(line1, 0, -1);
-          if (exterior)
-            addExterior(ring);
-          else
-            addInterior(ring);
-          delete line1;
-          line1 = nullptr;
-          pos1 = lines.erase(pos1);
-          line1 = *pos1;
-          pos2 = lines.begin();  // safety measure
-        }
+        auto *ring = new OGRLinearRing;
+        ring->addSubLineString(line1, 0, -1);
+        if (exterior)
+          addExterior(ring);
+        else
+          addInterior(ring);
+        delete line1;
+        pos1 = lines.erase(pos1);
+        if (pos1 == lines.end())
+          return;
       }
-
-      if (pos1 != lines.end())
-        ++pos1;
     }
   }
   catch (...)
@@ -233,6 +288,20 @@ void Fmi::ShapeClipper::addShape()
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add a linestring
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::ShapeClipper::add(OGRLineString *theLine, bool exterior)
+{
+  if (exterior)
+    addExterior(theLine);
+  else
+    addInterior(theLine);
 }
 
 // ----------------------------------------------------------------------

@@ -24,7 +24,8 @@ enum class Handedness
   Invalid,
   NotConvex,
   Huge,
-  Oblong
+  Oblong,
+  Pole,
 };
 
 // ----------------------------------------------------------------------
@@ -42,8 +43,15 @@ enum class Handedness
  */
 // ----------------------------------------------------------------------
 
-Handedness analyze_cell(
-    double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4)
+Handedness analyze_cell(bool wraparound,
+                        double x1,
+                        double y1,
+                        double x2,
+                        double y2,
+                        double x3,
+                        double y3,
+                        double x4,
+                        double y4)
 {
   try
   {
@@ -52,9 +60,16 @@ Handedness analyze_cell(
         std::isnan(y3) || std::isnan(x4) || std::isnan(y4))
       return Handedness::Invalid;
 
+    // Disallow highly triangular cells near the poles
+    const auto dx1 = std::abs(x4 - x1);
+    const auto dx2 = std::abs(x3 - x2);
+
+    if (dx2 > dx1 * 1000 || dx1 > dx2 * 1000)
+      return Handedness::Pole;
+
     // Check for oblong cells which typically occur at projection discontinuities. One could
     // use the Polsby-Popper test here, but calculating the edge lengths in addition to the
-    // areas below would be slower tahn simply testing the cell bbox
+    // areas below would be slower than simply testing the cell bbox
 
     const auto xmin = std::min(std::min(x1, x2), std::min(x3, x4));
     const auto xmax = std::max(std::max(x1, x2), std::max(x3, x4));
@@ -69,13 +84,16 @@ Handedness analyze_cell(
       return Handedness::Invalid;
 
     // Huge cell? (most likely due to projection instabilities)
-    if (dx >= cell_size_limit || dy >= cell_size_limit)
-      return Handedness::Huge;
+    if (!wraparound)
+    {
+      if (dx >= cell_size_limit || dy >= cell_size_limit)
+        return Handedness::Huge;
 
-    const auto ratio = dy / dx;
+      const auto ratio = dy / dx;
 
-    if (ratio < 0.01 || ratio > 100)
-      return Handedness::Oblong;
+      if (ratio < 0.01 || ratio > 100)
+        return Handedness::Oblong;
+    }
 
     // Check for convexness and orientation
 
@@ -85,10 +103,18 @@ Handedness analyze_cell(
     const auto area4 = (x1 - x4) * (y2 - y1) - (y1 - y4) * (x2 - x1);
 
     if (area1 <= 0 && area2 <= 0 && area3 <= 0 && area4 <= 0)
-      return Handedness::ClockwiseConvex;
+    {
+      if (!wraparound)
+        return Handedness::ClockwiseConvex;
+      return Handedness::CounterClockwiseConvex;
+    }
 
     if (area1 >= 0 && area2 >= 0 && area3 >= 0 && area4 >= 0)
-      return Handedness::CounterClockwiseConvex;
+    {
+      if (!wraparound)
+        return Handedness::CounterClockwiseConvex;
+      return Handedness::ClockwiseConvex;
+    }
 
     return Handedness::NotConvex;
   }
@@ -98,12 +124,64 @@ Handedness analyze_cell(
   }
 }
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief Detect wraparound shift for global data
+ */
+// ----------------------------------------------------------------------
+
+std::size_t detect_shift(const CoordinateMatrix& coords)
+{
+  // We use the center latitude since coordinates may be distorted on the
+  // first and last lines due to PROJ.x producing identical coordinates
+  // for the poles
+
+  const auto j = coords.height() / 2;
+
+  // Now look for a possible wraparond on the row
+
+  const auto nx = coords.width();
+
+  // First calculate distances between adjacent vertices
+  std::vector<double> distances;
+  distances.reserve(nx);
+
+  for (auto i = 0UL; i < nx - 1; i++)
+  {
+    auto dist =
+        std::hypot(coords.x(i, j) - coords.x(i + 1, j), coords.y(i, j) - coords.y(i + 1, j));
+    distances.push_back(dist);
+  }
+
+  // Maximum distance and its position
+  auto maxpos = std::max_element(distances.begin(), distances.end());
+  auto maxdist = *maxpos;
+  std::size_t shift = std::distance(distances.begin(), maxpos);
+
+  if (maxdist == 0 || shift == 0)  // safety checks
+    return 0UL;
+
+  for (auto i = 0UL; i < distances.size(); i++)
+  {
+    if (i != shift)
+    {
+      // discard the found max shift if it is not huge in comparison to other distances
+      if (distances[i] / maxdist > 0.01)
+        return 0UL;
+    }
+  }
+
+  return shift + 1;
+}
+
 }  // namespace
 
 CoordinateAnalysis analysis(const CoordinateMatrix& coords)
 {
   try
   {
+    auto shift = detect_shift(coords);
+
     const auto nx = coords.width();
     const auto ny = coords.height();
 
@@ -114,18 +192,12 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
     std::size_t ccw = 0;
     std::size_t bad = 0;
 
-#if 0
-    std::size_t huge = 0;
-    std::size_t oblong = 0;
-    std::size_t notconvex = 0;
-#endif
-
-    // Go through the coordinates once
-
     for (std::size_t j = 0; j < ny - 1; j++)
       for (std::size_t i = 0; i < nx - 1; i++)
       {
-        auto hand = analyze_cell(coords.x(i, j),
+        bool wraparound = (i + 1 == shift);
+        auto hand = analyze_cell(wraparound,
+                                 coords.x(i, j),
                                  coords.y(i, j),
                                  coords.x(i, j + 1),
                                  coords.y(i, j + 1),
@@ -148,14 +220,6 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
         {
           valid.set(i, j, false);
           ++bad;
-#if 0
-          if (hand == Handedness::Huge)
-            ++huge;
-          else if (hand == Handedness::Oblong)
-            ++oblong;
-          else if (hand == Handedness::NotConvex)
-            ++notconvex;
-#endif
         }
       }
 
@@ -163,7 +227,7 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
 
     bool needs_flipping = (ccw > 2 * cw);
 
-    return CoordinateAnalysis{valid, clockwise, needs_flipping};
+    return CoordinateAnalysis{valid, clockwise, needs_flipping, shift};
   }
   catch (...)
   {

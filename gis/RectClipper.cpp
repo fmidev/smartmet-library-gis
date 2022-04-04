@@ -139,7 +139,9 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
         // The lines are joinable
 
         line1->addSubLineString(line2, 1, n2 - 1);
+        n1 = line1->getNumPoints();
         delete line2;
+        line2 = nullptr;
         pos2 = lines.erase(pos2);
 
         // The merge may have closed a linearring if the intersections
