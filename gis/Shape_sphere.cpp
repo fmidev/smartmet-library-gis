@@ -617,10 +617,7 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
         case 3:  // The first point is outside, the second point is inside
           getLatLonCoordinates(pX1, pY1, pX1, pY1);
           line->addPoint(pX1, pY1);
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
 
           line = new OGRLineString();
           break;
@@ -629,10 +626,7 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
           position |= Position::Outside | Position::Inside;
           getLatLonCoordinates(pX1, pY1, pX1, pY1);
           line->addPoint(pX1, pY1);
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
 
           line = new OGRLineString();
           getLatLonCoordinates(pX2, pY2, pX2, pY2);
@@ -648,10 +642,7 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
 
     if (line->getNumPoints() > 0)
     {
-      if (exterior)
-        theClipper.addExterior(line);
-      else
-        theClipper.addInterior(line);
+      theClipper.add(line, exterior);
     }
     else
     {
@@ -720,10 +711,7 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
         case 2:  // The first point is inside, the second point is outside
           getLatLonCoordinates(pX1, pY1, pX1, pY1);
           line->addPoint(pX1, pY1);
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
           line = new OGRLineString();
           break;
 
@@ -741,10 +729,7 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
           getLatLonCoordinates(pX2, pY2, pX2, pY2);
           line->addPoint(pX1, pY1);
           line->addPoint(pX2, pY2);
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
           line = new OGRLineString();
           break;
       }
@@ -755,10 +740,7 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
 
     if (line->getNumPoints() > 0)
     {
-      if (exterior)
-        theClipper.addExterior(line);
-      else
-        theClipper.addInterior(line);
+      theClipper.add(line, exterior);
     }
     else
     {

@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 21.9.24
+Version: 22.4.4
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -19,12 +19,12 @@ BuildRequires: devtoolset-7-gcc-c++
 BuildRequires: boost169-devel
 BuildRequires: fmt-devel >= 7.1.3
 BuildRequires: gcc-c++
-BuildRequires: gdal32-devel
-BuildRequires: geos39-devel
+BuildRequires: gdal34-devel
+BuildRequires: geos310-devel
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
-BuildRequires: smartmet-library-macgyver-devel >= 21.9.13
+BuildRequires: smartmet-library-macgyver-devel >= 21.1.21
 BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -37,15 +37,16 @@ Requires: boost169-filesystem
 Requires: boost169-thread
 Requires: fmt >= 7.1.3
 Requires: double-conversion
-Requires: gdal32-libs
-Requires: geos39
-Requires: postgis31_12
-Requires: smartmet-library-macgyver >= 21.9.13
+Requires: gdal34-libs
+Requires: geos310
+Requires: postgis32_13
+Obsoletes: postgis31_13
+Requires: smartmet-library-macgyver >= 21.1.21
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
-#TestRequires: gdal32-devel
-#TestRequires: geos39-devel
+#TestRequires: gdal34-devel
+#TestRequires: geos310-devel
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
 #TestRequires: smartmet-library-macgyver
@@ -59,7 +60,7 @@ FMI GIS library
 rm -rf $RPM_BUILD_ROOT
 
 %setup -q -n %{SPECNAME}
- 
+
 %build
 make %{_smp_mflags}
 %if %{with tests}
@@ -80,12 +81,12 @@ rm -rf $RPM_BUILD_ROOT
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
 Requires: %{SPECNAME} = %{version}-%{release}
-Requires: geos39-devel
+Requires: geos310-devel
 Requires: boost169-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
-Requires: gdal32-devel
-Requires: smartmet-library-macgyver-devel >= 21.9.13
+Requires: gdal34-devel
+Requires: smartmet-library-macgyver-devel >= 21.1.21
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -96,6 +97,18 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Apr  4 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.4.4-1.fmi
+- Bug fix to clipping polygons with holes touching the exterior
+
+* Mon Jan 24 2022 Andris Pavēnis <andris.pavenis@fmi.fi> 22.1.24-1.fmi
+- Obsolete postgis31_13 to avoid conflict with required postgis32_13
+
+* Fri Jan 21 2022 Andris Pavēnis <andris.pavenis@fmi.fi> 22.1.21-1.fmi
+- Repackage due to upgrade of packages from PGDG repo: gdal-3.4, geos-3.10, proj-8.2
+
+* Tue Dec  7 2021 Andris Pavēnis <andris.pavenis@fmi.fi> 21.12.7-1.fmi
+- Update to postgresql 13 and gdal 3.3
+
 * Fri Sep 24 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.9.24-1.fmi
 - Fixed OGR::exportToSvg to properly handle failures and trailing zeros
 
