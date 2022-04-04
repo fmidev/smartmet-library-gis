@@ -135,10 +135,7 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
             auto *line = new OGRLineString;
             line->addPoint(x0, y0);
             line->addPoint(x, y);
-            if (exterior)
-              theClipper.addExterior(line);
-            else
-              theClipper.addInterior(line);
+            theClipper.add(line, exterior);
           }
 
           // Continue main loop outside the rect
@@ -153,10 +150,7 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
             auto *line = new OGRLineString;
             line->addPoint(x0, y0);
             line->addPoint(x, y);
-            if (exterior)
-              theClipper.addExterior(line);
-            else
-              theClipper.addInterior(line);
+            theClipper.add(line, exterior);
           }
         }
       }
@@ -209,10 +203,7 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
               line->addPoint(x0, y0);
             add_start = false;
             line->addSubLineString(&g, start_index, i);
-            if (exterior)
-              theClipper.addExterior(line);
-            else
-              theClipper.addInterior(line);
+            theClipper.add(line, exterior);
 
             start_index = i;  // potentially going in again at this point
             break;            // going to the edge loop
@@ -233,10 +224,7 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
             add_start = false;
           }
           line->addSubLineString(&g, start_index, i - 1);
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
         }
       }
 
@@ -393,10 +381,7 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
             if (add_start)
               line->addPoint(start_x, start_y);
             line->addSubLineString(&g, start_index, n - 1);
-            if (exterior)
-              theClipper.addExterior(line);
-            else
-              theClipper.addInterior(line);
+            theClipper.add(line, exterior);
           }
           return position;
         }
@@ -438,10 +423,7 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
           add_start = false;
           line->addSubLineString(&g, start_index, i - 1);
           line->addPoint(x0, y0);
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
           // Main loop will enter the Inside/Edge section
         }
         else if (pos == Position::Outside)  // out-out
@@ -464,10 +446,7 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
               line->addPoint(start_x, start_y);
             line->addSubLineString(&g, start_index, i - 1);
             line->addPoint(x0, y0);
-            if (exterior)
-              theClipper.addExterior(line);
-            else
-              theClipper.addInterior(line);
+            theClipper.add(line, exterior);
 
             position |= Position::Inside;  // mark we visited inside
 
@@ -489,10 +468,7 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
           line->addPoint(x0, y0);
           if (x != g.getX(i) || y != g.getY(i))
             position |= Position::Inside;
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
 
           add_start = false;
         }
@@ -592,10 +568,7 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
 
       line->addPoint(start_x, start_y);
       line->addSubLineString(&g, start_index, n - 1);
-      if (exterior)
-        theClipper.addExterior(line);
-      else
-        theClipper.addInterior(line);
+      theClipper.add(line, exterior);
     }
 
     return position;

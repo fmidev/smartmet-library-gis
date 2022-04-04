@@ -456,10 +456,7 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
             auto *line = new OGRLineString;
             line->addPoint(x0, y0);
             line->addPoint(x, y);
-            if (exterior)
-              theRect.addExterior(line);
-            else
-              theRect.addInterior(line);
+            theRect.add(line, exterior);
           }
 
           // Continue main loop outside the rect
@@ -474,10 +471,7 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
             auto *line = new OGRLineString;
             line->addPoint(x0, y0);
             line->addPoint(x, y);
-            if (exterior)
-              theRect.addExterior(line);
-            else
-              theRect.addInterior(line);
+            theRect.add(line, exterior);
           }
         }
       }
@@ -538,10 +532,7 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
               line->addPoint(x0, y0);
             add_start = false;
             line->addSubLineString(&g, start_index, i);
-            if (exterior)
-              theRect.addExterior(line);
-            else
-              theRect.addInterior(line);
+            theRect.add(line, exterior);
 
             start_index = i;  // potentially going in again at this point
             break;            // going to the edge loop
@@ -562,10 +553,7 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
             add_start = false;
           }
           line->addSubLineString(&g, start_index, i - 1);
-          if (exterior)
-            theRect.addExterior(line);
-          else
-            theRect.addInterior(line);
+          theRect.add(line, exterior);
         }
       }
 
@@ -728,10 +716,7 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
             if (add_start)
               line->addPoint(start_x, start_y);
             line->addSubLineString(&g, start_index, n - 1);
-            if (exterior)
-              theRect.addExterior(line);
-            else
-              theRect.addInterior(line);
+            theRect.add(line, exterior);
           }
           return position;
         }
@@ -773,10 +758,7 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
           add_start = false;
           line->addSubLineString(&g, start_index, i - 1);
           line->addPoint(x0, y0);
-          if (exterior)
-            theRect.addExterior(line);
-          else
-            theRect.addInterior(line);
+          theRect.add(line, exterior);
           // Main loop will enter the Inside/Edge section
         }
         else if (pos == Box::Outside)  // out-out
@@ -799,10 +781,7 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
               line->addPoint(start_x, start_y);
             line->addSubLineString(&g, start_index, i - 1);
             line->addPoint(x0, y0);
-            if (exterior)
-              theRect.addExterior(line);
-            else
-              theRect.addInterior(line);
+            theRect.add(line, exterior);
 
             position |= Box::Inside;  // mark we visited inside
 
@@ -824,10 +803,7 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
           line->addPoint(x0, y0);
           if (x != g.getX(i) || y != g.getY(i))
             position |= Box::Inside;
-          if (exterior)
-            theRect.addExterior(line);
-          else
-            theRect.addInterior(line);
+          theRect.add(line, exterior);
 
           add_start = false;
         }
@@ -927,10 +903,7 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
 
       line->addPoint(start_x, start_y);
       line->addSubLineString(&g, start_index, n - 1);
-      if (exterior)
-        theRect.addExterior(line);
-      else
-        theRect.addInterior(line);
+      theRect.add(line, exterior);
     }
 
     return position;

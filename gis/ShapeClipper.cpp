@@ -260,6 +260,20 @@ void Fmi::ShapeClipper::addShape()
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Add a linestring
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::ShapeClipper::add(OGRLineString *theLine, bool exterior)
+{
+  if (exterior)
+    addExterior(theLine);
+  else
+    addInterior(theLine);
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Add intermediate OGR Polygon
  */
 // ----------------------------------------------------------------------

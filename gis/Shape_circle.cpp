@@ -499,10 +499,7 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
 
         case 3:  // The first point is outside, the second point is inside
           line->addPoint(pX1, pY1);
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
 
           line = new OGRLineString();
           break;
@@ -510,10 +507,7 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
         case 4:  // Both end point are outside, but the line intersects with the circle
           position |= Position::Outside | Position::Inside;
           line->addPoint(pX1, pY1);
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
 
           line = new OGRLineString();
           line->addPoint(pX2, pY2);
@@ -528,16 +522,9 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
     }
 
     if (line->getNumPoints() > 0)
-    {
-      if (exterior)
-        theClipper.addExterior(line);
-      else
-        theClipper.addInterior(line);
-    }
+      theClipper.add(line, exterior);
     else
-    {
       delete line;
-    }
 
     return position;
   }
@@ -593,10 +580,7 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
 
         case 2:  // The first point is inside, the second point is outside
           line->addPoint(pX1, pY1);
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
           line = new OGRLineString();
           break;
 
@@ -611,10 +595,7 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
           position |= Position::Outside | Position::Inside;
           line->addPoint(pX1, pY1);
           line->addPoint(pX2, pY2);
-          if (exterior)
-            theClipper.addExterior(line);
-          else
-            theClipper.addInterior(line);
+          theClipper.add(line, exterior);
           line = new OGRLineString();
           break;
       }
@@ -625,16 +606,9 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
     }
 
     if (line->getNumPoints() > 0)
-    {
-      if (exterior)
-        theClipper.addExterior(line);
-      else
-        theClipper.addInterior(line);
-    }
+      theClipper.add(line, exterior);
     else
-    {
       delete line;
-    }
 
     return position;
   }
