@@ -237,9 +237,20 @@ class tests : public tframe::tests
                 out << "Test " << testId << " : ";
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
-                out << "\tReason   : "
-                    << "Failed to parse input\n";
+                out << "\tReason   : Failed to parse input\n";
                 out << "\tInput    : " << inWkt << "\n";
+              }
+
+              if (!input->IsValid())
+              {
+                fail++;
+                out << "Test " << testId << " : ";
+                out << "*** FAILED ***\n";
+                out << "\tFile     : " << filename << " (" << line << ")\n";
+                out << "\tReason   : Input is not a valid geometry\n";
+                out << "\tInput    : " << inWkt << "\n";
+                OGRGeometryFactory::destroyGeometry(input);
+                input = nullptr;
               }
             }
             catch (...)
