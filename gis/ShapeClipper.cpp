@@ -1,9 +1,12 @@
 #include "ShapeClipper.h"
 #include "GeometryBuilder.h"
 #include "OGR.h"
+#include <boost/functional/hash.hpp>
 #include <boost/math/constants/constants.hpp>
 #include <cassert>
 #include <iostream>
+#include <unordered_map>
+#include <utility>
 
 namespace Fmi
 {
@@ -55,6 +58,67 @@ OGRLineStringList::iterator best_match(const OGRLineString &line1,
   }
 
   return pos2;
+}
+
+// Code for detecting holes touching each other or the exterior shell
+
+using Vertex = std::pair<double, double>;
+using VertexCounts = std::unordered_map<Vertex, int, boost::hash<Vertex>>;
+
+void add_vertex_counts(VertexCounts &counts, const OGRLineStringList &lines)
+{
+  for (auto *line : lines)
+  {
+    const auto n = line->getNumPoints();
+    for (auto i = 1; i < n - 1; i++)
+    {
+      Vertex vertex(line->getX(i), line->getY(i));
+      ++counts[vertex];
+    }
+  }
+}
+
+void remove_singles(VertexCounts &counts)
+{
+  VertexCounts duplicates;
+  for (auto &vertex_count : counts)
+    if (vertex_count.second > 1)
+      duplicates.insert(vertex_count);
+  std::swap(counts, duplicates);
+}
+
+void split_touches(const VertexCounts &counts, OGRLineStringList &lines)
+{
+  // Avoid traversal if there are no touches
+  if (counts.empty())
+    return;
+
+  OGRLineStringList new_lines;
+  for (auto *line : lines)
+  {
+    const auto n = line->getNumPoints();
+    for (auto i = 1; i < n - 1; i++)
+    {
+      Vertex vertex(line->getX(i), line->getY(i));
+      if (counts.find(vertex) != counts.end())
+      {
+        // Extract from start of line to this point
+        auto *new_line = new OGRLineString;
+        new_line->addSubLineString(line, 0, i);
+        new_lines.push_back(new_line);
+
+        // Extract from this point to end of the line
+        new_line = new OGRLineString;
+        new_line->addSubLineString(line, i, -1);
+        delete line;
+        line = new_line;
+      }
+    }
+    // Output the remaining line (or all of it if no split occurred)
+    new_lines.push_back(line);
+  }
+
+  std::swap(lines, new_lines);
 }
 
 }  // namespace
@@ -198,6 +262,17 @@ void Fmi::ShapeClipper::reconnect()
 {
   try
   {
+    // Count how many times points between the end points occur (holes touching the exterior or
+    // other holes)
+    VertexCounts counts;
+    add_vertex_counts(counts, itsExteriorLines);
+    add_vertex_counts(counts, itsInteriorLines);
+    // And split the lines at points with count > 1 for doing correct reconnections
+    remove_singles(counts);
+    split_touches(counts, itsExteriorLines);
+    split_touches(counts, itsInteriorLines);
+
+    // Then reconnect the lines obeying OGC rules (always turn right)
     reconnectLines(itsExteriorLines, true);
     reconnectLines(itsInteriorLines, false);
   }
