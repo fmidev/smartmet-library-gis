@@ -285,6 +285,8 @@ class tests : public tframe::tests
               string ret;
               if (output)
               {
+                bool valid = output->IsValid();
+
                 if (precision >= 0)
                   ret = exportToWkt(*output, precision);
                 else
@@ -292,7 +294,7 @@ class tests : public tframe::tests
 
                 OGRGeometryFactory::destroyGeometry(output);
 
-                if (ret != outWkt)
+                if (ret != outWkt || !valid)
                 {
                   fail++;
                   out << "Test " << testId << " : ";
@@ -301,6 +303,8 @@ class tests : public tframe::tests
                   out << "\tInput    : " << inWkt << "\n";
                   out << "\tExpected : " << outWkt << "\n";
                   out << "\tGot      : " << ret << "\n";
+                  if (!valid)
+                    out << "\tReason   : output is not a valid geometry\n";
                 }
                 else
                 {
@@ -321,7 +325,7 @@ class tests : public tframe::tests
 
   // Main test suite
   void test() { ogr_tests(); }
-};  // class tests
+};  // namespace Tests
 
 }  // namespace Tests
 
