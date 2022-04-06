@@ -262,19 +262,52 @@ void Fmi::ShapeClipper::reconnect()
 {
   try
   {
-    // Count how many times points between the end points occur (holes touching the exterior or
-    // other holes)
-    VertexCounts counts;
-    add_vertex_counts(counts, itsExteriorLines);
-    add_vertex_counts(counts, itsInteriorLines);
-    // And split the lines at points with count > 1 for doing correct reconnections
-    remove_singles(counts);
-    split_touches(counts, itsExteriorLines);
-    split_touches(counts, itsInteriorLines);
+#if 0    
+    std::cout << "Before:\n";
+    for (auto *line : itsExteriorLines)
+      std::cout << "ext: " << OGR::exportToWkt(*line) << "\n";
+    for (auto *line : itsInteriorLines)
+      std::cout << "int: " << OGR::exportToWkt(*line) << "\n";
+#endif
+
+    // Skip counting internal vertices if there is only one line for better speed
+    const auto nlines = itsExteriorLines.size() + itsInteriorLines.size();
+    if (nlines > 1)
+    {
+      // Count how many times points between the end points occur (holes touching the exterior or
+      // other holes)
+      VertexCounts counts;
+      add_vertex_counts(counts, itsExteriorLines);
+      add_vertex_counts(counts, itsInteriorLines);
+
+      // Remove single occurrances for hopefully improved speed during the next stages.
+      // The usefulness of this has not been profiled, and is just a guesstimate.
+      remove_singles(counts);
+
+      // And split the lines at points with count > 1 for doing correct reconnections
+      split_touches(counts, itsExteriorLines);
+      split_touches(counts, itsInteriorLines);
+    }
+
+#if 0    
+    std::cout << "\nMiddle:\n";
+    for (auto *line : itsExteriorLines)
+      std::cout << "ext: " << OGR::exportToWkt(*line) << "\n";
+    for (auto *line : itsInteriorLines)
+      std::cout << "int: " << OGR::exportToWkt(*line) << "\n";
+#endif
 
     // Then reconnect the lines obeying OGC rules (always turn right)
     reconnectLines(itsExteriorLines, true);
     reconnectLines(itsInteriorLines, false);
+
+#if 0    
+    std::cout << "\nAfter:\n";
+    for (auto *line : itsExteriorLines)
+      std::cout << "ext: " << OGR::exportToWkt(*line) << "\n";
+    for (auto *line : itsInteriorLines)
+      std::cout << "int: " << OGR::exportToWkt(*line) << "\n";
+#endif
   }
   catch (...)
   {
@@ -678,14 +711,6 @@ void Fmi::ShapeClipper::reconnectWithoutShape()
   try
   {
     // Make exterior circle if necessary
-
-    /*
-    std::cout << itsExteriorRings.size() << "\n";
-    std::cout << itsExteriorLines.size() << "\n";
-
-    std::cout << itsInteriorRings.size() << "\n";
-    std::cout << itsInteriorLines.size() << "\n";
-     */
 
     if (itsKeepInsideFlag && itsAddShapeFlag && itsExteriorLines.empty())
     {
