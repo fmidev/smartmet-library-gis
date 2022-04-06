@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 22.4.4
+Version: 22.4.6
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -97,7 +97,7 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
-* Mon Apr  4 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.4.4-1.fmi
+* Wed Apr  6 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.4.6-1.fmi
 - Bug fix to clipping polygons with holes touching the exterior
 
 * Mon Jan 24 2022 Andris Pavēnis <andris.pavenis@fmi.fi> 22.1.24-1.fmi
