@@ -86,8 +86,8 @@ T:8
 F:LINECLIP
 S:CIRCLE,0,0,5,3
 I:LINESTRING (-5 0,-6 4 ,-9 2)
-O:LINESTRING (-5 0,-5 0)
-# ***** The result is a point (not a line). Should this be empty?
+O:GEOMETRYCOLLECTION EMPTY
+# ***** The result is a point (not a line)
 
 #########################################################################
 
@@ -222,7 +222,7 @@ O:LINESTRING (-5 0,5 0)
 T:23
 F:LINECLIP
 S:CIRCLE,0,0,5,3
-I:POLYGON ((-5 -5,-5 5,5 5,-5 5,-5 5))
+I:POLYGON ((-5 -5,-5 5,5 5,5 -5,-5 -5))
 O:GEOMETRYCOLLECTION EMPTY
 
 #########################################################################
