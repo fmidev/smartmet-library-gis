@@ -21,6 +21,8 @@ class BoolMatrix
 
   void swap(BoolMatrix& other);
 
+  std::size_t hashValue() const;
+
  private:
   std::size_t m_w = 0;
   std::size_t m_h = 0;
