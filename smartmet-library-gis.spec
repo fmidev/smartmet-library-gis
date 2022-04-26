@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 22.4.6
+Version: 22.4.26
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -24,7 +24,7 @@ BuildRequires: geos310-devel
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
-BuildRequires: smartmet-library-macgyver-devel >= 21.1.21
+BuildRequires: smartmet-library-macgyver-devel >= 22.3.28
 BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -41,7 +41,7 @@ Requires: gdal34-libs
 Requires: geos310
 Requires: postgis32_13
 Obsoletes: postgis31_13
-Requires: smartmet-library-macgyver >= 21.1.21
+Requires: smartmet-library-macgyver >= 22.3.28
 #TestRequires: boost169-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -86,7 +86,7 @@ Requires: boost169-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal34-devel
-Requires: smartmet-library-macgyver-devel >= 21.1.21
+Requires: smartmet-library-macgyver-devel >= 22.3.28
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -97,6 +97,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Apr 26 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.4.26-1.fmi
+- Fixes to clipping/cutting geometries with a shape
+- Added BoolMatrix::hashValue for caching purposes
+
 * Wed Apr  6 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.4.6-1.fmi
 - Bug fix to clipping polygons with holes touching the exterior
 
