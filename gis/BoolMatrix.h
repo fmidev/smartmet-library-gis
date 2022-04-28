@@ -1,5 +1,5 @@
 #pragma once
-#include <vector>
+#include <boost/dynamic_bitset.hpp>
 
 namespace Fmi
 {
@@ -26,7 +26,7 @@ class BoolMatrix
  private:
   std::size_t m_w = 0;
   std::size_t m_h = 0;
-  std::vector<bool> m_data;
+  boost::dynamic_bitset<> m_data;
 
 };  // class Matrix
 }  // namespace Fmi

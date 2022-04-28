@@ -22,20 +22,16 @@ std::size_t BoolMatrix::hashValue() const
 {
   std::size_t hash = 0;
   std::uint64_t bits = 0;
-  int count = 0;
-  for (auto flag : m_data)
+  const auto n = m_w * m_h;
+  for (auto i = 0UL; i < n; i++)
   {
-    bits = (bits << 1) | flag;
-    if (++count == 64)
+    bits = (bits << 1) | m_data[i];
+    if ((i & 63) == 0 || (i == n - 1))
     {
       Fmi::hash_combine(hash, Fmi::hash_value(bits));
       bits = 0;
-      count = 0;
     }
   }
-
-  if (count > 0)
-    Fmi::hash_combine(hash, Fmi::hash_value(bits));
 
   return hash;
 }
