@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
@@ -46,6 +47,8 @@ class BoolMatrix
   void swap(BoolMatrix& other);
 
   std::size_t hashValue() const;
+
+  std::array<std::size_t, 4> bbox() const;
 
  private:
   std::size_t m_w = 0;

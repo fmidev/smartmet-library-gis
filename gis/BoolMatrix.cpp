@@ -94,4 +94,53 @@ std::size_t BoolMatrix::hashValue() const
   return hash;
 }
 
+std::array<std::size_t, 4> BoolMatrix::bbox() const
+{
+  bool ok = false;
+  auto imin = 0UL;
+  auto imax = 0UL;
+  auto jmin = 0UL;
+  auto jmax = 0UL;
+
+  for (auto j = 0UL; j < m_h; j++)
+    for (auto i = 0UL; i < m_w;)
+    {
+      auto di = 1;
+
+      // Skip blocks of zeros and ones quickly
+      if ((i & 63) == 0)
+      {
+        auto pos = j * m_w + i;
+        auto bits = m_data[pos / 64];
+        if (bits == 0)
+          di = 64;  // skip all bits
+        else if (bits == 0xffffffffffffffffUL)
+          di = 63;  // skip the middle bits only
+      }
+
+      if ((*this)(i, j))
+      {
+        if (ok)
+        {
+          imin = std::min(imin, i);
+          imax = std::max(imax, i);
+          jmin = std::min(jmin, j);
+          jmax = std::max(jmax, j);
+        }
+        else
+        {
+          ok = true;
+          imin = i;
+          imax = i;
+          jmin = j;
+          jmax = j;
+        }
+      }
+
+      i += di;
+    }
+
+  return {imin, jmin, imax, jmax};
+}
+
 }  // namespace Fmi
