@@ -35,6 +35,14 @@ class BoolMatrix
       m_data[idx] &= ~(1UL << bit);
   }
 
+  BoolMatrix operator&(const BoolMatrix& other) const;
+  BoolMatrix operator|(const BoolMatrix& other) const;
+  BoolMatrix operator~() const;
+  BoolMatrix operator^(bool flag) const;
+
+  BoolMatrix& operator&=(const BoolMatrix& other);
+  BoolMatrix& operator|=(const BoolMatrix& other);
+
   void swap(BoolMatrix& other);
 
   std::size_t hashValue() const;

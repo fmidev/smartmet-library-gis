@@ -11,6 +11,62 @@ BoolMatrix::BoolMatrix(std::size_t width, std::size_t height, bool flag)
 {
 }
 
+BoolMatrix BoolMatrix::operator&(const BoolMatrix& other) const
+{
+  auto tmp = *this;
+  tmp &= other;
+  return tmp;
+}
+
+BoolMatrix BoolMatrix::operator|(const BoolMatrix& other) const
+{
+  auto tmp = *this;
+  tmp |= other;
+  return tmp;
+}
+
+BoolMatrix& BoolMatrix::operator&=(const BoolMatrix& other)
+{
+  if (m_w != other.m_w || m_h != other.m_h)
+    throw Fmi::Exception(BCP, "BoolMatrix size mismatch");
+
+  for (auto i = 0UL; i < m_data.size(); i++)
+    m_data[i] &= other.m_data[i];
+
+  return *this;
+}
+
+BoolMatrix& BoolMatrix::operator|=(const BoolMatrix& other)
+{
+  if (m_w != other.m_w || m_h != other.m_h)
+    throw Fmi::Exception(BCP, "BoolMatrix size mismatch");
+
+  for (auto i = 0UL; i < m_data.size(); i++)
+    m_data[i] |= other.m_data[i];
+
+  return *this;
+}
+
+BoolMatrix BoolMatrix::operator~() const
+{
+  auto tmp = *this;
+
+  for (auto i = 0UL; i < tmp.m_data.size(); i++)
+    tmp.m_data[i] = ~tmp.m_data[i];
+  return tmp;
+}
+
+BoolMatrix BoolMatrix::operator^(bool flag) const
+{
+  auto tmp = *this;
+  auto val = (flag ? 0xffffffffffffffffUL : 0UL);
+
+  for (auto i = 0UL; i < tmp.m_data.size(); i++)
+    tmp.m_data[i] = tmp.m_data[i] ^ val;
+
+  return tmp;
+}
+
 void BoolMatrix::swap(BoolMatrix& other)
 {
   try

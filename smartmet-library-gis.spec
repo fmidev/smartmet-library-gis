@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 22.4.28
+Version: 22.4.29
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -97,6 +97,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri Apr 29 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.4.29-1.fmi
+- Added BoolMatrix logical operators
+
 * Thu Apr 28 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.4.28-1.fmi
 - Do not use std::vector<bool> for much better speed
 
