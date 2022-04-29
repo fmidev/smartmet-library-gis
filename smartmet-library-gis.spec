@@ -98,7 +98,7 @@ FMI GIS library development files
 
 %changelog
 * Thu Apr 28 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.4.28-1.fmi
-- Use boost::dynamic_bitset instead of std::vector<bool> for much greater speed
+- Do not use std::vector<bool> for much better speed
 
 * Tue Apr 26 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.4.26-1.fmi
 - Fixes to clipping/cutting geometries with a shape

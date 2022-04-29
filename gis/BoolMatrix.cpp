@@ -4,6 +4,13 @@
 
 namespace Fmi
 {
+BoolMatrix::BoolMatrix(std::size_t width, std::size_t height, bool flag)
+    : m_w(width),
+      m_h(height),
+      m_data((width * height + 63) / 64, (flag ? 0xffffffffffffffffUL : 0UL))
+{
+}
+
 void BoolMatrix::swap(BoolMatrix& other)
 {
   try
@@ -20,18 +27,13 @@ void BoolMatrix::swap(BoolMatrix& other)
 
 std::size_t BoolMatrix::hashValue() const
 {
+  // We ignore on purpose the last bits, since in contouring the extra bits of uint64_t are
+  // always initialized the same way. Hence we're not using a generic Fmi::Bitset but a BoolMatrix
+  // with an explicit purpose.
+
   std::size_t hash = 0;
-  std::uint64_t bits = 0;
-  const auto n = m_w * m_h;
-  for (auto i = 0UL; i < n; i++)
-  {
-    bits = (bits << 1) | m_data[i];
-    if ((i & 63) == 0 || (i == n - 1))
-    {
-      Fmi::hash_combine(hash, Fmi::hash_value(bits));
-      bits = 0;
-    }
-  }
+  for (auto bits : m_data)
+    Fmi::hash_combine(hash, Fmi::hash_value(bits));
 
   return hash;
 }
