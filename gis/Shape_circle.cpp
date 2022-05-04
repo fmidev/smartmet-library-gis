@@ -414,11 +414,14 @@ OGRLinearRing *Shape_circle::makeRing(double theMaximumSegmentLength) const
   try
   {
     auto *ring = new OGRLinearRing;
-    double angle = PI2;
+    double xx = 0;
+    double yy = 0;
+    getPointByAngle(0, xx, yy);
+    ring->addPoint(xx, yy);
+
+    double angle = PI2-itsBorderStep;
     while (angle > 0)
     {
-      double xx = 0;
-      double yy = 0;
       getPointByAngle(angle, xx, yy);
       ring->addPoint(xx, yy);
       angle = angle - itsBorderStep;
@@ -426,6 +429,9 @@ OGRLinearRing *Shape_circle::makeRing(double theMaximumSegmentLength) const
 
     if (theMaximumSegmentLength > 0)
       ring->segmentize(theMaximumSegmentLength);
+
+    getPointByAngle(0, xx, yy);
+    ring->addPoint(xx, yy);
 
     return ring;
   }
@@ -457,6 +463,8 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
     int n = theGeom->getNumPoints();
     if (theGeom == nullptr || n < 1)
       return 0;
+
+    std::vector<OGRLineString*> lines;
 
     const OGRLineString &g = *theGeom;
     auto *line = new OGRLineString();
@@ -499,7 +507,8 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
 
         case 3:  // The first point is outside, the second point is inside
           line->addPoint(pX1, pY1);
-          theClipper.add(line, exterior);
+          lines.push_back(line);
+          //theClipper.add(line, exterior);
 
           line = new OGRLineString();
           break;
@@ -507,7 +516,8 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
         case 4:  // Both end point are outside, but the line intersects with the circle
           position |= Position::Outside | Position::Inside;
           line->addPoint(pX1, pY1);
-          theClipper.add(line, exterior);
+          lines.push_back(line);
+          //theClipper.add(line, exterior);
 
           line = new OGRLineString();
           line->addPoint(pX2, pY2);
@@ -523,11 +533,29 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
 
     if (line->getNumPoints() > 0)
     {
-      theClipper.add(line, exterior);
+      lines.push_back(line);
+      //theClipper.add(line, exterior);
     }
     else
     {
       delete line;
+    }
+
+    if (exterior &&  Shape::all_only_outside(position))
+    {
+      if (!theClipper.getKeepInsideFlag())
+      {
+        for (auto li = lines.begin(); li != lines.end(); ++li)
+        {
+          delete *li;
+        }
+        return position;
+      }
+    }
+
+    for (auto li = lines.begin(); li != lines.end(); ++li)
+    {
+      theClipper.add(*li, exterior);
     }
 
     return position;
@@ -545,6 +573,8 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
     int n = theGeom->getNumPoints();
     if (theGeom == nullptr || n < 1)
       return 0;
+
+    std::vector<OGRLineString*> lines;
 
     const OGRLineString &g = *theGeom;
     auto *line = new OGRLineString();
@@ -584,7 +614,8 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
 
         case 2:  // The first point is inside, the second point is outside
           line->addPoint(pX1, pY1);
-          theClipper.add(line, exterior);
+          lines.push_back(line);
+          //theClipper.add(line, exterior);
           line = new OGRLineString();
           break;
 
@@ -599,7 +630,8 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
           position |= Position::Outside | Position::Inside;
           line->addPoint(pX1, pY1);
           line->addPoint(pX2, pY2);
-          theClipper.add(line, exterior);
+          lines.push_back(line);
+          //theClipper.add(line, exterior);
           line = new OGRLineString();
           break;
       }
@@ -611,11 +643,33 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
 
     if (line->getNumPoints() > 0)
     {
-      theClipper.add(line, exterior);
+      //printf("--- add line %ld\n",line->getNumPoints());
+      lines.push_back(line);
+      //theClipper.add(line, exterior);
     }
     else
     {
       delete line;
+    }
+
+    if (!exterior &&  Shape::all_only_inside(position))
+    {
+      if (theClipper.getKeepInsideFlag())
+      {
+        // This is a hole and it is inside the clipping area. The current
+        // hole is added later (i.e. if we add it here then we have two holes).
+
+        for (auto li = lines.begin(); li != lines.end(); ++li)
+        {
+          delete *li;
+        }
+        return position;
+      }
+    }
+
+    for (auto li = lines.begin(); li != lines.end(); ++li)
+    {
+      theClipper.add(*li, exterior);
     }
 
     return position;
@@ -712,7 +766,7 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,
 
         double angleDiff = angle1 - angle2;
 
-        if (angleDiff > PI)
+        if (angleDiff > PI &&  angle1 < angle2)
           angleDiff = PI2 - angleDiff;
 
         if (angleDiff < -PI)
@@ -781,7 +835,7 @@ LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,
       if (isOnEdge(x2, y2, angle2))
       {
         double angleDiff = angle2 - angle1;
-        if (angleDiff > PI)
+        if (angleDiff > PI &&  angle2 < angle1)
           angleDiff = PI2 - angleDiff;
 
         if (angleDiff < -PI)
@@ -852,16 +906,18 @@ bool Shape_circle::connectPoints_cw(OGRLinearRing &ring,
       outerCircle.getPointByAngle(angle1, xx, yy);
 
       ring.addPoint(x1, y1);
-      ring.addPoint(xx, yy);
-      ring.addPoint(x1, y1);
-
       uint points = abs(angleDiff / itsBorderStep);
+      double ox = x1;
+      double oy = y1;
       double ad = angleDiff / points;
       for (uint t = 0; t < points; t++)
       {
         getPointByAngle(angle1, xx, yy);
         // printf("++ getPoint %f   %f,%f\n", angle1, xx, yy);
-        ring.addPoint(xx, yy);
+        if ((int)(ox*100) != (int)(xx*100) ||  (int)(oy*100) != (int)(yy*100))
+          ring.addPoint(xx, yy);
+        ox = xx;
+        oy = yy;
         angle1 = angle1 + ad;
       }
       if (points > 0)
@@ -907,20 +963,23 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing &ring,
       innerCircle.getPointByAngle(angle1, xx, yy);
 
       ring.addPoint(x1, y1);
-      ring.addPoint(xx, yy);
-      ring.addPoint(x1, y1);
-
       uint points = abs(angleDiff / itsBorderStep);
+      double ox = x1;
+      double oy = y1;
       double ad = angleDiff / points;
       for (uint t = 0; t < points; t++)
       {
         getPointByAngle(angle1, xx, yy);
         // printf("-- getPoint %f   %f,%f\n", angle1, xx, yy);
-        ring.addPoint(xx, yy);
+        if ((int)(ox*100) != (int)(xx*100) ||  (int)(oy*100) != (int)(yy*100))
+          ring.addPoint(xx, yy);
+        ox = xx;
+        oy = yy;
         angle1 = angle1 + ad;
       }
 
-      ring.addPoint(x2, y2);
+      if ((int)(ox*100) != (int)(x2*100) ||  (int)(oy*100) != (int)(y2*100))
+        ring.addPoint(x2, y2);
 
       return true;
     }

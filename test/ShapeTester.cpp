@@ -18,6 +18,13 @@ namespace Tests
 {
 // ----------------------------------------------------------------------
 
+std::string exportToWkt(const OGRGeometry &geom, int precision)
+{
+  if (precision >= 0)
+    return Fmi::OGR::exportToWkt(geom, precision);
+  return Fmi::OGR::exportToWkt(geom);
+}
+
 char *toUpperString(char *str)
 {
   char *p = str;
@@ -70,7 +77,6 @@ class tests : public tframe::tests
   void ogr_tests()
   {
     using namespace Fmi;
-    using OGR::exportToWkt;
 
     cout << "---------------------------------------------------------\n";
     cout << "TEST FILE : " << filename << "\n";
@@ -237,9 +243,30 @@ class tests : public tframe::tests
                 out << "Test " << testId << " : ";
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
-                out << "\tReason   : "
-                    << "Failed to parse input\n";
+                out << "\tReason   : Failed to parse input\n";
                 out << "\tInput    : " << inWkt << "\n";
+              }
+
+              if (!input->IsValid())
+              {
+                fail++;
+                out << "Test " << testId << " : ";
+                out << "*** FAILED ***\n";
+                out << "\tFile     : " << filename << " (" << line << ")\n";
+                out << "\tReason   : Input is not a valid geometry\n";
+                out << "\tInput    : " << inWkt << "\n";
+
+                OGRGeometry *valid = input->MakeValid();
+                if (valid != nullptr)
+                {
+                  out << "\tCorrect  : " << OGR::exportToWkt(*valid, precision) << "\n";
+                  OGRGeometryFactory::destroyGeometry(valid);
+                }
+                else
+                  out << "\tCorrect   : (MakeValid failed)\n";
+
+                OGRGeometryFactory::destroyGeometry(input);
+                input = nullptr;
               }
             }
             catch (...)
@@ -285,14 +312,11 @@ class tests : public tframe::tests
               string ret;
               if (output)
               {
-                if (precision >= 0)
-                  ret = exportToWkt(*output, precision);
-                else
-                  ret = exportToWkt(*output);
+                bool isvalid = output->IsValid();
 
-                OGRGeometryFactory::destroyGeometry(output);
+                ret = exportToWkt(*output, precision);
 
-                if (ret != outWkt)
+                if (ret != outWkt || !isvalid)
                 {
                   fail++;
                   out << "Test " << testId << " : ";
@@ -301,12 +325,26 @@ class tests : public tframe::tests
                   out << "\tInput    : " << inWkt << "\n";
                   out << "\tExpected : " << outWkt << "\n";
                   out << "\tGot      : " << ret << "\n";
+                  if (!isvalid)
+                  {
+                    out << "\tReason   : output is not a valid geometry\n";
+                    auto *valid = output->MakeValid();
+                    if (valid != nullptr)
+                    {
+                      out << "\tCorrect   : " << OGR::exportToWkt(*valid, precision) << "\n";
+                      OGRGeometryFactory::destroyGeometry(valid);
+                    }
+                    else
+                      out << "\tCorrect   : (MakeValid failed)\n";
+                  }
                 }
                 else
                 {
                   // out << "Test " << testId << " : Ok \n";
                   pass++;
                 }
+
+                OGRGeometryFactory::destroyGeometry(output);
               }
             }
           }
@@ -321,7 +359,7 @@ class tests : public tframe::tests
 
   // Main test suite
   void test() { ogr_tests(); }
-};  // class tests
+};  // namespace Tests
 
 }  // namespace Tests
 

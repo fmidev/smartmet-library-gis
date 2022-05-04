@@ -135,6 +135,10 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
             auto *line = new OGRLineString;
             line->addPoint(x0, y0);
             line->addPoint(x, y);
+#if 0            
+            std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                      << OGR::exportToWkt(*line) << "\n";
+#endif
             theClipper.add(line, exterior);
           }
 
@@ -150,6 +154,10 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
             auto *line = new OGRLineString;
             line->addPoint(x0, y0);
             line->addPoint(x, y);
+#if 0            
+            std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                      << OGR::exportToWkt(*line) << "\n";
+#endif
             theClipper.add(line, exterior);
           }
         }
@@ -189,6 +197,9 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
             if (start_index <= i - 1)
               line->addSubLineString(&g, start_index, i - 1);
             line->addPoint(x, y);
+#if 0
+            std::cout << "Adding EXT: " << OGR::exportToWkt(*line) << "\n";
+#endif
             theClipper.addExterior(line);
 
             break;  // going to outside the loop
@@ -203,6 +214,10 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
               line->addPoint(x0, y0);
             add_start = false;
             line->addSubLineString(&g, start_index, i);
+#if 0
+            std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                      << OGR::exportToWkt(*line) << "\n";
+#endif
             theClipper.add(line, exterior);
 
             start_index = i;  // potentially going in again at this point
@@ -224,7 +239,12 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
             add_start = false;
           }
           line->addSubLineString(&g, start_index, i - 1);
-          theClipper.add(line, exterior);
+#if 0
+          std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                    << OGR::exportToWkt(*line) << "\n";
+#endif
+          // theClipper.add(line, exterior);
+          theClipper.addExterior(line);
         }
       }
 
@@ -278,6 +298,9 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
               auto *line = new OGRLineString();
               line->addPoint(g.getX(i - 1), g.getY(i - 1));
               line->addPoint(x, y);
+#if 0
+              std::cout << "Adding EXT: " << OGR::exportToWkt(*line) << "\n";
+#endif
               theClipper.addExterior(line);
             }
             break;  // And continue main loop on the outside
@@ -291,6 +314,9 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
               auto *line = new OGRLineString();
               line->addPoint(g.getX(i - 1), g.getY(i - 1));
               line->addPoint(x, y);
+#if 0
+              std::cout << "Adding EXT: " << OGR::exportToWkt(*line) << "\n";
+#endif
               theClipper.addExterior(line);
               start_index = i;
             }
@@ -381,6 +407,10 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
             if (add_start)
               line->addPoint(start_x, start_y);
             line->addSubLineString(&g, start_index, n - 1);
+#if 0
+            std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                      << OGR::exportToWkt(*line) << "\n";
+#endif
             theClipper.add(line, exterior);
           }
           return position;
@@ -423,6 +453,10 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
           add_start = false;
           line->addSubLineString(&g, start_index, i - 1);
           line->addPoint(x0, y0);
+#if 0
+          std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                    << OGR::exportToWkt(*line) << "\n";
+#endif
           theClipper.add(line, exterior);
           // Main loop will enter the Inside/Edge section
         }
@@ -446,6 +480,10 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
               line->addPoint(start_x, start_y);
             line->addSubLineString(&g, start_index, i - 1);
             line->addPoint(x0, y0);
+#if 0
+            std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                      << OGR::exportToWkt(*line) << "\n";
+#endif
             theClipper.add(line, exterior);
 
             position |= Position::Inside;  // mark we visited inside
@@ -468,6 +506,10 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
           line->addPoint(x0, y0);
           if (x != g.getX(i) || y != g.getY(i))
             position |= Position::Inside;
+#if 0
+          std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                    << OGR::exportToWkt(*line) << "\n";
+#endif
           theClipper.add(line, exterior);
 
           add_start = false;
@@ -568,6 +610,10 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
 
       line->addPoint(start_x, start_y);
       line->addSubLineString(&g, start_index, n - 1);
+#if 0
+      std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                << OGR::exportToWkt(*line) << "\n";
+#endif
       theClipper.add(line, exterior);
     }
 

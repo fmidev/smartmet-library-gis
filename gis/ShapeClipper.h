@@ -29,6 +29,8 @@ class ShapeClipper
   void addInterior(OGRLinearRing *theRing);
   void addInterior(OGRLineString *theLine);
 
+  bool getKeepInsideFlag() {return itsKeepInsideFlag;}
+
   void reconnectWithShape(double theMaximumSegmentLength);
   void reconnectWithoutShape();
   void release(GeometryBuilder &theBuilder);
