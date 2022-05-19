@@ -31,7 +31,7 @@ class Shape_sphere : public Shape
   bool isInsideRing(const OGRLinearRing& theRing) const override;
   bool isRingInside(const OGRLinearRing& theRing) const override;
 
-  OGRLineString* makeLineRing(double theMaximumSegmentLength) const;
+  OGRLineString* makeLineRing(double theMaximumSegmentLength) const override;
   OGRLinearRing* makeRing(double theMaximumSegmentLength) const override;
   OGRLinearRing* makeHole(double theMaximumSegmentLength) const override;
 
