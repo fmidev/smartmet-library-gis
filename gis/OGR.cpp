@@ -34,6 +34,29 @@ std::string Fmi::OGR::exportToWkt(const OGRSpatialReference& theSRS)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Export OGR spatial reference to WKT1_SIMPLE format
+ */
+// ----------------------------------------------------------------------
+
+std::string Fmi::OGR::exportToSimpleWkt(const OGRSpatialReference& theSRS)
+{
+  try
+  {
+    const char* const options[] = {"FORMAT=WKT1_SIMPLE", nullptr};
+    char* out;
+    theSRS.exportToWkt(&out, options);
+    std::string ret = out;
+    CPLFree(out);
+    return ret;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Export OGR spatial reference to WKT
  */
 // ----------------------------------------------------------------------

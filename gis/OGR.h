@@ -33,6 +33,7 @@ using Shape_sptr = std::shared_ptr<Shape>;
 namespace OGR
 {
 std::string exportToWkt(const OGRSpatialReference& theSRS);
+std::string exportToSimpleWkt(const OGRSpatialReference& theSRS);
 std::string exportToWkt(const OGRGeometry& theGeom, int precision);
 std::string exportToPrettyWkt(const OGRSpatialReference& theSRS);
 std::string exportToProj(const OGRSpatialReference& theSRS);
