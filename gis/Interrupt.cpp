@@ -271,6 +271,8 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     const auto opt_lat_0 = theSRS.projInfo().getDouble("lat_0");
     const auto lat_0 = opt_lat_0 ? *opt_lat_0 : 0.0;
 
+    using boost::math::double_constants::degree;
+
     // If general oblique transformation such as rotated latlon, cut the Antarctic in half at the
     // central meridian. -60 is large enough to make the cut, since Drake passage is below
     // that latitude. In reality, the cut should be made for any polygon which spans the south pole,
@@ -346,8 +348,12 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
 
     if (name == "nsper")
     {
-      // TODO: Something odd, maybe the result is shifted?
-      const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
+      auto opt_h = theSRS.projInfo().getDouble("h");
+      auto h = (opt_h ? *opt_h : 3000000.0);  // no idea what PROJ.x default is
+      // From a triangle with hypotenuse R+h and side R to the tangent we get cos(theta) = R/(R+h)
+      auto radius = acos(wgs84radius / (wgs84radius + h)) * wgs84radius;
+      // Then reduce a little to avoid problems at the edges
+      radius = 0.999 * radius;
       result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
       return result;
     }
@@ -370,7 +376,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     if (name == "imw_p")
     {
       // TODO: Slow as hell, disabled for now
-      // const auto radius = 80 * wgs84radius * boost::math::double_constants::degree;
+      // const auto radius = 80 * wgs84radius * degree;
       // result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
       return result;
     }
@@ -383,7 +389,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       // Also: The antarctic is missing completely. Probably the fault of the current
       // version of circle cutting.
 
-      const auto radius = 130 * wgs84radius * boost::math::double_constants::degree;
+      const auto radius = 130 * wgs84radius * degree;
       result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
       return result;
     }
@@ -391,14 +397,14 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     if (name == "tmerc")
     {
       // TODO: This is just experimental to get something out
-      // const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
+      // const auto radius = 90 * wgs84radius * degree;
       // result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
       return result;
     }
     if (name == "gstmerc")
     {
       // 90 causes errors
-      const auto radius = 89.5 * wgs84radius * boost::math::double_constants::degree;
+      const auto radius = 89.5 * wgs84radius * degree;
       result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
       return result;
     }
@@ -406,14 +412,14 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     if (name == "gnom")
     {
       // TODO: Nothing seems to work, result is full of NaN values
-      const auto radius = 89 * wgs84radius * boost::math::double_constants::degree;
+      const auto radius = 89 * wgs84radius * degree;
       result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
       return result;
     }
 
     if (name == "airy" || name == "ortho")
     {
-      const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
+      const auto radius = 90 * wgs84radius * degree;
       result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
       return result;
     }
@@ -421,7 +427,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     if (name == "tpers")
     {
       // 50 was found experimentally
-      const auto radius = 50 * wgs84radius * boost::math::double_constants::degree;
+      const auto radius = 50 * wgs84radius * degree;
       result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
       return result;
     }
@@ -429,7 +435,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     if (name == "geos")
     {
       // 80 was found experimentally
-      const auto radius = 80 * wgs84radius * boost::math::double_constants::degree;
+      const auto radius = 80 * wgs84radius * degree;
       result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
       return result;
     }
@@ -437,7 +443,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     if (name == "adams_hemi")
     {
       // TODO: Just something that works on small scales not up to the maximum
-      const auto radius = 90 * wgs84radius * boost::math::double_constants::degree;
+      const auto radius = 90 * wgs84radius * degree;
       result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
       return result;
     }
@@ -466,7 +472,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       const auto lon = 0.5 * (lon_1 + lon_2);
       const auto lat = 0.5 * (lat_1 + lat_2);
 
-      const auto radius = 145 * wgs84radius * boost::math::double_constants::degree;
+      const auto radius = 145 * wgs84radius * degree;
       result.andGeometry.reset(circle_cut(lon, lat, radius));
       return result;
     }
