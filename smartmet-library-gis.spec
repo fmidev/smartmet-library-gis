@@ -18,7 +18,7 @@ BuildRequires: devtoolset-7-gcc-c++
 
 %if 0%{?rhel} && 0%{rhel} < 9
 %define smartmet_boost boost169
-%define smartmet_sfcgal smartmet_SFCGAL
+%define smartmet_sfcgal smartmet-SFCGAL
 %else
 %define smartmet_boost boost
 %define smartmet_sfcgal SFCGAL
