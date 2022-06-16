@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 22.6.7
+Version: 22.6.16
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -107,6 +107,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Jun 16 2022 Andris Pavēnis <andris.pavenis@fmi.fi> 22.6.16-1.fmi
+- Add support of HEL9, upgrade to libpqxx-7.7.0 (rhel8+) and fmt-8.1.1
+
 * Tue Jun  7 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.6.7-1.fmi
 - Fixed nsper circle cut angle
 
