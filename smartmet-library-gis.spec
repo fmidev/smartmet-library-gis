@@ -18,15 +18,14 @@ BuildRequires: devtoolset-7-gcc-c++
 
 %if 0%{?rhel} && 0%{rhel} < 9
 %define smartmet_boost boost169
-%define smartmet_fmt_min 7.1.3
-%define smartmet_fmt_max 7.2.0
 %define smartmet_sfcgal smartmet_SFCGAL
 %else
 %define smartmet_boost boost
-%define smartmet_fmt_min 8.1.1
-%define smartmet_fmt_max 8.2.0
 %define smartmet_sfcgal SFCGAL
 %endif
+
+%define smartmet_fmt_min 8.1.1
+%define smartmet_fmt_max 8.2.0
 
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: fmt-devel >= %{smartmet_fmt_min}, fmt-devel < %{smartmet_fmt_max}
@@ -36,7 +35,7 @@ BuildRequires: geos310-devel
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
-BuildRequires: smartmet-library-macgyver-devel >= 22.3.28
+BuildRequires: smartmet-library-macgyver-devel >= 22.6.16
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -52,7 +51,7 @@ Requires: double-conversion
 Requires: gdal34-libs
 Requires: geos310
 Requires: postgis32_13
-Requires: smartmet-library-macgyver >= 22.3.28
+Requires: smartmet-library-macgyver >= 22.6.16
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
