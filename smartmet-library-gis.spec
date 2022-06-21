@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 22.6.7
+Version: 22.6.16
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -16,16 +16,27 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 BuildRequires: devtoolset-7-gcc-c++
 %endif
 
-BuildRequires: boost169-devel
-BuildRequires: fmt-devel >= 7.1.3
+%if 0%{?rhel} && 0%{rhel} < 9
+%define smartmet_boost boost169
+%define smartmet_sfcgal smartmet-SFCGAL
+%else
+%define smartmet_boost boost
+%define smartmet_sfcgal SFCGAL
+%endif
+
+%define smartmet_fmt_min 8.1.1
+%define smartmet_fmt_max 8.2.0
+
+BuildRequires: %{smartmet_boost}-devel
+BuildRequires: fmt-devel >= %{smartmet_fmt_min}, fmt-devel < %{smartmet_fmt_max}
 BuildRequires: gcc-c++
 BuildRequires: gdal34-devel
 BuildRequires: geos310-devel
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
-BuildRequires: smartmet-library-macgyver-devel >= 22.3.28
-BuildRequires: smartmet-SFCGAL-libs >= 1.3.1
+BuildRequires: smartmet-library-macgyver-devel >= 22.6.16
+BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
 BuildRequires: smartmet-test-data
@@ -33,16 +44,15 @@ BuildRequires: smartmet-test-data
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
-Requires: boost169-filesystem
-Requires: boost169-thread
-Requires: fmt >= 7.1.3
+Requires: %{smartmet_boost}-filesystem
+Requires: %{smartmet_boost}-thread
+Requires: fmt >= %{smartmet_fmt_min}, fmt < %{smartmet_fmt_max}
 Requires: double-conversion
 Requires: gdal34-libs
 Requires: geos310
 Requires: postgis32_13
-Obsoletes: postgis31_13
-Requires: smartmet-library-macgyver >= 22.3.28
-#TestRequires: boost169-devel
+Requires: smartmet-library-macgyver >= 22.6.16
+#TestRequires: %{smartmet_boost}-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
 #TestRequires: gdal34-devel
@@ -82,7 +92,7 @@ Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
 Requires: %{SPECNAME} = %{version}-%{release}
 Requires: geos310-devel
-Requires: boost169-devel
+Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal34-devel
@@ -97,6 +107,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Jun 16 2022 Andris Pavēnis <andris.pavenis@fmi.fi> 22.6.16-1.fmi
+- Add support of HEL9, upgrade to libpqxx-7.7.0 (rhel8+) and fmt-8.1.1
+
 * Tue Jun  7 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.6.7-1.fmi
 - Fixed nsper circle cut angle
 
