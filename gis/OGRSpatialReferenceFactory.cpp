@@ -178,7 +178,7 @@ void SetCacheSize(std::size_t newMaxSize)
   }
 }
 
-const Cache::CacheStats& getCacheStats()
+Cache::CacheStats getCacheStats()
 {
   return g_spatialReferenceCache.statistics();
 }

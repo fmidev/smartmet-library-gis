@@ -319,17 +319,17 @@ void SpatialReference::setCacheSize(std::size_t newMaxSize)
   }
 }
 
-const Cache::CacheStats& SpatialReference::getCacheStats()
+Cache::CacheStats SpatialReference::getCacheStats()
 {
   try
-    {
-      return g_ImplDataCache.statistics();
-    }
-  
+  {
+    return g_ImplDataCache.statistics();
+  }
+
   catch (...)
-    {
-      throw Fmi::Exception::Trace(BCP, "Operation failed!");
-    }     
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
-  
+
 }  // namespace Fmi
