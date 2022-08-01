@@ -620,8 +620,22 @@ void lineclip()
       TEST_FAILED("Failed to parse WKT for testing: " + std::string(mytests[test][0]));
     }
     output = OGR::lineclip(*input, box);
-    string ret = exportToWkt(*output);
     OGRGeometryFactory::destroyGeometry(input);
+    string ret = exportToWkt(*output);
+
+    if (!output->IsValid())
+    {
+      OGRGeometry* valid = output->MakeValid();
+      std::string validstr;
+      if (valid != nullptr)
+        validstr = OGR::exportToWkt(*valid);
+      OGRGeometryFactory::destroyGeometry(output);
+      OGRGeometryFactory::destroyGeometry(valid);
+      TEST_FAILED("Test " + std::to_string(test) +
+                  "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+                  "\n\tGot    : " + ret + "\n\tValid   : " + validstr);
+    }
+
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
       TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
@@ -803,6 +817,20 @@ void polyclip()
     output = OGR::polyclip(*input, box);
     string ret = exportToWkt(*output);
     OGRGeometryFactory::destroyGeometry(input);
+
+    if (!output->IsValid())
+    {
+      OGRGeometry* valid = output->MakeValid();
+      std::string validstr;
+      if (valid != nullptr)
+        validstr = OGR::exportToWkt(*valid);
+      OGRGeometryFactory::destroyGeometry(output);
+      OGRGeometryFactory::destroyGeometry(valid);
+      TEST_FAILED("Test " + std::to_string(test) +
+                  "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+                  "\n\tGot    : " + ret + "\n\tValid   : " + validstr);
+    }
+
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
       TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
@@ -824,7 +852,7 @@ void polyclip_spike()
 
   // This worked fine with 1e-10, but at 1e-20 the accuracy is not sufficient and the result should
   // be empty
-  char* wkt = "POLYGON ((-1 5,1e-20 5,-1 0,-1 5))";
+  std::string wkt = "POLYGON ((-1 5,1e-20 5,-1 0,-1 5))";
   string ok = "GEOMETRYCOLLECTION EMPTY";
 
   OGRGeometry* input;
@@ -832,21 +860,33 @@ void polyclip_spike()
 
   try
   {
-    auto err = OGRGeometryFactory::createFromWkt(wkt, NULL, &input);
+    auto err = OGRGeometryFactory::createFromWkt(wkt.c_str(), NULL, &input);
     if (err != OGRERR_NONE)
-      TEST_FAILED("Failed to parse input " + std::string(wkt));
+      TEST_FAILED("Failed to parse input " + wkt);
   }
   catch (...)
   {
-    TEST_FAILED("Failed to parse WKT for testing: " + std::string(wkt));
+    TEST_FAILED("Failed to parse WKT for testing: " + wkt);
   }
   output = OGR::polyclip(*input, box);
   string ret = exportToWkt(*output);
   OGRGeometryFactory::destroyGeometry(input);
+
+  if (!output->IsValid())
+  {
+    OGRGeometry* valid = output->MakeValid();
+    std::string validstr;
+    if (valid != nullptr)
+      validstr = OGR::exportToWkt(*valid);
+    OGRGeometryFactory::destroyGeometry(output);
+    OGRGeometryFactory::destroyGeometry(valid);
+    TEST_FAILED("Failed\n\tInput   : " + wkt + "\n\tExpected: " + ok + "\n\tGot    : " + ret +
+                "\n\tValid   : " + validstr);
+  }
+
   OGRGeometryFactory::destroyGeometry(output);
   if (ret != ok)
-    TEST_FAILED("\n\tInput   : " + std::string(wkt) + "\n\tExpected: " + ok +
-                "\n\tGot     : " + ret);
+    TEST_FAILED("\n\tInput   : " + wkt + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
 
   TEST_PASSED();
 }
@@ -870,6 +910,7 @@ void polyclip_case_hirlam()
 
   std::string wkt =
       "POLYGON ((-33.5 2.0,-33.5 3.0,-33 3,-33.5 4.0,-33 4,-33.5 5.0,-32 5,-32 2,-33.5 2.0))";
+  std::string ok = "";
 
   OGRGeometry* input;
 
@@ -887,6 +928,18 @@ void polyclip_case_hirlam()
   auto* output = OGR::polyclip(*input, box);
   string ret = exportToWkt(*output);
   OGRGeometryFactory::destroyGeometry(input);
+
+  if (!output->IsValid())
+  {
+    OGRGeometry* valid = output->MakeValid();
+    std::string validstr;
+    if (valid != nullptr)
+      validstr = OGR::exportToWkt(*valid);
+    OGRGeometryFactory::destroyGeometry(output);
+    OGRGeometryFactory::destroyGeometry(valid);
+    TEST_FAILED("Failed\n\tInput   : " + wkt + "\n\tExpected: " + ok + "\n\tGot    : " + ret +
+                "\n\tValid   : " + validstr);
+  }
 
   if (ret != wkt)
     TEST_FAILED("Failed\n\tExpected: " + wkt + "\n\tGot     : " + ret);
@@ -1074,6 +1127,20 @@ void linecut()
     output = OGR::linecut(*input, box);
     string ret = exportToWkt(*output);
     OGRGeometryFactory::destroyGeometry(input);
+
+    if (!output->IsValid())
+    {
+      OGRGeometry* valid = output->MakeValid();
+      std::string validstr;
+      if (valid != nullptr)
+        validstr = OGR::exportToWkt(*valid);
+      OGRGeometryFactory::destroyGeometry(output);
+      OGRGeometryFactory::destroyGeometry(valid);
+      TEST_FAILED("Test " + std::to_string(test) +
+                  "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+                  "\n\tGot    : " + ret + "\n\tValid   : " + validstr);
+    }
+
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
       TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
@@ -1247,6 +1314,20 @@ void polycut()
     output = OGR::polycut(*input, box);
     string ret = exportToWkt(*output);
     OGRGeometryFactory::destroyGeometry(input);
+
+    if (!output->IsValid())
+    {
+      OGRGeometry* valid = output->MakeValid();
+      std::string validstr;
+      if (valid != nullptr)
+        validstr = OGR::exportToWkt(*valid);
+      OGRGeometryFactory::destroyGeometry(output);
+      OGRGeometryFactory::destroyGeometry(valid);
+      TEST_FAILED("Test " + std::to_string(test) +
+                  "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+                  "\n\tGot    : " + ret + "\n\tValid   : " + validstr);
+    }
+
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
       TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
@@ -1435,6 +1516,20 @@ void linecut_shape_rect()
     output = OGR::linecut(*input, shape);
     string ret = exportToWkt(*output);
     OGRGeometryFactory::destroyGeometry(input);
+
+    if (!output->IsValid())
+    {
+      OGRGeometry* valid = output->MakeValid();
+      std::string validstr;
+      if (valid != nullptr)
+        validstr = OGR::exportToWkt(*valid);
+      OGRGeometryFactory::destroyGeometry(output);
+      OGRGeometryFactory::destroyGeometry(valid);
+      TEST_FAILED("Test " + std::to_string(test) +
+                  "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+                  "\n\tGot    : " + ret + "\n\tValid   : " + validstr);
+    }
+
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
       TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
@@ -1607,6 +1702,20 @@ void polycut_shape_rect()
     output = OGR::polycut(*input, shape);
     string ret = exportToWkt(*output);
     OGRGeometryFactory::destroyGeometry(input);
+
+    if (!output->IsValid())
+    {
+      OGRGeometry* valid = output->MakeValid();
+      std::string validstr;
+      if (valid != nullptr)
+        validstr = OGR::exportToWkt(*valid);
+      OGRGeometryFactory::destroyGeometry(output);
+      OGRGeometryFactory::destroyGeometry(valid);
+      TEST_FAILED("Test " + std::to_string(test) +
+                  "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+                  "\n\tGot    : " + ret + "\n\tValid   : " + validstr);
+    }
+
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
       TEST_FAILED("Test " + std::to_string(test) + "\n\tInput   : " +
@@ -1674,6 +1783,20 @@ void polyclip_segmentation()
     output = OGR::polyclip(*input, box, max_segment_length);
     string ret = exportToWkt(*output);
     OGRGeometryFactory::destroyGeometry(input);
+
+    if (!output->IsValid())
+    {
+      OGRGeometry* valid = output->MakeValid();
+      std::string validstr;
+      if (valid != nullptr)
+        validstr = OGR::exportToWkt(*valid);
+      OGRGeometryFactory::destroyGeometry(output);
+      OGRGeometryFactory::destroyGeometry(valid);
+      TEST_FAILED("Test " + std::to_string(test) +
+                  "\n\tInput   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
+                  "\n\tGot    : " + ret + "\n\tValid   : " + validstr);
+    }
+
     OGRGeometryFactory::destroyGeometry(output);
     if (ret != ok)
       TEST_FAILED("Input   : " + std::string(mytests[test][0]) + "\n\tExpected: " + ok +
