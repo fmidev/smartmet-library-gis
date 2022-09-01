@@ -935,11 +935,12 @@ void polyclip_case_hirlam()
     std::string validstr;
     if (valid != nullptr)
       validstr = OGR::exportToWkt(*valid);
-    OGRGeometryFactory::destroyGeometry(output);
     OGRGeometryFactory::destroyGeometry(valid);
     TEST_FAILED("Failed\n\tInput   : " + wkt + "\n\tExpected: " + ok + "\n\tGot    : " + ret +
                 "\n\tValid   : " + validstr);
   }
+
+  OGRGeometryFactory::destroyGeometry(output);
 
   if (ret != wkt)
     TEST_FAILED("Failed\n\tExpected: " + wkt + "\n\tGot     : " + ret);

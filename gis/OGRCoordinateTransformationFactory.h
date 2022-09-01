@@ -1,5 +1,4 @@
 #pragma once
-#include <list>
 #include <memory>
 #include <string>
 
@@ -9,19 +8,15 @@ namespace Fmi
 {
 namespace OGRCoordinateTransformationFactory
 {
-// The object is stored along with its hash value
-using CacheElement = std::pair<std::size_t, OGRCoordinateTransformation *>;
-using OGRCoordinateTransformationPool = std::list<CacheElement>;
-
 // Deleter stores the hash and a reference to cache to which the object is to be returned
 class Deleter
 {
  public:
-  explicit Deleter(std::size_t theHash);
+  explicit Deleter(std::size_t hash);
   void operator()(OGRCoordinateTransformation *ptr) const;
 
  private:
-  std::size_t itsHash;
+  std::size_t m_hash;
 };
 
 using Ptr = std::unique_ptr<OGRCoordinateTransformation, Deleter>;
