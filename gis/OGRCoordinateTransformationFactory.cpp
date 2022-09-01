@@ -21,8 +21,8 @@ class OGRCoordinateTransformationPool
 
   ~OGRCoordinateTransformationPool()
   {
-    for (auto &hash_trans : m_cache)
-      delete hash_trans.second;
+    // This leads to segfault in PROJ.7. Proj 9.1 seems to have fixed this, possibly even earlier
+    // versions for (auto &elem : m_cache) delete elem.second;
   }
 
   void SetMaxSize(std::size_t theMaxSize)

@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 22.9.1
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -107,6 +107,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Sep  1 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.9.1-2.fmi
+- PROJ 7.2 has a potential segfault issue in projection destructors, disabled some explicit calls
+
 * Thu Sep  1 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.9.1-1.fmi
 - Avoid valgrind memory leak reports by destructing globals properly
 
