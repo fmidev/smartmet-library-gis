@@ -20,7 +20,7 @@ namespace
 // can be both a double and a city name
 
 const std::set<std::string> g_str_keepers{
-    "type", "proj", "datum", "ellps", "towgs84", "o_proj", "pm", "axis"};
+    "type", "proj", "datum", "ellps", "towgs84", "pm", "axis"};
 
 // Note: lon_0 must be stripped in newer PROJ versions
 
@@ -202,7 +202,12 @@ std::string ProjInfo::inverseProjStr() const
         ret += ' ';
 
       if (name_value.first == "proj")
-        ret += "+proj=longlat";
+      {
+        if (name_value.second != "ob_tran")
+          ret += "+proj=longlat";
+        else
+          ret += "+proj=ob_tran +o_proj=longlat";
+      }
       else
       {
         ret += '+';
