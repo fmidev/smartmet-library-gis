@@ -3,8 +3,7 @@
 #include "Box.h"
 
 #include <fmt/format.h>
-
-#include <stdexcept>
+#include <macgyver/Exception.h>
 
 // ----------------------------------------------------------------------
 /*!
@@ -30,14 +29,27 @@ Fmi::Box::Box(
       itsWidth(width),
       itsHeight(height)
 {
-  if (itsXMin == itsXMax || itsYMin == itsYMax)
-    throw std::runtime_error(fmt::format(
-        "Empty Fmi::Box constructed with x1={} y1={} x2={} y2={}", itsX1, itsY1, itsX2, itsY2));
+  try
+  {
+    if (itsXMin == itsXMax || itsYMin == itsYMax)
+    {
+      Fmi::Exception exception(BCP, "Empty Fmi::Box constructed!");
+      exception.addParameter("X1", std::to_string(itsX1));
+      exception.addParameter("Y1", std::to_string(itsY1));
+      exception.addParameter("X2", std::to_string(itsX2));
+      exception.addParameter("Y2", std::to_string(itsY2));
+      throw exception;
+    }
 
-  itsXalpha = itsWidth * 1 / (itsX2 - itsX1);
-  itsXbeta = itsWidth * itsX1 / (itsX1 - itsX2);
-  itsYalpha = itsHeight * 1 / (itsY1 - itsY2);
-  itsYbeta = itsHeight * itsY2 / (itsY2 - itsY1);
+    itsXalpha = itsWidth * 1 / (itsX2 - itsX1);
+    itsXbeta = itsWidth * itsX1 / (itsX1 - itsX2);
+    itsYalpha = itsHeight * 1 / (itsY1 - itsY2);
+    itsYbeta = itsHeight * itsY2 / (itsY2 - itsY1);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Constructor failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -70,4 +82,7 @@ Fmi::Box::Box(double theX1, double theY1, double theX2, double theY2)
  */
 // ----------------------------------------------------------------------
 
-Fmi::Box Fmi::Box::identity() { return {0, 1, 1, 0, 1, 1}; }
+Fmi::Box Fmi::Box::identity()
+{
+  return {0, 1, 1, 0, 1, 1};
+}

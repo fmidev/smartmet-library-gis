@@ -25,10 +25,16 @@ namespace Fmi
 class CoordinateTransformation;
 class Box;
 class SpatialReference;
+class GeometryBuilder;
+class Shape;
+
+using Shape_sptr = std::shared_ptr<Shape>;
 
 namespace OGR
 {
 std::string exportToWkt(const OGRSpatialReference& theSRS);
+std::string exportToSimpleWkt(const OGRSpatialReference& theSRS);
+std::string exportToWkt(const OGRGeometry& theGeom, int precision);
 std::string exportToPrettyWkt(const OGRSpatialReference& theSRS);
 std::string exportToProj(const OGRSpatialReference& theSRS);
 std::string exportToWkt(const OGRGeometry& theGeom);
@@ -50,17 +56,23 @@ OGRGeometry* lineclip(const OGRGeometry& theGeom, const Box& theBox);
 
 // Clip to rectangle, polygons are preserved. Optional maximum length for new edges along the box
 // boundaries.
-OGRGeometry* polyclip(const OGRGeometry& theGeom, const Box& theBox, double maxSegmenLength = 0);
+OGRGeometry* polyclip(const OGRGeometry& theGeom,
+                      const Box& theBox,
+                      double theMaxSegmentLength = 0);
 
 // Cut rectangle out, polygons may break into polylines
 OGRGeometry* linecut(const OGRGeometry& theGeom, const Box& theBox);
 
 // Cut rectangle out, polygons are preserved. Optional maximum length for new edges along the box
 // boundaries.
-OGRGeometry* polycut(const OGRGeometry& theGeom, const Box& theBox, double maxSegmentLength = 0);
+OGRGeometry* polycut(const OGRGeometry& theGeom, const Box& theBox, double theMaxSegmentLength = 0);
 
 // Filter out small polygons
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);
+
+// Normalize rings to lexicographic order, mostly to consistent test results
+void normalize(OGRPolygon& thePoly);
+void normalize(OGRLinearRing& theRing);
 
 // Normalize winding order: exterior=CW, interior=CCW
 OGRGeometry* normalizeWindingOrder(const OGRGeometry& theGeom);
@@ -95,6 +107,27 @@ boost::optional<double> gridNorth(const CoordinateTransformation& theTransformat
 
 // Create OGRGeometry from WKT-string, if theEPSGNumber > 0 assign spatial reference to geometry
 OGRGeometry* createFromWkt(const std::string& wktString, unsigned int theEPSGNumber = 0);
+
+// ### Clipping and cutting for different shapes (box, circle, etc)
+
+OGRGeometry* lineclip(const OGRGeometry& theGeom, Shape_sptr& theShape);
+OGRGeometry* linecut(const OGRGeometry& theGeom, Shape_sptr& theShape);
+OGRGeometry* polycut(const OGRGeometry& theGeom,
+                     Shape_sptr& theShape,
+                     double theMaxSegmentLength = 0);
+OGRGeometry* polyclip(const OGRGeometry& theGeom,
+                      Shape_sptr& theShape,
+                      double theMaxSegmentLength = 0);
+
+// Clipping and cutting results returned in the GeometryBuilder
+void polycut(GeometryBuilder& builder,
+             const OGRGeometry& theGeom,
+             Shape_sptr& theShape,
+             double theMaxSegmentLength);
+void polyclip(GeometryBuilder& builder,
+              const OGRGeometry& theGeom,
+              Shape_sptr& theShape,
+              double theMaxSegmentLength);
 
 }  // namespace OGR
 }  // namespace Fmi

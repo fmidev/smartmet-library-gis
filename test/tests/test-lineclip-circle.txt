@@ -1,0 +1,7 @@
+      
+# From outside to nearest edge etc
+T:21
+F:LINECLIP
+S:CIRCLE,0,0,5,3
+I:LINESTRING (-10 0,-5 0)
+O:GEOMETRYCOLLECTION EMPTY

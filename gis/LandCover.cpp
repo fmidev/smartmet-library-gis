@@ -4,6 +4,7 @@
 
 #include "SrtmMatrix.h"
 #include "SrtmTile.h"
+#include <macgyver/Exception.h>
 
 #include <boost/filesystem.hpp>
 #include <fmt/format.h>
@@ -12,7 +13,6 @@
 #include <limits>
 #include <list>
 #include <map>
-#include <stdexcept>
 #include <string>
 
 namespace Fmi
@@ -30,21 +30,28 @@ namespace
 
 std::list<boost::filesystem::path> find_hgt_files(const std::string& path)
 {
-  if (!boost::filesystem::is_directory(path))
-    throw std::runtime_error("Not a directory: '" + path + "'");
-
-  std::list<boost::filesystem::path> files;
-
-  boost::filesystem::recursive_directory_iterator end_dir;
-  for (boost::filesystem::recursive_directory_iterator it(path); it != end_dir; ++it)
+  try
   {
-    if (boost::filesystem::is_regular_file(it->status()) &&
-        SrtmTile::valid_path(it->path().string()) && SrtmTile::valid_size(it->path().string()))
+    if (!boost::filesystem::is_directory(path))
+      throw Fmi::Exception::Trace(BCP, "Not a directory: '" + path + "'");
+
+    std::list<boost::filesystem::path> files;
+
+    boost::filesystem::recursive_directory_iterator end_dir;
+    for (boost::filesystem::recursive_directory_iterator it(path); it != end_dir; ++it)
     {
-      files.push_back(it->path());
+      if (boost::filesystem::is_regular_file(it->status()) &&
+          SrtmTile::valid_path(it->path().string()) && SrtmTile::valid_size(it->path().string()))
+      {
+        files.push_back(it->path());
+      }
     }
+    return files;
   }
-  return files;
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 }  // namespace
 
@@ -74,14 +81,21 @@ class LandCover::Impl
 
 LandCover::Impl::Impl(const std::string& path)
 {
-  auto files = find_hgt_files(path);
-
-  // Read all the files
-  for (const auto& p : files)
+  try
   {
-    std::unique_ptr<SrtmTile> tile(new SrtmTile(p.string()));
-    SrtmMatrix& matrix = itsMatrices[tile->size()];  // creates new matrix if necessary
-    matrix.add(std::move(tile));
+    auto files = find_hgt_files(path);
+
+    // Read all the files
+    for (const auto& p : files)
+    {
+      std::unique_ptr<SrtmTile> tile(new SrtmTile(p.string()));
+      SrtmMatrix& matrix = itsMatrices[tile->size()];  // creates new matrix if necessary
+      matrix.add(std::move(tile));
+    }
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -93,26 +107,36 @@ LandCover::Impl::Impl(const std::string& path)
 
 LandCover::Type LandCover::Impl::coverType(double lon, double lat) const
 {
-  // Normalize the coordinates to ranges (-180,180( and (-90,90(
-
-  if (lon >= 180) lon -= 360;
-
-  // Try the matrices starting from largest tile size and hence most accurate
-
-  Type covertype = NoData;
-  for (const auto& size_matrix : itsMatrices)
+  try
   {
-    double value = size_matrix.second.value(lon, lat);
-    if (!std::isnan(value) && (value != SrtmMatrix::missing))
+    // Normalize the coordinates to ranges (-180,180( and (-90,90(
+
+    if (lon >= 180)
+      lon -= 360;
+
+    // Try the matrices starting from largest tile size and hence most accurate
+
+    Type covertype = NoData;
+    for (const auto& size_matrix : itsMatrices)
     {
-      covertype = Type(value);
-      if (covertype != LandCover::NoData) return covertype;
+      double value = size_matrix.second.value(lon, lat);
+      if (!std::isnan(value) && (value != SrtmMatrix::missing))
+      {
+        covertype = Type(value);
+        if (covertype != LandCover::NoData)
+          return covertype;
+      }
     }
+
+    if (covertype == LandCover::NoData)
+      return LandCover::Sea;
+
+    return covertype;
   }
-
-  if (covertype == LandCover::NoData) return LandCover::Sea;
-
-  return covertype;
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -138,13 +162,22 @@ LandCover::LandCover(const std::string& path) : impl(new LandCover::Impl(path)) 
 
 LandCover::Type LandCover::coverType(double lon, double lat) const
 {
-  if (lon < -180 || lon > 180 || lat < -90 || lat > 90)
+  try
   {
-    throw std::runtime_error(fmt::format(
-        "LandCover: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
-  }
+    if (lon < -180 || lon > 180 || lat < -90 || lat > 90)
+    {
+      throw Fmi::Exception::Trace(
+          BCP,
+          fmt::format(
+              "LandCover: Input coordinate {},{} is out of bounds [-180,180],[-90,90]", lon, lat));
+    }
 
-  return impl->coverType(lon, lat);
+    return impl->coverType(lon, lat);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -155,39 +188,46 @@ LandCover::Type LandCover::coverType(double lon, double lat) const
 
 bool LandCover::isOpenWater(LandCover::Type theType)
 {
-  switch (theType)
+  try
   {
-    case IrrigatedCropLand:
-    case RainFedCropLand:
-    case MosaicCropLand:
-    case MosaicVegetation:
-    case ClosedToOpenBroadLeavedDeciduousForest:
-    case ClosedBroadLeavedDeciduousForest:
-    case OpenBroadLeavedDeciduousForest:
-    case ClosedNeedleLeavedEvergreenForest:
-    case OpenNeedleLeavedDeciduousOrEvergreenForest:
-    case MixedForest:
-    case MosaicForest:
-    case MosaicGrassLand:
-    case ShrubLand:
-    case Herbaceous:
-    case SparseVegetation:
-    case RegularlyFloodedForest:
-    case PermanentlyFloodedForest:
-    case RegularlyFloodedGrassland:
-    case Urban:
-    case Bare:
-    case PermanentSnow:
-    case NoData:
-    case RiverEstuary:
-      return false;
-    case Lakes:
-    case Sea:
-    case CaspianSea:
-      return true;
+    switch (theType)
+    {
+      case IrrigatedCropLand:
+      case RainFedCropLand:
+      case MosaicCropLand:
+      case MosaicVegetation:
+      case ClosedToOpenBroadLeavedDeciduousForest:
+      case ClosedBroadLeavedDeciduousForest:
+      case OpenBroadLeavedDeciduousForest:
+      case ClosedNeedleLeavedEvergreenForest:
+      case OpenNeedleLeavedDeciduousOrEvergreenForest:
+      case MixedForest:
+      case MosaicForest:
+      case MosaicGrassLand:
+      case ShrubLand:
+      case Herbaceous:
+      case SparseVegetation:
+      case RegularlyFloodedForest:
+      case PermanentlyFloodedForest:
+      case RegularlyFloodedGrassland:
+      case Urban:
+      case Bare:
+      case PermanentSnow:
+      case NoData:
+      case RiverEstuary:
+        return false;
+      case Lakes:
+      case Sea:
+      case CaspianSea:
+        return true;
+    }
+    // Some compilers do not see all values have been handled above
+    return false;
   }
-  // Some compilers do not see all values have been handled above
-  return false;
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 }  // namespace Fmi

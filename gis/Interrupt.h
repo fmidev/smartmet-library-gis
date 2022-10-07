@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Box.h"
+#include "Shape.h"
 #include "SpatialReference.h"
 
 #include <list>
@@ -18,6 +19,8 @@ struct Interrupt
   std::list<Box> cuts;
   std::shared_ptr<OGRGeometry> andGeometry;
   std::shared_ptr<OGRGeometry> cutGeometry;
+  std::list<Shape_sptr> shapeClips;
+  std::list<Shape_sptr> shapeCuts;
 };
 
 Interrupt interruptGeometry(const SpatialReference& theSRS);

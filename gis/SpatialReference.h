@@ -1,5 +1,6 @@
 #pragma once
 
+#include <macgyver/Cache.h>
 #include <memory>
 #include <string>
 
@@ -40,6 +41,7 @@ class SpatialReference
   // Common accessors
   bool isAxisSwapped() const;
   bool isGeographic() const;
+  bool EPSGTreatsAsLatLong() const;
 
   // Proj.4 info
   const ProjInfo &projInfo() const;
@@ -51,6 +53,9 @@ class SpatialReference
 
   // Internal cache size
   static void setCacheSize(std::size_t newMaxSize);
+
+  // Get cache statistics
+  static Cache::CacheStats getCacheStats();
 
  private:
   class Impl;

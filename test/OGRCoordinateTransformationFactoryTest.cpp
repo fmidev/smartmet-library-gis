@@ -20,7 +20,8 @@ void create()
 
   auto trans2 = Create("WGS84", "EPSG:2393");  // get the same transformation again
 
-  if (ptr1 != trans2.get()) TEST_FAILED("Should get same transformation back after releasing it");
+  if (ptr1 != trans2.get())
+    TEST_FAILED("Should get same transformation back after releasing it");
 
   TEST_PASSED();
 }

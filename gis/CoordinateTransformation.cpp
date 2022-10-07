@@ -1,20 +1,19 @@
 #include "CoordinateTransformation.h"
-
+#include "GeometryBuilder.h"
 #include "Interrupt.h"
 #include "OGR.h"
 #include "OGRCoordinateTransformationFactory.h"
 #include "ProjInfo.h"
+#include "Shape.h"
 #include "SpatialReference.h"
 #include "Types.h"
-
-#include <boost/functional/hash.hpp>
-
+#include <macgyver/Exception.h>
+#include <macgyver/Hash.h>
 #include <gdal_version.h>
 #include <iostream>
 #include <limits>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
-#include <stdexcept>
 
 // So far we've had no data with axes swapped since we force axis orientation in all constructors.
 // This might change when using external sources for spatial references, then we'll need to put this
@@ -45,8 +44,15 @@ class CoordinateTransformation::Impl
         m_transformation(OGRCoordinateTransformationFactory::Create(theSource.projInfo().projStr(),
                                                                     theTarget.projInfo().projStr()))
   {
-    m_hash = theSource.hashValue();
-    boost::hash_combine(m_hash, theTarget.hashValue());
+    try
+    {
+      m_hash = theSource.hashValue();
+      Fmi::hash_combine(m_hash, theTarget.hashValue());
+    }
+    catch (...)
+    {
+      throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    }
   }
 
   Impl& operator=(const Impl&) = delete;
@@ -70,154 +76,263 @@ CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSo
 
 bool CoordinateTransformation::transform(double& x, double& y) const
 {
+  try
+  {
 #if CHECK_AXES
-  if (impl->m_swapInput) std::swap(x, y);
+    if (impl->m_swapInput)
+      std::swap(x, y);
 #endif
 
-  bool ok = (impl->m_transformation->Transform(1, &x, &y) != 0);
+    bool ok = (impl->m_transformation->Transform(1, &x, &y) != 0);
 
-  if (!ok)
-  {
-    x = std::numeric_limits<double>::quiet_NaN();
-    y = x;
-    return false;
+    if (!ok)
+    {
+      x = std::numeric_limits<double>::quiet_NaN();
+      y = x;
+      return false;
+    }
+
+    // if (impl->m_swapOutput) std::swap(x, y);
+    return true;
   }
-
-  // if (impl->m_swapOutput) std::swap(x, y);
-  return true;
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<double>& y) const
 {
-  if (x.size() != y.size())
-    throw std::runtime_error("X- and Y-coordinate vector sizes do not match");
-
-  if (x.empty())
-    throw std::runtime_error(
-        "Cannot do coordinate transformation for empty X- and Y-coordinate vectors");
-
-#if CHECK_AXES
-  if (impl->m_swapInput) std::swap(x, y);
-#endif
-
-  int n = static_cast<int>(x.size());
-  std::vector<int> flags(n, 0);
-
-  bool ok = (impl->m_transformation->Transform(n, &x[0], &y[0], nullptr, &flags[0]) != 0);
-
-#if CHECK_AXES
-  if (impl->m_swapOutput) std::swap(x, y);
-#endif
-
-  for (std::size_t i = 0; i < flags.size(); i++)
+  try
   {
-    if (flags[i] == 0)
-    {
-      x[i] = std::numeric_limits<double>::quiet_NaN();
-      y[i] = x[i];
-    }
-  }
+    if (x.size() != y.size())
+      throw Fmi::Exception::Trace(BCP, "X- and Y-coordinate vector sizes do not match");
 
-  return ok;
+    if (x.empty())
+      throw Fmi::Exception::Trace(
+          BCP, "Cannot do coordinate transformation for empty X- and Y-coordinate vectors");
+
+#if CHECK_AXES
+    if (impl->m_swapInput)
+      std::swap(x, y);
+#endif
+
+    int n = static_cast<int>(x.size());
+    std::vector<int> flags(n, 0);
+
+    bool ok = (impl->m_transformation->Transform(n, &x[0], &y[0], nullptr, &flags[0]) != 0);
+
+#if CHECK_AXES
+    if (impl->m_swapOutput)
+      std::swap(x, y);
+#endif
+
+    for (std::size_t i = 0; i < flags.size(); i++)
+    {
+      if (flags[i] == 0)
+      {
+        x[i] = std::numeric_limits<double>::quiet_NaN();
+        y[i] = x[i];
+      }
+    }
+
+    return ok;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 bool CoordinateTransformation::transform(OGRGeometry& geom) const
 {
+  try
+  {
 #if CHECK_AXES
-  if (impl->m_swapInput) geom.swapXY();
+    if (impl->m_swapInput)
+      geom.swapXY();
 #endif
 
-  bool ok = (geom.transform(impl->m_transformation.get()) != OGRERR_NONE);
+    bool ok = (geom.transform(impl->m_transformation.get()) != OGRERR_NONE);
 
 #if CHECK_AXES
-  if (ok && impl->m_swapOutput) geom.swapXY();
+    if (ok && impl->m_swapOutput)
+      geom.swapXY();
 #endif
 
-  return ok;
+    return ok;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
-const OGRSpatialReference& CoordinateTransformation::getSourceCS() const
+const SpatialReference& CoordinateTransformation::getSourceCS() const
 {
-  return *impl->m_transformation->GetSourceCS();
+  try
+  {
+    return impl->m_source;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
-const OGRSpatialReference& CoordinateTransformation::getTargetCS() const
+const SpatialReference& CoordinateTransformation::getTargetCS() const
 {
-  return *impl->m_transformation->GetTargetCS();
+  try
+  {
+    return impl->m_target;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 const OGRCoordinateTransformation& CoordinateTransformation::operator*() const
 {
-  return *impl->m_transformation;
+  try
+  {
+    return *impl->m_transformation;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 OGRCoordinateTransformation* CoordinateTransformation::get() const
 {
-  return impl->m_transformation.get();
+  try
+  {
+    return impl->m_transformation.get();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 bool isEmpty(const OGREnvelope& env)
 {
-  return (env.MinX == 0 && env.MinY == 0 && env.MaxX == 0 && env.MaxY == 0);
+  try
+  {
+    return (env.MinX == 0 && env.MinY == 0 && env.MaxX == 0 && env.MaxY == 0);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 bool contains_longitudes(const OGREnvelope& env1, const OGREnvelope& env2)
 {
-  return env1.MinX <= env2.MinX && env1.MaxX >= env2.MaxX;
+  try
+  {
+    return env1.MinX <= env2.MinX && env1.MaxX >= env2.MaxX;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom,
                                                          double theMaximumSegmentLength) const
 {
-  OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
-
-  // If input is geographic apply geographic cuts
-  if (impl->m_source.isGeographic())
+  try
   {
-    auto target_envelope = interruptEnvelope(impl->m_target);
+    OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
 
-    OGREnvelope shape_envelope;
-    geom.getEnvelope(&shape_envelope);
-
-    Interrupt interrupt = interruptGeometry(getTargetCS());
-
-    // Do quick vertical cuts
-    if (!interrupt.cuts.empty())
+    // If input is geographic apply geographic cuts
+    if (impl->m_source.isGeographic())
     {
+      auto target_envelope = interruptEnvelope(impl->m_target);
+
+      OGREnvelope shape_envelope;
+      geom.getEnvelope(&shape_envelope);
+
+      Interrupt interrupt = interruptGeometry(impl->m_target);
+
+      // Do quick vertical cuts
       for (const auto& box : interrupt.cuts)
       {
         g.reset(OGR::polycut(*g, box, theMaximumSegmentLength));
-        if (!g || g->IsEmpty()) return nullptr;
+        if (!g || g->IsEmpty())
+          return nullptr;
       }
+
+      // printf("***** CUTS ****\n");
+      for (auto& shape : interrupt.shapeCuts)
+      {
+        // shape.print(std::cout);
+        g.reset(OGR::polycut(*g, shape, theMaximumSegmentLength));
+        if (!g || g->IsEmpty())
+          return nullptr;
+      }
+
+      if (!interrupt.shapeClips.empty())
+      {
+        // printf("***** CLIPS ****\n");
+        GeometryBuilder builder;
+        for (auto& shape : interrupt.shapeClips)
+        {
+          // shape.print(std::cout);
+          g.reset(OGR::polyclip(*g, shape, theMaximumSegmentLength));
+          if (!g || g->IsEmpty())
+            return nullptr;
+        }
+      }
+
+      // If the target envelope is not set, we must try clipping.
+      // Otherwise if the geometry contains the target area, no clipping is needed.
+      // We test only X-containment, since the target envelope may reach the North Pole,
+      // but there is really no data beyond the 84th latitude.
+
+      if (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope))
+      {
+        if (interrupt.cutGeometry)
+          g.reset(g->Difference(interrupt.cutGeometry.get()));
+        if (!g || g->IsEmpty())
+          return nullptr;
+      }
+
+      if (interrupt.andGeometry)
+        g.reset(g->Intersection(interrupt.andGeometry.get()));
+      if (!g || g->IsEmpty())
+        return nullptr;
     }
 
-    // If the target envelope is not set, we must try clipping.
-    // Otherwise if the geometry contains the target area, no clipping is needed.
-    // We test only X-containment, since the target envelope may reach the North Pole,
-    // but there is really no data beyond the 84th latitude.
+    // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip
+    // that for now since almost all our data is in WGS84.
 
-    if (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope))
+    if (!this->transform(*g))
     {
-      if (interrupt.cutGeometry) g.reset(g->Difference(interrupt.cutGeometry.get()));
-      if (!g || g->IsEmpty()) return nullptr;
+      // std::cerr << "Failed to transform geometry\n";
+      // return nullptr;
     }
 
-    if (interrupt.andGeometry) g.reset(g->Intersection(interrupt.andGeometry.get()));
-    if (!g || g->IsEmpty()) return nullptr;
+    return OGR::renormalizeWindingOrder(*g);
   }
-
-  // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip that
-  // for now since almost all our data is in WGS84.
-
-  if (!this->transform(*g))
+  catch (...)
   {
-    // std::cerr << "Failed to transform geometry\n";
-    // return nullptr;
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
-
-  return OGR::renormalizeWindingOrder(*g);
 }
 
-std::size_t CoordinateTransformation::hashValue() const { return impl->m_hash; }
+std::size_t CoordinateTransformation::hashValue() const
+{
+  try
+  {
+    return impl->m_hash;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
 
 }  // namespace Fmi

@@ -1,7 +1,7 @@
 #include "Box.h"
 #include "OGR.h"
+#include <macgyver/Exception.h>
 #include <ogr_geometry.h>
-#include <stdexcept>
 
 using Fmi::Box;
 
@@ -21,13 +21,20 @@ void tr(OGRGeometry *geom, const Box &box);
 
 void tr(OGRPoint *geom, const Box &box)
 {
-  if (geom != nullptr)
+  try
   {
-    double x = geom->getX();
-    double y = geom->getY();
-    box.transform(x, y);
-    geom->setX(x);
-    geom->setY(y);
+    if (geom != nullptr)
+    {
+      double x = geom->getX();
+      double y = geom->getY();
+      box.transform(x, y);
+      geom->setX(x);
+      geom->setY(y);
+    }
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -39,17 +46,24 @@ void tr(OGRPoint *geom, const Box &box)
 
 void tr(OGRLinearRing *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0)
-    return;
-
-  const int n = geom->getNumPoints();
-
-  for (int i = 0; i < n; ++i)
+  try
   {
-    double x = geom->getX(i);
-    double y = geom->getY(i);
-    box.transform(x, y);
-    geom->setPoint(i, x, y);
+    if (geom == nullptr || geom->IsEmpty() != 0)
+      return;
+
+    const int n = geom->getNumPoints();
+
+    for (int i = 0; i < n; ++i)
+    {
+      double x = geom->getX(i);
+      double y = geom->getY(i);
+      box.transform(x, y);
+      geom->setPoint(i, x, y);
+    }
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -61,17 +75,24 @@ void tr(OGRLinearRing *geom, const Box &box)
 
 void tr(OGRLineString *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0)
-    return;
-
-  const int n = geom->getNumPoints();
-
-  for (int i = 0; i < n; ++i)
+  try
   {
-    double x = geom->getX(i);
-    double y = geom->getY(i);
-    box.transform(x, y);
-    geom->setPoint(i, x, y);
+    if (geom == nullptr || geom->IsEmpty() != 0)
+      return;
+
+    const int n = geom->getNumPoints();
+
+    for (int i = 0; i < n; ++i)
+    {
+      double x = geom->getX(i);
+      double y = geom->getY(i);
+      box.transform(x, y);
+      geom->setPoint(i, x, y);
+    }
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -83,12 +104,19 @@ void tr(OGRLineString *geom, const Box &box)
 
 void tr(OGRPolygon *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0)
-    return;
+  try
+  {
+    if (geom == nullptr || geom->IsEmpty() != 0)
+      return;
 
-  tr(geom->getExteriorRing(), box);
-  for (int i = 0, n = geom->getNumInteriorRings(); i < n; ++i)
-    tr(geom->getInteriorRing(i), box);
+    tr(geom->getExteriorRing(), box);
+    for (int i = 0, n = geom->getNumInteriorRings(); i < n; ++i)
+      tr(geom->getInteriorRing(i), box);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -99,11 +127,18 @@ void tr(OGRPolygon *geom, const Box &box)
 
 void tr(OGRMultiPoint *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0)
-    return;
+  try
+  {
+    if (geom == nullptr || geom->IsEmpty() != 0)
+      return;
 
-  for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    tr(dynamic_cast<OGRPoint *>(geom->getGeometryRef(i)), box);
+    for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
+      tr(dynamic_cast<OGRPoint *>(geom->getGeometryRef(i)), box);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -114,10 +149,18 @@ void tr(OGRMultiPoint *geom, const Box &box)
 
 void tr(OGRMultiLineString *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0)
-    return;
-  for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    tr(dynamic_cast<OGRLineString *>(geom->getGeometryRef(i)), box);
+  try
+  {
+    if (geom == nullptr || geom->IsEmpty() != 0)
+      return;
+
+    for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
+      tr(dynamic_cast<OGRLineString *>(geom->getGeometryRef(i)), box);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -128,10 +171,18 @@ void tr(OGRMultiLineString *geom, const Box &box)
 
 void tr(OGRMultiPolygon *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0)
-    return;
-  for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    tr(dynamic_cast<OGRPolygon *>(geom->getGeometryRef(i)), box);
+  try
+  {
+    if (geom == nullptr || geom->IsEmpty() != 0)
+      return;
+
+    for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
+      tr(dynamic_cast<OGRPolygon *>(geom->getGeometryRef(i)), box);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -142,10 +193,18 @@ void tr(OGRMultiPolygon *geom, const Box &box)
 
 void tr(OGRGeometryCollection *geom, const Box &box)
 {
-  if (geom == nullptr || geom->IsEmpty() != 0)
-    return;
-  for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-    tr(geom->getGeometryRef(i), box);
+  try
+  {
+    if (geom == nullptr || geom->IsEmpty() != 0)
+      return;
+
+    for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
+      tr(geom->getGeometryRef(i), box);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -159,29 +218,36 @@ void tr(OGRGeometryCollection *geom, const Box &box)
 
 void tr(OGRGeometry *geom, const Box &box)
 {
-  OGRwkbGeometryType id = geom->getGeometryType();
-
-  switch (id)
+  try
   {
-    case wkbPoint:
-      return tr(dynamic_cast<OGRPoint *>(geom), box);
-    case wkbLineString:
-      return tr(dynamic_cast<OGRLineString *>(geom), box);
-    case wkbLinearRing:
-      return tr(dynamic_cast<OGRLinearRing *>(geom), box);
-    case wkbPolygon:
-      return tr(dynamic_cast<OGRPolygon *>(geom), box);
-    case wkbMultiPoint:
-      return tr(dynamic_cast<OGRMultiPoint *>(geom), box);
-    case wkbMultiLineString:
-      return tr(dynamic_cast<OGRMultiLineString *>(geom), box);
-    case wkbMultiPolygon:
-      return tr(dynamic_cast<OGRMultiPolygon *>(geom), box);
-    case wkbGeometryCollection:
-      return tr(dynamic_cast<OGRGeometryCollection *>(geom), box);
-    default:
-      throw std::runtime_error(
-          "Encountered an unknown geometry component in OGRGeometry transform call");
+    OGRwkbGeometryType id = geom->getGeometryType();
+
+    switch (id)
+    {
+      case wkbPoint:
+        return tr(dynamic_cast<OGRPoint *>(geom), box);
+      case wkbLineString:
+        return tr(dynamic_cast<OGRLineString *>(geom), box);
+      case wkbLinearRing:
+        return tr(dynamic_cast<OGRLinearRing *>(geom), box);
+      case wkbPolygon:
+        return tr(dynamic_cast<OGRPolygon *>(geom), box);
+      case wkbMultiPoint:
+        return tr(dynamic_cast<OGRMultiPoint *>(geom), box);
+      case wkbMultiLineString:
+        return tr(dynamic_cast<OGRMultiLineString *>(geom), box);
+      case wkbMultiPolygon:
+        return tr(dynamic_cast<OGRMultiPolygon *>(geom), box);
+      case wkbGeometryCollection:
+        return tr(dynamic_cast<OGRGeometryCollection *>(geom), box);
+      default:
+        throw Fmi::Exception::Trace(
+            BCP, "Encountered an unknown geometry component in OGRGeometry transform call");
+    }
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -199,7 +265,14 @@ namespace OGR
 {
 void transform(OGRGeometry &theGeom, const Box &theBox)
 {
-  tr(&theGeom, theBox);
+  try
+  {
+    tr(&theGeom, theBox);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 }  // namespace OGR
 }  // namespace Fmi

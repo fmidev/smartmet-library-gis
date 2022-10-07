@@ -1,12 +1,10 @@
-PROG = $(patsubst %.cpp,%,$(wildcard *Test.cpp))
+PROG = $(patsubst %.cpp,%,$(wildcard *.cpp))
 
 REQUIRES = fmt gdal geos
 
-CXX_STD=c++11
-
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
-FLAGS = -std=$(CXX_STD) -Wall -W -Wno-unused-parameter
+FLAGS = -std=$(CXX_STD) -Wall -W -Wno-unused-parameter -DGEOS_INLINE
 
 ifeq ($(TSAN), yes)
   FLAGS += -fsanitize=thread
@@ -36,9 +34,10 @@ test: $(PROG)
 	@echo
 	@echo Using $(GIS_RASTERS_DIR) for rasterdata
 	@rm -f *.err
-	@for prog in $(PROG); do \
+	@for prog in *Test; do \
 	  ( ./$$prog || touch $$prog.err ) ; \
 	done
+	@for txtfile in tests/*.txt; do ./ShapeTester $$txtfile || touch ShapeTester.err ; done
 	@test `find . -name \*.err | wc -l` = "0" || ( echo ; echo "The following tests have errors:" ; \
 		for i in *.err ; do echo `basename $$i .err`; done ; rm -f *.err ; false )
 

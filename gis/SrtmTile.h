@@ -11,6 +11,9 @@ class SrtmTile
  public:
   ~SrtmTile();
   SrtmTile(const std::string& path);
+  SrtmTile() = delete;
+  SrtmTile(const SrtmTile& other) = delete;
+  SrtmTile& operator=(const SrtmTile& other) = delete;
 
   const std::string& path() const;
   std::size_t size() const;
@@ -26,10 +29,6 @@ class SrtmTile
   int value(std::size_t i, std::size_t j) const;
 
  private:
-  SrtmTile() = delete;
-  SrtmTile(const SrtmTile& other) = delete;
-  SrtmTile& operator=(const SrtmTile& other) = delete;
-
   class Impl;
   std::unique_ptr<Impl> impl;
 

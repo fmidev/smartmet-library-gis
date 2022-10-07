@@ -8,8 +8,7 @@
 #include <boost/move/unique_ptr.hpp>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
-
-#include <stdexcept>
+#include <macgyver/Exception.h>
 
 using FileMapping = boost::interprocess::file_mapping;
 using MappedRegion = boost::interprocess::mapped_region;
@@ -30,14 +29,21 @@ namespace Fmi
 
 bool SrtmTile::valid_path(const std::string &path)
 {
-  boost::filesystem::path p(path);
+  try
+  {
+    boost::filesystem::path p(path);
 
-  // Avoid locale locs by not using regex here
-  auto name = p.filename().string();
-  return (name.size() == 1 + 2 + 1 + 3 + 4 && (name[0] == 'N' || name[0] == 'S') &&
-          std::isdigit(name[1]) && std::isdigit(name[2]) && (name[3] == 'E' || name[3] == 'W') &&
-          std::isdigit(name[4]) && std::isdigit(name[5]) && std::isdigit(name[6]) &&
-          name[7] == '.' && name[8] == 'h' && name[9] == 'g' && name[10] == 't');
+    // Avoid locale locs by not using regex here
+    auto name = p.filename().string();
+    return (name.size() == 1 + 2 + 1 + 3 + 4 && (name[0] == 'N' || name[0] == 'S') &&
+            std::isdigit(name[1]) && std::isdigit(name[2]) && (name[3] == 'E' || name[3] == 'W') &&
+            std::isdigit(name[4]) && std::isdigit(name[5]) && std::isdigit(name[6]) &&
+            name[7] == '.' && name[8] == 'h' && name[9] == 'g' && name[10] == 't');
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -51,9 +57,16 @@ bool SrtmTile::valid_path(const std::string &path)
 
 bool SrtmTile::valid_size(const std::string &path)
 {
-  auto sz = boost::filesystem::file_size(path);
-  auto n = static_cast<std::size_t>(sqrt(sz / 2.0));
-  return (sz == 2 * n * n);
+  try
+  {
+    auto sz = boost::filesystem::file_size(path);
+    auto n = static_cast<std::size_t>(sqrt(sz / 2.0));
+    return (sz == 2 * n * n);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -91,24 +104,32 @@ class SrtmTile::Impl
 
 SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
 {
-  if (!valid_path(path))
-    throw std::runtime_error("Not a valid filename for a .hgt file: '" + path + "'");
-  if (!valid_size(path))
-    throw std::runtime_error("Not a valid size of form 2*N*N for a .hgt file: '" + path + "'");
+  try
+  {
+    if (!valid_path(path))
+      throw Fmi::Exception::Trace(BCP, "Not a valid filename for a .hgt file: '" + path + "'");
+    if (!valid_size(path))
+      throw Fmi::Exception::Trace(BCP,
+                                  "Not a valid size of form 2*N*N for a .hgt file: '" + path + "'");
 
-  auto sz = boost::filesystem::file_size(path);
-  itsSize = static_cast<std::size_t>(sqrt(sz / 2.0));
+    auto sz = boost::filesystem::file_size(path);
+    itsSize = static_cast<std::size_t>(sqrt(sz / 2.0));
 
-  // Sample filename : S89E172.hgt
+    // Sample filename : S89E172.hgt
 
-  boost::filesystem::path p(path);
-  auto name = p.filename().string();
+    boost::filesystem::path p(path);
+    auto name = p.filename().string();
 
-  int sign = (name[0] == 'S' ? -1 : 1);
-  itsLat = sign * std::stoi(name.substr(1, 2));
+    int sign = (name[0] == 'S' ? -1 : 1);
+    itsLat = sign * std::stoi(name.substr(1, 2));
 
-  sign = (name[3] == 'W' ? -1 : 1);
-  itsLon = sign * std::stoi(name.substr(4, 3));
+    sign = (name[3] == 'W' ? -1 : 1);
+    itsLon = sign * std::stoi(name.substr(4, 3));
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -119,46 +140,54 @@ SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
 
 int SrtmTile::Impl::value(std::size_t i, std::size_t j)
 {
-  // Sanity checks
-  if (i >= itsSize || j >= itsSize)
-    throw std::runtime_error(
-        fmt::format("SrtmFile indexes {},{} is out of range, size of tile is {}", i, j, itsSize));
-
-  // We use lazy initialization to reduce core sizes in case
-  // private mapped files are not disabled in core dumps.
-  // We use private mapping intentionally, this class is expected
-  // to be used in servers where no other process maps the same
-  // files, and we wish to reserve shared mapping for core dumps.
-
-  // We do not intend to write to the DEM files, but we use read_write
-  // mode to get private mappings instead of shared ones.
-
-  UpgradeReadLock readlock(itsMutex);
-
-  if (!itsFileMapping)
+  try
   {
-    UpgradeWriteLock writelock(readlock);
+    // Sanity checks
+    if (i >= itsSize || j >= itsSize)
+      throw Fmi::Exception::Trace(
+          BCP,
+          fmt::format("SrtmFile indexes {},{} is out of range, size of tile is {}", i, j, itsSize));
+
+    // We use lazy initialization to reduce core sizes in case
+    // private mapped files are not disabled in core dumps.
+    // We use private mapping intentionally, this class is expected
+    // to be used in servers where no other process maps the same
+    // files, and we wish to reserve shared mapping for core dumps.
+
+    // We do not intend to write to the DEM files, but we use read_write
+    // mode to get private mappings instead of shared ones.
+
+    UpgradeReadLock readlock(itsMutex);
+
     if (!itsFileMapping)
     {
-      // std::cout << "Mapping " << itsPath << std::endl;
-      itsFileMapping =
-          boost::movelib::make_unique<FileMapping>(itsPath.c_str(), boost::interprocess::read_only);
+      UpgradeWriteLock writelock(readlock);
+      if (!itsFileMapping)
+      {
+        // std::cout << "Mapping " << itsPath << std::endl;
+        itsFileMapping = boost::movelib::make_unique<FileMapping>(itsPath.c_str(),
+                                                                  boost::interprocess::read_only);
 
-      itsMappedRegion = boost::movelib::make_unique<MappedRegion>(
-          *itsFileMapping, boost::interprocess::read_only, 0, 2 * itsSize * itsSize);
+        itsMappedRegion = boost::movelib::make_unique<MappedRegion>(
+            *itsFileMapping, boost::interprocess::read_only, 0, 2 * itsSize * itsSize);
 
-      // We do not expect any normal access patterns, so disable prefetching
-      itsMappedRegion->advise(boost::interprocess::mapped_region::advice_random);
+        // We do not expect any normal access patterns, so disable prefetching
+        itsMappedRegion->advise(boost::interprocess::mapped_region::advice_random);
+      }
     }
+
+    // Now the data is definitely available. Note: data runs from
+    // north down, but we index if from bottom up
+
+    auto *ptr = reinterpret_cast<std::int16_t *>(itsMappedRegion->get_address());
+    std::int16_t big_endian = ptr[i + (itsSize - j - 1) * itsSize];
+    std::int16_t little_endian = ((big_endian >> 8) & 0xff) + ((big_endian & 0xff) << 8);
+    return little_endian;
   }
-
-  // Now the data is definitely available. Note: data runs from
-  // north down, but we index if from bottom up
-
-  auto *ptr = reinterpret_cast<std::int16_t *>(itsMappedRegion->get_address());
-  std::int16_t big_endian = ptr[i + (itsSize - j - 1) * itsSize];
-  std::int16_t little_endian = ((big_endian >> 8) & 0xff) + ((big_endian & 0xff) << 8);
-  return little_endian;
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -182,28 +211,68 @@ SrtmTile::SrtmTile(const std::string &path) : impl(new SrtmTile::Impl(path)) {}
  */
 // ----------------------------------------------------------------------
 
-const std::string &SrtmTile::path() const { return impl->path(); }
+const std::string &SrtmTile::path() const
+{
+  try
+  {
+    return impl->path();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the size of the tile
  */
 // ----------------------------------------------------------------------
 
-std::size_t SrtmTile::size() const { return impl->size(); }
+std::size_t SrtmTile::size() const
+{
+  try
+  {
+    return impl->size();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the lower left corner longitude of the tile
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::longitude() const { return impl->longitude(); }
+int SrtmTile::longitude() const
+{
+  try
+  {
+    return impl->longitude();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the lower left corner latitude of the tile
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::latitude() const { return impl->latitude(); }
+int SrtmTile::latitude() const
+{
+  try
+  {
+    return impl->latitude();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
 // ----------------------------------------------------------------------
 /*!
  * \brief Return the value at the given tile coordinate
@@ -213,5 +282,15 @@ int SrtmTile::latitude() const { return impl->latitude(); }
  */
 // ----------------------------------------------------------------------
 
-int SrtmTile::value(std::size_t i, std::size_t j) const { return impl->value(i, j); }
+int SrtmTile::value(std::size_t i, std::size_t j) const
+{
+  try
+  {
+    return impl->value(i, j);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
 }  // namespace Fmi

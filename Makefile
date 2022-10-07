@@ -7,11 +7,14 @@ REQUIRES = fmt gdal geos
 
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
+RPMBUILD_OPT ?=
+
 # Compiler options
 
 DEFINES = -DUNIX -D_REENTRANT -DUSE_UNSTABLE_GEOS_CPP_API
 
 LIBS += -lsmartmet-macgyver \
+	-ldouble-conversion \
 	-lboost_filesystem \
 	-lboost_thread \
 	$(REQUIRED_LIBS)
@@ -46,7 +49,8 @@ profile: all
 $(LIBFILE): $(OBJS)
 	$(CXX) $(CFLAGS) -shared -rdynamic -o $(LIBFILE) $(OBJS) $(LIBS)
 	@echo Checking $(LIBFILE) for unresolved references
-	@if ldd -r $(LIBFILE) 2>&1 | c++filt | grep ^undefined\ symbol; \
+	@if ldd -r $(LIBFILE) 2>&1 | c++filt | grep ^undefined\ symbol | \
+			grep -Pv ':\ __(?:(?:a|t|ub)san_|sanitizer_)'; \
 		then rm -v $(LIBFILE); \
 		exit 1; \
 	fi
@@ -73,19 +77,20 @@ install:
 test:
 	+cd test && make test
 
-objdir:
-	@mkdir -p $(objdir)
-
 rpm: clean $(SPEC).spec
 	rm -f $(SPEC).tar.gz # Clean a possible leftover from previous attempt
-	tar -czvf $(SPEC).tar.gz --exclude test --exclude-vcs --transform "s,^,$(SPEC)/," *
-	rpmbuild -tb $(SPEC).tar.gz
+	tar -czvf $(SPEC).tar.gz --exclude-vcs --transform "s,^,$(SPEC)/," *
+	rpmbuild -tb $(SPEC).tar.gz $(RPMBUILD_OPT)
 	rm -f $(SPEC).tar.gz
 
 .SUFFIXES: $(SUFFIXES) .cpp
 
-obj/%.o: %.cpp
-	$(CXX) $(CFLAGS) $(INCLUDES) -c -o $@ $<
+objdir:
+	mkdir -p $(objdir)
+
+obj/%.o : %.cpp
+	@mkdir -p $(objdir)
+	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
 
 ifneq ($(wildcard obj/*.d),)
 -include $(wildcard obj/*.d)
