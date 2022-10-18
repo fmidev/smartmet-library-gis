@@ -97,13 +97,13 @@ std::size_t BoolMatrix::hashValue() const
 std::array<std::size_t, 4> BoolMatrix::bbox() const
 {
   auto imin = m_w;
-  auto imax = 0UL;
+  size_t imax = 0;
   auto jmin = m_h;
-  auto jmax = 0UL;
+  size_t jmax = 0;
 
-  for (auto j = 0UL; j < m_h; j++)
+  for (size_t j = 0; j < m_h; j++)
   {
-    for (auto i = 0UL; i < m_w;)
+    for (size_t i = 0; i < m_w;)
     {
       // Skip blocks of zeros and ones quickly. Not optimized for skipping the first bits of the
       // next row. The loop could be written to iterate over pos instead, and we'd get real

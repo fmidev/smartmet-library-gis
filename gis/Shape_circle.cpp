@@ -686,10 +686,10 @@ bool Shape_circle::isInsideRing(const OGRLinearRing &theRing) const
   {
     Shape_circle circle(itsX, itsY, itsRadius - 0.0001);
 
-    uint points = 36;
+    size_t points = 36;
     double step = 2 * PI / (double)points;
     double angle = 0;
-    for (uint t = 0; t < points; t++)
+    for (size_t t = 0; t < points; t++)
     {
       double xx = 0, yy = 0;
       circle.getPointByAngle(angle, xx, yy);
@@ -906,11 +906,11 @@ bool Shape_circle::connectPoints_cw(OGRLinearRing &ring,
       outerCircle.getPointByAngle(angle1, xx, yy);
 
       ring.addPoint(x1, y1);
-      uint points = abs(angleDiff / itsBorderStep);
+      size_t points = abs(angleDiff / itsBorderStep);
       double ox = x1;
       double oy = y1;
       double ad = angleDiff / points;
-      for (uint t = 0; t < points; t++)
+      for (size_t t = 0; t < points; t++)
       {
         getPointByAngle(angle1, xx, yy);
         // printf("++ getPoint %f   %f,%f\n", angle1, xx, yy);
@@ -963,11 +963,11 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing &ring,
       innerCircle.getPointByAngle(angle1, xx, yy);
 
       ring.addPoint(x1, y1);
-      uint points = abs(angleDiff / itsBorderStep);
+      size_t points = abs(angleDiff / itsBorderStep);
       double ox = x1;
       double oy = y1;
       double ad = angleDiff / points;
-      for (uint t = 0; t < points; t++)
+      for (size_t t = 0; t < points; t++)
       {
         getPointByAngle(angle1, xx, yy);
         // printf("-- getPoint %f   %f,%f\n", angle1, xx, yy);

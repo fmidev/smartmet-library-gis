@@ -824,10 +824,10 @@ bool Shape_sphere::isInsideRing(const OGRLinearRing& theRing) const
   {
     Shape_sphere sphere(itsX, itsY, itsRadius - 0.0001);
 
-    uint points = 36;
+    size_t points = 36;
     double step = 2 * PI / (double)points;
     double angle = 0;
-    for (uint t = 0; t < points; t++)
+    for (size_t t = 0; t < points; t++)
     {
       double xx = 0;
       double yy = 0;
@@ -1086,9 +1086,9 @@ bool Shape_sphere::connectPoints_cw(OGRLinearRing& ring,
     ring.addPoint(x, y);
     ring.addPoint(x1, y1);
 
-    uint points = dist / itsBorderStep;
+    size_t points = dist / itsBorderStep;
     double ad = angleDiff / points;
-    for (uint t = 0; t < points; t++)
+    for (size_t t = 0; t < points; t++)
     {
       getMetricPointByAngle(angle1, xx, yy);
       // printf("++ getPoint %f   %f,%f\n", angle1, xx, yy);
@@ -1160,10 +1160,10 @@ bool Shape_sphere::connectPoints_ccw(OGRLinearRing& ring,
     ring.addPoint(x, y);
     ring.addPoint(x1, y1);
 
-    uint points = dist / itsBorderStep;
+    size_t points = dist / itsBorderStep;
     //printf("POINTS %u  = %f / %f\n",points,dist,itsBorderStep);
     double ad = angleDiff / points;
-    for (uint t = 0; t < points; t++)
+    for (size_t t = 0; t < points; t++)
     {
       getMetricPointByAngle(angle1, xx, yy);
       //printf("-- getPoint %f   %f,%f\n", angle1, xx, yy);
