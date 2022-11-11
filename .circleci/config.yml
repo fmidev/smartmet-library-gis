@@ -86,7 +86,7 @@ jobs:
           destination: dist/
   upload-rhel9:
     docker:
-      - image: fmidev/smartmet-cibase-7:latest
+      - image: fmidev/smartmet-cibase-9:latest
     steps:
       - attach_workspace:
           at: /dist
