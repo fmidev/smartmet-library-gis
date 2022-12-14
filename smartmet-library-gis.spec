@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 22.9.28
+Version: 22.12.14
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -35,7 +35,7 @@ BuildRequires: geos310-devel
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
-BuildRequires: smartmet-library-macgyver-devel >= 22.8.23
+BuildRequires: smartmet-library-macgyver-devel >= 22.10.20
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -51,7 +51,7 @@ Requires: double-conversion
 Requires: gdal34-libs
 Requires: geos310
 Requires: postgis32_13
-Requires: smartmet-library-macgyver >= 22.8.23
+Requires: smartmet-library-macgyver >= 22.10.20
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -96,7 +96,7 @@ Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal34-devel
-Requires: smartmet-library-macgyver-devel >= 22.8.23
+Requires: smartmet-library-macgyver-devel >= 22.10.20
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -107,6 +107,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Dec 14 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.12.14-1.fmi
+- Fixed PROJ parser to allow south/west/east/north suffixes
+
 * Wed Sep 28 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.9.28-1.fmi
 - Fixed inverse proj string for ob_tran projections
 

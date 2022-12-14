@@ -34,6 +34,60 @@ const std::set<std::string> g_ints{"R", "a", "b"};  // one meter accuracy is eno
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Parse a PROJ.4 setting to a double if possible
+ */
+// ----------------------------------------------------------------------
+
+boost::optional<double> parse_proj_number(const std::string& value)
+{
+  try
+  {
+    if (value.empty())
+      throw Fmi::Exception::Trace(BCP, "Empty PROJ options not allowed");
+
+    // Try parsing as a number
+    auto opt_value = Fmi::stod_opt(value);
+    if (opt_value)
+      return opt_value;
+
+    // Try removing possible s/n/w/e suffix
+
+    auto suffix = value.back();
+    auto prefix = value.substr(0, value.size() - 1);
+    if (suffix == 'E' || suffix == 'e')
+    {
+      opt_value = Fmi::stod_opt(prefix);
+      if (opt_value)
+        return opt_value;
+    }
+    else if (suffix == 'W' || suffix == 'w')
+    {
+      opt_value = Fmi::stod_opt(prefix);
+      if (opt_value)
+        return -(*opt_value);
+    }
+    else if (suffix == 'N' || suffix == 'n')
+    {
+      opt_value = Fmi::stod_opt(prefix);
+      if (opt_value)
+        return *opt_value;
+    }
+    else if (suffix == 'S' || suffix == 's')
+    {
+      opt_value = Fmi::stod_opt(prefix);
+      if (opt_value)
+        return -(*opt_value);
+    }
+    return {};
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Parse PROJ.4 settings
  *
  * Sample input: +to_meter=.0174532925199433 +proj=ob_tran +o_proj=eqc
@@ -76,7 +130,7 @@ ProjInfo::ProjInfo(const std::string& theProj) : itsProjStr(theProj)
 
         // Store value as double or string
 
-        auto opt_value = Fmi::stod_opt(string_value);
+        auto opt_value = parse_proj_number(string_value);
         if (opt_value)
           itsDoubles[name] = *opt_value;
         else
@@ -89,7 +143,7 @@ ProjInfo::ProjInfo(const std::string& theProj) : itsProjStr(theProj)
   }
   catch (...)
   {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Failed to parse PROJ string").addParameter("PROJ", theProj);
   }
 }
 
@@ -110,7 +164,8 @@ boost::optional<double> ProjInfo::getDouble(const std::string& theName) const
   }
   catch (...)
   {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Failed to get PROJ double")
+        .addParameter("Parameter", theName);
   }
 }
 
@@ -131,7 +186,7 @@ boost::optional<std::string> ProjInfo::getString(const std::string& theName) con
   }
   catch (...)
   {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Failed to get PROJ value").addParameter("Parameter", theName);
   }
 }
 
@@ -150,7 +205,8 @@ bool ProjInfo::getBool(const std::string& theName) const
   }
   catch (...)
   {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Failed to get PROJ boolean value")
+        .addParameter("Parameter", theName);
   }
 }
 
@@ -247,7 +303,7 @@ std::string ProjInfo::inverseProjStr() const
   }
   catch (...)
   {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Creating inverse PROJ definition failed");
   }
 }
 
