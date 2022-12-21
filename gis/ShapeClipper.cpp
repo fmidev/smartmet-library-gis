@@ -43,7 +43,7 @@ OGRLineStringList::iterator best_match(const OGRLineString &line1,
 
       // Choose rightmost turn to satisfy OGC rules
       double best_turn = -999;
-      for (auto &p : matches)
+      for (const auto &p : matches)
       {
         auto *line = *p;
         const auto dy = line->getY(1) - line->getY(0);
@@ -108,58 +108,46 @@ void remove_singles(VertexCounts &counts)
   }
 }
 
-
-
-void removeDoubles(OGRLineString& line)
+void removeDoubles(OGRLineString &line)
 {
   try
   {
     std::vector<int> removePoints;
     int len = line.getNumPoints();
-    for (int t=1; t<len; t++)
+    for (int t = 1; t < len; t++)
     {
-      if ((int)(100000*line.getX(t - 1)) == (int)(100000*line.getX(t)) && (int)(100000*line.getY(t - 1)) == (int)(100000*line.getY(t)))
-      //if (line.getX(t - 1) == line.getX(t) && line.getY(t - 1) == line.getY(t))
+      if ((int)(100000 * line.getX(t - 1)) == (int)(100000 * line.getX(t)) &&
+          (int)(100000 * line.getY(t - 1)) == (int)(100000 * line.getY(t)))
+      // if (line.getX(t - 1) == line.getX(t) && line.getY(t - 1) == line.getY(t))
       {
-        if ((t+1) < len)
-          removePoints.push_back(t-removePoints.size());
+        if ((t + 1) < len)
+          removePoints.push_back(t - removePoints.size());
         else
-          removePoints.push_back(t-1-removePoints.size());
+          removePoints.push_back(t - 1 - removePoints.size());
       }
     }
 
-    if (removePoints.size() > 0)
-    {
-      for (auto i = removePoints.begin(); i != removePoints.end();++i)
-      {
-        line.removePoint(*i);
-      }
-    }
+    for (auto i : removePoints)
+      line.removePoint(i);
   }
   catch (...)
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
 
 void removeDoubles(std::list<OGRLineString *> &lines)
 {
   try
   {
-    for (auto line = lines.begin(); line != lines.end(); ++line)
-    {
-      removeDoubles(*(*line));
-    }
+    for (auto &line : lines)
+      removeDoubles(*line);
   }
   catch (...)
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
-
 
 void split_touches(const VertexCounts &counts, OGRLineStringList &lines)
 {
@@ -197,7 +185,7 @@ void split_touches(const VertexCounts &counts, OGRLineStringList &lines)
 
 }  // namespace
 
-ShapeClipper::ShapeClipper(Shape_sptr &theShape, bool keep_inside)
+ShapeClipper::ShapeClipper(const Shape_sptr &theShape, bool keep_inside)
 {
   try
   {
@@ -299,7 +287,7 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
       auto pos2 = best_match(*line1, matches);
 
       // Join the best match at pos2 to line1
-      auto line2 = *pos2;
+      auto *line2 = *pos2;
       auto n2 = line2->getNumPoints();
 
       line1->addSubLineString(line2, 1, n2 - 1);
@@ -331,8 +319,6 @@ void Fmi::ShapeClipper::reconnectLines(std::list<OGRLineString *> &lines, bool e
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
 
 void Fmi::ShapeClipper::reconnect()
 {
@@ -606,8 +592,8 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
                                      bool keep_inside,
                                      bool exterior)
 {
-  //printf("CONNECT LINES\n");
-  //for (auto *line : theLines)
+  // printf("CONNECT LINES\n");
+  // for (auto *line : theLines)
   //  std::cout << "line: " << OGR::exportToWkt(*line) << "\n";
 
   if (theLines.empty())
@@ -641,9 +627,9 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
     double x2 = ring->getX(0);
     double y2 = ring->getY(0);
 
-    //std::cout << "RING: " << OGR::exportToWkt(*ring) << "\n";
+    // std::cout << "RING: " << OGR::exportToWkt(*ring) << "\n";
 
-    //printf(" -- RING %f,%f => %f,%f\n",x1,y1,x2,y2);
+    // printf(" -- RING %f,%f => %f,%f\n",x1,y1,x2,y2);
 
     // No linestring to move onto found next - meaning we'd
     // either move to the next corner or close the current ring.
@@ -660,7 +646,8 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
 
         if (x1 != (*best)->getX(0) || y1 != (*best)->getY(0))
         {
-          //printf(" -- connect %f,%f => %f,%f  %f,%f\n",x1,y1,x2,y2,(*best)->getX(0),(*best)->getY(0));
+          // printf(" -- connect %f,%f => %f,%f
+          // %f,%f\n",x1,y1,x2,y2,(*best)->getX(0),(*best)->getY(0));
           if (cw)
             itsShape->connectPoints_cw(*ring, x1, y1, x2, y2, theMaximumSegmentLength);
           else
@@ -682,7 +669,7 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
       {
         if (x1 != x2 || y1 != y2)
         {
-          //printf(" ++ connect %f,%f => %f,%f\n",x1,y1,x2,y2);
+          // printf(" ++ connect %f,%f => %f,%f\n",x1,y1,x2,y2);
           if (cw)
             itsShape->connectPoints_cw(*ring, x1, y1, x2, y2, theMaximumSegmentLength);
           else
@@ -753,8 +740,10 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
       itsInteriorLines.clear();
     }
 
-    connectLines(itsExteriorRings, itsExteriorLines, theMaximumSegmentLength, itsKeepInsideFlag, true);
-    connectLines(itsInteriorRings, itsInteriorLines, theMaximumSegmentLength, itsKeepInsideFlag, false);
+    connectLines(
+        itsExteriorRings, itsExteriorLines, theMaximumSegmentLength, itsKeepInsideFlag, true);
+    connectLines(
+        itsInteriorRings, itsInteriorLines, theMaximumSegmentLength, itsKeepInsideFlag, false);
 
     // Build polygons starting from the built exterior rings
 
@@ -771,7 +760,7 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
 
     for (auto *hole : itsInteriorRings)
     {
-      if (itsPolygons.size() == 0)
+      if (itsPolygons.empty())
         ;
       else if (itsPolygons.size() == 1)
         itsPolygons.front()->addRingDirectly(hole);
@@ -861,7 +850,8 @@ void Fmi::ShapeClipper::reconnectWithoutShape()
 
     // Merge all unjoinable lines to one list of lines
 
-    std::move(itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
+    std::move(
+        itsInteriorLines.begin(), itsInteriorLines.end(), std::back_inserter(itsExteriorLines));
 
     itsInteriorRings.clear();
     itsInteriorLines.clear();

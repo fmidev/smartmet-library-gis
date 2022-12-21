@@ -13,15 +13,15 @@ namespace Fmi
  */
 // ----------------------------------------------------------------------
 
-Host::Host(const std::string& theHostname,
-           const std::string& theDatabase,
-           const std::string& theUsername,
-           const std::string& thePassword,
+Host::Host(std::string theHostname,
+           std::string theDatabase,
+           std::string theUsername,
+           std::string thePassword,
            int thePort)
-    : itsHostname(theHostname),
-      itsDatabase(theDatabase),
-      itsUsername(theUsername),
-      itsPassword(thePassword),
+    : itsHostname(std::move(theHostname)),
+      itsDatabase(std::move(theDatabase)),
+      itsUsername(std::move(theUsername)),
+      itsPassword(std::move(thePassword)),
       itsPort(thePort)
 {
 }

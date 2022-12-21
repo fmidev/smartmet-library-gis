@@ -10,11 +10,14 @@ class CoordinateMatrix;
 
 struct CoordinateAnalysis
 {
-  CoordinateAnalysis(const BoolMatrix& theValid,
-                     const BoolMatrix& theClockwise,
+  CoordinateAnalysis(BoolMatrix theValid,
+                     BoolMatrix theClockwise,
                      bool theFlipping,
                      std::size_t shift)
-      : valid(theValid), clockwise(theClockwise), needs_flipping(theFlipping), shift(shift)
+      : valid(std::move(theValid)),
+        clockwise(std::move(theClockwise)),
+        needs_flipping(theFlipping),
+        shift(shift)
   {
   }
 

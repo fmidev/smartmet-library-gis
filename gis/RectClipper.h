@@ -22,6 +22,11 @@ class RectClipper
 
   ~RectClipper();
 
+  RectClipper(const RectClipper &other) = delete;
+  RectClipper &operator=(const RectClipper &other) = delete;
+  RectClipper(RectClipper &&other) = delete;
+  RectClipper &operator=(RectClipper &&other) = delete;
+
   void addBox();  // add box as exterior or interior depending on KeepInsideFlag
 
   void addExterior(OGRLinearRing *theRing);

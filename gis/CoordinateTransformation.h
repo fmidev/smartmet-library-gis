@@ -17,11 +17,13 @@ class CoordinateTransformation
   ~CoordinateTransformation() = default;
   CoordinateTransformation() = delete;
   CoordinateTransformation(const CoordinateTransformation& other);
+  CoordinateTransformation(CoordinateTransformation&& other) noexcept;
 
   // Handles implicit construction from strings, OGRSpatialReference etc
   CoordinateTransformation(const SpatialReference& theSource, const SpatialReference& theTarget);
 
   CoordinateTransformation& operator=(const CoordinateTransformation&) = delete;
+  CoordinateTransformation& operator=(CoordinateTransformation&&) = delete;
 
   const OGRCoordinateTransformation& operator*() const;
   OGRCoordinateTransformation* get() const;

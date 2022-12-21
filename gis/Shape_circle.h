@@ -10,6 +10,11 @@ class Shape_circle : public Shape
   Shape_circle(double theX, double theY, double theRadius);
   ~Shape_circle() override;
 
+  Shape_circle(const Shape_circle &other) = delete;
+  Shape_circle &operator=(const Shape_circle &other) = delete;
+  Shape_circle(Shape_circle &&other) = delete;
+  Shape_circle &operator=(Shape_circle &&other) = delete;
+
   int clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const override;
   int cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const override;
 
@@ -59,9 +64,6 @@ class Shape_circle : public Shape
                                 double &pX2,
                                 double &pY2) const;
 
-  double angleDistance_cw(double a, double b) const;
-  double angleDistance_ccw(double a, double b) const;
-  double distance(double a, double b) const;
   double getAngle(double x, double y) const;
   void getPointByAngle(double angle, double &x, double &y) const;
   bool isOnEdge(double x, double y) const;

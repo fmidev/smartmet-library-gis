@@ -8,10 +8,12 @@ class DEM
 {
  public:
   ~DEM();
-  DEM(const std::string& path);
+  explicit DEM(const std::string& path);
   DEM() = delete;
   DEM(const DEM& other) = delete;
   DEM& operator=(const DEM& other) = delete;
+  DEM(DEM&& other) = delete;
+  DEM& operator=(DEM&& other) = delete;
 
   // May return NaN if elevation is unknown
   double elevation(double lon, double lat) const;

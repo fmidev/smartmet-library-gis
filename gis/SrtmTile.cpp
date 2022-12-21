@@ -162,7 +162,7 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
     if (!itsFileMapping)
     {
       UpgradeWriteLock writelock(readlock);
-      if (!itsFileMapping)
+      if (!itsFileMapping)  // NOLINT(cppcheck-identicalInnerCondition)
       {
         // std::cout << "Mapping " << itsPath << std::endl;
         itsFileMapping = boost::movelib::make_unique<FileMapping>(itsPath.c_str(),

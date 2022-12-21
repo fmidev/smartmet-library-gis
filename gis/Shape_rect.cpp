@@ -4,6 +4,36 @@
 
 namespace Fmi
 {
+namespace
+{
+// ----------------------------------------------------------------------
+/*!
+ * \brief Calculate a line intersection point
+ *
+ * Note:
+ *   - Calling this with x1,y1 and x2,y2 swapped cuts the other end of the line
+ *   - Calling this with x and y swapped cuts in Y-direction instead
+ *   - Calling with 1<->2 and x<->y swapped works too
+ */
+// ----------------------------------------------------------------------
+
+void clip_one_edge(double &x1, double &y1, double x2, double y2, double limit)
+{
+  try
+  {
+    if (x1 != x2)
+    {
+      y1 += (y2 - y1) * (limit - x1) / (x2 - x1);
+      x1 = limit;
+    }
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+}  // namespace
 Shape_rect::Shape_rect(double theX1, double theY1, double theX2, double theY2)
     : itsX1(theX1),
       itsY1(theY1),
@@ -24,9 +54,12 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
   {
     int position = 0;
 
+    if (theGeom == nullptr)
+      return position;
+
     int n = theGeom->getNumPoints();
 
-    if (theGeom == nullptr || n < 1)
+    if (n < 1)
       return position;
 
     // For shorthand code
@@ -305,21 +338,21 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
             }
             break;  // And continue main loop on the outside
           }
-          else  // edge-edge
+
+          // edge-edge
+
+          // travel to different edge?
+          if (!onSameEdge(prev_pos, pos))
           {
-            // travel to different edge?
-            if (!onSameEdge(prev_pos, pos))
-            {
-              position |= Position::Inside;  // passed through
-              auto *line = new OGRLineString();
-              line->addPoint(g.getX(i - 1), g.getY(i - 1));
-              line->addPoint(x, y);
+            position |= Position::Inside;  // passed through
+            auto *line = new OGRLineString();
+            line->addPoint(g.getX(i - 1), g.getY(i - 1));
+            line->addPoint(x, y);
 #if 0
               std::cout << "Adding EXT: " << OGR::exportToWkt(*line) << "\n";
 #endif
-              theClipper.addExterior(line);
-              start_index = i;
-            }
+            theClipper.addExterior(line);
+            start_index = i;
           }
         }
       }
@@ -338,9 +371,12 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
   {
     int position = 0;
 
+    if (theGeom == nullptr)
+      return position;
+
     int n = theGeom->getNumPoints();
 
-    if (theGeom == nullptr || n < 1)
+    if (n < 1)
       return position;
 
     // For shorthand code
@@ -1032,33 +1068,6 @@ LineIterator Shape_rect::search_ccw(OGRLinearRing *ring,
     }
 
     return best;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Calculate a line intersection point
- *
- * Note:
- *   - Calling this with x1,y1 and x2,y2 swapped cuts the other end of the line
- *   - Calling this with x and y swapped cuts in Y-direction instead
- *   - Calling with 1<->2 and x<->y swapped works too
- */
-// ----------------------------------------------------------------------
-
-void Shape_rect::clip_one_edge(double &x1, double &y1, double x2, double y2, double limit) const
-{
-  try
-  {
-    if (x1 != x2)
-    {
-      y1 += (y2 - y1) * (limit - x1) / (x2 - x1);
-      x1 = limit;
-    }
   }
   catch (...)
   {

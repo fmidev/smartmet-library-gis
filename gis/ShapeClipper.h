@@ -16,8 +16,13 @@ class ShapeClipper
 {
  public:
   ShapeClipper() = delete;
-  ShapeClipper(Shape_sptr &theShape, bool keep_inside);
+  ShapeClipper(const Shape_sptr &theShape, bool keep_inside);
   ~ShapeClipper();
+
+  ShapeClipper(const ShapeClipper &other) = delete;
+  ShapeClipper &operator=(const ShapeClipper &other) = delete;
+  ShapeClipper(ShapeClipper &&other) = delete;
+  ShapeClipper &operator=(ShapeClipper &&other) = delete;
 
   void addShape();  // add a shape as exterior or interior depending on KeepInsideFlag
 
@@ -29,7 +34,7 @@ class ShapeClipper
   void addInterior(OGRLinearRing *theRing);
   void addInterior(OGRLineString *theLine);
 
-  bool getKeepInsideFlag() {return itsKeepInsideFlag;}
+  bool getKeepInsideFlag() const { return itsKeepInsideFlag; }
 
   void reconnectWithShape(double theMaximumSegmentLength);
   void reconnectWithoutShape();

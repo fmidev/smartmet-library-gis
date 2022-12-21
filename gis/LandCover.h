@@ -38,10 +38,13 @@ class LandCover
   };
 
   ~LandCover();
-  LandCover(const std::string& path);
+  explicit LandCover(const std::string& path);
+
   LandCover() = delete;
   LandCover(const LandCover& other) = delete;
   LandCover& operator=(const LandCover& other) = delete;
+  LandCover(LandCover&& other) = delete;
+  LandCover& operator=(LandCover&& other) = delete;
 
   Type coverType(double lon, double lat) const;
   static bool isOpenWater(Type theType);

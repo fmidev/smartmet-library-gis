@@ -198,8 +198,8 @@ OGRGeometry* circle_cut(double lon,
 
     if (env.MinX < -180)
     {
-      auto* rect = make_rect(-540, -90, -180, 90);
-      auto* cut = geom->Intersection(rect);
+      rect = make_rect(-540, -90, -180, 90);
+      cut = geom->Intersection(rect);
       OGR::translate(cut, +360, 0);
       if (cut != nullptr && cut->IsEmpty() == 0)
         result->addGeometryDirectly(cut);
@@ -208,8 +208,8 @@ OGRGeometry* circle_cut(double lon,
 
     if (env.MaxX > 180)
     {
-      auto* rect = make_rect(180, -90, 540, 90);
-      auto* cut = geom->Intersection(rect);
+      rect = make_rect(180, -90, 540, 90);
+      cut = geom->Intersection(rect);
       OGR::translate(cut, -360, 0);
       if (cut != nullptr && cut->IsEmpty() == 0)
         result->addGeometryDirectly(cut);
@@ -263,7 +263,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     if (!opt_name)
       return result;
 
-    const auto name = *opt_name;
+    const auto& name = *opt_name;
 
     const auto opt_lon_0 = theSRS.projInfo().getDouble("lon_0");
     const auto lon_0 = opt_lon_0 ? *opt_lon_0 : 0.0;
@@ -290,9 +290,6 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       auto opt_lat_p = theSRS.projInfo().getDouble("o_lat_p");
       if (opt_lat_p)
       {
-        const auto opt_lon_0 = theSRS.projInfo().getDouble("lon_0");
-        const auto lon_0 = (opt_lon_0 ? *opt_lon_0 : 0.0);
-
         const auto lat_p = *opt_lat_p;
 
         result.shapeCuts.emplace_back(make_vertical_cut(0, -90, lat_p - 90));
@@ -595,7 +592,7 @@ OGREnvelope interruptEnvelope(const SpatialReference& theSRS)
     const auto opt_name = theSRS.projInfo().getString("proj");
     if (!opt_name)
       return env;
-    const auto name = *opt_name;
+    const auto& name = *opt_name;
 
     if (name == "cc" || name == "cea" || name == "collg" || name == "comill" || name == "eqc" ||
         name == "fouc_s" || name == "gall" || name == "merc" || name == "mill" || name == "ocea" ||

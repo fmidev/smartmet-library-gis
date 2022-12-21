@@ -68,6 +68,11 @@ CoordinateTransformation::CoordinateTransformation(const CoordinateTransformatio
 {
 }
 
+CoordinateTransformation::CoordinateTransformation(CoordinateTransformation&& other) noexcept
+    : impl(std::move(other.impl))
+{
+}
+
 CoordinateTransformation::CoordinateTransformation(const SpatialReference& theSource,
                                                    const SpatialReference& theTarget)
     : impl(new Impl(theSource, theTarget))
@@ -120,7 +125,8 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
     int n = static_cast<int>(x.size());
     std::vector<int> flags(n, 0);
 
-    bool ok = (impl->m_transformation->Transform(n, &x[0], &y[0], nullptr, &flags[0]) != 0);
+    bool ok =
+        (impl->m_transformation->Transform(n, x.data(), y.data(), nullptr, flags.data()) != 0);
 
 #if CHECK_AXES
     if (impl->m_swapOutput)
@@ -261,7 +267,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       for (const auto& box : interrupt.cuts)
       {
         g.reset(OGR::polycut(*g, box, theMaximumSegmentLength));
-        if (!g || g->IsEmpty())
+        if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
           return nullptr;
       }
 
@@ -270,19 +276,18 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       {
         // shape.print(std::cout);
         g.reset(OGR::polycut(*g, shape, theMaximumSegmentLength));
-        if (!g || g->IsEmpty())
+        if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
           return nullptr;
       }
 
       if (!interrupt.shapeClips.empty())
       {
         // printf("***** CLIPS ****\n");
-        GeometryBuilder builder;
         for (auto& shape : interrupt.shapeClips)
         {
           // shape.print(std::cout);
           g.reset(OGR::polyclip(*g, shape, theMaximumSegmentLength));
-          if (!g || g->IsEmpty())
+          if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
             return nullptr;
         }
       }

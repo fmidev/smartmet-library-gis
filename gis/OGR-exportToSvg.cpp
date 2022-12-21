@@ -38,7 +38,7 @@ void append_number(std::string &out, double num, const char * /* format */, int 
     using namespace double_conversion;
 
     const int kBufferSize = 168;
-    char buffer[kBufferSize];
+    char buffer[kBufferSize];  // NOLINT(modernize-avoid-c-arrays)
     StringBuilder builder(buffer, kBufferSize);
     int flags = DoubleToStringConverter::UNIQUE_ZERO;
 

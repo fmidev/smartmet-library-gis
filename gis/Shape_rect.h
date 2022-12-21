@@ -10,6 +10,11 @@ class Shape_rect : public Shape
   Shape_rect(double theX1, double theY1, double theX2, double theY2);
   ~Shape_rect() override;
 
+  Shape_rect(const Shape_rect &other) = delete;
+  Shape_rect &operator=(const Shape_rect &other) = delete;
+  Shape_rect(Shape_rect &&other) = delete;
+  Shape_rect &operator=(Shape_rect &&other) = delete;
+
   int clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const override;
   int cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const override;
 
@@ -60,7 +65,6 @@ class Shape_rect : public Shape
                                 double &pX2,
                                 double &pY2) const;
 
-  void clip_one_edge(double &x1, double &y1, double x2, double y2, double limit) const;
   void clip_to_edges(double &x1, double &y1, double x2, double y2) const;
 
   static bool onEdge(int pos);

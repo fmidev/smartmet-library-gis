@@ -16,6 +16,11 @@ class Shape
   Shape();
   virtual ~Shape();
 
+  Shape(const Shape &other) = delete;
+  Shape &operator=(const Shape &other) = delete;
+  Shape(Shape &&other) = delete;
+  Shape &operator=(Shape &&other) = delete;
+
   virtual int clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const;
   virtual int cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const;
 

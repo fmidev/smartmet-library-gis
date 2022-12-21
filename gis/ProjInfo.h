@@ -12,8 +12,11 @@ class ProjInfo
  public:
   ProjInfo() = default;
   ProjInfo(const ProjInfo&) = default;
-  ProjInfo& operator = (const ProjInfo&) = default;
-  ProjInfo(const std::string& theProj);
+  ProjInfo& operator=(const ProjInfo&) = default;
+  explicit ProjInfo(const std::string& theProj);
+
+  ProjInfo(ProjInfo&& other) = default;
+  ProjInfo& operator=(ProjInfo&& other) = default;
 
   const std::string& projStr() const { return itsProjStr; }
   boost::optional<double> getDouble(const std::string& theName) const;

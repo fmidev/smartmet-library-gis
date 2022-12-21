@@ -120,7 +120,7 @@ namespace Fmi
 {
 void do_point(const OGRPoint *theGeom,
               GeometryBuilder &theBuilder,
-              Shape_sptr &theShape,
+              const Shape_sptr &theShape,
               bool keep_inside)
 {
   try
@@ -156,7 +156,7 @@ void do_point(const OGRPoint *theGeom,
 // ----------------------------------------------------------------------
 int do_circle(const OGRLineString *theGeom,
               ShapeClipper &theClipper,
-              Shape_sptr &theShape,
+              const Shape_sptr &theShape,
               bool keep_inside,
               bool exterior)
 {

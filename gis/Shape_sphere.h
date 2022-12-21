@@ -61,12 +61,9 @@ class Shape_sphere : public Shape
                                 double& pX2,
                                 double& pY2) const;
 
-  double angleDistance_cw(double a, double b) const;
-  double angleDistance_ccw(double a, double b) const;
-  double distance(double a, double b) const;
   double getAngle(double x, double y) const;
   void getLatLonCoordinates(double x, double y, double& lon, double& lat) const;
-  void getMetricCoordinates(double lon, double lan, double& x, double& y) const;
+  void getMetricCoordinates(double lon, double lat, double& x, double& y) const;
   void getMetricPointByAngle(double angle, double& x, double& y) const;
   void getLatLonPointByAngle(double angle, double& x, double& y) const;
   bool isOnEdge(double xx, double yy) const;

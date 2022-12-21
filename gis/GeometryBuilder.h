@@ -22,6 +22,8 @@ class GeometryBuilder
   GeometryBuilder() = default;
   GeometryBuilder(const GeometryBuilder &other) = delete;
   GeometryBuilder &operator=(const GeometryBuilder &other) = delete;
+  GeometryBuilder(GeometryBuilder &&other) = delete;
+  GeometryBuilder &operator=(GeometryBuilder &&other) = delete;
 
   void add(OGRPolygon *theGeom);
   void add(OGRLineString *theGeom);

@@ -51,19 +51,12 @@ CoordinateMatrix::CoordinateMatrix(
 }
 
 // Swap contents
-void CoordinateMatrix::swap(CoordinateMatrix& other)
+void CoordinateMatrix::swap(CoordinateMatrix& other) noexcept
 {
-  try
-  {
-    std::swap(m_width, other.m_width);
-    std::swap(m_width, other.m_height);
-    std::swap(m_x, other.m_x);
-    std::swap(m_y, other.m_y);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
+  std::swap(m_width, other.m_width);
+  std::swap(m_width, other.m_height);
+  std::swap(m_x, other.m_x);
+  std::swap(m_y, other.m_y);
 }
 
 // Project the coordinates. User takes responsibility on making sure the input coordinates

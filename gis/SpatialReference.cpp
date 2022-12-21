@@ -59,6 +59,8 @@ bool is_axis_swapped(const OGRSpatialReference &crs)
 class SpatialReference::Impl
 {
  public:
+  std::shared_ptr<ImplData> m_data;
+
   ~Impl() = default;
 
   Impl(const Impl &other) = default;
@@ -66,6 +68,8 @@ class SpatialReference::Impl
   explicit Impl(const SpatialReference &other) : m_data(other.impl->m_data) {}
 
   explicit Impl(const OGRSpatialReference &other) { init(other); }
+
+  Impl &operator=(const Impl &other) = delete;
 
   explicit Impl(OGRSpatialReference &other)
   {
@@ -162,15 +166,15 @@ class SpatialReference::Impl
     }
   }
 
-  Impl &operator=(const Impl &) = delete;
-
-  std::shared_ptr<ImplData> m_data;
-
 };  // class Impl
 
 SpatialReference::~SpatialReference() = default;
 
 SpatialReference::SpatialReference(const SpatialReference &other) : impl(new Impl(*other.impl)) {}
+
+SpatialReference::SpatialReference(SpatialReference &&other) noexcept : impl(std::move(other.impl))
+{
+}
 
 SpatialReference::SpatialReference(const OGRSpatialReference &other) : impl(new Impl(other)) {}
 

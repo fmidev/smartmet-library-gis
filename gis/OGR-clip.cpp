@@ -301,9 +301,12 @@ bool inside(const OGRLinearRing *theGeom, const Box &theBox)
 {
   try
   {
+    if (theGeom == nullptr)
+      return false;
+
     int n = theGeom->getNumPoints();
 
-    if (theGeom == nullptr || n < 1)
+    if (n < 1)
       return false;
 
     for (int i = 0; i < n; ++i)
@@ -345,9 +348,12 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
   {
     int position = 0;
 
+    if (theGeom == nullptr)
+      return position;
+
     int n = theGeom->getNumPoints();
 
-    if (theGeom == nullptr || n < 1)
+    if (n < 1)
       return position;
 
     // For shorthand code
@@ -623,18 +629,18 @@ int clip_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &the
             }
             break;  // And continue main loop on the outside
           }
-          else  // edge-edge
+
+          // edge-edge
+
+          // travel to different edge?
+          if (!Box::onSameEdge(prev_pos, pos))
           {
-            // travel to different edge?
-            if (!Box::onSameEdge(prev_pos, pos))
-            {
-              position |= Box::Inside;  // passed through
-              auto *line = new OGRLineString();
-              line->addPoint(g.getX(i - 1), g.getY(i - 1));
-              line->addPoint(x, y);
-              theRect.addExterior(line);
-              start_index = i;
-            }
+            position |= Box::Inside;  // passed through
+            auto *line = new OGRLineString();
+            line->addPoint(g.getX(i - 1), g.getY(i - 1));
+            line->addPoint(x, y);
+            theRect.addExterior(line);
+            start_index = i;
           }
         }
       }
@@ -659,9 +665,12 @@ int cut_rect(const OGRLineString *theGeom, RectClipper &theRect, const Box &theB
   {
     int position = 0;
 
+    if (theGeom == nullptr)
+      return position;
+
     int n = theGeom->getNumPoints();
 
-    if (theGeom == nullptr || n < 1)
+    if (n < 1)
       return position;
 
     // For shorthand code

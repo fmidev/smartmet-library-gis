@@ -19,11 +19,13 @@ class OGRCoordinateTransformationPool
   // The object is stored along with its hash value
   using CacheElement = std::pair<std::size_t, OGRCoordinateTransformation *>;
 
-  ~OGRCoordinateTransformationPool()
-  {
-    // This leads to segfault in PROJ.7. Proj 9.1 seems to have fixed this, possibly even earlier
-    // versions for (auto &elem : m_cache) delete elem.second;
-  }
+  ~OGRCoordinateTransformationPool() = default;
+  OGRCoordinateTransformationPool() = default;
+
+  OGRCoordinateTransformationPool(const OGRCoordinateTransformationPool &other) = delete;
+  OGRCoordinateTransformationPool &operator=(const OGRCoordinateTransformationPool &other) = delete;
+  OGRCoordinateTransformationPool(OGRCoordinateTransformationPool &&other) = delete;
+  OGRCoordinateTransformationPool &operator=(OGRCoordinateTransformationPool &&other) = delete;
 
   void SetMaxSize(std::size_t theMaxSize)
   {
@@ -54,7 +56,7 @@ class OGRCoordinateTransformationPool
                             [hash](const CacheElement &element) { return hash == element.first; });
 
     if (pos == m_cache.end())
-      return Ptr(nullptr, Deleter(0));
+      return {nullptr, Deleter(0)};
 
     // Take ownership from the CacheElement and return it to the user
     Ptr ret(pos->second, Deleter(hash));
@@ -69,7 +71,7 @@ class OGRCoordinateTransformationPool
 
   MutexType m_mutex;
   std::list<CacheElement> m_cache;
-  std::size_t m_maxsize = 40 * 40;
+  std::size_t m_maxsize = 40UL * 40UL;
 };
 
 // Actual objet pool
@@ -112,7 +114,7 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
     auto *ptr = OGRCreateCoordinateTransformation(src.get(), tgt.get());
 
     if (ptr != nullptr)
-      return Ptr(ptr, Deleter(hash));
+      return {ptr, Deleter(hash)};
 
     throw Fmi::Exception::Trace(BCP,
                                 "Failed to create coordinate transformation from '" + theSource +

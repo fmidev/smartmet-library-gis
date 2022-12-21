@@ -42,7 +42,8 @@ std::string Fmi::OGR::exportToSimpleWkt(const OGRSpatialReference& theSRS)
 {
   try
   {
-    const char* const options[] = {"FORMAT=WKT1_SIMPLE", nullptr};
+    const char* const options[] = {"FORMAT=WKT1_SIMPLE",
+                                   nullptr};  // NOLINT(modernize-avoid-c-arrays)
     char* out;
     theSRS.exportToWkt(&out, options);
     std::string ret = out;

@@ -652,8 +652,8 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
         {
           OGRPoint startpoint;
           ring->EndPoint(&startpoint);
-          const auto x1 = startpoint.getX();
-          const auto y1 = startpoint.getY();
+          x1 = startpoint.getX();
+          y1 = startpoint.getY();
           const auto dx = x2 - x1;
           const auto dy = y2 - y1;
 

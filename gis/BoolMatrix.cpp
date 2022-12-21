@@ -51,8 +51,9 @@ BoolMatrix BoolMatrix::operator~() const
 {
   auto tmp = *this;
 
-  for (auto i = 0UL; i < tmp.m_data.size(); i++)
-    tmp.m_data[i] = ~tmp.m_data[i];
+  for (auto& flag : tmp.m_data)
+    flag = ~flag;
+
   return tmp;
 }
 
@@ -61,13 +62,13 @@ BoolMatrix BoolMatrix::operator^(bool flag) const
   auto tmp = *this;
   auto val = (flag ? 0xffffffffffffffffUL : 0UL);
 
-  for (auto i = 0UL; i < tmp.m_data.size(); i++)
-    tmp.m_data[i] = tmp.m_data[i] ^ val;
+  for (auto& flag : tmp.m_data)
+    flag = flag ^ val;
 
   return tmp;
 }
 
-void BoolMatrix::swap(BoolMatrix& other)
+void BoolMatrix::swap(BoolMatrix& other) noexcept
 {
   try
   {

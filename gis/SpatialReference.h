@@ -23,12 +23,15 @@ class SpatialReference
   SpatialReference(const SpatialReference &other);
   SpatialReference(const OGRSpatialReference &other);  // since GDAL is not const correct
   SpatialReference(OGRSpatialReference &other);
+  SpatialReference(SpatialReference &&other) noexcept;
+
   SpatialReference(const std::shared_ptr<OGRSpatialReference> &other);  // for legacy code
   SpatialReference(const char *theDesc);
   SpatialReference(const std::string &theDesc);
   SpatialReference(int epsg);
 
   SpatialReference &operator=(const SpatialReference &other) = delete;
+  SpatialReference &operator=(SpatialReference &&other) = delete;
 
   // Excplicit and implicit accessors
 

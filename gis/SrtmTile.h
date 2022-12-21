@@ -10,10 +10,13 @@ class SrtmTile
 {
  public:
   ~SrtmTile();
-  SrtmTile(const std::string& path);
+  explicit SrtmTile(const std::string& path);
   SrtmTile() = delete;
+
   SrtmTile(const SrtmTile& other) = delete;
   SrtmTile& operator=(const SrtmTile& other) = delete;
+  SrtmTile(SrtmTile&& other) = delete;
+  SrtmTile& operator=(SrtmTile&& other) = delete;
 
   const std::string& path() const;
   std::size_t size() const;

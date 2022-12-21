@@ -54,7 +54,7 @@ class CoordinateMatrix
   }
 
   // occasionally needed for speed
-  void swap(CoordinateMatrix& other);
+  void swap(CoordinateMatrix& other) noexcept;
 
   // Always uses lon/lat x/y ordering.
   bool transform(const Fmi::CoordinateTransformation& transformation);

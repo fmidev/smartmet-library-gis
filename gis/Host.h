@@ -20,10 +20,10 @@ class Host
  public:
   Host() = delete;
 
-  Host(const std::string& theHostname,
-       const std::string& theDatabase,
-       const std::string& theUsername,
-       const std::string& thePassword,
+  Host(std::string theHostname,
+       std::string theDatabase,
+       std::string theUsername,
+       std::string thePassword,
        int thePort = 5432);
 
   GDALDataPtr connect() const;

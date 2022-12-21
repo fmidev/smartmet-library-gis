@@ -37,7 +37,7 @@ SrtmMatrix::Impl::Impl()
 {
   try
   {
-    itsTiles.resize(360 * 180);  // 1x1 degree tiles covering the world
+    itsTiles.resize(360UL * 180UL);  // 1x1 degree tiles covering the world
   }
   catch (...)
   {

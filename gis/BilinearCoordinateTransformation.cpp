@@ -22,7 +22,7 @@ BilinearCoordinateTransformation::BilinearCoordinateTransformation(
     // Search the cache first. Note that the hash value calculation order must match that in
     // CoordinateMatrix::transform or the cache will not work properly.
 
-    auto m_hash = CoordinateMatrix::hashValue(nx, ny, x1, y1, x2, y2);
+    m_hash = CoordinateMatrix::hashValue(nx, ny, x1, y1, x2, y2);
     Fmi::hash_combine(m_hash, theTransformation.hashValue());
     m_matrix = CoordinateMatrixCache::Find(m_hash);
 

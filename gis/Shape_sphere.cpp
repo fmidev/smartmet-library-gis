@@ -15,6 +15,52 @@ namespace Fmi
 
 #define DELTA 1000000000
 
+namespace
+{
+double angleDistance_cw(double a, double b)
+{
+  try
+  {
+    if (b <= a)
+      return (a - b);
+
+    return (PI2 - (b - a));
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+double angleDistance_ccw(double a, double b)
+{
+  try
+  {
+    if (a <= b)
+      return (b - a);
+
+    return (PI2 - (a - b));
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+double distance(double a, double b)
+{
+  try
+  {
+    return fabs((a + DELTA) - (b + DELTA));
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+}  // namespace
+
 Shape_sphere::Shape_sphere(double theX, double theY, double theRadius)
 {
   try
@@ -80,48 +126,6 @@ Shape_sphere::~Shape_sphere()
   {
     Fmi::Exception exception(BCP, "Destructor failed", nullptr);
     exception.printError();
-  }
-}
-
-double Shape_sphere::angleDistance_cw(double a, double b) const
-{
-  try
-  {
-    if (b <= a)
-      return (a - b);
-
-    return (PI2 - (b - a));
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-double Shape_sphere::angleDistance_ccw(double a, double b) const
-{
-  try
-  {
-    if (a <= b)
-      return (b - a);
-
-    return (PI2 - (a - b));
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-double Shape_sphere::distance(double a, double b) const
-{
-  try
-  {
-    return fabs((a + DELTA) - (b + DELTA));
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -499,11 +503,11 @@ OGRLinearRing* Shape_sphere::makeRing(double theMaximumSegmentLength) const
     getLatLonPointByAngle(0, xx, yy);
     ring->addPoint(xx, yy);
 
-    double angle = PI2-itsBorderAngleStep;
+    double angle = PI2 - itsBorderAngleStep;
     while (angle > 0)
     {
-      double xx = 0;
-      double yy = 0;
+      xx = 0;
+      yy = 0;
       getLatLonPointByAngle(angle, xx, yy);
       ring->addPoint(xx, yy);
       angle = angle - itsBorderAngleStep;
@@ -537,8 +541,8 @@ OGRLineString* Shape_sphere::makeLineRing(double theMaximumSegmentLength) const
     double angle = PI2 - itsBorderAngleStep;
     while (angle > 0)
     {
-      double xx = 0;
-      double yy = 0;
+      xx = 0;
+      yy = 0;
       getLatLonPointByAngle(angle, xx, yy);
       ring->addPoint(xx, yy);
       angle = angle - itsBorderAngleStep;
@@ -577,8 +581,11 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
 {
   try
   {
+    if (theGeom == nullptr)
+      return 0;
+
     int n = theGeom->getNumPoints();
-    if (theGeom == nullptr || n < 1)
+    if (n < 1)
       return 0;
 
     std::vector<OGRLineString*> lines;
@@ -637,7 +644,7 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
           getLatLonCoordinates(pX1, pY1, pX1, pY1);
           line->addPoint(pX1, pY1);
           lines.push_back(line);
-          //theClipper.add(line, exterior);
+          // theClipper.add(line, exterior);
 
           line = new OGRLineString();
           break;
@@ -647,7 +654,7 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
           getLatLonCoordinates(pX1, pY1, pX1, pY1);
           line->addPoint(pX1, pY1);
           lines.push_back(line);
-          //theClipper.add(line, exterior);
+          // theClipper.add(line, exterior);
 
           line = new OGRLineString();
           getLatLonCoordinates(pX2, pY2, pX2, pY2);
@@ -664,29 +671,25 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
     if (line->getNumPoints() > 0)
     {
       lines.push_back(line);
-      //theClipper.add(line, exterior);
+      // theClipper.add(line, exterior);
     }
     else
     {
       delete line;
     }
 
-    if (exterior &&  Shape::all_only_outside(position))
+    if (exterior && Shape::all_only_outside(position))
     {
       if (!theClipper.getKeepInsideFlag())
       {
-        for (auto li = lines.begin(); li != lines.end(); ++li)
-        {
-          delete *li;
-        }
+        for (auto* li : lines)
+          delete li;
         return position;
       }
     }
 
-    for (auto li = lines.begin(); li != lines.end(); ++li)
-    {
-      theClipper.add(*li, exterior);
-    }
+    for (auto* li : lines)
+      theClipper.add(li, exterior);
 
     return position;
   }
@@ -700,8 +703,11 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
 {
   try
   {
+    if (theGeom == nullptr)
+      return 0;
+
     int n = theGeom->getNumPoints();
-    if (theGeom == nullptr || n < 1)
+    if (n < 1)
       return 0;
 
     std::vector<OGRLineString*> lines;
@@ -752,7 +758,7 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
           getLatLonCoordinates(pX1, pY1, pX1, pY1);
           line->addPoint(pX1, pY1);
           lines.push_back(line);
-          //theClipper.add(line, exterior);
+          // theClipper.add(line, exterior);
           line = new OGRLineString();
           break;
 
@@ -771,7 +777,7 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
           line->addPoint(pX1, pY1);
           line->addPoint(pX2, pY2);
           lines.push_back(line);
-          //theClipper.add(line, exterior);
+          // theClipper.add(line, exterior);
           line = new OGRLineString();
           break;
       }
@@ -783,32 +789,29 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
     if (line->getNumPoints() > 0)
     {
       lines.push_back(line);
-      //theClipper.add(line, exterior);
+      // theClipper.add(line, exterior);
     }
     else
     {
       delete line;
     }
 
-    if (!exterior &&  Shape::all_only_inside(position))
+    if (!exterior && Shape::all_only_inside(position))
     {
       if (theClipper.getKeepInsideFlag())
       {
         // This is a hole and it is inside the clipping area. The current
         // hole is added later (i.e. if we add it here then we have two holes).
 
-        for (auto li = lines.begin(); li != lines.end(); ++li)
-        {
-          delete *li;
-        }
+        for (auto* li : lines)
+          delete li;
+
         return position;
       }
     }
 
-    for (auto li = lines.begin(); li != lines.end(); ++li)
-    {
-      theClipper.add(*li, exterior);
-    }
+    for (auto* li : lines)
+      theClipper.add(li, exterior);
 
     return position;
   }
@@ -899,11 +902,11 @@ LineIterator Shape_sphere::search_cw(OGRLinearRing* ring,
 
     auto best = lines.end();
     double angle1 = 0;
-    double bestAngleDiff = 1000;
 
     if (isOnEdge(xx1, yy1, angle1))
     {
       double angle2 = 0;
+      double bestAngleDiff = 1000;
       if (isOnEdge(xx2, yy2, angle2))
       {
         // Sometimes the best option is to connect the end points
@@ -935,7 +938,7 @@ LineIterator Shape_sphere::search_cw(OGRLinearRing* ring,
           if (angle2 > angle1)
             angleDiff = PI2 - (angle2 - angle1);
 
-          //printf("Angles %f,%f => %f,%f  %f %f %f\n",x1,y1,x,y,angle1,angle2,bestAngleDiff);
+          // printf("Angles %f,%f => %f,%f  %f %f %f\n",x1,y1,x,y,angle1,angle2,bestAngleDiff);
 
           if (angleDiff < bestAngleDiff)
           {
@@ -983,11 +986,12 @@ LineIterator Shape_sphere::search_ccw(OGRLinearRing* ring,
 
     auto best = lines.end();
     double angle1 = 0;
-    double bestAngleDiff = 1000;
 
     if (isOnEdge(xx1, yy1, angle1))
     {
       double angle2 = 0;
+      double bestAngleDiff = 1000;
+
       if (isOnEdge(xx2, yy2, angle2))
       {
         double angleDiff = angle2 - angle1;
@@ -1010,7 +1014,7 @@ LineIterator Shape_sphere::search_ccw(OGRLinearRing* ring,
 
         if (isOnEdge(xx, yy, angle2))
         {
-          //printf("Angles %f,%f => %f,%f  %f %f %f\n",x1,y1,x,y,angle1,angle2,bestAngleDiff);
+          // printf("Angles %f,%f => %f,%f  %f %f %f\n",x1,y1,x,y,angle1,angle2,bestAngleDiff);
           double angleDiff = angle2 - angle1;
           if (angle2 < angle1)
             angleDiff = PI2 - (angle1 - angle2);
@@ -1021,7 +1025,8 @@ LineIterator Shape_sphere::search_ccw(OGRLinearRing* ring,
             y2 = y;
             best = iter;
             bestAngleDiff = angleDiff;
-            //printf("-- BEST ANGLE %f %f => %f,%f   %f %f   %f\n",x1,y1,x2,y2,angle1,angle2,bestAngleDiff);
+            // printf("-- BEST ANGLE %f %f => %f,%f   %f %f
+            // %f\n",x1,y1,x2,y2,angle1,angle2,bestAngleDiff);
           }
         }
       }
@@ -1069,7 +1074,7 @@ bool Shape_sphere::connectPoints_cw(OGRLinearRing& ring,
     double angleDiff = 0;
     angleDiff = -angleDistance_cw(angle1, angle2);
 
-    if (angleDiff > PI  &&  angle1 < angle2)
+    if (angleDiff > PI && angle1 < angle2)
       angleDiff = PI2 - angleDiff;
 
     if (angleDiff < -PI)
@@ -1079,7 +1084,8 @@ bool Shape_sphere::connectPoints_cw(OGRLinearRing& ring,
     double yy = 0;
     outerCircle.getMetricPointByAngle(angle1, xx, yy);
 
-    double x = xx, y = yy;
+    double x = xx;
+    double y = yy;
     getLatLonCoordinates(xx, yy, x, y);
 
     ring.addPoint(x1, y1);
@@ -1123,7 +1129,7 @@ bool Shape_sphere::connectPoints_ccw(OGRLinearRing& ring,
     double angle1 = 0;
     double angle2 = 0;
 
-    //printf(" -- connect points ccw %f,%f => %f,%f\n",x1,y1,x2,y2);
+    // printf(" -- connect points ccw %f,%f => %f,%f\n",x1,y1,x2,y2);
     if (!isOnEdge(xx1, yy1, angle1) || !isOnEdge(xx2, yy2, angle2))
       return false;  // The end points are not on the edge of the sphere
 
@@ -1139,21 +1145,22 @@ bool Shape_sphere::connectPoints_ccw(OGRLinearRing& ring,
 
     double angleDiff = 0;
     angleDiff = angleDistance_ccw(angle1, angle2);
-    //printf("ANGLEDIFF %f %f = %f\n",angle1, angle2,angleDiff);
+    // printf("ANGLEDIFF %f %f = %f\n",angle1, angle2,angleDiff);
 
-    if (angleDiff > PI &&  angle2 < angle1)
+    if (angleDiff > PI && angle2 < angle1)
       angleDiff = PI2 - angleDiff;
 
     if (angleDiff < -PI)
       angleDiff = PI2 + angleDiff;
 
-    //printf("** ANGLEDIFF %f %f = %f\n",angle1, angle2,angleDiff);
+    // printf("** ANGLEDIFF %f %f = %f\n",angle1, angle2,angleDiff);
 
     double xx = 0;
     double yy = 0;
     innerCircle.getMetricPointByAngle(angle1, xx, yy);
 
-    double x = xx, y = yy;
+    double x = xx;
+    double y = yy;
     getLatLonCoordinates(xx, yy, x, y);
 
     ring.addPoint(x1, y1);
@@ -1161,19 +1168,19 @@ bool Shape_sphere::connectPoints_ccw(OGRLinearRing& ring,
     ring.addPoint(x1, y1);
 
     uint points = dist / itsBorderStep;
-    //printf("POINTS %u  = %f / %f\n",points,dist,itsBorderStep);
+    // printf("POINTS %u  = %f / %f\n",points,dist,itsBorderStep);
     double ad = angleDiff / points;
     for (uint t = 0; t < points; t++)
     {
       getMetricPointByAngle(angle1, xx, yy);
-      //printf("-- getPoint %f   %f,%f\n", angle1, xx, yy);
+      // printf("-- getPoint %f   %f,%f\n", angle1, xx, yy);
       getLatLonCoordinates(xx, yy, x, y);
-      //printf("-- add %f,%f\n",x,y);
+      // printf("-- add %f,%f\n",x,y);
       ring.addPoint(x, y);
       angle1 = angle1 + ad;
     }
 
-    //printf("-- add %f,%f\n",x2,y2);
+    // printf("-- add %f,%f\n",x2,y2);
     ring.addPoint(x2, y2);
 
     return true;

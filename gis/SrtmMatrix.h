@@ -14,8 +14,11 @@ class SrtmMatrix
 
   ~SrtmMatrix();
   SrtmMatrix();
+
   SrtmMatrix(const SrtmMatrix& other) = delete;
   SrtmMatrix& operator=(const SrtmMatrix& other) = delete;
+  SrtmMatrix(SrtmMatrix&& other) = delete;
+  SrtmMatrix& operator=(SrtmMatrix&& other) = delete;
 
   void add(TileType tile);
   static constexpr double missing = -32768;

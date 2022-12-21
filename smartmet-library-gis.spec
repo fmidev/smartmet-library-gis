@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 22.12.14
+Version: 22.12.21
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -107,6 +107,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Dec 21 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.12.21-1.fmi
+- Fixed issues discovered by CodeChecker
+
 * Wed Dec 14 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.12.14-1.fmi
 - Fixed PROJ parser to allow south/west/east/north suffixes
 

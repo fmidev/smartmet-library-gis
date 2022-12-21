@@ -44,7 +44,7 @@ class BoolMatrix
   BoolMatrix& operator&=(const BoolMatrix& other);
   BoolMatrix& operator|=(const BoolMatrix& other);
 
-  void swap(BoolMatrix& other);
+  void swap(BoolMatrix& other) noexcept;
 
   std::size_t hashValue() const;
 
