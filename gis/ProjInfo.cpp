@@ -210,6 +210,47 @@ bool ProjInfo::getBool(const std::string& theName) const
   }
 }
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief Remove a setting if one exists
+ */
+// ----------------------------------------------------------------------
+
+bool ProjInfo::erase(const std::string& theName)
+{
+  auto count = itsDoubles.erase(theName) + itsStrings.erase(theName) + itsOptions.erase(theName);
+
+  if (count > 0)
+  {
+    std::string proj;
+    for (const auto& name_string : itsStrings)
+    {
+      if (!proj.empty())
+        proj += ' ';
+      proj += fmt::format("+{}={}", name_string.first, name_string.second);
+    }
+
+    for (const auto& name_double : itsDoubles)
+    {
+      if (!proj.empty())
+        proj += ' ';
+      proj += fmt::format("+{}={}", name_double.first, name_double.second);
+    }
+
+    for (const auto& name : itsOptions)
+    {
+      if (!proj.empty())
+        proj += ' ';
+      proj += '+';
+      proj += name;
+    }
+
+    itsProjStr = proj;
+  }
+
+  return (count > 0);
+}
+
 //----------------------------------------------------------------------
 /*!
  * \brief Dump the settings mostly for debugging purposes

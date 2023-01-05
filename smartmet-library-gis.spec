@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 22.12.21
+Version: 23.1.5
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -107,6 +107,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Jan  5 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.1.5-1.fmi
+- Added ProjInfo::erase for removing projection settings
+
 * Wed Dec 21 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.12.21-1.fmi
 - Fixed issues discovered by CodeChecker
 

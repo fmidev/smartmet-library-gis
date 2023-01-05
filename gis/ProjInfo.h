@@ -23,6 +23,8 @@ class ProjInfo
   boost::optional<std::string> getString(const std::string& theName) const;
   bool getBool(const std::string& theName) const;
 
+  bool erase(const std::string& theName);
+
   std::string inverseProjStr() const;
 
   void dump(std::ostream& theOutput) const;
