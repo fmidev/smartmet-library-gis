@@ -159,7 +159,9 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       source.reset(new SpatialReference(*layer->GetSpatialRef()));
 
     CoordinateTransformation transformation(*source, *theSR);
-    out->assignSpatialReference(theSR->get()->Clone());
+    std::shared_ptr<OGRSpatialReference> tmp(theSR->get()->Clone(),
+        [](OGRSpatialReference *sr) { sr->Release(); });
+    out->assignSpatialReference(tmp.get());
 
     layer->ResetReading();
     while ((feature = layer->GetNextFeature()) != nullptr)
@@ -262,7 +264,9 @@ Features read(const Fmi::SpatialReference* theSR,
         auto* clone = transformation->transformGeometry(*geometry, default_segmentation_length);
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
-        ret_item->geom->assignSpatialReference(theSR->get()->Clone());
+        std::shared_ptr<OGRSpatialReference> tmp(theSR->get()->Clone(),
+            [](OGRSpatialReference *sr) { sr->Release(); });
+        ret_item->geom->assignSpatialReference(tmp.get());
       }
     }
     else
