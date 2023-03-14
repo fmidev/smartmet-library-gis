@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 23.3.14
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -107,6 +107,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Mar 14 2023 Andris Pavēnis <andris.pavenis@fmi.fi> 23.3.14-2.fmi
+- Fix more memory leaks
+
 * Tue Mar 14 2023 Andris Pavēnis <andris.pavenis@fmi.fi> 23.3.14-1.fmi
 - Fix memory leaks
 
