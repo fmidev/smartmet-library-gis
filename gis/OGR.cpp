@@ -209,7 +209,9 @@ OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
     {
       OGRSpatialReference srs;
       srs.importFromEPSGA(theEPSGNumber);
-      geom->assignSpatialReference(srs.Clone());
+      std::shared_ptr<OGRSpatialReference> tmp(srs.Clone(),
+          [](OGRSpatialReference* sr) { sr->Release(); });
+      geom->assignSpatialReference(tmp.get());
     }
 
     return geom;
@@ -279,7 +281,9 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
 
     OGRSpatialReference srs;
     srs.importFromEPSGA(theEPSGNumber);
-    ogrGeom->assignSpatialReference(srs.Clone());
+    std::shared_ptr<OGRSpatialReference> tmp(srs.Clone(),
+        [](OGRSpatialReference* sr) { sr->Release(); });
+    ogrGeom->assignSpatialReference(tmp.get());
 
     return ogrGeom->clone();
   }
