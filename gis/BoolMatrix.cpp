@@ -70,16 +70,9 @@ BoolMatrix BoolMatrix::operator^(bool flag) const
 
 void BoolMatrix::swap(BoolMatrix& other) noexcept
 {
-  try
-  {
-    std::swap(m_w, other.m_w);
-    std::swap(m_h, other.m_h);
-    std::swap(m_data, other.m_data);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
+  std::swap(m_w, other.m_w);
+  std::swap(m_h, other.m_h);
+  std::swap(m_data, other.m_data);
 }
 
 std::size_t BoolMatrix::hashValue() const
