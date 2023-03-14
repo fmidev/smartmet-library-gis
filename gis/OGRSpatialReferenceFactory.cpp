@@ -110,7 +110,9 @@ std::shared_ptr<OGRSpatialReference> make_crs(const std::string& theDesc)
         desc = std::string("+proj=longlat ") + pos->second;
     }
 
-    auto sr = std::make_shared<OGRSpatialReference>();
+    std::shared_ptr<OGRSpatialReference> sr(
+        new OGRSpatialReference, [](OGRSpatialReference* ref) { ref->Release(); });
+
     auto err = sr->SetFromUserInput(desc.c_str());
     if (err != OGRERR_NONE)
     {

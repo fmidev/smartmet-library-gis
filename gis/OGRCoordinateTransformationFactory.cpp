@@ -19,13 +19,19 @@ class OGRCoordinateTransformationPool
   // The object is stored along with its hash value
   using CacheElement = std::pair<std::size_t, OGRCoordinateTransformation *>;
 
-  ~OGRCoordinateTransformationPool() = default;
   OGRCoordinateTransformationPool() = default;
 
   OGRCoordinateTransformationPool(const OGRCoordinateTransformationPool &other) = delete;
   OGRCoordinateTransformationPool &operator=(const OGRCoordinateTransformationPool &other) = delete;
   OGRCoordinateTransformationPool(OGRCoordinateTransformationPool &&other) = delete;
   OGRCoordinateTransformationPool &operator=(OGRCoordinateTransformationPool &&other) = delete;
+
+  virtual ~OGRCoordinateTransformationPool()
+  {
+    for (auto& item : m_cache) {
+      delete item.second;
+    }
+  }
 
   void SetMaxSize(std::size_t theMaxSize)
   {

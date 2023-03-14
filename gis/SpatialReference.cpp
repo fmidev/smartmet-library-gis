@@ -152,8 +152,11 @@ class SpatialReference::Impl
   {
     try
     {
+      std::shared_ptr<OGRSpatialReference> tmp(
+        other.Clone(), [](OGRSpatialReference* ref) { ref->Release(); });
+
       m_data = std::make_shared<ImplData>();
-      m_data->crs.reset(other.Clone());
+      m_data->crs = tmp;
       m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
       m_data->hashvalue = Fmi::hash_value(m_data->projinfo.projStr());
       m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
