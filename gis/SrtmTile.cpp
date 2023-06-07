@@ -6,18 +6,12 @@
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/move/unique_ptr.hpp>
-#include <boost/thread.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
+#include <mutex>
 
 using FileMapping = boost::interprocess::file_mapping;
 using MappedRegion = boost::interprocess::mapped_region;
-
-using MutexType = boost::shared_mutex;
-using ReadLock = boost::shared_lock<MutexType>;
-using WriteLock = boost::unique_lock<MutexType>;
-using UpgradeReadLock = boost::upgrade_lock<MutexType>;
-using UpgradeWriteLock = boost::upgrade_to_unique_lock<MutexType>;
 
 namespace Fmi
 {
@@ -91,9 +85,9 @@ class SrtmTile::Impl
   int itsLon;
   int itsLat;
 
-  MutexType itsMutex;
-  boost::movelib::unique_ptr<FileMapping> itsFileMapping;
-  boost::movelib::unique_ptr<MappedRegion> itsMappedRegion;
+  std::mutex itsMutex;
+  std::atomic<MappedRegion *> itsMappedRegion{nullptr};
+  std::unique_ptr<FileMapping> itsFileMapping;
 };
 
 // ----------------------------------------------------------------------
@@ -157,29 +151,27 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
     // We do not intend to write to the DEM files, but we use read_write
     // mode to get private mappings instead of shared ones.
 
-    UpgradeReadLock readlock(itsMutex);
-
-    if (!itsFileMapping)
+    // https://preshing.com/20130930/double-checked-locking-is-fixed-in-cpp11/
+    auto *mapping = itsMappedRegion.load(std::memory_order_acquire);
+    if (mapping == nullptr)
     {
-      UpgradeWriteLock writelock(readlock);
-      if (!itsFileMapping)  // NOLINT(cppcheck-identicalInnerCondition)
+      std::lock_guard<std::mutex> lock(itsMutex);
+      mapping = itsMappedRegion.load(std::memory_order_relaxed);
+      if (mapping == nullptr)
       {
-        // std::cout << "Mapping " << itsPath << std::endl;
-        itsFileMapping = boost::movelib::make_unique<FileMapping>(itsPath.c_str(),
-                                                                  boost::interprocess::read_only);
-
-        itsMappedRegion = boost::movelib::make_unique<MappedRegion>(
+        itsFileMapping.reset(new FileMapping(itsPath.c_str(), boost::interprocess::read_only));
+        mapping = new MappedRegion(
             *itsFileMapping, boost::interprocess::read_only, 0, 2 * itsSize * itsSize);
-
         // We do not expect any normal access patterns, so disable prefetching
-        itsMappedRegion->advise(boost::interprocess::mapped_region::advice_random);
+        mapping->advise(boost::interprocess::mapped_region::advice_random);
+        itsMappedRegion.store(mapping, std::memory_order_release);
       }
     }
 
     // Now the data is definitely available. Note: data runs from
     // north down, but we index if from bottom up
 
-    auto *ptr = reinterpret_cast<std::int16_t *>(itsMappedRegion->get_address());
+    auto *ptr = reinterpret_cast<std::int16_t *>(mapping->get_address());
     std::int16_t big_endian = ptr[i + (itsSize - j - 1) * itsSize];
     std::int16_t little_endian = ((big_endian >> 8) & 0xff) + ((big_endian & 0xff) << 8);
     return little_endian;
