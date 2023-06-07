@@ -28,9 +28,10 @@ class OGRCoordinateTransformationPool
 
   virtual ~OGRCoordinateTransformationPool()
   {
-    for (auto& item : m_cache) {
+#if 0    
+    for (auto& item : m_cache)
       delete item.second;
-    }
+#endif
   }
 
   void SetMaxSize(std::size_t theMaxSize)
