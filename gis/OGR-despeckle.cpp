@@ -387,7 +387,9 @@ OGRGeometry *Fmi::OGR::despeckle(const OGRGeometry &theGeom, double theAreaLimit
     // Area calculations for geographies must be done by ourselves, OGR
     // does it in the native system and hence would produce square degrees.
 
-    OGRSpatialReference *crs = theGeom.getSpatialReference();
+    // FIXME: are we sure that GDAL does not mess with object
+    OGRSpatialReference *crs =
+        const_cast<OGRSpatialReference *>(theGeom.getSpatialReference());
     bool geographic = (crs != nullptr ? (crs->IsGeographic() != 0) : false);
 
     // Actual despeckling
