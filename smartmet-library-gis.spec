@@ -30,8 +30,8 @@ BuildRequires: devtoolset-7-gcc-c++
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: fmt-devel >= %{smartmet_fmt_min}, fmt-devel < %{smartmet_fmt_max}
 BuildRequires: gcc-c++
-BuildRequires: gdal34-devel
-BuildRequires: geos310-devel
+BuildRequires: gdal35-devel
+BuildRequires: geos311-devel
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
@@ -48,15 +48,15 @@ Requires: %{smartmet_boost}-filesystem
 Requires: %{smartmet_boost}-thread
 Requires: fmt >= %{smartmet_fmt_min}, fmt < %{smartmet_fmt_max}
 Requires: double-conversion
-Requires: gdal34-libs
-Requires: geos310
-Requires: postgis32_13
+Requires: gdal35-libs
+Requires: geos311
+Requires: postgis33_15
 Requires: smartmet-library-macgyver >= 22.10.20
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
-#TestRequires: gdal34-devel
-#TestRequires: geos310-devel
+#TestRequires: gdal35-devel
+#TestRequires: geos311-devel
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
 #TestRequires: smartmet-library-macgyver
@@ -91,11 +91,11 @@ rm -rf $RPM_BUILD_ROOT
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
 Requires: %{SPECNAME} = %{version}-%{release}
-Requires: geos310-devel
+Requires: geos311-devel
 Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
-Requires: gdal34-devel
+Requires: gdal35-devel
 Requires: smartmet-library-macgyver-devel >= 22.10.20
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
