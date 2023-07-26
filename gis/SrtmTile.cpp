@@ -73,6 +73,7 @@ class SrtmTile::Impl
 {
  public:
   explicit Impl(const std::string &path);
+  ~Impl();
   const std::string &path() const { return itsPath; }
   std::size_t size() const { return itsSize; }
   int longitude() const { return itsLon; }
@@ -124,6 +125,11 @@ SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+SrtmTile::Impl::~Impl()
+{
+  delete itsMappedRegion.load();
 }
 
 // ----------------------------------------------------------------------
