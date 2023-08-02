@@ -14,6 +14,9 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 
 %if %{defined el7}
 BuildRequires: devtoolset-7-gcc-c++
+BuildRequires: proj72-devel
+%else
+BuildRequires: proj90-devel
 %endif
 
 %if 0%{?rhel} && 0%{rhel} < 9
