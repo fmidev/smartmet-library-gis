@@ -3,7 +3,7 @@ LIB = smartmet-$(SUBNAME)
 SPEC = smartmet-library-$(SUBNAME)
 INCDIR = smartmet/$(SUBNAME)
 
-REQUIRES = fmt gdal geos
+REQUIRES = fmt gdal geos proj
 
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
