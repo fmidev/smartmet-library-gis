@@ -31,7 +31,10 @@ class OGRCoordinateTransformationPool
   {
 // Causes double free with proj-7.2, but not proj-9.0 (I do not know about proj 8.X)
 // By enabling this code we avoid memory leaks in case proj-9+
-#if PROJ_VERSION_MAJOR >= 9
+//
+// NOTE (2023-08-02): tempoarily disabled as requires at first bugfix for smartmet-utils-devel
+//                    (proj detection not OK in makefile.inc)
+#if false and PROJ_VERSION_MAJOR >= 9
     for (auto& item : m_cache)
       delete item.second;
 #endif
