@@ -22,13 +22,13 @@ const int default_circle_segments = 360;
 
 namespace
 {
-    std::shared_ptr<OGRGeometry> make_geometry_ptr(OGRGeometry* geometry)
-    {
-        return std::shared_ptr<OGRGeometry>(
-            geometry,
-            [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
-    };
-}
+
+std::shared_ptr<OGRGeometry> make_geometry_ptr(OGRGeometry* geometry)
+{
+    return std::shared_ptr<OGRGeometry>(
+        geometry,
+        [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
+};
 
 // Longitude to -180...180 range
 double modlon(double lon)
@@ -258,6 +258,8 @@ Shape_sptr make_horizontal_cut(double lat, double lon1, double lon2)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+} // anonymous namespace
 
 Interrupt interruptGeometry(const SpatialReference& theSRS)
 {
