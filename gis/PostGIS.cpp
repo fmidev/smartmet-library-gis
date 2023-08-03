@@ -126,8 +126,13 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
 
   auto* out = new OGRGeometryCollection;  // NOLINT
 
-  // This is owned by us
-  OGRFeature* feature;
+  const auto next_feature = [layer]() {
+      return std::shared_ptr<OGRFeature>(
+          layer->GetNextFeature(),
+          [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
+  };
+
+  std::shared_ptr<OGRFeature> feature;
 
   if (theSR == nullptr)
   {
@@ -142,7 +147,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       out->assignSpatialReference(layer->GetSpatialRef());
 
     layer->ResetReading();
-    while ((feature = layer->GetNextFeature()) != nullptr)
+    while ((feature = next_feature()))
     {
       // owned by feature
       OGRGeometry* geometry = feature->GetGeometryRef();
@@ -164,7 +169,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
     out->assignSpatialReference(tmp.get());
 
     layer->ResetReading();
-    while ((feature = layer->GetNextFeature()) != nullptr)
+    while ((feature = next_feature()))
     {
       // owned by feature
       OGRGeometry* geometry = feature->GetGeometryRef();
@@ -188,8 +193,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
     }
   }
 
-  OGRFeature::DestroyFeature(feature);
-  return OGRGeometryPtr(out);
+  return OGRGeometryPtr(out, [](OGRGeometry* g) { OGRGeometryFactory::destroyGeometry(g); } );
 }
 
 // ----------------------------------------------------------------------
@@ -242,12 +246,16 @@ Features read(const Fmi::SpatialReference* theSR,
           new CoordinateTransformation(SpatialReference(*layer->GetSpatialRef()), *theSR));
   }
 
-  // This is owned by us
+  const auto next_feature = [layer]() {
+      return std::shared_ptr<OGRFeature>(
+          layer->GetNextFeature(),
+          [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
+  };
 
-  OGRFeature* feature;
+  std::shared_ptr<OGRFeature> feature;
 
   layer->ResetReading();
-  while ((feature = layer->GetNextFeature()) != nullptr)
+  while ((feature = next_feature()))
   {
     FeaturePtr ret_item(new Feature);
     // owned by feature
@@ -330,7 +338,6 @@ Features read(const Fmi::SpatialReference* theSR,
       };
     }
     ret.push_back(ret_item);
-    OGRFeature::DestroyFeature(feature);
   }
 
   return ret;
