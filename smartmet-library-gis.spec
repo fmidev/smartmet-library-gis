@@ -45,6 +45,12 @@ BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 BuildRequires: smartmet-library-regression
 BuildRequires: smartmet-test-data
 %endif
+%if 0%{?rhel} && 0%{rhel} <= 7
+BuildRequires: sqlite33-devel
+%else
+BuildRequires: sqlite-devel
+%endif
+BuildRequires: libcurl-devel
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
