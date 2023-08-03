@@ -253,6 +253,12 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
   {
     OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
 
+    const auto make_geometry_ptr = [](OGRGeometry* geometry) {
+        return std::shared_ptr<OGRGeometry>(
+            geometry,
+            [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
+    };
+
     // If input is geographic apply geographic cuts
     if (impl->m_source.isGeographic())
     {
@@ -266,7 +272,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       // Do quick vertical cuts
       for (const auto& box : interrupt.cuts)
       {
-        g.reset(OGR::polycut(*g, box, theMaximumSegmentLength));
+          g = make_geometry_ptr(OGR::polycut(*g, box, theMaximumSegmentLength));
         if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
           return nullptr;
       }
@@ -275,7 +281,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       for (auto& shape : interrupt.shapeCuts)
       {
         // shape.print(std::cout);
-        g.reset(OGR::polycut(*g, shape, theMaximumSegmentLength));
+        g = make_geometry_ptr(OGR::polycut(*g, shape, theMaximumSegmentLength));
         if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
           return nullptr;
       }
@@ -286,7 +292,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
         for (auto& shape : interrupt.shapeClips)
         {
           // shape.print(std::cout);
-          g.reset(OGR::polyclip(*g, shape, theMaximumSegmentLength));
+          g = make_geometry_ptr(OGR::polyclip(*g, shape, theMaximumSegmentLength));
           if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
             return nullptr;
         }
@@ -300,13 +306,13 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       if (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope))
       {
         if (interrupt.cutGeometry)
-          g.reset(g->Difference(interrupt.cutGeometry.get()));
+          g = make_geometry_ptr(g->Difference(interrupt.cutGeometry.get()));
         if (!g || g->IsEmpty())
           return nullptr;
       }
 
       if (interrupt.andGeometry)
-        g.reset(g->Intersection(interrupt.andGeometry.get()));
+        g = make_geometry_ptr(g->Intersection(interrupt.andGeometry.get()));
       if (!g || g->IsEmpty())
         return nullptr;
     }

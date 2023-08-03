@@ -6,6 +6,7 @@
 #include "SpatialReference.h"
 #include <boost/math/constants/constants.hpp>
 #include <macgyver/Exception.h>
+#include <memory>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 
@@ -18,6 +19,16 @@ const double epsilon = 1e-6;
 const double wgs84radius = 6378137.0;
 
 const int default_circle_segments = 360;
+
+namespace
+{
+    std::shared_ptr<OGRGeometry> make_geometry_ptr(OGRGeometry* geometry)
+    {
+        return std::shared_ptr<OGRGeometry>(
+            geometry,
+            [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
+    };
+}
 
 // Longitude to -180...180 range
 double modlon(double lon)
@@ -164,7 +175,7 @@ OGRPolygon* make_rect(double x1, double y1, double x2, double y2)
 
 // Create a circle cutgeometry
 
-OGRGeometry* circle_cut(double lon,
+std::shared_ptr<OGRGeometry> circle_cut(double lon,
                         double lat,
                         double radius,
                         int segments = default_circle_segments)
@@ -172,7 +183,7 @@ OGRGeometry* circle_cut(double lon,
   try
   {
     // One circle
-    auto* geom = make_circle(lon, lat, radius, segments);
+    auto geom = make_geometry_ptr(make_circle(lon, lat, radius, segments));
 
     // Extract envelope
 
@@ -190,36 +201,31 @@ OGRGeometry* circle_cut(double lon,
 
     auto* result = new OGRGeometryCollection;
 
-    auto* rect = make_rect(-180, -90, 180, 90);
-    auto* cut = geom->Intersection(rect);
+    auto rect = make_geometry_ptr(make_rect(-180, -90, 180, 90));
+    auto* cut = geom->Intersection(rect.get());
     if (cut != nullptr && cut->IsEmpty() == 0)
       result->addGeometryDirectly(cut);
-    CPLFree(rect);
 
     if (env.MinX < -180)
     {
-      rect = make_rect(-540, -90, -180, 90);
-      cut = geom->Intersection(rect);
+      rect = make_geometry_ptr(make_rect(-540, -90, -180, 90));
+      cut = geom->Intersection(rect.get());
       OGR::translate(cut, +360, 0);
       if (cut != nullptr && cut->IsEmpty() == 0)
         result->addGeometryDirectly(cut);
-      CPLFree(rect);
     }
 
     if (env.MaxX > 180)
     {
-      rect = make_rect(180, -90, 540, 90);
-      cut = geom->Intersection(rect);
+      rect = make_geometry_ptr(make_rect(180, -90, 540, 90));
+      cut = geom->Intersection(rect.get());
       OGR::translate(cut, -360, 0);
       if (cut != nullptr && cut->IsEmpty() == 0)
         result->addGeometryDirectly(cut);
-      CPLFree(rect);
     }
 
-    CPLFree(geom);
-
     result->assignSpatialReference(OGRSpatialReference::GetWGS84SRS());
-    return result;
+    return make_geometry_ptr(result);
   }
   catch (...)
   {
@@ -351,7 +357,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       auto radius = acos(wgs84radius / (wgs84radius + h)) * wgs84radius;
       // Then reduce a little to avoid problems at the edges
       radius = 0.999 * radius;
-      result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+      result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
 
@@ -374,7 +380,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     {
       // TODO: Slow as hell, disabled for now
       // const auto radius = 80 * wgs84radius * degree;
-      // result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+      // result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
 
@@ -387,7 +393,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       // version of circle cutting.
 
       const auto radius = 130 * wgs84radius * degree;
-      result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+      result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
 
@@ -395,14 +401,14 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     {
       // TODO: This is just experimental to get something out
       // const auto radius = 90 * wgs84radius * degree;
-      // result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+      // result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
     if (name == "gstmerc")
     {
       // 90 causes errors
       const auto radius = 89.5 * wgs84radius * degree;
-      result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+      result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
 
@@ -410,14 +416,14 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     {
       // TODO: Nothing seems to work, result is full of NaN values
       const auto radius = 89 * wgs84radius * degree;
-      result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+      result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
 
     if (name == "airy" || name == "ortho")
     {
       const auto radius = 90 * wgs84radius * degree;
-      result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+      result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
 
@@ -425,7 +431,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     {
       // 50 was found experimentally
       const auto radius = 50 * wgs84radius * degree;
-      result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+      result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
 
@@ -433,7 +439,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     {
       // 80 was found experimentally
       const auto radius = 80 * wgs84radius * degree;
-      result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+      result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
 
@@ -441,7 +447,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     {
       // TODO: Just something that works on small scales not up to the maximum
       const auto radius = 90 * wgs84radius * degree;
-      result.andGeometry.reset(circle_cut(lon_0, lat_0, radius));
+      result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
 
@@ -470,7 +476,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       const auto lat = 0.5 * (lat_1 + lat_2);
 
       const auto radius = 145 * wgs84radius * degree;
-      result.andGeometry.reset(circle_cut(lon, lat, radius));
+      result.andGeometry = circle_cut(lon, lat, radius);
       return result;
     }
 
