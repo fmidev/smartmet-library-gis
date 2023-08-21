@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 23.8.4
+Version: 23.8.21
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -118,6 +118,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Aug 21 2023 Andris Pavēnis <andris.pavenis@fmi.fi> 23.8.21-1.fmi
+- SrtmTile: use Fmi::MappedFile
+
 * Fri Aug  4 2023 Andris Pavēnis <andris.pavenis@fmi.fi> 23.8.4-1.fmi
 - Fix memory leaks
 
