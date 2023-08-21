@@ -3,7 +3,6 @@
 #include "SrtmTile.h"
 
 #include <boost/filesystem/operations.hpp>
-#include <boost/move/unique_ptr.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/MappedFile.h>
