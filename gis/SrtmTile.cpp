@@ -3,15 +3,11 @@
 #include "SrtmTile.h"
 
 #include <boost/filesystem/operations.hpp>
-#include <boost/interprocess/file_mapping.hpp>
-#include <boost/interprocess/mapped_region.hpp>
 #include <boost/move/unique_ptr.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
+#include <macgyver/MappedFile.h>
 #include <mutex>
-
-using FileMapping = boost::interprocess::file_mapping;
-using MappedRegion = boost::interprocess::mapped_region;
 
 namespace Fmi
 {
@@ -87,8 +83,7 @@ class SrtmTile::Impl
   int itsLat;
 
   std::mutex itsMutex;
-  std::atomic<MappedRegion *> itsMappedRegion{nullptr};
-  std::unique_ptr<FileMapping> itsFileMapping;
+  std::unique_ptr<Fmi::MappedFile> itsFileMapping;
 };
 
 // ----------------------------------------------------------------------
@@ -120,6 +115,13 @@ SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
 
     sign = (name[3] == 'W' ? -1 : 1);
     itsLon = sign * std::stoi(name.substr(4, 3));
+
+    itsFileMapping.reset(
+        new Fmi::MappedFile(
+            itsPath,
+            boost::iostreams::mapped_file::readonly,
+            2 * itsSize * itsSize,
+            0));
   }
   catch (...)
   {
@@ -127,10 +129,7 @@ SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
   }
 }
 
-SrtmTile::Impl::~Impl()
-{
-  delete itsMappedRegion.load();
-}
+SrtmTile::Impl::~Impl() = default;
 
 // ----------------------------------------------------------------------
 /*!
@@ -148,36 +147,7 @@ int SrtmTile::Impl::value(std::size_t i, std::size_t j)
           BCP,
           fmt::format("SrtmFile indexes {},{} is out of range, size of tile is {}", i, j, itsSize));
 
-    // We use lazy initialization to reduce core sizes in case
-    // private mapped files are not disabled in core dumps.
-    // We use private mapping intentionally, this class is expected
-    // to be used in servers where no other process maps the same
-    // files, and we wish to reserve shared mapping for core dumps.
-
-    // We do not intend to write to the DEM files, but we use read_write
-    // mode to get private mappings instead of shared ones.
-
-    // https://preshing.com/20130930/double-checked-locking-is-fixed-in-cpp11/
-    auto *mapping = itsMappedRegion.load(std::memory_order_acquire);
-    if (mapping == nullptr)
-    {
-      std::lock_guard<std::mutex> lock(itsMutex);
-      mapping = itsMappedRegion.load(std::memory_order_relaxed);
-      if (mapping == nullptr)
-      {
-        itsFileMapping.reset(new FileMapping(itsPath.c_str(), boost::interprocess::read_only));
-        mapping = new MappedRegion(
-            *itsFileMapping, boost::interprocess::read_only, 0, 2 * itsSize * itsSize);
-        // We do not expect any normal access patterns, so disable prefetching
-        mapping->advise(boost::interprocess::mapped_region::advice_random);
-        itsMappedRegion.store(mapping, std::memory_order_release);
-      }
-    }
-
-    // Now the data is definitely available. Note: data runs from
-    // north down, but we index if from bottom up
-
-    auto *ptr = reinterpret_cast<std::int16_t *>(mapping->get_address());
+    const auto *ptr = reinterpret_cast<const std::int16_t *>(itsFileMapping->const_data());
     std::int16_t big_endian = ptr[i + (itsSize - j - 1) * itsSize];
     std::int16_t little_endian = ((big_endian >> 8) & 0xff) + ((big_endian & 0xff) << 8);
     return little_endian;
