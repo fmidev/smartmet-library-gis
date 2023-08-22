@@ -28,9 +28,18 @@ double area(const BBox& bbox)
   return (bbox.east - bbox.west) * (bbox.north - bbox.south);
 }
 
-// Get EPSG information from the cache, getting the information from PROJ first if necessary
-boost::optional<EPSG> lookup_epsg(int code)
+}  // namespace
+
+// Is the EPSG code valid?
+bool isValid(int code)
 {
+  return !!getEPSG(code);
+}
+
+// Get all EPSG information
+boost::optional<EPSG> getEPSG(int code)
+{
+  // Get EPSG information from the cache, getting the information from PROJ first if necessary
   const auto& obj = g_epsg_cache.find(code);
   if (obj)
     return obj;
@@ -39,7 +48,7 @@ boost::optional<EPSG> lookup_epsg(int code)
   auto* sqlite_handle = reinterpret_cast<sqlite3*>(db_context->getSqliteHandle());
   auto projdb = sqlite3pp::ext::borrow(sqlite_handle);
 
-  // At least these tables have extent information
+  // At least these tables have commonly needed extent information
   const std::vector<std::string> tables = {"projected_crs", "geodetic_crs"};
   boost::optional<EPSG> ret;
 
@@ -97,8 +106,6 @@ boost::optional<EPSG> lookup_epsg(int code)
 
   // Calculate projected bounds
 
-  // SpatialReference WGS84("WGS84");
-  // SpatialReference crs(code);
   CoordinateTransformation transformation("WGS84", code);
   std::vector<double> x{ret->bbox.west, ret->bbox.east};
   std::vector<double> y{ret->bbox.south, ret->bbox.north};
@@ -112,36 +119,6 @@ boost::optional<EPSG> lookup_epsg(int code)
   g_epsg_cache.insert(code, *ret);
 
   return ret;
-}
-
-}  // namespace
-
-// Is the EPSG code valid?
-bool isValid(int code)
-{
-  const auto& obj = lookup_epsg(code);
-  return !!obj;
-}
-
-// Get all EPSG information
-EPSG getEPSG(int code)
-{
-  const auto& obj = lookup_epsg(code);
-  if (obj)
-    return *obj;
-  throw Fmi::Exception(BCP, "Unknown EPSG code").addParameter("Code", Fmi::to_string(code));
-}
-
-// Get just the WGS84 bounding box
-BBox getBBox(int code)
-{
-  return getEPSG(code).bbox;
-}
-
-// Get bounding box in native coordinates
-BBox getProjectedBounds(int code)
-{
-  return getEPSG(code).bounds;
 }
 
 // Resize the cache from the default

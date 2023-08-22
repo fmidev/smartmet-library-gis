@@ -2,9 +2,8 @@
 
 #ifdef UNIX
 
-// EPSG information from PROJ database
-
 #include "BBox.h"
+#include <boost/optional.hpp>
 #include <macgyver/Cache.h>
 #include <string>
 
@@ -12,6 +11,7 @@ namespace Fmi
 {
 namespace EPSGInfo
 {
+// EPSG information from PROJ database
 struct EPSG
 {
   BBox bbox;    // WGS84 bounds
@@ -23,10 +23,8 @@ struct EPSG
   bool deprecated = false;
 };
 
-bool isValid(int code);             // Is the EPSG code valid?
-EPSG getEPSG(int code);             // Get all EPSG information
-BBox getBBox(int code);             // Get just the WGS84 bounding box
-BBox getProjectedBounds(int code);  // Get bounding box in native coordinates
+bool isValid(int code);                   // Is the EPSG code valid?
+boost::optional<EPSG> getEPSG(int code);  // Get all EPSG information
 
 void setCacheSize(std::size_t newMaxSize);
 Cache::CacheStats getCacheStats();

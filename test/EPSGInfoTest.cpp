@@ -16,71 +16,71 @@ void isvalid()
   TEST_PASSED();
 }
 
-void getepsg()
+void wgs84()
 {
-  auto info = Fmi::EPSGInfo::getEPSG(4326);
-  if (info.number != 4326)
-    TEST_FAILED("Failed to get EPSG info for 4326");
+  const auto info = Fmi::EPSGInfo::getEPSG(4326);
+  if (!info)
+    TEST_FAILED("Failed to get EPSG info for 4326 (WGS84)");
 
-  info = Fmi::EPSGInfo::getEPSG(3857);
-  if (info.number != 3857)
-    TEST_FAILED("Failed to get EPSG info for 3857");
+  if (info->number != 4326)
+    TEST_FAILED("Failed to get EPSG number for 4326 (WGS84)");
+
+  const auto& box = info->bbox;
+  if (box.west != -180)
+    TEST_FAILED("Should get bbox.west=-180 for EPSG 4326 (WGS84)");
+  if (box.east != 180)
+    TEST_FAILED("Should get bbox.east=180 for EPSG 4326 (WGS84)");
+  if (box.north != 90)
+    TEST_FAILED("Should get bbox.north=90 for EPSG 4326 (WGS84)");
+  if (box.south != -90)
+    TEST_FAILED("Should get bbox.south=-90 for EPSG 4326 (WGS84)");
+
+  const auto& bounds = info->bounds;
+  if (bounds.west != -180)
+    TEST_FAILED("Should get bounds.west=-180 for EPSG 4326 (WGS84)");
+  if (bounds.east != 180)
+    TEST_FAILED("Should get bounds.east=180 for EPSG 4326 (WGS84)");
+  if (bounds.north != 90)
+    TEST_FAILED("Should get bounds.north=90 for EPSG 4326 (WGS84)");
+  if (bounds.south != -90)
+    TEST_FAILED("Should get bounds.south=-90 for EPSG 4326 (WGS84)");
 
   TEST_PASSED();
 }
 
-void getbbox()
+void webmercator()
 {
-  // WGS84
-  auto box = Fmi::EPSGInfo::getBBox(4326);
-  if (box.west != -180)
-    TEST_FAILED("Should get bbox.west=-180 for EPSG 4326");
-  if (box.east != 180)
-    TEST_FAILED("Should get bbox.east=180 for EPSG 4326");
-  if (box.north != 90)
-    TEST_FAILED("Should get bbox.north=90 for EPSG 4326");
-  if (box.south != -90)
-    TEST_FAILED("Should get bbox.south=-90 for EPSG 4326");
+  const auto info = Fmi::EPSGInfo::getEPSG(3857);
+  if (!info)
+    TEST_FAILED("Failed to get EPSG info for 3857 (WebMercator)");
 
-  // WebMercator
-  box = Fmi::EPSGInfo::getBBox(3857);
+  if (info->number != 3857)
+    TEST_FAILED("Failed to get EPSG number info for 3857 (WebMercator)");
+
+  const auto& box = info->bbox;
   if (box.west != -180)
-    TEST_FAILED("Should get bbox.west=-180 for EPSG 4326");
+    TEST_FAILED("Should get bbox.west=-180 for EPSG 3857 (WebMercator)");
   if (box.east != 180)
-    TEST_FAILED("Should get bbox.east=180 for EPSG 4326");
+    TEST_FAILED("Should get bbox.east=180 for EPSG 3857 (WebMercator)");
   if (box.north != 85.06)
-    TEST_FAILED("Should get bbox.north=85.06 for EPSG 4326");
+    TEST_FAILED("Should get bbox.north=85.06 for EPSG 3857 (WebMercator)");
   if (box.south != -85.06)
-    TEST_FAILED("Should get bbox.south=-85.06 for EPSG 4326");
+    TEST_FAILED("Should get bbox.south=-85.06 for EPSG 3857 (WebMercator)");
 
-  TEST_PASSED();
-}
-
-void getprojectedbounds()
-{
-  // WGS84
-  auto box = Fmi::EPSGInfo::getProjectedBounds(4326);
-  if (box.west != -180)
-    TEST_FAILED("Should get bbox.west=-180 for EPSG 4326");
-  if (box.east != 180)
-    TEST_FAILED("Should get bbox.east=180 for EPSG 4326");
-  if (box.north != 90)
-    TEST_FAILED("Should get bbox.north=90 for EPSG 4326");
-  if (box.south != -90)
-    TEST_FAILED("Should get bbox.south=-90 for EPSG 4326");
-
-  // WebMercator
   using std::to_string;
-  box = Fmi::EPSGInfo::getProjectedBounds(3857);
-  if (std::abs(box.west + 20037508.342789) > 1)
-    TEST_FAILED("Should get bbox.west ~ -20037508 for EPSG 3857, not " + to_string(box.west));
-  if (std::abs(box.east - 20037508.342789) > 1)
-    TEST_FAILED("Should get bbox.east ~ +20037508 for EPSG 3857, not " + to_string(box.east));
-  if (std::abs(box.north - 20048966.104015) > 1)
-    TEST_FAILED("Should get bbox.north ~ +20048966 for EPSG 3857, not " + to_string(box.north));
-  if (std::abs(box.south + 20048966.104015) > 1)
-    TEST_FAILED("Should get bbox.south ~ -20048966 for EPSG 3857, not " + to_string(box.south));
-
+  const auto& bounds = info->bounds;
+  if (std::abs(bounds.west + 20037508.342789) > 1)
+    TEST_FAILED("Should get bounds.west ~ -20037508 for EPSG 3857 (WebMercator), not " +
+                to_string(bounds.west));
+  if (std::abs(bounds.east - 20037508.342789) > 1)
+    TEST_FAILED("Should get bounds.east ~ +20037508 for EPSG 3857 (WebMercator), not " +
+                to_string(bounds.east));
+  if (std::abs(bounds.north - 20048966.104015) > 1)
+    TEST_FAILED("Should get bounds.north ~ +20048966 for EPSG 3857 (WebMercator), not " +
+                to_string(bounds.north));
+  if (std::abs(bounds.south + 20048966.104015) > 1)
+    TEST_FAILED("Should get bounds.south ~ -20048966 for EPSG 3857 (WebMercator), not " +
+                to_string(bounds.south));
   TEST_PASSED();
 }
 
@@ -93,9 +93,8 @@ class tests : public tframe::tests
   void test()
   {
     TEST(isvalid);
-    TEST(getepsg);
-    TEST(getbbox);
-    TEST(getprojectedbounds);
+    TEST(wgs84);
+    TEST(webmercator);
   }
 
 };  // class tests
