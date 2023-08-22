@@ -26,7 +26,12 @@ struct ImplData
 
 const std::size_t default_cache_size = 10000;
 using ImplDataCache = Cache::Cache<std::string, std::shared_ptr<ImplData>>;
-ImplDataCache g_ImplDataCache{default_cache_size};
+
+ImplDataCache& get_cache()
+{
+    static ImplDataCache g_ImplDataCache{default_cache_size};
+    return g_ImplDataCache;
+}
 
 bool is_axis_swapped(const OGRSpatialReference &crs)
 {
@@ -117,7 +122,7 @@ class SpatialReference::Impl
   {
     try
     {
-      auto obj = g_ImplDataCache.find(theCRS);
+      auto obj = get_cache().find(theCRS);
       if (obj)
         m_data = *obj;
       else
@@ -139,7 +144,7 @@ class SpatialReference::Impl
         m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
         m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
 
-        g_ImplDataCache.insert(theCRS, m_data);
+        get_cache().insert(theCRS, m_data);
       }
     }
     catch (...)
@@ -318,7 +323,7 @@ void SpatialReference::setCacheSize(std::size_t newMaxSize)
 {
   try
   {
-    g_ImplDataCache.resize(newMaxSize);
+    get_cache().resize(newMaxSize);
   }
   catch (...)
   {
@@ -330,7 +335,7 @@ Cache::CacheStats SpatialReference::getCacheStats()
 {
   try
   {
-    return g_ImplDataCache.statistics();
+    return get_cache().statistics();
   }
 
   catch (...)
