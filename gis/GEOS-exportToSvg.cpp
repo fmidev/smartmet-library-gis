@@ -16,9 +16,12 @@
 #include <geos/geom/Point.h>
 #include <geos/geom/Polygon.h>
 #include <geos/geom/PrecisionModel.h>
+#include <geos/version.h>
 #include <macgyver/Exception.h>
 
-using geos::geom::Coordinate;
+#define GEOS_VERSION_ID (100*GEOS_VERSION_MAJOR + GEOS_VERSION_MINOR)
+
+//using geos::geom::Coordinate;
 using geos::geom::Geometry;
 using geos::geom::GeometryCollection;
 using geos::geom::LinearRing;
@@ -28,6 +31,12 @@ using geos::geom::MultiPoint;
 using geos::geom::MultiPolygon;
 using geos::geom::Point;
 using geos::geom::Polygon;
+
+#if GEOS_VERSION_ID >= 312
+using Coordinate = geos::geom::CoordinateXY;
+#else
+using Coordinate = geos::geom::Coordinate;
+#endif
 
 namespace
 {
