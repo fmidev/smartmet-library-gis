@@ -12,7 +12,11 @@ namespace
 {
 // Cache for spatial-reference objects created from defining string.
 using SpatialReferenceCache = Cache::Cache<std::string, std::shared_ptr<OGRSpatialReference>>;
-SpatialReferenceCache g_spatialReferenceCache;
+    SpatialReferenceCache& spatialReferenceCache()
+{
+    static SpatialReferenceCache g_spatialReferenceCache;
+    return g_spatialReferenceCache;
+}
 
 // Known datums : those listed in PROJ.4 pj_datums.c
 
@@ -92,7 +96,7 @@ std::shared_ptr<OGRSpatialReference> make_crs(const std::string& theDesc)
     if (theDesc.empty())
       throw Fmi::Exception::Trace(BCP, "Cannot create spatial reference from empty string");
 
-    auto cacheObject = g_spatialReferenceCache.find(theDesc);
+    auto cacheObject = spatialReferenceCache().find(theDesc);
     if (cacheObject)
       return *cacheObject;
 
@@ -129,7 +133,7 @@ std::shared_ptr<OGRSpatialReference> make_crs(const std::string& theDesc)
 
     sr->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
-    g_spatialReferenceCache.insert(theDesc, sr);
+    spatialReferenceCache().insert(theDesc, sr);
 
     return sr;
   }
@@ -172,7 +176,7 @@ void SetCacheSize(std::size_t newMaxSize)
 {
   try
   {
-    g_spatialReferenceCache.resize(newMaxSize);
+      spatialReferenceCache().resize(newMaxSize);
   }
   catch (...)
   {
@@ -182,7 +186,7 @@ void SetCacheSize(std::size_t newMaxSize)
 
 Cache::CacheStats getCacheStats()
 {
-  return g_spatialReferenceCache.statistics();
+    return spatialReferenceCache().statistics();
 }
 
 }  // namespace OGRSpatialReferenceFactory
