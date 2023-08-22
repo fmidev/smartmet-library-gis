@@ -35,7 +35,7 @@ test: $(PROG)
 	@echo Using $(GIS_RASTERS_DIR) for rasterdata
 	@rm -f *.err
 	@for prog in *Test; do \
-	  ( ./$$prog || touch $$prog.err ) ; \
+	  ( if [ -f $$prog.cpp ] ; then ./$$prog || touch $$prog.err; fi ) ; \
 	done
 	@for txtfile in tests/*.txt; do ./ShapeTester $$txtfile || touch ShapeTester.err ; done
 	@test `find . -name \*.err | wc -l` = "0" || ( echo ; echo "The following tests have errors:" ; \
