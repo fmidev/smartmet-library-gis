@@ -101,11 +101,18 @@ void exportToProj()
     if (err != OGRERR_NONE)
       TEST_FAILED("Failed to create spatial reference EPSG:2393");
 
+    std::set<std::string> expected =
+        {
+            // GEOS-3.11, proj-9.0
+            "+proj=tmerc +lat_0=0 +lon_0=27 +k=1 +x_0=3500000 +y_0=0 +ellps=intl "
+            "+towgs84=-96.062,-82.428,-121.753,4.801,0.345,-1.376,1.496 +units=m +no_defs",
+
+            // GEOS-3.12, proj-9.2
+            "+proj=tmerc +lat_0=0 +lon_0=27 +k=1 +x_0=3500000 +y_0=0 +ellps=intl +units=m +no_defs"
+        };
     std::string result = Fmi::OGR::exportToProj(*srs);
 
-    if (result !=
-        "+proj=tmerc +lat_0=0 +lon_0=27 +k=1 +x_0=3500000 +y_0=0 +ellps=intl "
-        "+towgs84=-96.062,-82.428,-121.753,4.801,0.345,-1.376,1.496 +units=m +no_defs")
+    if (expected.count(result) == 0)
       TEST_FAILED("Failed to export EPSG:2393 spatial reference as PROJ, got '" + result + "'");
   }
 
