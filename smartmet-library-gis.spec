@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 23.8.28
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -44,6 +44,7 @@ BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
 BuildRequires: smartmet-test-data
+BuildRequires: sqlite3pp-devel
 %endif
 %if 0%{?rhel} && 0%{rhel} <= 7
 BuildRequires: sqlite33-devel
@@ -118,6 +119,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Aug 28 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.8.28-2.fmi
+- Added sqlite3pp-devel build dependency
+
 * Mon Aug 28 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.8.28-1.fmi
 - Added SpatialReference::getEPSG
 - Added EPSGInfo for retrieving EPSG information from PROJ library database
