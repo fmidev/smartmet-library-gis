@@ -18,7 +18,7 @@ void isvalid()
 
 void wgs84()
 {
-  const auto info = Fmi::EPSGInfo::getEPSG(4326);
+  const auto info = Fmi::EPSGInfo::getInfo(4326);
   if (!info)
     TEST_FAILED("Failed to get EPSG info for 4326 (WGS84)");
 
@@ -50,7 +50,7 @@ void wgs84()
 
 void webmercator()
 {
-  const auto info = Fmi::EPSGInfo::getEPSG(3857);
+  const auto info = Fmi::EPSGInfo::getInfo(3857);
   if (!info)
     TEST_FAILED("Failed to get EPSG info for 3857 (WebMercator)");
 

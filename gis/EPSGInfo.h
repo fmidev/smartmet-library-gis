@@ -24,7 +24,7 @@ struct EPSG
 };
 
 bool isValid(int code);                   // Is the EPSG code valid?
-boost::optional<EPSG> getEPSG(int code);  // Get all EPSG information
+boost::optional<EPSG> getInfo(int code);  // Get all EPSG information
 
 void setCacheSize(std::size_t newMaxSize);
 Cache::CacheStats getCacheStats();

@@ -5,6 +5,7 @@
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
+#include <macgyver/StringConversion.h>
 
 #include <ogr_geometry.h>
 
@@ -27,10 +28,10 @@ struct ImplData
 const std::size_t default_cache_size = 10000;
 using ImplDataCache = Cache::Cache<std::string, std::shared_ptr<ImplData>>;
 
-ImplDataCache& get_cache()
+ImplDataCache &get_cache()
 {
-    static ImplDataCache g_ImplDataCache{default_cache_size};
-    return g_ImplDataCache;
+  static ImplDataCache g_ImplDataCache{default_cache_size};
+  return g_ImplDataCache;
 }
 
 bool is_axis_swapped(const OGRSpatialReference &crs)
@@ -157,8 +158,8 @@ class SpatialReference::Impl
   {
     try
     {
-      std::shared_ptr<OGRSpatialReference> tmp(
-        other.Clone(), [](OGRSpatialReference* ref) { ref->Release(); });
+      std::shared_ptr<OGRSpatialReference> tmp(other.Clone(),
+                                               [](OGRSpatialReference *ref) { ref->Release(); });
 
       m_data = std::make_shared<ImplData>();
       m_data->crs = tmp;
@@ -317,6 +318,31 @@ const std::string &SpatialReference::projStr() const
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+boost::optional<int> SpatialReference::getEPSG() const
+{
+  const std::list<std::string> refs = {"PROJCS", "GEOGCS"};
+
+  const auto &crs = *impl->m_data->crs;
+
+  for (const auto &ref : refs)
+  {
+    const auto *def = crs.GetAttrValue(ref.c_str());
+
+    if (def != nullptr)
+    {
+      auto attr = ref + "|AUTHORITY";
+      const auto *auth = crs.GetAttrValue(attr.c_str(), 0);
+      if (auth == nullptr || std::string("EPSG") != std::string(auth))
+        return {};
+      const auto *value = crs.GetAttrValue(attr.c_str(), 1);
+      if (value == nullptr)
+        return {};
+      return Fmi::stoi(value);
+    }
+  }
+  return {};
 }
 
 void SpatialReference::setCacheSize(std::size_t newMaxSize)

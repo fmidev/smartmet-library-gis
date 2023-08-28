@@ -33,11 +33,11 @@ double area(const BBox& bbox)
 // Is the EPSG code valid?
 bool isValid(int code)
 {
-  return !!getEPSG(code);
+  return !!getInfo(code);
 }
 
 // Get all EPSG information
-boost::optional<EPSG> getEPSG(int code)
+boost::optional<EPSG> getInfo(int code)
 {
   // Get EPSG information from the cache, getting the information from PROJ first if necessary
   const auto& obj = g_epsg_cache.find(code);

@@ -12,21 +12,16 @@ namespace
 {
 // Cache for spatial-reference objects created from defining string.
 using SpatialReferenceCache = Cache::Cache<std::string, std::shared_ptr<OGRSpatialReference>>;
-    SpatialReferenceCache& spatialReferenceCache()
+SpatialReferenceCache& spatialReferenceCache()
 {
-    static SpatialReferenceCache g_spatialReferenceCache;
-    return g_spatialReferenceCache;
+  static SpatialReferenceCache g_spatialReferenceCache;
+  return g_spatialReferenceCache;
 }
 
 // Known datums : those listed in PROJ.4 pj_datums.c
 
 std::map<std::string, std::string> known_datums = {
     {"FMI", "+R=6371229 +towgs84=0,0,0"},
-
-    // This stopped working with GDAL 3.2 and PROJ 7.9, and had to be replaced by the following line
-    // {"WGS84", "+a=6378137 +rf=298.257223563 +towgs84=0,0,0"},
-    {"WGS84", "+datum=WGS84 +no_defs"},
-
     {"GGRS87", "+a=6378137 +rf=298.257222101 +towgs84=-199.87,74.79,246.62"},
     {"NAD83", "+a=6378137 +rf=298.257222101 +towgs84=0,0,0"},
     {"NAD27", "+a=6378206.4 +b=6356583.8 +nadgrids=@conus,@alaska,@ntv2_0.gsb,@ntv1_can.dat"},
@@ -89,12 +84,16 @@ std::map<std::string, std::string> known_ellipsoids = {
     {"sphere", "+a=6370997 +b=6370997"}};
 
 // Utility function for creating spatial references from defining string.
-std::shared_ptr<OGRSpatialReference> make_crs(const std::string& theDesc)
+std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
 {
   try
   {
     if (theDesc.empty())
       throw Fmi::Exception::Trace(BCP, "Cannot create spatial reference from empty string");
+
+    // For some reason getEPSG test fails unless this conversion is done
+    if (theDesc == "WGS84")
+      theDesc = "EPSG:4326";
 
     auto cacheObject = spatialReferenceCache().find(theDesc);
     if (cacheObject)
@@ -114,8 +113,8 @@ std::shared_ptr<OGRSpatialReference> make_crs(const std::string& theDesc)
         desc = std::string("+proj=longlat ") + pos->second;
     }
 
-    std::shared_ptr<OGRSpatialReference> sr(
-        new OGRSpatialReference, [](OGRSpatialReference* ref) { ref->Release(); });
+    std::shared_ptr<OGRSpatialReference> sr(new OGRSpatialReference,
+                                            [](OGRSpatialReference* ref) { ref->Release(); });
 
     auto err = sr->SetFromUserInput(desc.c_str());
     if (err != OGRERR_NONE)
@@ -176,7 +175,7 @@ void SetCacheSize(std::size_t newMaxSize)
 {
   try
   {
-      spatialReferenceCache().resize(newMaxSize);
+    spatialReferenceCache().resize(newMaxSize);
   }
   catch (...)
   {
@@ -186,7 +185,7 @@ void SetCacheSize(std::size_t newMaxSize)
 
 Cache::CacheStats getCacheStats()
 {
-    return spatialReferenceCache().statistics();
+  return spatialReferenceCache().statistics();
 }
 
 }  // namespace OGRSpatialReferenceFactory

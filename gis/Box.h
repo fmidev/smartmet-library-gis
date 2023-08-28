@@ -107,6 +107,8 @@ class Box
     }
   }
 
+  std::size_t hashValue() const;
+
  private:
   double itsX1;  // bottom left coordinates
   double itsY1;

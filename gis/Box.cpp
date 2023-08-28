@@ -1,9 +1,9 @@
 // ======================================================================
 
 #include "Box.h"
-
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
+#include <macgyver/Hash.h>
 
 // ----------------------------------------------------------------------
 /*!
@@ -85,4 +85,23 @@ Fmi::Box::Box(double theX1, double theY1, double theX2, double theY2)
 Fmi::Box Fmi::Box::identity()
 {
   return {0, 1, 1, 0, 1, 1};
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Box hash value
+ */
+// ----------------------------------------------------------------------
+
+std::size_t Fmi::Box::hashValue() const
+{
+  auto hash = Fmi::hash_value(itsX1);
+  Fmi::hash_combine(hash, Fmi::hash_value(itsY1));
+  Fmi::hash_combine(hash, Fmi::hash_value(itsX2));
+  Fmi::hash_combine(hash, Fmi::hash_value(itsY2));
+  Fmi::hash_combine(hash, Fmi::hash_value(itsXMin));
+  Fmi::hash_combine(hash, Fmi::hash_value(itsYMin));
+  Fmi::hash_combine(hash, Fmi::hash_value(itsXMax));
+  Fmi::hash_combine(hash, Fmi::hash_value(itsYMax));
+  return hash;
 }
