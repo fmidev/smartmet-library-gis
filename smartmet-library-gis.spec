@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 23.8.21
+Version: 23.8.28
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -107,7 +107,7 @@ Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal35-devel
-Requires: smartmet-library-macgyver-devel >= 23.7.28
+Requires: smartmet-library-macgyver-devel >= 23.8.21
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -118,6 +118,12 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Aug 28 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.8.28-1.fmi
+- Added SpatialReference::getEPSG
+- Added EPSGInfo for retrieving EPSG information from PROJ library database
+- Moved BBox from GIS-engine 
+- Fixed caches containing GDAL/OGR objects to use a private singleton to ensure correct destruction order
+
 * Mon Aug 21 2023 Andris Pavēnis <andris.pavenis@fmi.fi> 23.8.21-1.fmi
 - SrtmTile: use Fmi::MappedFile
 
