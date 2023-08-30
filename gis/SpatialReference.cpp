@@ -327,23 +327,28 @@ boost::optional<int> SpatialReference::getEPSG() const
   const auto *root = crs.GetRoot();
   std::string prefix = root->GetValue();
 
+  const std::string authority = "AUTHORITY";
+
   if (prefix != "PROJCS" && prefix != "GEOGCS")
     return {};
 
-  auto pos = root->FindChild("AUTHORITY");
-  if (pos < 0)
-    return {};
-
-  const auto *auth = root->GetChild(pos);
-
-  if (auth->GetChildCount() != 2)
-    return {};
-
-  const auto *value = auth->GetChild(1);
-  if (value == nullptr)
-    return {};
-
-  return Fmi::stoi(value->GetValue());
+  for (int i = 0; i < root->GetChildCount(); i++)
+  {
+    const auto *node = root->GetChild(i);
+    if (node != nullptr)
+    {
+      if (authority == node->GetValue())
+      {
+        if (node->GetChildCount() != 2)
+          return {};
+        const auto *value = node->GetChild(1);
+        if (value == nullptr)
+          return {};
+        return Fmi::stoi(value->GetValue());
+      }
+    }
+  }
+  return {};
 }
 
 void SpatialReference::setCacheSize(std::size_t newMaxSize)
