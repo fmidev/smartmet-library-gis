@@ -24,6 +24,16 @@ void getepsg()
     if (crs.getEPSG() != 4326)
       TEST_FAILED("Failed to get 4326 for 'WGS84'");
   }
+  {
+    Fmi::SpatialReference crs(
+        "+proj=stere +lat_0=60 +lon_0=20 +lat_ts=60.000000 +lon_ts=20.000000 +k=1.000000 "
+        "+x_0=3500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m no_defs");
+    auto ret = crs.getEPSG();
+    if (crs.getEPSG())
+      TEST_FAILED("Should not get EPSG for FMI polar stereographic CRS, got " +
+                  std::to_string(*ret));
+  }
+
   TEST_PASSED();
 }
 
