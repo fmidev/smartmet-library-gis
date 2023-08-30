@@ -4,8 +4,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 23.8.28
-Release: 2%{?dist}.fmi
+Version: 23.8.30
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -119,6 +119,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Wed Aug 30 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.8.30-1.fmi
+- Fixed getEPSG to be more accurate and not to return GEOGCS EPSG for a PROJCS
+
 * Mon Aug 28 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.8.28-2.fmi
 - Added sqlite3pp-devel build dependency
 
