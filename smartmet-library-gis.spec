@@ -61,7 +61,6 @@ Requires: fmt >= %{smartmet_fmt_min}, fmt < %{smartmet_fmt_max}
 Requires: double-conversion
 Requires: gdal35-libs
 Requires: geos311
-Requires: postgis33_15
 Requires: libcurl >= 7.61.0
 Requires: smartmet-library-macgyver >= 23.8.21
 #TestRequires: %{smartmet_boost}-devel
