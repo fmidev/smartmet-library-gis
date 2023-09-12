@@ -4,8 +4,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 23.8.30
-Release: 2%{?dist}.fmi
+Version: 23.9.12
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -118,6 +118,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Sep 12 2023 Andris Pavēnis <andris.pavenis@fmi.fi> 23.9.12-1.fmi
+- Remove unnecessary dependency on PostGIS package
+
 * Wed Aug 30 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.8.30-2.fmi
 - Added nullptr checks into getEPSG to avoid crashes for unorthodox spatial references
 
