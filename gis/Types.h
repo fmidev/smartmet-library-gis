@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <macgyver/DateTime.h>
 #include <boost/variant.hpp>
 #include <gdal_version.h>
 #include <map>
@@ -30,7 +30,7 @@ using GDALDataPtr = std::shared_ptr<GDALDataset>;
 
 namespace Fmi
 {
-using Attribute = boost::variant<int, double, std::string, boost::posix_time::ptime>;
+using Attribute = boost::variant<int, double, std::string, Fmi::DateTime>;
 
 struct Feature
 {
