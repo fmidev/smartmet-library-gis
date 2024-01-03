@@ -53,6 +53,9 @@ class Box
     y = (y - itsYbeta) / itsYalpha;
   }
 
+  // Calculate conversion factor from pixel area to bbox area
+  double areaFactor() const;
+
   // Return an area with an identify transformation
   static Box identity();
 

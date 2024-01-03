@@ -78,6 +78,25 @@ Fmi::Box::Box(double theX1, double theY1, double theX2, double theY2)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Calculate conversion factor for pixel area to bbox units
+ */
+// ----------------------------------------------------------------------
+
+double Fmi::Box::areaFactor() const
+{
+  double x1 = 0;  // Unit square in pixels
+  double y1 = 0;
+  double x2 = 1;
+  double y2 = 1;
+
+  itransform(x1, y1);  // Convert to bbox units (usually m^2)
+  itransform(x2, y2);
+
+  return std::abs((x2 - x1) * (y2 - y1)) / 1000 / 1000;  // return as km^2
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Return an identify transformation (the simplest version)
  */
 // ----------------------------------------------------------------------
