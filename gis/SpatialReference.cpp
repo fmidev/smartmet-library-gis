@@ -337,7 +337,8 @@ boost::optional<int> SpatialReference::getEPSG() const
     const auto *node = root->GetChild(i);
     if (node != nullptr)
     {
-      if (authority == node->GetValue())
+      const auto *name = node->GetValue();
+      if (name != nullptr && authority == name)
       {
         if (node->GetChildCount() != 2)
           return {};
