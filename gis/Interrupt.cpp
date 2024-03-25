@@ -22,13 +22,11 @@ const int default_circle_segments = 360;
 
 namespace
 {
-
 std::shared_ptr<OGRGeometry> make_geometry_ptr(OGRGeometry* geometry)
 {
-    return std::shared_ptr<OGRGeometry>(
-        geometry,
-        [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
-};
+  return std::shared_ptr<OGRGeometry>(
+      geometry, [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
+}
 
 // Longitude to -180...180 range
 double modlon(double lon)
@@ -176,9 +174,9 @@ OGRPolygon* make_rect(double x1, double y1, double x2, double y2)
 // Create a circle cutgeometry
 
 std::shared_ptr<OGRGeometry> circle_cut(double lon,
-                        double lat,
-                        double radius,
-                        int segments = default_circle_segments)
+                                        double lat,
+                                        double radius,
+                                        int segments = default_circle_segments)
 {
   try
   {
@@ -259,7 +257,7 @@ Shape_sptr make_horizontal_cut(double lat, double lon1, double lon2)
   }
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 Interrupt interruptGeometry(const SpatialReference& theSRS)
 {
