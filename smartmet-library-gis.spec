@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 24.1.3
+Version: 24.3.25
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -39,7 +39,7 @@ BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
 BuildRequires: libcurl-devel >= 7.61.0
-BuildRequires: smartmet-library-macgyver-devel >= 23.11.21
+BuildRequires: smartmet-library-macgyver-devel >= 24.1.17
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -62,7 +62,7 @@ Requires: double-conversion
 Requires: gdal35-libs
 Requires: geos311
 Requires: libcurl >= 7.61.0
-Requires: smartmet-library-macgyver >= 23.11.21
+Requires: smartmet-library-macgyver >= 24.1.17
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -107,7 +107,7 @@ Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal35-devel
-Requires: smartmet-library-macgyver-devel >= 23.11.21
+Requires: smartmet-library-macgyver-devel >= 24.1.17
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -118,6 +118,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Mar 25 2024 Mika Heiskanen <mika.heiskanen@fmi.fi> - 24.3.25-1.fmi
+- Fixed potential nullptr dereference
+
 * Wed Jan  3 2024 Mika Heiskanen <mika.heiskanen@fmi.fi> - 24.1.3-1.fmi
 - Added Box::areaFactor for doing px^2 to km^2 conversions
 
