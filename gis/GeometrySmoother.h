@@ -7,7 +7,6 @@
 #pragma once
 
 #include "Types.h"
-#include <json/json.h>
 #include <vector>
 
 namespace Fmi
