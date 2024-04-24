@@ -75,6 +75,7 @@ class LineFilter
   double m_sum_x = 0;
   double m_sum_y = 0;
   double m_total_weight = 0;
+  bool m_closed = false;
   bool m_debug = false;
 
  public:
@@ -82,6 +83,7 @@ class LineFilter
 
   void init(const OGRLineString* geom)
   {
+    m_closed = geom->get_IsClosed();
     init_counts(geom);
     init_distances(geom);
   }
@@ -89,10 +91,32 @@ class LineFilter
   // Start filtering from a point. Returns false if smoothing at the vertex is disabled
   bool reset(const OGRPoint* point, int i)
   {
+    // Indicate filtering not accepted atleast yet for append()
+    m_total_weight = 0;
     m_debug = false;
     m_first_pos = i;
     m_first_point = *point;
-    m_total_weight = 0;
+
+    if (!allowed(i))
+      return false;
+
+    // Cannot smoothen a point if when adjacent points are not allowed either or there would
+    // be a gap beetween isobands where they diverge
+    long n = m_counts.size();
+    if (m_closed)
+    {
+      int prev = (i > 0 ? i - 1 : n - 2);  // yes, n-2 since first vertex is duplicated
+      int next = (i < n - 2 ? i + 1 : 0);
+      if (!allowed(prev) || !allowed(next))
+        return false;
+    }
+    else
+    {
+      if (i > 0 && !allowed(i - 1))
+        return false;
+      if (i < n - 1 && !allowed(i + 1))
+        return false;
+    }
 
     // Caching guarantees there are no gaps between isobands simply due to the different winding
     // order of the polygons
@@ -110,7 +134,7 @@ class LineFilter
     m_sum_x = 0;
     m_sum_y = 0;
 
-    return allowed(i);
+    return true;
   }
 
   void append(OGRLineString* geom)
@@ -143,15 +167,15 @@ class LineFilter
     else if (j >= n)
       j = j - n + 1;  // j=n becomes 1, 1st point is skipped as a duplicate of the last one
 
-    if (dist_pos < 0)
-      dist_pos = n + dist_pos - 1;
-    else if (dist_pos >= n)
-      dist_pos = dist_pos - n + 1;
-
     OGRPoint pt;
     geom->getPoint(j, &pt);
     if (!allowed(j))
       return false;
+
+    if (dist_pos < 0)
+      dist_pos = n + dist_pos - 1;
+    else if (dist_pos >= n)
+      dist_pos = dist_pos - n + 1;
 
     double dist = 0.0;
     if (j != m_first_pos)
@@ -174,7 +198,7 @@ class LineFilter
   bool allowed(int j)
   {
     // n=0: isoline, since counting is then disabled
-    // n=1: unshared isoband edge, in practise grid edges or there  etc
+    // n=1: unshared isoband edge, in practise grid edges or etc
     // n=2: shared isoband edge
     // n=4: shared isoband corner at a grid cell vertex
     auto n = m_counts[j];
@@ -205,7 +229,8 @@ class LineFilter
     for (int i = 0; i < n; i++)
     {
       geom->getPoint(i, &pt);
-      m_counts.push_back(m_counter.getCount(pt));
+      auto count = m_counter.getCount(pt);
+      m_counts.push_back(count);
     }
   }
 

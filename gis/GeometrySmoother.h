@@ -30,6 +30,7 @@ class GeometrySmoother
 
   void radius(double r) { m_radius = r; }
   void iterations(uint n) { m_iterations = n; }
+  void type(Type t) { m_type = t; }
 
   void bbox(const Box& box);
   void apply(std::vector<OGRGeometryPtr>& geoms, bool preserve_topology) const;
