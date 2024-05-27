@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 24.4.24
+Version: 24.5.27
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -118,6 +118,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon May 27 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.5.27-1.fmi
+- Repackage due to smartmet-library-macgyver changes
+
 * Wed Apr 24 2024 Mika Heiskanen <mika.heiskanen@fmi.fi> - 24.4.24-1.fmi
 - Added GeometrySmoother
 
