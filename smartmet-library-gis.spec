@@ -12,12 +12,7 @@ URL: https://github.com/fmidev/smartmet-library-gis
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 
-%if %{defined el7}
-BuildRequires: devtoolset-7-gcc-c++
-BuildRequires: proj72-devel
-%else
 BuildRequires: proj94-devel
-%endif
 
 %if 0%{?rhel} && 0%{rhel} < 9
 %define smartmet_boost boost169
@@ -45,11 +40,7 @@ BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 BuildRequires: smartmet-library-regression
 BuildRequires: smartmet-test-data
 %endif
-%if 0%{?rhel} && 0%{rhel} <= 7
-BuildRequires: sqlite33-devel
-%else
 BuildRequires: sqlite-devel
-%endif
 BuildRequires: sqlite3pp-devel
 BuildRequires: libcurl-devel
 Obsoletes: libsmartmet-gis < 16.12.20
