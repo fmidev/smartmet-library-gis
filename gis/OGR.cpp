@@ -463,7 +463,7 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
  */
 // ----------------------------------------------------------------------
 
-boost::optional<double> Fmi::OGR::gridNorth(const CoordinateTransformation& theTransformation,
+std::optional<double> Fmi::OGR::gridNorth(const CoordinateTransformation& theTransformation,
                                             double theLon,
                                             double theLat)
 {

@@ -45,7 +45,7 @@ class SpatialReference
   bool isAxisSwapped() const;
   bool isGeographic() const;
   bool EPSGTreatsAsLatLong() const;
-  boost::optional<int> getEPSG() const;
+  std::optional<int> getEPSG() const;
 
   // Proj.4 info
   const ProjInfo &projInfo() const;

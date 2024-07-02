@@ -38,7 +38,7 @@ const std::set<std::string> g_ints{"R", "a", "b"};  // one meter accuracy is eno
  */
 // ----------------------------------------------------------------------
 
-boost::optional<double> parse_proj_number(const std::string& value)
+std::optional<double> parse_proj_number(const std::string& value)
 {
   try
   {
@@ -153,7 +153,7 @@ ProjInfo::ProjInfo(const std::string& theProj) : itsProjStr(theProj)
  */
 // ----------------------------------------------------------------------
 
-boost::optional<double> ProjInfo::getDouble(const std::string& theName) const
+std::optional<double> ProjInfo::getDouble(const std::string& theName) const
 {
   try
   {
@@ -175,7 +175,7 @@ boost::optional<double> ProjInfo::getDouble(const std::string& theName) const
  */
 // ----------------------------------------------------------------------
 
-boost::optional<std::string> ProjInfo::getString(const std::string& theName) const
+std::optional<std::string> ProjInfo::getString(const std::string& theName) const
 {
   try
   {
