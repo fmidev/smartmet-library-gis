@@ -1,7 +1,7 @@
 #pragma once
 
 #include <macgyver/DateTime.h>
-#include <boost/variant.hpp>
+#include <variant>
 #include <gdal_version.h>
 #include <map>
 #include <memory>
@@ -30,7 +30,7 @@ using GDALDataPtr = std::shared_ptr<GDALDataset>;
 
 namespace Fmi
 {
-using Attribute = boost::variant<int, double, std::string, Fmi::DateTime>;
+using Attribute = std::variant<int, double, std::string, Fmi::DateTime>;
 
 struct Feature
 {
