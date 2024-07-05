@@ -2,7 +2,6 @@
 
 #include "SrtmTile.h"
 
-#include <boost/filesystem/operations.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/MappedFile.h>
