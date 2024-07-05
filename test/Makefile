@@ -20,7 +20,6 @@ INCLUDES += -I../gis \
 LIBS += \
 	../libsmartmet-gis.so \
 	-lsmartmet-macgyver \
-	-lboost_filesystem \
 	-lboost_chrono \
 	$(REQUIRED_LIBS) \
 	-lpthread
