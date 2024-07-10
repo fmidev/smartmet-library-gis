@@ -130,7 +130,7 @@ std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom, int precision)
   try
   {
     OGRWktOptions options;
-#if GDAL_VERSION_MAJOR >= 3 || (GDAL_VERSION_MAJOR == 3 && GDAL_VERSION_MINOR >= 9)
+#if GDAL_VERSION_MAJOR > 3 || (GDAL_VERSION_MAJOR == 3 && GDAL_VERSION_MINOR >= 9)
     options.xyPrecision = precision;
 #else
     options.precision = precision;
