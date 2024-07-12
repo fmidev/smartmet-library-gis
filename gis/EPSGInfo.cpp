@@ -37,7 +37,7 @@ bool isValid(int code)
 }
 
 // Get all EPSG information
-boost::optional<EPSG> getInfo(int code)
+std::optional<EPSG> getInfo(int code)
 {
   // Get EPSG information from the cache, getting the information from PROJ first if necessary
   const auto& obj = g_epsg_cache.find(code);
@@ -50,7 +50,7 @@ boost::optional<EPSG> getInfo(int code)
 
   // At least these tables have commonly needed extent information
   const std::vector<std::string> tables = {"projected_crs", "geodetic_crs"};
-  boost::optional<EPSG> ret;
+  std::optional<EPSG> ret;
 
   for (const auto& object_table_name : tables)
   {

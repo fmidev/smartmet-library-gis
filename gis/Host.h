@@ -9,8 +9,6 @@
 
 #include "Types.h"
 
-#include <boost/shared_ptr.hpp>
-
 #include <string>
 
 namespace Fmi

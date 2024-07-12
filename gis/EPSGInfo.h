@@ -3,7 +3,7 @@
 #ifdef UNIX
 
 #include "BBox.h"
-#include <boost/optional.hpp>
+#include <optional>
 #include <macgyver/Cache.h>
 #include <string>
 
@@ -24,7 +24,7 @@ struct EPSG
 };
 
 bool isValid(int code);                   // Is the EPSG code valid?
-boost::optional<EPSG> getInfo(int code);  // Get all EPSG information
+std::optional<EPSG> getInfo(int code);  // Get all EPSG information
 
 void setCacheSize(std::size_t newMaxSize);
 Cache::CacheStats getCacheStats();

@@ -320,7 +320,7 @@ const std::string &SpatialReference::projStr() const
   }
 }
 
-boost::optional<int> SpatialReference::getEPSG() const
+std::optional<int> SpatialReference::getEPSG() const
 {
   const auto &crs = *impl->m_data->crs;
 

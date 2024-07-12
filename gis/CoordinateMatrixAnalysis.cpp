@@ -3,7 +3,7 @@
 #include "CoordinateMatrix.h"
 #include <macgyver/Exception.h>
 
-#include <boost/optional.hpp>
+#include <optional>
 
 #include <algorithm>
 #include <cmath>

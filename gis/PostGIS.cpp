@@ -104,7 +104,7 @@ namespace PostGIS
 OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
                     const GDALDataPtr& theConnection,
                     const std::string& theName,
-                    const boost::optional<std::string>& theWhereClause)
+                    const std::optional<std::string>& theWhereClause)
 {
   // Get time column in UTC time
   theConnection->ExecuteSQL("SET TIME ZONE UTC", nullptr, nullptr);
@@ -211,7 +211,7 @@ Features read(const Fmi::SpatialReference* theSR,
               const GDALDataPtr& theConnection,
               const std::string& theName,
               const std::set<std::string>& theFieldNames,
-              const boost::optional<std::string>& theWhereClause)
+              const std::optional<std::string>& theWhereClause)
 {
   // Get time column in UTC time
   theConnection->ExecuteSQL("SET TIME ZONE UTC", nullptr, nullptr);

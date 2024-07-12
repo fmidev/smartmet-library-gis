@@ -130,7 +130,11 @@ std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom, int precision)
   try
   {
     OGRWktOptions options;
+#if GDAL_VERSION_MAJOR > 3 || (GDAL_VERSION_MAJOR == 3 && GDAL_VERSION_MINOR >= 9)
+    options.xyPrecision = precision;
+#else
     options.precision = precision;
+#endif
     return theGeom.exportToWkt(options, nullptr);
   }
   catch (...)
@@ -463,7 +467,7 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
  */
 // ----------------------------------------------------------------------
 
-boost::optional<double> Fmi::OGR::gridNorth(const CoordinateTransformation& theTransformation,
+std::optional<double> Fmi::OGR::gridNorth(const CoordinateTransformation& theTransformation,
                                             double theLon,
                                             double theLat)
 {
