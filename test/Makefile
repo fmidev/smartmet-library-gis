@@ -22,6 +22,7 @@ LIBS += \
 	-lsmartmet-macgyver \
 	-lboost_chrono \
 	$(REQUIRED_LIBS) \
+	$(PREFIX_LDFLAGS) \
 	-lpthread
 
 # Testdata directories

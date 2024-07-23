@@ -16,8 +16,8 @@ DEFINES = -DUNIX -D_REENTRANT -DUSE_UNSTABLE_GEOS_CPP_API
 LIBS += -lsmartmet-macgyver \
 	-ldouble-conversion \
 	-lboost_thread \
-	$(REQUIRED_LIBS)
-
+	$(REQUIRED_LIBS) \
+	$(PREFIX_LDFLAGS)
 
 # What to install
 
