@@ -19,10 +19,10 @@ INCLUDES += -I../gis \
 
 LIBS += \
 	../libsmartmet-gis.so \
+	$(PREFIX_LDFLAGS) \
 	-lsmartmet-macgyver \
 	-lboost_chrono \
 	$(REQUIRED_LIBS) \
-	$(PREFIX_LDFLAGS) \
 	-lpthread
 
 # Testdata directories

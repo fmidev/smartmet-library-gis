@@ -13,11 +13,12 @@ RPMBUILD_OPT ?=
 
 DEFINES = -DUNIX -D_REENTRANT -DUSE_UNSTABLE_GEOS_CPP_API
 
-LIBS += -lsmartmet-macgyver \
+LIBS += \
+	$(PREFIX_LDFLAGS) \
+	-lsmartmet-macgyver \
 	-ldouble-conversion \
 	-lboost_thread \
-	$(REQUIRED_LIBS) \
-	$(PREFIX_LDFLAGS)
+	$(REQUIRED_LIBS)
 
 # What to install
 
