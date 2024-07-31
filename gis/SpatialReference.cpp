@@ -6,7 +6,7 @@
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 #include <macgyver/StringConversion.h>
-
+#include <macgyver/StaticCleanup.h>
 #include <ogr_geometry.h>
 
 namespace Fmi
@@ -31,6 +31,7 @@ using ImplDataCache = Cache::Cache<std::string, std::shared_ptr<ImplData>>;
 ImplDataCache &get_cache()
 {
   static ImplDataCache g_ImplDataCache{default_cache_size};
+  static StaticCleanup cleanup([]() { g_ImplDataCache.clear(); });
   return g_ImplDataCache;
 }
 
