@@ -13,7 +13,7 @@
 #include "SpatialReference.h"
 #include "Types.h"
 
-#include <boost/optional.hpp>
+#include <optional>
 
 #include <set>
 #include <string>
@@ -29,14 +29,14 @@ Features read(const Fmi::SpatialReference* theSR,
               const GDALDataPtr& theConnection,
               const std::string& theName,
               const std::set<std::string>& theFieldNames,
-              const boost::optional<std::string>& theWhereClause = boost::optional<std::string>());
+              const std::optional<std::string>& theWhereClause = std::optional<std::string>());
 
 // name = "schema.table"
 OGRGeometryPtr read(
     const Fmi::SpatialReference* theSR,
     const GDALDataPtr& theConnection,
     const std::string& theName,
-    const boost::optional<std::string>& theWhereClause = boost::optional<std::string>());
+    const std::optional<std::string>& theWhereClause = std::optional<std::string>());
 
 }  // namespace PostGIS
 }  // namespace Fmi

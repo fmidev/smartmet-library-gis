@@ -2,10 +2,10 @@
 
 #include "SrtmTile.h"
 
-#include <boost/filesystem/operations.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/MappedFile.h>
+#include <filesystem>
 #include <mutex>
 
 namespace Fmi
@@ -20,7 +20,7 @@ bool SrtmTile::valid_path(const std::string &path)
 {
   try
   {
-    boost::filesystem::path p(path);
+    std::filesystem::path p(path);
 
     // Avoid locale locs by not using regex here
     auto name = p.filename().string();
@@ -48,7 +48,7 @@ bool SrtmTile::valid_size(const std::string &path)
 {
   try
   {
-    auto sz = boost::filesystem::file_size(path);
+    auto sz = std::filesystem::file_size(path);
     auto n = static_cast<std::size_t>(sqrt(sz / 2.0));
     return (sz == 2 * n * n);
   }
@@ -101,12 +101,12 @@ SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
       throw Fmi::Exception::Trace(BCP,
                                   "Not a valid size of form 2*N*N for a .hgt file: '" + path + "'");
 
-    auto sz = boost::filesystem::file_size(path);
+    auto sz = std::filesystem::file_size(path);
     itsSize = static_cast<std::size_t>(sqrt(sz / 2.0));
 
     // Sample filename : S89E172.hgt
 
-    boost::filesystem::path p(path);
+    std::filesystem::path p(path);
     auto name = p.filename().string();
 
     int sign = (name[0] == 'S' ? -1 : 1);

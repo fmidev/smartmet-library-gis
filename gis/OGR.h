@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/optional.hpp>
+#include <optional>
 #include <list>
 #include <ogr_geometry.h>
 #include <string>
@@ -101,7 +101,7 @@ OGRGeometry* constructGeometry(const CoordinatePoints& theCoordinates,
 OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters);
 
 // Direction of north in the spatial reference given a WGS84 -> GEOM transformation
-boost::optional<double> gridNorth(const CoordinateTransformation& theTransformation,
+std::optional<double> gridNorth(const CoordinateTransformation& theTransformation,
                                   double theLon,
                                   double theLat);
 

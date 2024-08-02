@@ -6,7 +6,7 @@
 #include "SrtmTile.h"
 #include <macgyver/Exception.h>
 
-#include <boost/filesystem.hpp>
+#include <filesystem>
 #include <fmt/format.h>
 
 #include <cmath>
@@ -28,19 +28,19 @@ namespace
  */
 // ----------------------------------------------------------------------
 
-std::list<boost::filesystem::path> find_hgt_files(const std::string& path)
+std::list<std::filesystem::path> find_hgt_files(const std::string& path)
 {
   try
   {
-    if (!boost::filesystem::is_directory(path))
+    if (!std::filesystem::is_directory(path))
       throw Fmi::Exception::Trace(BCP, "Not a directory: '" + path + "'");
 
-    std::list<boost::filesystem::path> files;
+    std::list<std::filesystem::path> files;
 
-    boost::filesystem::recursive_directory_iterator end_dir;
-    for (boost::filesystem::recursive_directory_iterator it(path); it != end_dir; ++it)
+    std::filesystem::recursive_directory_iterator end_dir;
+    for (std::filesystem::recursive_directory_iterator it(path); it != end_dir; ++it)
     {
-      if (boost::filesystem::is_regular_file(it->status()) &&
+      if (std::filesystem::is_regular_file(it->status()) &&
           SrtmTile::valid_path(it->path().string()) && SrtmTile::valid_size(it->path().string()))
       {
         files.push_back(it->path());

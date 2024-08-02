@@ -1,5 +1,5 @@
 #pragma once
-#include <boost/optional.hpp>
+#include <optional>
 
 #include <map>
 #include <set>
@@ -19,8 +19,8 @@ class ProjInfo
   ProjInfo& operator=(ProjInfo&& other) = default;
 
   const std::string& projStr() const { return itsProjStr; }
-  boost::optional<double> getDouble(const std::string& theName) const;
-  boost::optional<std::string> getString(const std::string& theName) const;
+  std::optional<double> getDouble(const std::string& theName) const;
+  std::optional<std::string> getString(const std::string& theName) const;
   bool getBool(const std::string& theName) const;
 
   bool erase(const std::string& theName);

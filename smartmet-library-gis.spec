@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 24.5.27
+Version: 24.7.12
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -22,8 +22,8 @@ BuildRequires: proj94-devel
 %define smartmet_sfcgal SFCGAL
 %endif
 
-%define smartmet_fmt_min 8.1.1
-%define smartmet_fmt_max 8.2.0
+%define smartmet_fmt_min 11.0.0
+%define smartmet_fmt_max 12.0.0
 
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: fmt-devel >= %{smartmet_fmt_min}, fmt-devel < %{smartmet_fmt_max}
@@ -34,7 +34,7 @@ BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
 BuildRequires: libcurl-devel >= 7.61.0
-BuildRequires: smartmet-library-macgyver-devel >= 24.1.17
+BuildRequires: smartmet-library-macgyver-devel >= 24.7.31
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -46,15 +46,14 @@ BuildRequires: libcurl-devel
 Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
-Requires: %{smartmet_boost}-filesystem
 Requires: %{smartmet_boost}-thread
-Requires: fmt >= %{smartmet_fmt_min}, fmt < %{smartmet_fmt_max}
+Requires: fmt-libs >= %{smartmet_fmt_min}, fmt-libs < %{smartmet_fmt_max}
 Requires: double-conversion
 Requires: gdal38-libs
 Requires: geos312
 Requires: proj94
 Requires: libcurl >= 7.61.0
-Requires: smartmet-library-macgyver >= 24.1.17
+Requires: smartmet-library-macgyver >= 24.7.31
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -99,7 +98,7 @@ Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal38-devel
-Requires: smartmet-library-macgyver-devel >= 24.1.17
+Requires: smartmet-library-macgyver-devel >= 24.7.31
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -110,6 +109,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri Jul 12 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.12-1.fmi
+- Replace many boost library types with C++ standard library ones
+
 * Mon May 27 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.5.27-1.fmi
 - Repackage due to smartmet-library-macgyver changes
 
