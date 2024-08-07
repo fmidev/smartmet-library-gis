@@ -34,7 +34,7 @@ BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
 BuildRequires: libcurl-devel >= 7.61.0
-BuildRequires: smartmet-library-macgyver-devel >= 24.7.31
+BuildRequires: smartmet-library-macgyver-devel >= 24.8.7
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -53,7 +53,7 @@ Requires: gdal38-libs
 Requires: geos312
 Requires: proj94
 Requires: libcurl >= 7.61.0
-Requires: smartmet-library-macgyver >= 24.7.31
+Requires: smartmet-library-macgyver >= 24.8.7
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -98,7 +98,7 @@ Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal38-devel
-Requires: smartmet-library-macgyver-devel >= 24.7.31
+Requires: smartmet-library-macgyver-devel >= 24.8.7
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
