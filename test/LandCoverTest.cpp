@@ -1,8 +1,9 @@
 #include "LandCover.h"
 #include "TestDefs.h"
 
-#include <boost/lexical_cast.hpp>
 #include <regression/tframe.h>
+#include <macgyver/StringConversion.h>
+
 using namespace std;
 
 std::string tostr(double value)
@@ -26,23 +27,23 @@ void landtype()
   value = cover.coverType(25, 60);
   if (value != Fmi::LandCover::Sea)
     TEST_FAILED("Expected type Sea at coordinate 25,60, not " +
-                boost::lexical_cast<std::string>(value));
+                Fmi::to_string(value));
 
   // Kumpula
   value = cover.coverType(24.9642, 60.2089);
   if (value != Fmi::LandCover::Urban)
-    TEST_FAILED("Expected type Urban at Kumpula, not " + boost::lexical_cast<std::string>(value));
+    TEST_FAILED("Expected type Urban at Kumpula, not " + Fmi::to_string(value));
 
   // Helsinki
   value = cover.coverType(24.93545, 60.16952);
   if (value != Fmi::LandCover::Urban)
-    TEST_FAILED("Expected type Urban at Helsinki, not " + boost::lexical_cast<std::string>(value));
+    TEST_FAILED("Expected type Urban at Helsinki, not " + Fmi::to_string(value));
 
     // Ruka
 #if GIS_SMALLTESTDATA == 0
   value = cover.coverType(29.1507, 66.1677);
   if (value != Fmi::LandCover::Urban)
-    TEST_FAILED("Expected type Urban at Ruka, not " + boost::lexical_cast<std::string>(value));
+    TEST_FAILED("Expected type Urban at Ruka, not " + Fmi::to_string(value));
 #endif
 
     // Matterhorn
@@ -50,7 +51,7 @@ void landtype()
   value = cover.coverType(7.6583, 45.9764);
   if (value != Fmi::LandCover::MosaicVegetation)
     TEST_FAILED("Expected type MosaicVegetation at Matterhorn, not " +
-                boost::lexical_cast<std::string>(value));
+                Fmi::to_string(value));
 #endif
 
 #if 0	
@@ -58,66 +59,66 @@ void landtype()
 	// South pole
 	value = cover.coverType(0,-90);
 	if(value != Fmi::LandCover::NoData)
-	  TEST_FAILED("Expected type PermanentSnow at the South Pole, not "+boost::lexical_cast<std::string>(value));
+	  TEST_FAILED("Expected type PermanentSnow at the South Pole, not "+Fmi::to_string(value));
 #endif
 
   // North pole
   value = cover.coverType(0, 90);
   if (value != Fmi::LandCover::Sea)
     TEST_FAILED("Expected type Sea at the North Pole, not " +
-                boost::lexical_cast<std::string>(value));
+                Fmi::to_string(value));
 
   // More special points
 
   value = cover.coverType(0, 0);
   if (value != Fmi::LandCover::Sea)
-    TEST_FAILED("Expected type Sea at 0,0, not " + boost::lexical_cast<std::string>(value));
+    TEST_FAILED("Expected type Sea at 0,0, not " + Fmi::to_string(value));
 
   value = cover.coverType(-180, 0);
   if (value != Fmi::LandCover::Sea)
-    TEST_FAILED("Expected type Sea at -180,0, not " + boost::lexical_cast<std::string>(value));
+    TEST_FAILED("Expected type Sea at -180,0, not " + Fmi::to_string(value));
 
   value = cover.coverType(180, 0);
   if (value != Fmi::LandCover::Sea)
-    TEST_FAILED("Expected type Sea at 180,0, not " + boost::lexical_cast<std::string>(value));
+    TEST_FAILED("Expected type Sea at 180,0, not " + Fmi::to_string(value));
 
   value = cover.coverType(180, 0);
   if (value != Fmi::LandCover::Sea)
-    TEST_FAILED("Expected type Sea at 180,0, not " + boost::lexical_cast<std::string>(value));
+    TEST_FAILED("Expected type Sea at 180,0, not " + Fmi::to_string(value));
 
 #if GIS_SMALLTESTDATA == 0
   // Alanya had rounding issue with coordinates
   value = cover.coverType(31.99982, 36.543750000000003);
   if (value != Fmi::LandCover::MosaicForest)
     TEST_FAILED("Expected type MosaicForest at Alanya, not " +
-                boost::lexical_cast<std::string>(value));
+                Fmi::to_string(value));
 #endif
 
 #if 0
 	// Chukotskiy
 	value = cover.coverType(179.999,67);
 	if(value != Fmi::LandCover::Lakes)
-	  TEST_FAILED("Expected type Lakes at 179.999,67, not "+boost::lexical_cast<std::string>(value));
+	  TEST_FAILED("Expected type Lakes at 179.999,67, not "+Fmi::to_string(value));
 #endif
 
 #if GIS_SMALLTESTDATA == 0
   value = cover.coverType(-179.999, 67);
   if (value != Fmi::LandCover::Lakes)
     TEST_FAILED("Expected type Lakes at -179.999,67, not " +
-                boost::lexical_cast<std::string>(value));
+                Fmi::to_string(value));
 
   value = cover.coverType(-180, 67);
   if (value != Fmi::LandCover::Lakes)
-    TEST_FAILED("Expected type Lakes at -180,67, not " + boost::lexical_cast<std::string>(value));
+    TEST_FAILED("Expected type Lakes at -180,67, not " + Fmi::to_string(value));
 
   value = cover.coverType(180, 67);
   if (value != Fmi::LandCover::Lakes)
-    TEST_FAILED("Expected type Lakes at 180,67, not " + boost::lexical_cast<std::string>(value));
+    TEST_FAILED("Expected type Lakes at 180,67, not " + Fmi::to_string(value));
 
   // Ladoga
   value = cover.coverType(31.6, 60.8);
   if (value != Fmi::LandCover::Lakes)
-    TEST_FAILED("Expected type Lakes at Ladoga, not " + boost::lexical_cast<std::string>(value));
+    TEST_FAILED("Expected type Lakes at Ladoga, not " + Fmi::to_string(value));
 #endif
 
   TEST_PASSED();
