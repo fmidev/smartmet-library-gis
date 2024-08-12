@@ -73,7 +73,7 @@ GDALDataPtr Host::connect() const
     auto ptr = GDALDataPtr(driver->Open(src.c_str()));
 #else
     GDALOpenInfo info(src.c_str(), GA_ReadOnly);
-    auto ptr = GDALDataPtr(driver->pfnOpen(&info));
+    auto ptr = GDALDataPtr(driver->Open(&info, true));
 #endif
 
     if (!ptr)
