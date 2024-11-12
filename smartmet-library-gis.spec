@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 24.8.7
+Version: 24.11.12
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -34,7 +34,7 @@ BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
 BuildRequires: libcurl-devel >= 7.61.0
-BuildRequires: smartmet-library-macgyver-devel >= 24.8.7
+BuildRequires: smartmet-library-macgyver-devel >= 24.10.28
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -53,7 +53,7 @@ Requires: gdal38-libs
 Requires: geos312
 Requires: proj94
 Requires: libcurl >= 7.61.0
-Requires: smartmet-library-macgyver >= 24.8.7
+Requires: smartmet-library-macgyver >= 24.10.28
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
@@ -98,7 +98,7 @@ Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal38-devel
-Requires: smartmet-library-macgyver-devel >= 24.8.7
+Requires: smartmet-library-macgyver-devel >= 24.10.28
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -109,6 +109,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Nov 12 2024 Mika Heiskanen <mika.heiskanen@fmi.fi> - 24.11.12-1.fmi
+- Added SpatialReference::WKT() method to avoid repeated exportToWkt() calls
+- Changed SpatialReference::hashValue() to use the WKT instead of the less reliable PROJ string
+
 * Wed Aug  7 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.8.7-1.fmi
 - Update to gdal-3.8, geos-3.12, proj-94 and fmt-11
 
