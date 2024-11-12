@@ -5,8 +5,8 @@
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
-#include <macgyver/StringConversion.h>
 #include <macgyver/StaticCleanup.h>
+#include <macgyver/StringConversion.h>
 #include <ogr_geometry.h>
 
 namespace Fmi
@@ -22,6 +22,7 @@ struct ImplData
   bool is_geographic = false;
   bool is_axis_swapped = false;
   bool epsg_treats_as_lat_long = false;
+  std::string wkt;
   ProjInfo projinfo;
 };
 
@@ -132,6 +133,9 @@ class SpatialReference::Impl
         m_data = std::make_shared<ImplData>();
         m_data->crs = OGRSpatialReferenceFactory::Create(theCRS);
 
+        // Generate WKT only once, and cache spatial references for better speed
+        m_data->wkt = OGR::exportToWkt(*m_data->crs);
+
         try
         {
           // exportToProj may lose the original +type=crs setting, hence we try direct parsing first
@@ -141,7 +145,8 @@ class SpatialReference::Impl
         {
           m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
         }
-        m_data->hashvalue = Fmi::hash_value(m_data->projinfo.projStr());
+        m_data->hashvalue = Fmi::hash_value(m_data->wkt);  // WKT is more reliable than PROJ strings
+
         m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
         m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
         m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
@@ -164,8 +169,9 @@ class SpatialReference::Impl
 
       m_data = std::make_shared<ImplData>();
       m_data->crs = tmp;
+      m_data->wkt = OGR::exportToWkt(other);
       m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
-      m_data->hashvalue = Fmi::hash_value(m_data->projinfo.projStr());
+      m_data->hashvalue = Fmi::hash_value(m_data->wkt);
       m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
       m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
       m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
@@ -302,6 +308,18 @@ const ProjInfo &SpatialReference::projInfo() const
   try
   {
     return impl->m_data->projinfo;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+const std::string &SpatialReference::WKT() const
+{
+  try
+  {
+    return impl->m_data->wkt;
   }
   catch (...)
   {

@@ -52,6 +52,8 @@ class SpatialReference
 
   std::size_t hashValue() const;
 
+  const std::string &WKT() const;
+
   // This is mostly for debugging
   const std::string &projStr() const;
 
