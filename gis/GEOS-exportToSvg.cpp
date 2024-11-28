@@ -3,7 +3,6 @@
 // GEOS does not seem to include <memory> as it should for Point.h
 #include <memory>
 
-#include <boost/numeric/conversion/cast.hpp>
 #include <fmt/format.h>
 #include <fmt/printf.h>
 #include <geos/geom/Coordinate.h>
@@ -18,6 +17,7 @@
 #include <geos/geom/PrecisionModel.h>
 #include <geos/version.h>
 #include <macgyver/Exception.h>
+#include <macgyver/NumericCast.h>
 
 #define GEOS_VERSION_ID (100*GEOS_VERSION_MAJOR + GEOS_VERSION_MINOR)
 
@@ -140,7 +140,7 @@ void writeLinearRingSVG(std::string& out, const LinearRing* geom, const char* fo
         out += 'M';
       else
         out += ' ';  // No need to write an 'L', lineto is implicit for i>0
-      writeCoordinateSVG(out, geom->getCoordinateN(boost::numeric_cast<int>(i)), format);
+      writeCoordinateSVG(out, geom->getCoordinateN(Fmi::numeric_cast<int>(i)), format);
     }
     out += 'Z';
   }
@@ -170,7 +170,7 @@ void writeLineStringSVG(std::string& out, const LineString* geom, const char* fo
         out += 'M';
       else
         out += ' ';  // No need to write an 'L', lineto is implicit for i>0
-      writeCoordinateSVG(out, geom->getCoordinateN(boost::numeric_cast<int>(i)), format);
+      writeCoordinateSVG(out, geom->getCoordinateN(Fmi::numeric_cast<int>(i)), format);
     }
 
     if (geom->isClosed())
@@ -178,7 +178,7 @@ void writeLineStringSVG(std::string& out, const LineString* geom, const char* fo
     else
     {
       out += (n == 1 ? 'M' : ' ');
-      writeCoordinateSVG(out, geom->getCoordinateN(boost::numeric_cast<int>(n - 1)), format);
+      writeCoordinateSVG(out, geom->getCoordinateN(Fmi::numeric_cast<int>(n - 1)), format);
     }
   }
   catch (...)
