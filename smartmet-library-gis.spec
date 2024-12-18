@@ -12,7 +12,7 @@ URL: https://github.com/fmidev/smartmet-library-gis
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 
-BuildRequires: proj94-devel
+BuildRequires: proj95-devel
 
 %if 0%{?rhel} && 0%{rhel} < 9
 %define smartmet_boost boost169
@@ -28,8 +28,8 @@ BuildRequires: proj94-devel
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: fmt-devel >= %{smartmet_fmt_min}, fmt-devel < %{smartmet_fmt_max}
 BuildRequires: gcc-c++
-BuildRequires: gdal38-devel
-BuildRequires: geos312-devel
+BuildRequires: gdal310-devel
+BuildRequires: geos313-devel
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
@@ -49,9 +49,9 @@ Provides: %{LIBNAME}
 Requires: %{smartmet_boost}-thread
 Requires: fmt-libs >= %{smartmet_fmt_min}, fmt-libs < %{smartmet_fmt_max}
 Requires: double-conversion
-Requires: gdal38-libs
-Requires: geos312
-Requires: proj94
+Requires: gdal310-libs
+Requires: geos313
+Requires: proj95
 Requires: libcurl >= 7.61.0
 Requires: smartmet-library-macgyver >= 24.10.28
 #TestRequires: %{smartmet_boost}-devel
@@ -93,11 +93,11 @@ rm -rf $RPM_BUILD_ROOT
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
 Requires: %{SPECNAME} = %{version}-%{release}
-Requires: geos312-devel
+Requires: geos313-devel
 Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
-Requires: gdal38-devel
+Requires: gdal310-devel
 Requires: smartmet-library-macgyver-devel >= 24.10.28
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
