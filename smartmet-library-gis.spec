@@ -57,8 +57,8 @@ Requires: smartmet-library-macgyver >= 24.10.28
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: fmt-devel
 #TestRequires: gcc-c++
-#TestRequires: gdal38-devel
-#TestRequires: geos312-devel
+#TestRequires: gdal10-devel
+#TestRequires: geos313-devel
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
 #TestRequires: smartmet-library-macgyver
