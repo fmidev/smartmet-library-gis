@@ -101,6 +101,8 @@ Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
 Requires: gdal310-devel
+Requires: proj95-devel
+Requires: libtiff-devel >= 4.1
 Requires: smartmet-library-macgyver-devel >= 24.10.28
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
