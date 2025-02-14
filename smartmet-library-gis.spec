@@ -28,8 +28,10 @@ BuildRequires: proj95-devel
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: fmt-devel >= %{smartmet_fmt_min}, fmt-devel < %{smartmet_fmt_max}
 BuildRequires: gcc-c++
+BuildRequires: proj95-devel
 BuildRequires: gdal310-devel
 BuildRequires: geos313-devel
+BuildRequires: libtiff-devel >= 4.1
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
@@ -52,6 +54,7 @@ Requires: double-conversion
 Requires: gdal310-libs
 Requires: geos313
 Requires: proj95
+Requires: libtiff >= 4.1
 Requires: libcurl >= 7.61.0
 Requires: smartmet-library-macgyver >= 24.10.28
 #TestRequires: %{smartmet_boost}-devel
