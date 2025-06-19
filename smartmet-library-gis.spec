@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 25.2.18
+Version: 25.6.19
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -124,6 +124,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Jun 19 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.6.19-1.fmi
+- Add support for RHEL 10 and RockyLinux 10
+
 * Tue Feb 18 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.2.18-1.fmi
 - Update to gdal-3.10, geos-3.13 and proj-9.5
 
