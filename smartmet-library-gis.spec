@@ -14,6 +14,9 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 
 BuildRequires: proj95-devel
 
+# https://fedoraproject.org/wiki/Changes/Broken_RPATH_will_fail_rpmbuild
+%global __brp_check_rpaths %{nil}
+
 %if 0%{?rhel} && 0%{rhel} < 9
 %define smartmet_boost boost169
 %define smartmet_sfcgal smartmet-SFCGAL
@@ -22,11 +25,18 @@ BuildRequires: proj95-devel
 %define smartmet_sfcgal SFCGAL
 %endif
 
-%define smartmet_fmt_min 11.0.0
+%if 0%{?rhel} && 0%{rhel} <= 9
+%define smartmet_fmt_min 11.0.1
 %define smartmet_fmt_max 12.0.0
+%define smartmet_fmt fmt-libs >= %{smartmet_fmt_min}, fmt-libs < %{smartmet_fmt_max}
+%define smartmet_fmt_devel fmt-devel >= %{smartmet_fmt_min}, fmt-devel < %{smartmet_fmt_max}
+%else
+%define smartmet_fmt fmt
+%define smartmet_fmt_devel fmt-devel
+%endif
 
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: fmt-devel >= %{smartmet_fmt_min}, fmt-devel < %{smartmet_fmt_max}
+BuildRequires: %{smartmet_fmt_devel}
 BuildRequires: gcc-c++
 BuildRequires: proj95-devel
 BuildRequires: gdal310-devel
@@ -49,7 +59,7 @@ Obsoletes: libsmartmet-gis < 16.12.20
 Obsoletes: libsmartmet-gis-debuginfo < 16.12.20
 Provides: %{LIBNAME}
 Requires: %{smartmet_boost}-thread
-Requires: fmt-libs >= %{smartmet_fmt_min}, fmt-libs < %{smartmet_fmt_max}
+Requires: %{smartmet_fmt}
 Requires: double-conversion
 Requires: gdal310-libs
 Requires: geos313
@@ -58,7 +68,7 @@ Requires: libtiff >= 4.1
 Requires: libcurl >= 7.61.0
 Requires: smartmet-library-macgyver >= 25.2.18
 #TestRequires: %{smartmet_boost}-devel
-#TestRequires: fmt-devel
+#TestRequires: %{smartmet_fmt_devel}
 #TestRequires: gcc-c++
 #TestRequires: gdal310-devel
 #TestRequires: geos313-devel
