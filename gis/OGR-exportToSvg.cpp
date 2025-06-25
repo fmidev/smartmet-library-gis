@@ -511,7 +511,9 @@ std::string Fmi::OGR::exportToSvg(const OGRGeometry &theGeom,
     // For backwards compatibility
     const double precision = std::max(0.0, thePrecision);
 
-    const int decimals = std::ceil(precision);
+    // We also disallow to many useless decimals
+    const int decimals = std::min(16.0, std::ceil(precision));
+
     const double rfactor = pow(10.0, precision);
     const std::string format = "{:." + fmt::sprintf("%d", decimals) + "f}";
 
