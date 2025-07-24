@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 25.6.25
+Version: 25.7.24
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -46,7 +46,7 @@ BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
 BuildRequires: libcurl-devel >= 7.61.0
-BuildRequires: smartmet-library-macgyver-devel >= 25.5.30
+BuildRequires: smartmet-library-macgyver-devel >= 25.6.19
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -66,7 +66,7 @@ Requires: geos313
 Requires: proj95
 Requires: libtiff >= 4.1
 Requires: libcurl >= 7.61.0
-Requires: smartmet-library-macgyver >= 25.5.30
+Requires: smartmet-library-macgyver >= 25.6.19
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: %{smartmet_fmt_devel}
 #TestRequires: gcc-c++
@@ -113,7 +113,7 @@ Requires: gcc-c++
 Requires: gdal310-devel
 Requires: proj95-devel
 Requires: libtiff-devel >= 4.1
-Requires: smartmet-library-macgyver-devel >= 25.5.30
+Requires: smartmet-library-macgyver-devel >= 25.6.19
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -124,6 +124,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Jul 24 2025 Mika Heiskanen <mika.heiskanen@fmi.fi> - 25.7.24-1.fmi
+- Fixed isses in handling global data wraparounds which caused topology errors.
+- Use reversePoints instead of deprecated reverseWindingOrder
+
 * Wed Jun 25 2025 Mika Heiskanen <mika.heiskanen@fmi.fi> - 25.6.25-1.fmi
 - Disallow too high precision in SVG output
 
