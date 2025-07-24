@@ -1,14 +1,11 @@
 #include "CoordinateMatrixAnalysis.h"
-
 #include "CoordinateMatrix.h"
 #include <macgyver/Exception.h>
-
-#include <optional>
-
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 
 namespace Fmi
 {
@@ -44,15 +41,8 @@ enum class Handedness
  */
 // ----------------------------------------------------------------------
 
-Handedness analyze_cell(bool wraparound,
-                        double x1,
-                        double y1,
-                        double x2,
-                        double y2,
-                        double x3,
-                        double y3,
-                        double x4,
-                        double y4)
+Handedness analyze_cell(
+    double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4)
 {
   try
   {
@@ -85,7 +75,7 @@ Handedness analyze_cell(bool wraparound,
       return Handedness::Invalid;
 
     // Huge cell? (most likely due to projection instabilities)
-    if (!wraparound)
+    // if (!wraparound)
     {
       if (dx >= cell_size_limit || dy >= cell_size_limit)
         return Handedness::Huge;
@@ -104,18 +94,10 @@ Handedness analyze_cell(bool wraparound,
     const auto area4 = (x1 - x4) * (y2 - y1) - (y1 - y4) * (x2 - x1);
 
     if (area1 <= 0 && area2 <= 0 && area3 <= 0 && area4 <= 0)
-    {
-      if (!wraparound)
-        return Handedness::ClockwiseConvex;
-      return Handedness::CounterClockwiseConvex;
-    }
+      return Handedness::ClockwiseConvex;
 
     if (area1 >= 0 && area2 >= 0 && area3 >= 0 && area4 >= 0)
-    {
-      if (!wraparound)
-        return Handedness::CounterClockwiseConvex;
-      return Handedness::ClockwiseConvex;
-    }
+      return Handedness::CounterClockwiseConvex;
 
     return Handedness::NotConvex;
   }
@@ -196,9 +178,7 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
     for (std::size_t j = 0; j < ny - 1; j++)
       for (std::size_t i = 0; i < nx - 1; i++)
       {
-        bool wraparound = (i + 1 == shift);
-        auto hand = analyze_cell(wraparound,
-                                 coords.x(i, j),
+        auto hand = analyze_cell(coords.x(i, j),
                                  coords.y(i, j),
                                  coords.x(i, j + 1),
                                  coords.y(i, j + 1),
@@ -225,7 +205,6 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
       }
 
     // The coordinates are likely to be upside done if there are many more CCW cells than CW cells
-
     bool needs_flipping = (ccw > 2 * cw);
 
     return CoordinateAnalysis{valid, clockwise, needs_flipping, shift};
