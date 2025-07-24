@@ -25,7 +25,7 @@ OGRLinearRing *reverse_winding(const OGRLinearRing *theGeom)
       return nullptr;
 
     auto *geom = dynamic_cast<OGRLinearRing *>(theGeom->clone());
-    geom->reverseWindingOrder();
+    geom->reversePoints();
     return geom;
   }
   catch (...)
@@ -108,13 +108,13 @@ OGRPolygon *reverse_winding(const OGRPolygon *theGeom)
     auto *out = new OGRPolygon();
 
     auto *exterior = dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone());
-    exterior->reverseWindingOrder();
+    exterior->reversePoints();
     out->addRingDirectly(exterior);
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
     {
       auto *hole = dynamic_cast<OGRLinearRing *>(theGeom->getInteriorRing(i)->clone());
-      hole->reverseWindingOrder();
+      hole->reversePoints();
       out->addRingDirectly(hole);
     }
     return out;

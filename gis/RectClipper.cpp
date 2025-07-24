@@ -287,7 +287,7 @@ void Fmi::RectClipper::addExterior(OGRLinearRing *theRing)
   {
     OGR::normalize(*theRing);
     if (theRing->isClockwise() == 0)
-      theRing->reverseWindingOrder();
+      theRing->reversePoints();
     itsExteriorRings.push_back(theRing);
   }
   catch (...)
@@ -332,7 +332,7 @@ void Fmi::RectClipper::addInterior(OGRLinearRing *theRing)
   {
     OGR::normalize(*theRing);
     if (theRing->isClockwise() == 1)
-      theRing->reverseWindingOrder();
+      theRing->reversePoints();
     itsInteriorRings.push_back(theRing);
   }
   catch (...)
