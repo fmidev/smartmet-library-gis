@@ -450,8 +450,7 @@ OGRLinearRing *Shape_circle::makeHole(double theMaximumSegmentLength) const
   try
   {
     OGRLinearRing *ring = makeRing(theMaximumSegmentLength);
-    ring->reverseWindingOrder();
-    // ring->reversePoints();
+    ring->reversePoints();
     return ring;
   }
   catch (...)

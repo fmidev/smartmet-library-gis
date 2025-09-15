@@ -51,10 +51,16 @@ OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
 
     auto *out = new OGRPolygon;
 
+    // Preserve Z/M flags
+    if (theGeom->Is3D())
+      out->set3D(TRUE);
+    if (theGeom->IsMeasured())
+      out->setMeasured(TRUE);
+
     auto *exterior = dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone());
 
     if (!exterior->isClockwise())
-      exterior->reverseWindingOrder();
+      exterior->reversePoints();
 
     out->addRingDirectly(exterior);
 
@@ -62,7 +68,7 @@ OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
     {
       auto *geom = dynamic_cast<OGRLinearRing *>(theGeom->getInteriorRing(i)->clone());
       if (geom->isClockwise())
-        geom->reverseWindingOrder();
+        geom->reversePoints();
       out->addRingDirectly(geom);
     }
 
@@ -88,6 +94,12 @@ OGRMultiPolygon *normalize_winding(const OGRMultiPolygon *theGeom)
       return nullptr;
 
     auto *out = new OGRMultiPolygon();
+
+    // Preserve Z/M flags for the collection itself
+    if (theGeom->Is3D())
+      out->set3D(TRUE);
+    if (theGeom->IsMeasured())
+      out->setMeasured(TRUE);
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
@@ -118,6 +130,12 @@ OGRGeometryCollection *normalize_winding(const OGRGeometryCollection *theGeom)
 
     auto *out = new OGRGeometryCollection();
 
+    // Preserve Z/M flags for the collection itself
+    if (theGeom->Is3D())
+      out->set3D(TRUE);
+    if (theGeom->IsMeasured())
+      out->setMeasured(TRUE);
+
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
       auto *geom = normalize_winding(theGeom->getGeometryRef(i));
@@ -145,9 +163,10 @@ OGRGeometry *normalize_winding(const OGRGeometry *theGeom)
     if (theGeom == nullptr)
       return nullptr;
 
-    OGRwkbGeometryType id = theGeom->getGeometryType();
+    const OGRwkbGeometryType id = theGeom->getGeometryType();
 
-    switch (id)
+    // Note the flattening call to ignore Z/M properties
+    switch (wkbFlatten(id))
     {
       case wkbPoint:
       case wkbMultiPoint:
@@ -167,10 +186,13 @@ OGRGeometry *normalize_winding(const OGRGeometry *theGeom)
             "Encountered a 'none' geometry component while changing winding order of an OGR "
             "geometry");
       default:
-        throw Fmi::Exception::Trace(
-            BCP,
-            "Encountered an unknown geometry component while changing winding order of an OGR "
-            "geometry");
+      {
+        const char *pszName = OGRGeometryTypeToName(id);
+        throw Fmi::Exception::Trace(BCP,
+                                    "Encountered an unknown geometry component while normalizing "
+                                    "winding order of an OGR geometry")
+            .addParameter("Type", pszName);
+      }
     }
 
     // NOT REACHED

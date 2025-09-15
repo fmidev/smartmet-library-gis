@@ -451,43 +451,40 @@ void writeSVG(std::string &out,
 {
   try
   {
-    OGRwkbGeometryType id = geom->getGeometryType();
+    const OGRwkbGeometryType id = geom->getGeometryType();
 
-    switch (id)
+    switch (wkbFlatten(id))
     {
       case wkbPoint:
-      case wkbPoint25D:
         return writePointSVG(out, dynamic_cast<const OGRPoint *>(geom), box, format, decimals);
       case wkbLineString:
-      case wkbLineString25D:
         return writeLineStringSVG(
             out, dynamic_cast<const OGRLineString *>(geom), box, rfactor, format, decimals);
       case wkbLinearRing:
         return writeLinearRingSVG(
             out, dynamic_cast<const OGRLinearRing *>(geom), box, rfactor, format, decimals);
       case wkbPolygon:
-      case wkbPolygon25D:
         return writePolygonSVG(
             out, dynamic_cast<const OGRPolygon *>(geom), box, rfactor, format, decimals);
       case wkbMultiPoint:
-      case wkbMultiPoint25D:
         return writeMultiPointSVG(
             out, dynamic_cast<const OGRMultiPoint *>(geom), box, format, decimals);
       case wkbMultiLineString:
-      case wkbMultiLineString25D:
         return writeMultiLineStringSVG(
             out, dynamic_cast<const OGRMultiLineString *>(geom), box, rfactor, format, decimals);
       case wkbMultiPolygon:
-      case wkbMultiPolygon25D:
         return writeMultiPolygonSVG(
             out, dynamic_cast<const OGRMultiPolygon *>(geom), box, rfactor, format, decimals);
       case wkbGeometryCollection:
-      case wkbGeometryCollection25D:
         return writeGeometryCollectionSVG(
             out, dynamic_cast<const OGRGeometryCollection *>(geom), box, rfactor, format, decimals);
       default:
+      {
+        const char *pszName = OGRGeometryTypeToName(id);
         throw Fmi::Exception::Trace(
-            BCP, "Encountered an unknown geometry component in OGR to SVG conversion");
+            BCP, "Encountered an unknown geometry component in OGR to SVG conversion")
+            .addParameter("Type", pszName);
+      }
     }
   }
   catch (...)

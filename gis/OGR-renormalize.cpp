@@ -46,6 +46,13 @@ OGRPolygon *renormalize_winding(const OGRPolygon *theGeom)
     // Make the new polygon exterior
 
     auto *out = new OGRPolygon();
+
+    // Preserve Z/M flags for the collection itself
+    if (theGeom->Is3D())
+      out->set3D(TRUE);
+    if (theGeom->IsMeasured())
+      out->setMeasured(TRUE);
+
     auto *newexterior = new OGRLinearRing();
     newexterior->addPoint(x1, y1);
     newexterior->addPoint(x1, y2);
@@ -81,6 +88,12 @@ OGRMultiPolygon *renormalize_winding(const OGRMultiPolygon *theGeom)
 
     auto *out = new OGRMultiPolygon();
 
+    // Preserve Z/M flags for the collection itself
+    if (theGeom->Is3D())
+      out->set3D(TRUE);
+    if (theGeom->IsMeasured())
+      out->setMeasured(TRUE);
+
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
       auto *geom =
@@ -111,6 +124,12 @@ OGRGeometryCollection *renormalize_winding(const OGRGeometryCollection *theGeom)
 
     auto *out = new OGRGeometryCollection();
 
+    // Preserve Z/M flags for the collection itself
+    if (theGeom->Is3D())
+      out->set3D(TRUE);
+    if (theGeom->IsMeasured())
+      out->setMeasured(TRUE);
+
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
       auto *geom = renormalize_winding(theGeom->getGeometryRef(i));
@@ -138,9 +157,9 @@ OGRGeometry *renormalize_winding(const OGRGeometry *theGeom)
     if (theGeom == nullptr)
       return nullptr;
 
-    OGRwkbGeometryType id = theGeom->getGeometryType();
+    const OGRwkbGeometryType id = theGeom->getGeometryType();
 
-    switch (id)
+    switch (wkbFlatten(id))
     {
       case wkbPoint:
       case wkbMultiPoint:
@@ -160,10 +179,13 @@ OGRGeometry *renormalize_winding(const OGRGeometry *theGeom)
             "Encountered a 'none' geometry component while changing winding order of an OGR "
             "geometry");
       default:
-        throw Fmi::Exception::Trace(
-            BCP,
-            "Encountered an unknown geometry component while changing winding order of an OGR "
-            "geometry");
+      {
+        const char *pszName = OGRGeometryTypeToName(id);
+        throw Fmi::Exception::Trace(BCP,
+                                    "Encountered an unknown geometry component while renormalizing "
+                                    "winding order of an OGR geometry")
+            .addParameter("Type", pszName);
+      }
     }
 
     // NOT REACHED
