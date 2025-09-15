@@ -4,8 +4,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 25.7.24
-Release: 1%{?dist}.fmi
+Version: 25.9.15
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -46,7 +46,7 @@ BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
 BuildRequires: libcurl-devel >= 7.61.0
-BuildRequires: smartmet-library-macgyver-devel >= 25.6.19
+BuildRequires: smartmet-library-macgyver-devel >= 25.9.4
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -66,7 +66,7 @@ Requires: geos313
 Requires: proj95
 Requires: libtiff >= 4.1
 Requires: libcurl >= 7.61.0
-Requires: smartmet-library-macgyver >= 25.6.19
+Requires: smartmet-library-macgyver >= 25.9.4
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: %{smartmet_fmt_devel}
 #TestRequires: gcc-c++
@@ -113,7 +113,7 @@ Requires: gcc-c++
 Requires: gdal310-devel
 Requires: proj95-devel
 Requires: libtiff-devel >= 4.1
-Requires: smartmet-library-macgyver-devel >= 25.6.19
+Requires: smartmet-library-macgyver-devel >= 25.9.4
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -124,6 +124,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Sep 15 2025 Mika Heiskanen <mika.heiskanen@fmi.fi> - 25.9.15-2.fmi
+- Improved OGR methods to handle Z/M values
+- Use OGR reversePoints method instead of deprecated reverseWindingOrder
+
 * Thu Jul 24 2025 Mika Heiskanen <mika.heiskanen@fmi.fi> - 25.7.24-1.fmi
 - Fixed isses in handling global data wraparounds which caused topology errors.
 - Use reversePoints instead of deprecated reverseWindingOrder
