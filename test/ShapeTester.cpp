@@ -78,6 +78,13 @@ class tests : public tframe::tests
   {
     using namespace Fmi;
 
+    // We do not use FAILED() and PASSED() macros here because we want to
+    // collect all test results from the file instead of stopping at the
+    // first failure. Both total and fail/pass counters must be updated
+    // to avoid incorrect final result reporting.
+    const auto addFailure = [this]() { total++; fail++; };
+    const auto addSuccess = [this]() { total++; pass++; };
+
     cout << "---------------------------------------------------------\n";
     cout << "TEST FILE : " << filename << "\n";
     cout << "---------------------------------------------------------\n";
@@ -88,7 +95,7 @@ class tests : public tframe::tests
       out << "\tFile     : " << filename << "\n";
       out << "\tReason   : "
           << "Cannot open the test file\n";
-      fail++;
+      addFailure();
       return;
     }
 
@@ -166,7 +173,7 @@ class tests : public tframe::tests
                     << "Invalid number of parameters for Shape_rect!\n";
                 out << "\tParams   : " << sz << "\n";
                 out << "\tShape    : " << shapeStr << "\n";
-                fail++;
+                addFailure();
               }
               else
               {
@@ -188,7 +195,7 @@ class tests : public tframe::tests
                 out << "\tReason   : "
                     << "Invalid number of parameters for Shape_circle!\n";
                 out << "\tShape    : " << shapeStr << "\n";
-                fail++;
+                addFailure();
               }
               else
               {
@@ -208,7 +215,7 @@ class tests : public tframe::tests
                 out << "\tReason   : "
                     << "Invalid number of parameters for Shape_circle!\n";
                 out << "\tShape    : " << shapeStr << "\n";
-                fail++;
+                addFailure();
               }
               else
               {
@@ -225,7 +232,7 @@ class tests : public tframe::tests
               out << "\tFile     : " << filename << " (" << line << ")\n";
               out << "\tReason   : "
                   << "Shape not defined!\n";
-              fail++;
+              addFailure();
             }
           }
 
@@ -239,7 +246,7 @@ class tests : public tframe::tests
               auto err = OGRGeometryFactory::createFromWkt(inWkt.c_str(), nullptr, &input);
               if (err != OGRERR_NONE)
               {
-                fail++;
+                addFailure();
                 out << "Test " << testId << " : ";
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
@@ -249,7 +256,7 @@ class tests : public tframe::tests
 
               if (!input->IsValid())
               {
-                fail++;
+                addFailure();
                 out << "Test " << testId << " : ";
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
@@ -271,7 +278,7 @@ class tests : public tframe::tests
             }
             catch (...)
             {
-              fail++;
+              addFailure();
               out << "Test " << testId << " : ";
               out << "*** FAILED ***\n";
               out << "\tFile     : " << filename << " (" << line << ")\n";
@@ -300,7 +307,7 @@ class tests : public tframe::tests
               }
               else
               {
-                fail++;
+                addFailure();
                 out << "Test " << testId << " : ";
                 out << "*** FAILED ***\n";
                 out << "\tFile     : " << filename << " (" << line << ")\n";
@@ -318,7 +325,7 @@ class tests : public tframe::tests
 
                 if (ret != outWkt || !isvalid)
                 {
-                  fail++;
+                  addFailure();
                   out << "Test " << testId << " : ";
                   out << "*** FAILED ***\n";
                   out << "\tFile     : " << filename << " (" << line << ")\n";
@@ -341,7 +348,7 @@ class tests : public tframe::tests
                 else
                 {
                   // out << "Test " << testId << " : Ok \n";
-                  pass++;
+                  addSuccess();
                 }
 
                 OGRGeometryFactory::destroyGeometry(output);
