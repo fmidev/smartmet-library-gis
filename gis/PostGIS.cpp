@@ -136,7 +136,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
 
   if (theSR == nullptr)
   {
-    layer->GetSpatialRef()->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    //layer->GetSpatialRef()->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
     if (layer->GetSpatialRef() == nullptr)
     {
       auto* wgs84 = new OGRSpatialReference();
@@ -144,7 +144,13 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       out->assignSpatialReference(wgs84);
     }
     else
-      out->assignSpatialReference(layer->GetSpatialRef());
+    {
+      std::unique_ptr<OGRSpatialReference, OGRSpatialReferenceReleaser> crs(
+        layer->GetSpatialRef()->Clone(),
+         OGRSpatialReferenceReleaser());
+      crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+      out->assignSpatialReference(crs.get());
+    }
 
     layer->ResetReading();
     while ((feature = next_feature()))
