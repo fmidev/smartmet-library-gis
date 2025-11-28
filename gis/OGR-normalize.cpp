@@ -1,6 +1,7 @@
 #include "OGR.h"
 
 #include <macgyver/Exception.h>
+#include <macgyver/DebugTools.h>
 #include <ogr_geometry.h>
 
 namespace
@@ -200,7 +201,12 @@ OGRGeometry *normalize_winding(const OGRGeometry *theGeom)
   }
   catch (...)
   {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+    auto error =  Fmi::Exception::Trace(BCP, "Operation failed!");
+    error.addParameter("GeometryType", std::to_string(theGeom->getGeometryType()));
+    error.addParameter("GeometryWKBType", std::to_string(wkbFlatten(theGeom->getGeometryType())));
+    error.addParameter("WKT", theGeom->exportToWkt());
+    error.addParameter("C++ type", Fmi::demangle_cpp_type_name(typeid(*theGeom).name()));
+    throw error;
   }
 }
 
