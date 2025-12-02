@@ -4,8 +4,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 25.9.15
-Release: 2%{?dist}.fmi
+Version: 25.12.2
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -124,6 +124,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Tue Dec  2 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.12.2-1.fmi
+- gdal-3.12 compatibility fix and some additional diagnostic info
+
 * Mon Sep 15 2025 Mika Heiskanen <mika.heiskanen@fmi.fi> - 25.9.15-2.fmi
 - Improved OGR methods to handle Z/M values
 - Use OGR reversePoints method instead of deprecated reverseWindingOrder
