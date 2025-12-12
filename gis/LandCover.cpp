@@ -69,7 +69,7 @@ class LandCover::Impl
 
  private:
   // Note: We want the LandCover level with largest tiles (most accurate) first
-  using SrtmMatrices = std::map<std::size_t, SrtmMatrix, std::greater<std::size_t>>;
+  using SrtmMatrices = std::map<std::size_t, SrtmMatrix, std::greater<>>;
   SrtmMatrices itsMatrices;
 };
 
