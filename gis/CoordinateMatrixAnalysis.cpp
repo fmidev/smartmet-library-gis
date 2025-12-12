@@ -62,10 +62,10 @@ Handedness analyze_cell(
     // use the Polsby-Popper test here, but calculating the edge lengths in addition to the
     // areas below would be slower than simply testing the cell bbox
 
-    const auto xmin = std::min(std::min(x1, x2), std::min(x3, x4));
-    const auto xmax = std::max(std::max(x1, x2), std::max(x3, x4));
-    const auto ymin = std::min(std::min(y1, y2), std::min(y3, y4));
-    const auto ymax = std::max(std::max(y1, y2), std::max(y3, y4));
+    const auto xmin = std::min({x1, x2, x3, x4});
+    const auto xmax = std::max({x1, x2, x3, x4});
+    const auto ymin = std::min({y1, y2, y3, y4});
+    const auto ymax = std::max({y1, y2, y3, y4});
 
     const auto dx = xmax - xmin;
     const auto dy = ymax - ymin;
