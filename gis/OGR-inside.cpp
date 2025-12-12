@@ -170,9 +170,6 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
         throw Fmi::Exception::Trace(
             BCP, "Encountered an unknown geometry component in OGR to SVG conversion");
     }
-
-    // NOT REACHED
-    return false;
   }
   catch (...)
   {

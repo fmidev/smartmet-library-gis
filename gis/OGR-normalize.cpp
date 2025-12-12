@@ -1,5 +1,4 @@
 #include "OGR.h"
-
 #include <macgyver/DebugTools.h>
 #include <macgyver/Exception.h>
 #include <ogr_geometry.h>
@@ -195,9 +194,6 @@ OGRGeometry *normalize_winding(const OGRGeometry *theGeom)
             .addParameter("Type", pszName);
       }
     }
-
-    // NOT REACHED
-    return nullptr;
   }
   catch (...)
   {

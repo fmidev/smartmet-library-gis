@@ -187,9 +187,6 @@ OGRGeometry *renormalize_winding(const OGRGeometry *theGeom)
             .addParameter("Type", pszName);
       }
     }
-
-    // NOT REACHED
-    return nullptr;
   }
   catch (...)
   {

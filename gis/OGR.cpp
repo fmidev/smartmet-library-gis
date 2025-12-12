@@ -412,7 +412,6 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
     if (theGeom == nullptr)
     {
       throw Fmi::Exception::Trace(BCP, "ExpandGeometry failed: theGeom is nullptr!");
-      return ret;
     }
 
     if (theRadiusInMeters <= 0.0)

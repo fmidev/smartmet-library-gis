@@ -166,9 +166,6 @@ OGRGeometry *reverse_winding(const OGRGeometry *theGeom)
             "Encountered an unknown geometry component while changing winding order of an OGR "
             "geometry");
     }
-
-    // NOT REACHED
-    return nullptr;
   }
   catch (...)
   {

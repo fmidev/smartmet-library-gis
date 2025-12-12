@@ -361,9 +361,6 @@ OGRGeometry *despeckle_geom(const OGRGeometry *theGeom, double theLimit, bool th
         throw Fmi::Exception::Trace(
             BCP, "Encountered an unknown geometry component when clipping polygons");
     }
-
-    // NOT REACHED
-    return nullptr;
   }
   catch (...)
   {
