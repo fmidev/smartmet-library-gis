@@ -198,7 +198,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
     }
   }
 
-  return OGRGeometryPtr(out, [](OGRGeometry* g) { OGRGeometryFactory::destroyGeometry(g); });
+  return {out, [](OGRGeometry* g) { OGRGeometryFactory::destroyGeometry(g); }};
 }
 
 // ----------------------------------------------------------------------
