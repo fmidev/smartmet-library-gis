@@ -339,7 +339,7 @@ Features read(const Fmi::SpatialReference* theSR,
         }
         default:
           break;
-      };
+      }
     }
     ret.push_back(ret_item);
   }
