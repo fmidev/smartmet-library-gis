@@ -214,7 +214,7 @@ OGRGeometry* Fmi::OGR::createFromWkt(const std::string& wktString,
       OGRSpatialReference srs;
       srs.importFromEPSGA(theEPSGNumber);
       std::shared_ptr<OGRSpatialReference> tmp(srs.Clone(),
-          [](OGRSpatialReference* sr) { sr->Release(); });
+                                               [](OGRSpatialReference* sr) { sr->Release(); });
       geom->assignSpatialReference(tmp.get());
     }
 
@@ -286,7 +286,7 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
     OGRSpatialReference srs;
     srs.importFromEPSGA(theEPSGNumber);
     std::shared_ptr<OGRSpatialReference> tmp(srs.Clone(),
-        [](OGRSpatialReference* sr) { sr->Release(); });
+                                             [](OGRSpatialReference* sr) { sr->Release(); });
     ogrGeom->assignSpatialReference(tmp.get());
 
     return ogrGeom->clone();
@@ -309,8 +309,7 @@ static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusI
     OGRwkbGeometryType type(tmp_geom->getGeometryType());
 
     // FIXME: are we sure that GDAL does not mess with object
-    OGRSpatialReference* pSR =
-        const_cast<OGRSpatialReference *>(tmp_geom->getSpatialReference());
+    OGRSpatialReference* pSR = const_cast<OGRSpatialReference*>(tmp_geom->getSpatialReference());
 
     OGRSpatialReference SR;
 
@@ -468,8 +467,8 @@ OGRGeometry* Fmi::OGR::expandGeometry(const OGRGeometry* theGeom, double theRadi
 // ----------------------------------------------------------------------
 
 std::optional<double> Fmi::OGR::gridNorth(const CoordinateTransformation& theTransformation,
-                                            double theLon,
-                                            double theLat)
+                                          double theLon,
+                                          double theLat)
 {
   try
   {

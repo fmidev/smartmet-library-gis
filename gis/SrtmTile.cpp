@@ -115,12 +115,8 @@ SrtmTile::Impl::Impl(const std::string &path) : itsPath(path)
     sign = (name[3] == 'W' ? -1 : 1);
     itsLon = sign * std::stoi(name.substr(4, 3));
 
-    itsFileMapping.reset(
-        new Fmi::MappedFile(
-            itsPath,
-            boost::iostreams::mapped_file::readonly,
-            2 * itsSize * itsSize,
-            0));
+    itsFileMapping.reset(new Fmi::MappedFile(
+        itsPath, boost::iostreams::mapped_file::readonly, 2 * itsSize * itsSize, 0));
   }
   catch (...)
   {

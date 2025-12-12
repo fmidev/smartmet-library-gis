@@ -1,10 +1,10 @@
 #pragma once
 
 #include <macgyver/DateTime.h>
-#include <variant>
 #include <gdal_version.h>
 #include <map>
 #include <memory>
+#include <variant>
 #include <vector>
 
 class OGRGeometry;

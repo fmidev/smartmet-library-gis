@@ -1,8 +1,8 @@
 #include "LandCover.h"
 #include "TestDefs.h"
 
-#include <regression/tframe.h>
 #include <macgyver/StringConversion.h>
+#include <regression/tframe.h>
 
 using namespace std;
 
@@ -26,8 +26,7 @@ void landtype()
   // At sea
   value = cover.coverType(25, 60);
   if (value != Fmi::LandCover::Sea)
-    TEST_FAILED("Expected type Sea at coordinate 25,60, not " +
-                Fmi::to_string(value));
+    TEST_FAILED("Expected type Sea at coordinate 25,60, not " + Fmi::to_string(value));
 
   // Kumpula
   value = cover.coverType(24.9642, 60.2089);
@@ -39,19 +38,18 @@ void landtype()
   if (value != Fmi::LandCover::Urban)
     TEST_FAILED("Expected type Urban at Helsinki, not " + Fmi::to_string(value));
 
-    // Ruka
+  // Ruka
 #if GIS_SMALLTESTDATA == 0
   value = cover.coverType(29.1507, 66.1677);
   if (value != Fmi::LandCover::Urban)
     TEST_FAILED("Expected type Urban at Ruka, not " + Fmi::to_string(value));
 #endif
 
-    // Matterhorn
+  // Matterhorn
 #if GIS_SMALLTESTDATA == 0
   value = cover.coverType(7.6583, 45.9764);
   if (value != Fmi::LandCover::MosaicVegetation)
-    TEST_FAILED("Expected type MosaicVegetation at Matterhorn, not " +
-                Fmi::to_string(value));
+    TEST_FAILED("Expected type MosaicVegetation at Matterhorn, not " + Fmi::to_string(value));
 #endif
 
 #if 0	
@@ -65,8 +63,7 @@ void landtype()
   // North pole
   value = cover.coverType(0, 90);
   if (value != Fmi::LandCover::Sea)
-    TEST_FAILED("Expected type Sea at the North Pole, not " +
-                Fmi::to_string(value));
+    TEST_FAILED("Expected type Sea at the North Pole, not " + Fmi::to_string(value));
 
   // More special points
 
@@ -90,8 +87,7 @@ void landtype()
   // Alanya had rounding issue with coordinates
   value = cover.coverType(31.99982, 36.543750000000003);
   if (value != Fmi::LandCover::MosaicForest)
-    TEST_FAILED("Expected type MosaicForest at Alanya, not " +
-                Fmi::to_string(value));
+    TEST_FAILED("Expected type MosaicForest at Alanya, not " + Fmi::to_string(value));
 #endif
 
 #if 0
@@ -104,8 +100,7 @@ void landtype()
 #if GIS_SMALLTESTDATA == 0
   value = cover.coverType(-179.999, 67);
   if (value != Fmi::LandCover::Lakes)
-    TEST_FAILED("Expected type Lakes at -179.999,67, not " +
-                Fmi::to_string(value));
+    TEST_FAILED("Expected type Lakes at -179.999,67, not " + Fmi::to_string(value));
 
   value = cover.coverType(-180, 67);
   if (value != Fmi::LandCover::Lakes)

@@ -35,7 +35,7 @@ class OGRCoordinateTransformationPool
 // NOTE (2023-08-02): tempoarily disabled as requires at first bugfix for smartmet-utils-devel
 //                    (proj detection not OK in makefile.inc)
 #if PROJ_VERSION_MAJOR >= 9
-    for (auto& item : m_cache)
+    for (auto &item : m_cache)
       delete item.second;
 #endif
   }

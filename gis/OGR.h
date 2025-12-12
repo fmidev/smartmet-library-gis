@@ -1,8 +1,8 @@
 #pragma once
 
-#include <optional>
 #include <list>
 #include <ogr_geometry.h>
+#include <optional>
 #include <string>
 
 class OGRGeometry;
@@ -102,8 +102,8 @@ OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters
 
 // Direction of north in the spatial reference given a WGS84 -> GEOM transformation
 std::optional<double> gridNorth(const CoordinateTransformation& theTransformation,
-                                  double theLon,
-                                  double theLat);
+                                double theLon,
+                                double theLat);
 
 // Create OGRGeometry from WKT-string, if theEPSGNumber > 0 assign spatial reference to geometry
 OGRGeometry* createFromWkt(const std::string& wktString, unsigned int theEPSGNumber = 0);

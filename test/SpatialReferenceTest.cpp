@@ -42,67 +42,66 @@ void getepsg()
 
 void getepsg_parallel()
 {
-    const std::size_t num_threads = 10;
-    const std::size_t num_tests = 16384;
+  const std::size_t num_threads = 10;
+  const std::size_t num_tests = 16384;
 
-    std::atomic<int> num_errors(0);
-    std::atomic<int> num_runs(0);
+  std::atomic<int> num_errors(0);
+  std::atomic<int> num_runs(0);
 
-    const auto on_error =
-        [&num_errors] ()
-        {
-            num_errors++;
-        };
+  const auto on_error = [&num_errors]() { num_errors++; };
 
-    const auto thread_proc =
-        [&on_error, &num_runs, num_tests] () -> void
-        {
-            for (std::size_t i = 0; i < num_tests; i++)
-            {
-                {
-                    Fmi::SpatialReference crs("EPSG:3857");
-                    if (crs.getEPSG() != 3857)
-                        on_error();
-                }
-
-                {
-                    Fmi::SpatialReference crs("EPSG:4326");
-                    if (crs.getEPSG() != 4326)
-                        on_error();
-                }
-                {
-                    Fmi::SpatialReference crs("WGS84");
-                    if (crs.getEPSG() != 4326)
-                        on_error();
-                }
-                {
-                    Fmi::SpatialReference crs(
-                        "+proj=stere +lat_0=60 +lon_0=20 +lat_ts=60.000000 +lon_ts=20.000000 +k=1.000000 "
-                        "+x_0=3500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m no_defs");
-                    if (crs.getEPSG())
-                        on_error();
-                }
-                num_runs++;
-            }
-        };
-
-    std::vector<std::shared_ptr<std::thread> > test_threads;
-    for (std::size_t i = 0; i < num_threads; i++)
+  const auto thread_proc = [&on_error, &num_runs, num_tests]() -> void
+  {
+    for (std::size_t i = 0; i < num_tests; i++)
     {
-        test_threads.emplace_back(
-            new std::thread(thread_proc),
-            [](std::thread* t) { t->join(); delete t; });
+      {
+        Fmi::SpatialReference crs("EPSG:3857");
+        if (crs.getEPSG() != 3857)
+          on_error();
+      }
+
+      {
+        Fmi::SpatialReference crs("EPSG:4326");
+        if (crs.getEPSG() != 4326)
+          on_error();
+      }
+      {
+        Fmi::SpatialReference crs("WGS84");
+        if (crs.getEPSG() != 4326)
+          on_error();
+      }
+      {
+        Fmi::SpatialReference crs(
+            "+proj=stere +lat_0=60 +lon_0=20 +lat_ts=60.000000 +lon_ts=20.000000 +k=1.000000 "
+            "+x_0=3500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m no_defs");
+        if (crs.getEPSG())
+          on_error();
+      }
+      num_runs++;
     }
+  };
 
-    test_threads.clear();
+  std::vector<std::shared_ptr<std::thread> > test_threads;
+  for (std::size_t i = 0; i < num_threads; i++)
+  {
+    test_threads.emplace_back(new std::thread(thread_proc),
+                              [](std::thread* t)
+                              {
+                                t->join();
+                                delete t;
+                              });
+  }
 
-    if (num_errors > 0)
-        TEST_FAILED("Unexpected errors when running parallel tests");
+  test_threads.clear();
 
-    if (num_runs != num_threads * num_tests)
-        TEST_FAILED("Expected " + std::to_string(num_threads * num_tests) + " runs, but got " + std::to_string(num_runs));
+  if (num_errors > 0)
+    TEST_FAILED("Unexpected errors when running parallel tests");
 
-    TEST_PASSED();
+  if (num_runs != num_threads * num_tests)
+    TEST_FAILED("Expected " + std::to_string(num_threads * num_tests) + " runs, but got " +
+                std::to_string(num_runs));
+
+  TEST_PASSED();
 }
 
 // Test driver

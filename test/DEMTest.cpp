@@ -27,7 +27,7 @@ void elevation()
   if (value != expected)
     TEST_FAILED("Expected elevation " + expected + " at coordinate 25,59.5, not " + value);
 
-    // Kumpula
+  // Kumpula
 #if GIS_SMALLTESTDATA == 1
   expected = "24.0";
 #else
@@ -37,7 +37,7 @@ void elevation()
   if (value != expected)
     TEST_FAILED("Expected elevation " + expected + " at Kumpula, not " + value);
 
-    // Helsinki
+  // Helsinki
 #if GIS_SMALLTESTDATA == 1
   expected = "34.0";
 #else
@@ -53,7 +53,7 @@ void elevation()
   if (value != expected)
     TEST_FAILED("Expected elevation " + expected + " at Ruka, not " + value);
 
-    // Matterhorn
+  // Matterhorn
 #if GIS_SMALLTESTDATA == 0
   expected = "4458.0";
   value = tostr(dem.elevation(7.6583, 45.9764));
@@ -61,7 +61,7 @@ void elevation()
     TEST_FAILED("Expected elevation " + expected + " at Matterhorn, not " + value);
 #endif
 
-    // South pole
+  // South pole
 #if GIS_SMALLTESTDATA == 0
   expected = "2771.0";
   value = tostr(dem.elevation(0, -90));
@@ -69,7 +69,7 @@ void elevation()
     TEST_FAILED("Expected elevation " + expected + " at South Pole, not " + value);
 #endif
 
-    // North pole
+  // North pole
 #if GIS_SMALLTESTDATA == 0
   expected = "0.0";
   value = tostr(dem.elevation(0, 90));
@@ -93,7 +93,7 @@ void elevation()
   if (value != expected)
     TEST_FAILED("Expected elevation " + expected + " at 180,0, not " + value);
 
-    // Alanya had rounding issue with coordinates
+  // Alanya had rounding issue with coordinates
 #if GIS_SMALLTESTDATA == 0
   expected = "11.0";
 #endif
@@ -101,7 +101,7 @@ void elevation()
   if (value != expected)
     TEST_FAILED("Expected elevation " + expected + " at Alanya, not " + value);
 
-    // Chukotskiy
+  // Chukotskiy
 #if GIS_SMALLTESTDATA == 0
   expected = "432.0";
 #else
@@ -151,7 +151,7 @@ void resolution()
   if (value != expected)
     TEST_FAILED("Expected elevation " + expected + " at coordinate 25,59.5, not " + value);
 
-    // Kumpula at 100 meters
+  // Kumpula at 100 meters
 #if GIS_SMALLTESTDATA == 0
   expected = "17.0";
 #else

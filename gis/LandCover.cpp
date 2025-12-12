@@ -6,8 +6,8 @@
 #include "SrtmTile.h"
 #include <macgyver/Exception.h>
 
-#include <filesystem>
 #include <fmt/format.h>
+#include <filesystem>
 
 #include <cmath>
 #include <limits>

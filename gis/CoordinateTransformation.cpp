@@ -253,10 +253,10 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
   {
     OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
 
-    const auto make_geometry_ptr = [](OGRGeometry* geometry) {
-        return std::shared_ptr<OGRGeometry>(
-            geometry,
-            [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
+    const auto make_geometry_ptr = [](OGRGeometry* geometry)
+    {
+      return std::shared_ptr<OGRGeometry>(
+          geometry, [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
     };
 
     // If input is geographic apply geographic cuts
@@ -272,7 +272,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       // Do quick vertical cuts
       for (const auto& box : interrupt.cuts)
       {
-          g = make_geometry_ptr(OGR::polycut(*g, box, theMaximumSegmentLength));
+        g = make_geometry_ptr(OGR::polycut(*g, box, theMaximumSegmentLength));
         if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
           return nullptr;
       }

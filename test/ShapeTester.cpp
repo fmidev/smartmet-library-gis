@@ -82,8 +82,16 @@ class tests : public tframe::tests
     // collect all test results from the file instead of stopping at the
     // first failure. Both total and fail/pass counters must be updated
     // to avoid incorrect final result reporting.
-    const auto addFailure = [this]() { total++; fail++; };
-    const auto addSuccess = [this]() { total++; pass++; };
+    const auto addFailure = [this]()
+    {
+      total++;
+      fail++;
+    };
+    const auto addSuccess = [this]()
+    {
+      total++;
+      pass++;
+    };
 
     cout << "---------------------------------------------------------\n";
     cout << "TEST FILE : " << filename << "\n";
