@@ -621,37 +621,58 @@ void do_geom(const OGRGeometry *theGeom,
     switch (id)
     {
       case wkbPoint:
-        return do_point(dynamic_cast<const OGRPoint *>(theGeom), theBuilder, theShape, keep_inside);
+      {
+        do_point(dynamic_cast<const OGRPoint *>(theGeom), theBuilder, theShape, keep_inside);
+        return;
+      }
       case wkbLineString:
-        return do_linestring(
+      {
+        do_linestring(
             dynamic_cast<const OGRLineString *>(theGeom), theBuilder, theShape, keep_inside);
+        return;
+      }
       case wkbPolygon:
-        return do_polygon(dynamic_cast<const OGRPolygon *>(theGeom),
-                          theBuilder,
-                          theShape,
-                          max_length,
-                          keep_polygons,
-                          keep_inside);
+      {
+        do_polygon(dynamic_cast<const OGRPolygon *>(theGeom),
+                   theBuilder,
+                   theShape,
+                   max_length,
+                   keep_polygons,
+                   keep_inside);
+        return;
+      }
       case wkbMultiPoint:
-        return do_multipoint(
+      {
+        do_multipoint(
             dynamic_cast<const OGRMultiPoint *>(theGeom), theBuilder, theShape, keep_inside);
+        return;
+      }
       case wkbMultiLineString:
-        return do_multilinestring(
+      {
+        do_multilinestring(
             dynamic_cast<const OGRMultiLineString *>(theGeom), theBuilder, theShape, keep_inside);
+        return;
+      }
       case wkbMultiPolygon:
-        return do_multipolygon(dynamic_cast<const OGRMultiPolygon *>(theGeom),
-                               theBuilder,
-                               theShape,
-                               max_length,
-                               keep_polygons,
-                               keep_inside);
+      {
+        do_multipolygon(dynamic_cast<const OGRMultiPolygon *>(theGeom),
+                        theBuilder,
+                        theShape,
+                        max_length,
+                        keep_polygons,
+                        keep_inside);
+        return;
+      }
       case wkbGeometryCollection:
-        return do_geometrycollection(dynamic_cast<const OGRGeometryCollection *>(theGeom),
-                                     theBuilder,
-                                     theShape,
-                                     max_length,
-                                     keep_polygons,
-                                     keep_inside);
+      {
+        do_geometrycollection(dynamic_cast<const OGRGeometryCollection *>(theGeom),
+                              theBuilder,
+                              theShape,
+                              max_length,
+                              keep_polygons,
+                              keep_inside);
+        return;
+      }
       case wkbLinearRing:
         throw Fmi::Exception::Trace(BCP, "Direct clipping of LinearRings is not supported");
       default:

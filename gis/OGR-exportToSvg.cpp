@@ -454,28 +454,51 @@ void writeSVG(std::string &out,
     switch (wkbFlatten(id))
     {
       case wkbPoint:
-        return writePointSVG(out, dynamic_cast<const OGRPoint *>(geom), box, format, decimals);
+      {
+        writePointSVG(out, dynamic_cast<const OGRPoint *>(geom), box, format, decimals);
+        return;
+      }
       case wkbLineString:
-        return writeLineStringSVG(
+      {
+        writeLineStringSVG(
             out, dynamic_cast<const OGRLineString *>(geom), box, rfactor, format, decimals);
+        return;
+      }
       case wkbLinearRing:
-        return writeLinearRingSVG(
+      {
+        writeLinearRingSVG(
             out, dynamic_cast<const OGRLinearRing *>(geom), box, rfactor, format, decimals);
+        return;
+      }
       case wkbPolygon:
-        return writePolygonSVG(
+      {
+        writePolygonSVG(
             out, dynamic_cast<const OGRPolygon *>(geom), box, rfactor, format, decimals);
+        return;
+      }
       case wkbMultiPoint:
-        return writeMultiPointSVG(
-            out, dynamic_cast<const OGRMultiPoint *>(geom), box, format, decimals);
+      {
+        writeMultiPointSVG(out, dynamic_cast<const OGRMultiPoint *>(geom), box, format, decimals);
+        return;
+      }
       case wkbMultiLineString:
-        return writeMultiLineStringSVG(
+      {
+        writeMultiLineStringSVG(
             out, dynamic_cast<const OGRMultiLineString *>(geom), box, rfactor, format, decimals);
+        return;
+      }
       case wkbMultiPolygon:
-        return writeMultiPolygonSVG(
+      {
+        writeMultiPolygonSVG(
             out, dynamic_cast<const OGRMultiPolygon *>(geom), box, rfactor, format, decimals);
+        return;
+      }
       case wkbGeometryCollection:
-        return writeGeometryCollectionSVG(
+      {
+        writeGeometryCollectionSVG(
             out, dynamic_cast<const OGRGeometryCollection *>(geom), box, rfactor, format, decimals);
+        return;
+      }
       default:
       {
         const char *pszName = OGRGeometryTypeToName(id);
