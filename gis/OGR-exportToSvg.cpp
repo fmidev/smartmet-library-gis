@@ -359,12 +359,7 @@ void writeMultiLineStringSVG(std::string &out,
       return;
 
     for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-      writeLineStringSVG(out,
-                         dynamic_cast<const OGRLineString *>(geom->getGeometryRef(i)),
-                         box,
-                         rfactor,
-                         format,
-                         decimals);
+      writeLineStringSVG(out, geom->getGeometryRef(i), box, rfactor, format, decimals);
   }
   catch (...)
   {
@@ -391,12 +386,7 @@ void writeMultiPolygonSVG(std::string &out,
       return;
 
     for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-      writePolygonSVG(out,
-                      dynamic_cast<const OGRPolygon *>(geom->getGeometryRef(i)),
-                      box,
-                      rfactor,
-                      format,
-                      decimals);
+      writePolygonSVG(out, geom->getGeometryRef(i), box, rfactor, format, decimals);
   }
   catch (...)
   {

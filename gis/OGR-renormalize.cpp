@@ -21,12 +21,12 @@ OGRPolygon *renormalize_winding(const OGRPolygon *theGeom)
     if (theGeom == nullptr || theGeom->IsEmpty() != 0)
       return nullptr;
 
-    const auto *exterior = dynamic_cast<const OGRLinearRing *>(theGeom->getExteriorRing());
+    const auto *exterior = theGeom->getExteriorRing();
 
     bool is_cw = exterior->isClockwise();
 
     if (is_cw)
-      return dynamic_cast<OGRPolygon *>(theGeom->clone());
+      return theGeom->clone();
 
     // Now we must reverse the exterior and make it the interior of a larger envelope.
     // Any holes are simply dropped, they do not belong to the polygon formed
@@ -96,8 +96,7 @@ OGRMultiPolygon *renormalize_winding(const OGRMultiPolygon *theGeom)
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      auto *geom =
-          renormalize_winding(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
+      auto *geom = renormalize_winding(theGeom->getGeometryRef(i));
       if (geom != nullptr)
         out->addGeometryDirectly(geom);
     }

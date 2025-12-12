@@ -67,7 +67,7 @@ bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      if (inside(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)), theX, theY))
+      if (inside(theGeom->getGeometryRef(i), theX, theY))
         return true;
     }
     return false;

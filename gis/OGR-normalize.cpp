@@ -57,7 +57,7 @@ OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
     if (theGeom->IsMeasured())
       out->setMeasured(TRUE);
 
-    auto *exterior = dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone());
+    auto *exterior = theGeom->getExteriorRing()->clone();
 
     if (!exterior->isClockwise())
       exterior->reversePoints();
@@ -66,7 +66,7 @@ OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; i++)
     {
-      auto *geom = dynamic_cast<OGRLinearRing *>(theGeom->getInteriorRing(i)->clone());
+      auto *geom = theGeom->getInteriorRing(i)->clone();
       if (geom->isClockwise())
         geom->reversePoints();
       out->addRingDirectly(geom);

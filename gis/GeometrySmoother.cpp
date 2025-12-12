@@ -462,13 +462,13 @@ OGRPolygon* apply_filter(const OGRPolygon* geom, LineFilter& filter, uint iterat
       return nullptr;
 
     auto* out = new OGRPolygon();
-    const auto* exterior = dynamic_cast<const OGRLinearRing*>(geom->getExteriorRing());
+    const auto* exterior = geom->getExteriorRing();
     auto* new_exterior = apply_filter(exterior, filter, iterations);
     out->addRingDirectly(new_exterior);
 
     for (int i = 0, n = geom->getNumInteriorRings(); i < n; ++i)
     {
-      const auto* hole = dynamic_cast<const OGRLinearRing*>(geom->getInteriorRing(i));
+      const auto* hole = geom->getInteriorRing(i);
       auto* new_hole = apply_filter(hole, filter, iterations);
       out->addRingDirectly(new_hole);
     }
