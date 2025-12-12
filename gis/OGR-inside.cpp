@@ -154,7 +154,7 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
       case wkbLineString25D:
         if (strcmp(theGeom.getGeometryName(), "LINEARRING") != 0)
           return false;
-      // Fall through
+        [[fallthrough]];
       case wkbLinearRing:
         return inside(dynamic_cast<const OGRLinearRing *>(&theGeom), theX, theY);
       case wkbPolygon:
