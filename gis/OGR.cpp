@@ -24,7 +24,7 @@ OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters
     OGRwkbGeometryType type(tmp_geom->getGeometryType());
 
     // FIXME: are we sure that GDAL does not mess with object
-    OGRSpatialReference* pSR = const_cast<OGRSpatialReference*>(tmp_geom->getSpatialReference());
+    const auto* pSR = const_cast<OGRSpatialReference*>(tmp_geom->getSpatialReference());
 
     OGRSpatialReference SR;
 
