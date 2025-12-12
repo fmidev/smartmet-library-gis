@@ -211,7 +211,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       // CLIP: - if all vertices inside box or on the edges, return input as is
       // CUT:  - if all vertices inside box or on the edges, return empty result
       if (keep_inside)
-        theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+        theBuilder.add(theGeom->clone());
       return;
     }
 
@@ -235,11 +235,11 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       {
         if (!insideRing)
         {
-          theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+          theBuilder.add(theGeom->clone());
           return;
         }
 
-        clipper.addExterior(dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone()));
+        clipper.addExterior(theGeom->getExteriorRing()->clone());
       }
     }
 
@@ -263,7 +263,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       if (Shape::all_only_inside(holeposition))
       {
         if (keep_inside)
-          clipper.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+          clipper.addExterior(hole->clone());
       }
       else if (Shape::all_not_inside(holeposition))
       {
@@ -275,14 +275,14 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
           // Otherwise we can keep the original input
 
           if (!keep_inside)
-            theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+            theBuilder.add(theGeom->clone());
 
           return;
         }
 
         // Otherwise the hole is outside the box
         if (!keep_inside)
-          clipper.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+          clipper.addExterior(hole->clone());
       }
     }
 
@@ -331,7 +331,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       // CUT:  - if all vertices inside the circle or on the edges, return empty result
       if (keep_inside)
       {
-        auto *poly = dynamic_cast<OGRPolygon *>(theGeom->clone());
+        auto *poly = theGeom->clone();
         OGR::normalize(*poly);
         theBuilder.add(poly);
       }
@@ -361,11 +361,11 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       {
         if (!insideRing)
         {
-          theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+          theBuilder.add(theGeom->clone());
           return;
         }
         // the circle is inside exterior, must keep exterior
-        clipper.addExterior(dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone()));
+        clipper.addExterior(theGeom->getExteriorRing()->clone());
         clipper.addShape();
       }
     }
@@ -410,7 +410,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       if (Shape::all_only_inside(holeposition))
       {
         if (keep_inside)
-          clipper.addInterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+          clipper.addInterior(hole->clone());
       }
       else if (Shape::all_not_inside(holeposition))
       {
@@ -421,13 +421,13 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
           // If the box clip is inside a hole the result is empty
           // Otherwise we can keep the original input
           if (!keep_inside)
-            theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+            theBuilder.add(theGeom->clone());
           return;
         }
 
         // Otherwise the hole is outside the circle
         if (!keep_inside)
-          clipper.addInterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+          clipper.addInterior(hole->clone());
       }
     }
 
@@ -479,12 +479,12 @@ void do_linestring(const OGRLineString *theGeom,
     if (Shape::all_only_inside(position))
     {
       if (keep_inside)
-        theBuilder.add(dynamic_cast<OGRLineString *>(theGeom->clone()));
+        theBuilder.add(theGeom->clone());
     }
     else if (Shape::all_only_outside(position))
     {
       if (!keep_inside)
-        theBuilder.add(dynamic_cast<OGRLineString *>(theGeom->clone()));
+        theBuilder.add(theGeom->clone());
     }
     else
     {
@@ -511,10 +511,7 @@ void do_multipoint(const OGRMultiPoint *theGeom,
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_point(dynamic_cast<const OGRPoint *>(theGeom->getGeometryRef(i)),
-               theBuilder,
-               theShape,
-               keep_inside);
+      do_point(theGeom->getGeometryRef(i), theBuilder, theShape, keep_inside);
     }
   }
   catch (...)
@@ -535,10 +532,7 @@ void do_multilinestring(const OGRMultiLineString *theGeom,
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_linestring(dynamic_cast<const OGRLineString *>(theGeom->getGeometryRef(i)),
-                    theBuilder,
-                    theShape,
-                    keep_inside);
+      do_linestring(theGeom->getGeometryRef(i), theBuilder, theShape, keep_inside);
     }
   }
   catch (...)
@@ -561,12 +555,8 @@ void do_multipolygon(const OGRMultiPolygon *theGeom,
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_polygon(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)),
-                 theBuilder,
-                 theShape,
-                 max_length,
-                 keep_polygons,
-                 keep_inside);
+      do_polygon(
+          theGeom->getGeometryRef(i), theBuilder, theShape, max_length, keep_polygons, keep_inside);
     }
   }
   catch (...)

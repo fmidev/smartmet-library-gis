@@ -103,7 +103,7 @@ OGRMultiPolygon *normalize_winding(const OGRMultiPolygon *theGeom)
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      auto *geom = normalize_winding(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
+      auto *geom = normalize_winding(theGeom->getGeometryRef(i));
       if (geom != nullptr)
         out->addGeometryDirectly(geom);
     }

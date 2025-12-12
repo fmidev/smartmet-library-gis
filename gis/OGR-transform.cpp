@@ -133,7 +133,7 @@ void tr(OGRMultiPoint *geom, const Box &box)
       return;
 
     for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-      tr(dynamic_cast<OGRPoint *>(geom->getGeometryRef(i)), box);
+      tr(geom->getGeometryRef(i), box);
   }
   catch (...)
   {
@@ -155,7 +155,7 @@ void tr(OGRMultiLineString *geom, const Box &box)
       return;
 
     for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-      tr(dynamic_cast<OGRLineString *>(geom->getGeometryRef(i)), box);
+      tr(geom->getGeometryRef(i), box);
   }
   catch (...)
   {
@@ -177,7 +177,7 @@ void tr(OGRMultiPolygon *geom, const Box &box)
       return;
 
     for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-      tr(dynamic_cast<OGRPolygon *>(geom->getGeometryRef(i)), box);
+      tr(geom->getGeometryRef(i), box);
   }
   catch (...)
   {

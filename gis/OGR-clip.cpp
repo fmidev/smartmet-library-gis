@@ -1012,7 +1012,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       // CLIP: - if all vertices inside box or on the edges, return input as is
       // CUT:  - if all vertices inside box or on the edges, return empty result
       if (keep_inside)
-        theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+        theBuilder.add(theGeom->clone());
       return;
     }
 
@@ -1036,10 +1036,10 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       {
         if (!box_inside)
         {
-          theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+          theBuilder.add(theGeom->clone());
           return;
         }
-        rect.addExterior(dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone()));
+        rect.addExterior(theGeom->getExteriorRing()->clone());
       }
     }
 
@@ -1063,7 +1063,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       if (all_only_inside(holeposition))
       {
         if (keep_inside)
-          rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+          rect.addExterior(hole->clone());
       }
       else if (all_not_inside(holeposition))
       {
@@ -1074,13 +1074,13 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
           // If the box clip is inside a hole the result is empty
           // Otherwise we can keep the original input
           if (!keep_inside)
-            theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+            theBuilder.add(theGeom->clone());
           return;
         }
 
         // Otherwise the hole is outside the box
         if (!keep_inside)
-          rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+          rect.addExterior(hole->clone());
       }
     }
 
@@ -1130,7 +1130,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
 
       if (keep_inside)
       {
-        auto *poly = dynamic_cast<OGRPolygon *>(theGeom->clone());
+        auto *poly = theGeom->clone();
         OGR::normalize(*poly);
         theBuilder.add(poly);
       }
