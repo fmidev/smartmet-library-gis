@@ -54,25 +54,13 @@ std::optional<double> parse_proj_number(const std::string& value)
 
     auto suffix = value.back();
     auto prefix = value.substr(0, value.size() - 1);
-    if (suffix == 'E' || suffix == 'e')
+    if (suffix == 'E' || suffix == 'e' || suffix == 'N' || suffix == 'n')
     {
       opt_value = Fmi::stod_opt(prefix);
       if (opt_value)
         return opt_value;
     }
-    else if (suffix == 'W' || suffix == 'w')
-    {
-      opt_value = Fmi::stod_opt(prefix);
-      if (opt_value)
-        return -(*opt_value);
-    }
-    else if (suffix == 'N' || suffix == 'n')
-    {
-      opt_value = Fmi::stod_opt(prefix);
-      if (opt_value)
-        return *opt_value;
-    }
-    else if (suffix == 'S' || suffix == 's')
+    else if (suffix == 'W' || suffix == 'w' || suffix == 'S' || suffix == 's')
     {
       opt_value = Fmi::stod_opt(prefix);
       if (opt_value)
