@@ -967,7 +967,8 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing &ring,
 
     if (fabs(angleDiff) > itsBorderStep)
     {
-      double xx = 0, yy = 0;
+      double xx = 0;
+      double yy = 0;
       innerCircle.getPointByAngle(angle1, xx, yy);
 
       ring.addPoint(x1, y1);
