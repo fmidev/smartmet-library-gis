@@ -115,7 +115,7 @@ ProjInfo::ProjInfo(const std::string& theProj) : itsProjStr(theProj)
         itsOptions.insert(name);
       else if (parts.size() == 2)
       {
-        auto string_value = parts[1];
+        const auto& string_value = parts[1];
 
         // Store value as double or string
 
