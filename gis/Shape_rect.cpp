@@ -757,14 +757,14 @@ int Shape_rect::getPosition(double x, double y) const
   }
 }
 
-int Shape_rect::getLineIntersectionPoints(double aX,
-                                          double aY,
-                                          double bX,
-                                          double bY,
-                                          double &pX1,
-                                          double &pY1,
-                                          double &pX2,
-                                          double &pY2) const
+int Shape_rect::getLineIntersectionPoints(double /* aX */,
+                                          double /* aY */,
+                                          double /* bX */,
+                                          double /* bY */,
+                                          double & /* pX1 */,
+                                          double & /* pY1 */,
+                                          double & /* pX2 */,
+                                          double & /* pY2 */) const
 {
   try
   {

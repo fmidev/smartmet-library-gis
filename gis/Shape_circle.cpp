@@ -748,7 +748,7 @@ bool Shape_circle::isRingInside(const OGRLinearRing &theRing) const
  */
 // ----------------------------------------------------------------------
 
-LineIterator Shape_circle::search_cw(OGRLinearRing *ring,
+LineIterator Shape_circle::search_cw(OGRLinearRing * /* ring */,
                                      std::list<OGRLineString *> &lines,
                                      double x1,
                                      double y1,
@@ -821,7 +821,7 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,
  */
 // ----------------------------------------------------------------------
 
-LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,
+LineIterator Shape_circle::search_ccw(OGRLinearRing * /* ring */,
                                       std::list<OGRLineString *> &lines,
                                       double x1,
                                       double y1,
@@ -885,7 +885,7 @@ bool Shape_circle::connectPoints_cw(OGRLinearRing &ring,
                                     double y1,
                                     double x2,
                                     double y2,
-                                    double theMaximumSegmentLength) const
+                                    double /* theMaximumSegmentLength */) const
 {
   try
   {
@@ -942,7 +942,7 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing &ring,
                                      double y1,
                                      double x2,
                                      double y2,
-                                     double theMaximumSegmentLength) const
+                                     double /* theMaximumSegmentLength */) const
 {
   try
   {

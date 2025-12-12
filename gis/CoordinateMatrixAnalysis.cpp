@@ -173,7 +173,7 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
 
     std::size_t cw = 0;
     std::size_t ccw = 0;
-    std::size_t bad = 0;
+    // std::size_t bad = 0;
 
     for (std::size_t j = 0; j < ny - 1; j++)
       for (std::size_t i = 0; i < nx - 1; i++)
@@ -200,7 +200,7 @@ CoordinateAnalysis analysis(const CoordinateMatrix& coords)
         else
         {
           valid.set(i, j, false);
-          ++bad;
+          // ++bad;
         }
       }
 
