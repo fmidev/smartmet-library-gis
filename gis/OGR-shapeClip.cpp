@@ -118,6 +118,9 @@
 
 namespace Fmi
 {
+namespace
+{
+
 void do_point(const OGRPoint *theGeom,
               GeometryBuilder &theBuilder,
               const Shape_sptr &theShape,
@@ -661,6 +664,8 @@ void do_geom(const OGRGeometry *theGeom,
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+}  // namespace
 
 OGRGeometry *OGR::lineclip(const OGRGeometry &theGeom, Shape_sptr &theShape)
 {

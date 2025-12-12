@@ -113,8 +113,6 @@ void append_number(std::string &out, double num, const char *format, int /* deci
 }
 #endif
 
-}  // namespace
-
 // Forward declaration needed since two functions call each other
 
 void writeSVG(std::string &out,
@@ -492,6 +490,8 @@ void writeSVG(std::string &out,
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!

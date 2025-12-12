@@ -73,7 +73,6 @@ std::string pretty(double num, const char* format)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-}  // namespace
 
 // Needed since two functions call each other
 void writeSVG(std::string& out, const Geometry* geom, const char* format);
@@ -339,6 +338,8 @@ void writeSVG(std::string& out, const Geometry* geom, const char* format)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!

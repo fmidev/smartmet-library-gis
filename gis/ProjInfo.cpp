@@ -30,7 +30,6 @@ const std::set<std::string> g_num_keepers{
 const std::set<std::string> g_opt_keepers{"over", "no_defs", "wktext"};
 
 const std::set<std::string> g_ints{"R", "a", "b"};  // one meter accuracy is enough for these
-}  // namespace
 
 // ----------------------------------------------------------------------
 /*!
@@ -73,6 +72,8 @@ std::optional<double> parse_proj_number(const std::string& value)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!

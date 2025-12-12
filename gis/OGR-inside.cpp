@@ -2,6 +2,10 @@
 #include <macgyver/Exception.h>
 #include <ogr_geometry.h>
 
+namespace
+{
+}  // namespace
+
 // Forward declaration needed since two functions call each other
 bool inside(const OGRGeometry *theGeom, double theX, double theY);
 

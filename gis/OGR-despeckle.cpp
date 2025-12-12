@@ -3,6 +3,9 @@
 #include <macgyver/Exception.h>
 #include <ogr_geometry.h>
 
+namespace
+{
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Calculate area in m^2 for a geography
@@ -367,6 +370,8 @@ OGRGeometry *despeckle_geom(const OGRGeometry *theGeom, double theLimit, bool th
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!

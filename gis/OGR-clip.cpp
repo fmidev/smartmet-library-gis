@@ -118,6 +118,10 @@
 
 namespace Fmi
 {
+
+namespace
+{
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Test if all positions were outside the box or on the edges
@@ -297,6 +301,7 @@ void do_point(const OGRPoint *theGeom,
  */
 // ----------------------------------------------------------------------
 
+#if 0
 bool inside(const OGRLinearRing *theGeom, const Box &theBox)
 {
   try
@@ -332,6 +337,7 @@ bool inside(const OGRLinearRing *theGeom, const Box &theBox)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+#endif
 
 // ----------------------------------------------------------------------
 /*!
@@ -1519,6 +1525,8 @@ void do_geom(const OGRGeometry *theGeom,
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!

@@ -23,6 +23,34 @@
 
 namespace Fmi
 {
+
+namespace
+{
+bool isEmpty(const OGREnvelope& env)
+{
+  try
+  {
+    return (env.MinX == 0 && env.MinY == 0 && env.MaxX == 0 && env.MaxY == 0);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+bool contains_longitudes(const OGREnvelope& env1, const OGREnvelope& env2)
+{
+  try
+  {
+    return env1.MinX <= env2.MinX && env1.MaxX >= env2.MaxX;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+}  // namespace
+
 class CoordinateTransformation::Impl
 {
  public:
@@ -215,30 +243,6 @@ OGRCoordinateTransformation* CoordinateTransformation::get() const
   try
   {
     return impl->m_transformation.get();
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-bool isEmpty(const OGREnvelope& env)
-{
-  try
-  {
-    return (env.MinX == 0 && env.MinY == 0 && env.MaxX == 0 && env.MaxY == 0);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-bool contains_longitudes(const OGREnvelope& env1, const OGREnvelope& env2)
-{
-  try
-  {
-    return env1.MinX <= env2.MinX && env1.MaxX >= env2.MaxX;
   }
   catch (...)
   {

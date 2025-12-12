@@ -10,6 +10,105 @@
 #include <cmath>
 #include <ogr_geometry.h>
 
+namespace
+{
+OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters)
+{
+  try
+  {
+    OGRGeometry* ret = nullptr;
+
+    boost::scoped_ptr<OGRGeometry> tmp_geom;
+    tmp_geom.reset(theGeom->clone());
+
+    OGRwkbGeometryType type(tmp_geom->getGeometryType());
+
+    // FIXME: are we sure that GDAL does not mess with object
+    OGRSpatialReference* pSR = const_cast<OGRSpatialReference*>(tmp_geom->getSpatialReference());
+
+    OGRSpatialReference SR;
+
+    if (pSR != nullptr)
+      SR = *pSR;
+    else
+    {
+      // if no spatial reference, use EPSG:4326
+      OGRErr err = SR.importFromEPSGA(4326);
+      if (err != OGRERR_NONE)
+        throw Fmi::Exception::Trace(BCP, "EPSG:4326 is unknown!");
+
+      tmp_geom->assignSpatialReference(&SR);
+    }
+
+    Fmi::SpatialReference sourceCR(SR);
+    Fmi::SpatialReference targetCR("EPSGA:3395");
+    Fmi::CoordinateTransformation CT(sourceCR, targetCR);
+
+    // transform to EPSG:3395 geometry
+    if (tmp_geom->transform(CT.get()) != OGRERR_NONE)
+      throw Fmi::Exception::Trace(BCP, "OGRGeometry::transform() function call failed");
+
+    Fmi::CoordinateTransformation CT2(targetCR, sourceCR);
+
+    unsigned int radius =
+        lround(type == wkbLineString || type == wkbMultiLineString ? theRadiusInMeters
+                                                                   : theRadiusInMeters * 2);
+    // make the buffer
+    boost::scoped_ptr<OGRPolygon> polygon(dynamic_cast<OGRPolygon*>(tmp_geom->Buffer(radius, 20)));
+
+    if (polygon == nullptr)
+    {
+      if (type != wkbMultiLineString)
+        throw Fmi::Exception::Trace(BCP, "OGRGeometry::Buffer() function call failed!");
+
+      // Iterare OGRLineStrings inside OGRMultiLineString  and expand one by one
+      boost::scoped_ptr<OGRMultiLineString> multilinestring;
+      multilinestring.reset(dynamic_cast<OGRMultiLineString*>(tmp_geom->clone()));
+      int n_geometries(multilinestring->getNumGeometries());
+
+      // Expanded geometries are put inside OGRMultiPolygon
+      OGRMultiPolygon mpoly;
+      for (int i = 0; i < n_geometries; i++)
+      {
+        boost::scoped_ptr<OGRGeometry> linestring;
+        linestring.reset(multilinestring->getGeometryRef(i)->Buffer(radius, 20));
+        mpoly.addGeometry(linestring.get());
+      }
+      // Convert back to original geometry
+      if (mpoly.transform(CT2.get()) != OGRERR_NONE)
+        throw Fmi::Exception::Trace(BCP, "OGRMultiPolygon::transform() function call failed");
+
+      return mpoly.clone();
+    }
+
+    // get exterior ring of polygon
+    // the returned ring pointer is to an internal data object of the OGRPolygon.
+    // It should not be modified or deleted by the application
+    OGRLinearRing* exring(polygon->getExteriorRing());
+
+    // Convert back to original geometry
+    if (exring->transform(CT2.get()) != OGRERR_NONE)
+      throw Fmi::Exception::Trace(BCP, "OGRLinearRing::transform() function call failed");
+
+    OGRPolygon poly;
+    poly.addRing(exring);
+
+    // polygon is simplified to reduce amount of points
+    if (exring->getNumPoints() > 1000)
+      ret = poly.SimplifyPreserveTopology(0.001);
+
+    if (ret == nullptr)
+      ret = poly.clone();
+
+    return ret;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+}  // namespace
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Export OGR spatial reference to WKT
@@ -290,102 +389,6 @@ OGRGeometry* Fmi::OGR::constructGeometry(const CoordinatePoints& theCoordinates,
     ogrGeom->assignSpatialReference(tmp.get());
 
     return ogrGeom->clone();
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-static OGRGeometry* expandGeometry(const OGRGeometry* theGeom, double theRadiusInMeters)
-{
-  try
-  {
-    OGRGeometry* ret = nullptr;
-
-    boost::scoped_ptr<OGRGeometry> tmp_geom;
-    tmp_geom.reset(theGeom->clone());
-
-    OGRwkbGeometryType type(tmp_geom->getGeometryType());
-
-    // FIXME: are we sure that GDAL does not mess with object
-    OGRSpatialReference* pSR = const_cast<OGRSpatialReference*>(tmp_geom->getSpatialReference());
-
-    OGRSpatialReference SR;
-
-    if (pSR != nullptr)
-      SR = *pSR;
-    else
-    {
-      // if no spatial reference, use EPSG:4326
-      OGRErr err = SR.importFromEPSGA(4326);
-      if (err != OGRERR_NONE)
-        throw Fmi::Exception::Trace(BCP, "EPSG:4326 is unknown!");
-
-      tmp_geom->assignSpatialReference(&SR);
-    }
-
-    Fmi::SpatialReference sourceCR(SR);
-    Fmi::SpatialReference targetCR("EPSGA:3395");
-    Fmi::CoordinateTransformation CT(sourceCR, targetCR);
-
-    // transform to EPSG:3395 geometry
-    if (tmp_geom->transform(CT.get()) != OGRERR_NONE)
-      throw Fmi::Exception::Trace(BCP, "OGRGeometry::transform() function call failed");
-
-    Fmi::CoordinateTransformation CT2(targetCR, sourceCR);
-
-    unsigned int radius =
-        lround(type == wkbLineString || type == wkbMultiLineString ? theRadiusInMeters
-                                                                   : theRadiusInMeters * 2);
-    // make the buffer
-    boost::scoped_ptr<OGRPolygon> polygon(dynamic_cast<OGRPolygon*>(tmp_geom->Buffer(radius, 20)));
-
-    if (polygon == nullptr)
-    {
-      if (type != wkbMultiLineString)
-        throw Fmi::Exception::Trace(BCP, "OGRGeometry::Buffer() function call failed!");
-
-      // Iterare OGRLineStrings inside OGRMultiLineString  and expand one by one
-      boost::scoped_ptr<OGRMultiLineString> multilinestring;
-      multilinestring.reset(dynamic_cast<OGRMultiLineString*>(tmp_geom->clone()));
-      int n_geometries(multilinestring->getNumGeometries());
-
-      // Expanded geometries are put inside OGRMultiPolygon
-      OGRMultiPolygon mpoly;
-      for (int i = 0; i < n_geometries; i++)
-      {
-        boost::scoped_ptr<OGRGeometry> linestring;
-        linestring.reset(multilinestring->getGeometryRef(i)->Buffer(radius, 20));
-        mpoly.addGeometry(linestring.get());
-      }
-      // Convert back to original geometry
-      if (mpoly.transform(CT2.get()) != OGRERR_NONE)
-        throw Fmi::Exception::Trace(BCP, "OGRMultiPolygon::transform() function call failed");
-
-      return mpoly.clone();
-    }
-
-    // get exterior ring of polygon
-    // the returned ring pointer is to an internal data object of the OGRPolygon.
-    // It should not be modified or deleted by the application
-    OGRLinearRing* exring(polygon->getExteriorRing());
-
-    // Convert back to original geometry
-    if (exring->transform(CT2.get()) != OGRERR_NONE)
-      throw Fmi::Exception::Trace(BCP, "OGRLinearRing::transform() function call failed");
-
-    OGRPolygon poly;
-    poly.addRing(exring);
-
-    // polygon is simplified to reduce amount of points
-    if (exring->getNumPoints() > 1000)
-      ret = poly.SimplifyPreserveTopology(0.001);
-
-    if (ret == nullptr)
-      ret = poly.clone();
-
-    return ret;
   }
   catch (...)
   {
