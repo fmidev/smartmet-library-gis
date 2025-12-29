@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 25.12.2
+Version: 25.12.29
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -46,7 +46,7 @@ BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
 BuildRequires: libcurl-devel >= 7.61.0
-BuildRequires: smartmet-library-macgyver-devel >= 25.9.4
+BuildRequires: smartmet-library-macgyver-devel >= 25.12.2
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -66,7 +66,7 @@ Requires: geos313
 Requires: proj95
 Requires: libtiff >= 4.1
 Requires: libcurl >= 7.61.0
-Requires: smartmet-library-macgyver >= 25.9.4
+Requires: smartmet-library-macgyver >= 25.12.2
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: %{smartmet_fmt_devel}
 #TestRequires: gcc-c++
@@ -113,7 +113,7 @@ Requires: gcc-c++
 Requires: gdal310-devel
 Requires: proj95-devel
 Requires: libtiff-devel >= 4.1
-Requires: smartmet-library-macgyver-devel >= 25.9.4
+Requires: smartmet-library-macgyver-devel >= 25.12.2
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -124,6 +124,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Mon Dec 29 2025 Mika Heiskanen <mika.heiskanen@fmi.fi> 25.12.29-1.fmi
+- Silenced many compiler warnings
+
 * Tue Dec  2 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.12.2-1.fmi
 - gdal-3.12 compatibility fix and some additional diagnostic info
 
