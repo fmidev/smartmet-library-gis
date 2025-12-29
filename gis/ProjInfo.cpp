@@ -30,7 +30,6 @@ const std::set<std::string> g_num_keepers{
 const std::set<std::string> g_opt_keepers{"over", "no_defs", "wktext"};
 
 const std::set<std::string> g_ints{"R", "a", "b"};  // one meter accuracy is enough for these
-}  // namespace
 
 // ----------------------------------------------------------------------
 /*!
@@ -54,25 +53,13 @@ std::optional<double> parse_proj_number(const std::string& value)
 
     auto suffix = value.back();
     auto prefix = value.substr(0, value.size() - 1);
-    if (suffix == 'E' || suffix == 'e')
+    if (suffix == 'E' || suffix == 'e' || suffix == 'N' || suffix == 'n')
     {
       opt_value = Fmi::stod_opt(prefix);
       if (opt_value)
         return opt_value;
     }
-    else if (suffix == 'W' || suffix == 'w')
-    {
-      opt_value = Fmi::stod_opt(prefix);
-      if (opt_value)
-        return -(*opt_value);
-    }
-    else if (suffix == 'N' || suffix == 'n')
-    {
-      opt_value = Fmi::stod_opt(prefix);
-      if (opt_value)
-        return *opt_value;
-    }
-    else if (suffix == 'S' || suffix == 's')
+    else if (suffix == 'W' || suffix == 'w' || suffix == 'S' || suffix == 's')
     {
       opt_value = Fmi::stod_opt(prefix);
       if (opt_value)
@@ -85,6 +72,8 @@ std::optional<double> parse_proj_number(const std::string& value)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!
@@ -126,7 +115,7 @@ ProjInfo::ProjInfo(const std::string& theProj) : itsProjStr(theProj)
         itsOptions.insert(name);
       else if (parts.size() == 2)
       {
-        auto string_value = parts[1];
+        const auto& string_value = parts[1];
 
         // Store value as double or string
 

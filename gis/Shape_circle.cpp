@@ -697,7 +697,8 @@ bool Shape_circle::isInsideRing(const OGRLinearRing &theRing) const
     double angle = 0;
     for (uint t = 0; t < points; t++)
     {
-      double xx = 0, yy = 0;
+      double xx = 0;
+      double yy = 0;
       circle.getPointByAngle(angle, xx, yy);
       if (!OGR::inside(theRing, xx, yy))
         return false;
@@ -748,7 +749,7 @@ bool Shape_circle::isRingInside(const OGRLinearRing &theRing) const
  */
 // ----------------------------------------------------------------------
 
-LineIterator Shape_circle::search_cw(OGRLinearRing *ring,
+LineIterator Shape_circle::search_cw(OGRLinearRing * /* ring */,
                                      std::list<OGRLineString *> &lines,
                                      double x1,
                                      double y1,
@@ -821,7 +822,7 @@ LineIterator Shape_circle::search_cw(OGRLinearRing *ring,
  */
 // ----------------------------------------------------------------------
 
-LineIterator Shape_circle::search_ccw(OGRLinearRing *ring,
+LineIterator Shape_circle::search_ccw(OGRLinearRing * /* ring */,
                                       std::list<OGRLineString *> &lines,
                                       double x1,
                                       double y1,
@@ -885,7 +886,7 @@ bool Shape_circle::connectPoints_cw(OGRLinearRing &ring,
                                     double y1,
                                     double x2,
                                     double y2,
-                                    double theMaximumSegmentLength) const
+                                    double /* theMaximumSegmentLength */) const
 {
   try
   {
@@ -908,7 +909,8 @@ bool Shape_circle::connectPoints_cw(OGRLinearRing &ring,
 
     if (fabs(angleDiff) > itsBorderStep)
     {
-      double xx = 0, yy = 0;
+      double xx = 0;
+      double yy = 0;
       outerCircle.getPointByAngle(angle1, xx, yy);
 
       ring.addPoint(x1, y1);
@@ -942,7 +944,7 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing &ring,
                                      double y1,
                                      double x2,
                                      double y2,
-                                     double theMaximumSegmentLength) const
+                                     double /* theMaximumSegmentLength */) const
 {
   try
   {
@@ -965,7 +967,8 @@ bool Shape_circle::connectPoints_ccw(OGRLinearRing &ring,
 
     if (fabs(angleDiff) > itsBorderStep)
     {
-      double xx = 0, yy = 0;
+      double xx = 0;
+      double yy = 0;
       innerCircle.getPointByAngle(angle1, xx, yy);
 
       ring.addPoint(x1, y1);

@@ -5,8 +5,32 @@
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 
+#include <memory>
+
 namespace Fmi
 {
+namespace
+{
+// Bilinear interpolation in a rectable
+
+inline double bilinear(
+    double dx, double dy, double topleft, double topright, double bottomleft, double bottomright)
+{
+  try
+  {
+    const auto mdx = 1 - dx;
+    const auto mdy = 1 - dy;
+
+    return (mdx * mdy * bottomleft + dx * mdy * bottomright + mdx * dy * topleft +
+            dx * dy * topright);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+}  // namespace
+
 BilinearCoordinateTransformation::BilinearCoordinateTransformation(
     const CoordinateTransformation& theTransformation,
     std::size_t nx,
@@ -29,7 +53,7 @@ BilinearCoordinateTransformation::BilinearCoordinateTransformation(
     if (!m_matrix)
     {
       // Create new transformation and cache it
-      m_matrix.reset(new CoordinateMatrix(nx, ny, x1, y1, x2, y2));
+      m_matrix = std::make_shared<CoordinateMatrix>(nx, ny, x1, y1, x2, y2);
       m_matrix->transform(theTransformation);  // projected grid
       CoordinateMatrixCache::Insert(m_hash, m_matrix);
     }
@@ -37,25 +61,6 @@ BilinearCoordinateTransformation::BilinearCoordinateTransformation(
   catch (...)
   {
     throw Fmi::Exception::Trace(BCP, "Constructor failed!");
-  }
-}
-
-// Bilinear interpolation in a rectable
-
-inline double bilinear(
-    double dx, double dy, double topleft, double topright, double bottomleft, double bottomright)
-{
-  try
-  {
-    const auto mdx = 1 - dx;
-    const auto mdy = 1 - dy;
-
-    return (mdx * mdy * bottomleft + dx * mdy * bottomright + mdx * dy * topleft +
-            dx * dy * topright);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 

@@ -1,7 +1,6 @@
 #include "OGR.h"
-
-#include <macgyver/Exception.h>
 #include <macgyver/DebugTools.h>
+#include <macgyver/Exception.h>
 #include <ogr_geometry.h>
 
 namespace
@@ -58,7 +57,7 @@ OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
     if (theGeom->IsMeasured())
       out->setMeasured(TRUE);
 
-    auto *exterior = dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone());
+    auto *exterior = theGeom->getExteriorRing()->clone();
 
     if (!exterior->isClockwise())
       exterior->reversePoints();
@@ -67,7 +66,7 @@ OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; i++)
     {
-      auto *geom = dynamic_cast<OGRLinearRing *>(theGeom->getInteriorRing(i)->clone());
+      auto *geom = theGeom->getInteriorRing(i)->clone();
       if (geom->isClockwise())
         geom->reversePoints();
       out->addRingDirectly(geom);
@@ -104,7 +103,7 @@ OGRMultiPolygon *normalize_winding(const OGRMultiPolygon *theGeom)
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      auto *geom = normalize_winding(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)));
+      auto *geom = normalize_winding(theGeom->getGeometryRef(i));
       if (geom != nullptr)
         out->addGeometryDirectly(geom);
     }
@@ -195,13 +194,10 @@ OGRGeometry *normalize_winding(const OGRGeometry *theGeom)
             .addParameter("Type", pszName);
       }
     }
-
-    // NOT REACHED
-    return nullptr;
   }
   catch (...)
   {
-    auto error =  Fmi::Exception::Trace(BCP, "Operation failed!");
+    auto error = Fmi::Exception::Trace(BCP, "Operation failed!");
     error.addParameter("GeometryType", std::to_string(theGeom->getGeometryType()));
     error.addParameter("GeometryWKBType", std::to_string(wkbFlatten(theGeom->getGeometryType())));
     error.addParameter("WKT", theGeom->exportToWkt());

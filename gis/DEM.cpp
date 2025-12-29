@@ -5,8 +5,8 @@
 #include "SrtmTile.h"
 #include <macgyver/Exception.h>
 
-#include <filesystem>
 #include <fmt/format.h>
+#include <filesystem>
 
 #include <cmath>
 #include <limits>
@@ -71,7 +71,7 @@ class DEM::Impl
   // Note: We want the DEM level with largest tiles (most accurate) first.
   // However, we may skip levels which are of too good resolution for speed
   // and to avoid noise in rendered images.
-  using SrtmMatrices = std::map<std::size_t, SrtmMatrix, std::greater<std::size_t>>;
+  using SrtmMatrices = std::map<std::size_t, SrtmMatrix, std::greater<>>;
   SrtmMatrices itsMatrices;
 };
 

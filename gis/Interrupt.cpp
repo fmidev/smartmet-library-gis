@@ -24,8 +24,7 @@ namespace
 {
 std::shared_ptr<OGRGeometry> make_geometry_ptr(OGRGeometry* geometry)
 {
-  return std::shared_ptr<OGRGeometry>(
-      geometry, [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
+  return {geometry, [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); }};
 }
 
 // Longitude to -180...180 range

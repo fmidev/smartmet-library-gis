@@ -23,6 +23,34 @@
 
 namespace Fmi
 {
+
+namespace
+{
+bool isEmpty(const OGREnvelope& env)
+{
+  try
+  {
+    return (env.MinX == 0 && env.MinY == 0 && env.MaxX == 0 && env.MaxY == 0);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+bool contains_longitudes(const OGREnvelope& env1, const OGREnvelope& env2)
+{
+  try
+  {
+    return env1.MinX <= env2.MinX && env1.MaxX >= env2.MaxX;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+}  // namespace
+
 class CoordinateTransformation::Impl
 {
  public:
@@ -222,30 +250,6 @@ OGRCoordinateTransformation* CoordinateTransformation::get() const
   }
 }
 
-bool isEmpty(const OGREnvelope& env)
-{
-  try
-  {
-    return (env.MinX == 0 && env.MinY == 0 && env.MaxX == 0 && env.MaxY == 0);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-bool contains_longitudes(const OGREnvelope& env1, const OGREnvelope& env2)
-{
-  try
-  {
-    return env1.MinX <= env2.MinX && env1.MaxX >= env2.MaxX;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
 OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom,
                                                          double theMaximumSegmentLength) const
 {
@@ -253,10 +257,10 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
   {
     OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
 
-    const auto make_geometry_ptr = [](OGRGeometry* geometry) {
-        return std::shared_ptr<OGRGeometry>(
-            geometry,
-            [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
+    const auto make_geometry_ptr = [](OGRGeometry* geometry)
+    {
+      return std::shared_ptr<OGRGeometry>(
+          geometry, [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
     };
 
     // If input is geographic apply geographic cuts
@@ -272,7 +276,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       // Do quick vertical cuts
       for (const auto& box : interrupt.cuts)
       {
-          g = make_geometry_ptr(OGR::polycut(*g, box, theMaximumSegmentLength));
+        g = make_geometry_ptr(OGR::polycut(*g, box, theMaximumSegmentLength));
         if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
           return nullptr;
       }

@@ -19,9 +19,9 @@
 #include <macgyver/Exception.h>
 #include <macgyver/NumericCast.h>
 
-#define GEOS_VERSION_ID (100*GEOS_VERSION_MAJOR + GEOS_VERSION_MINOR)
+#define GEOS_VERSION_ID (100 * GEOS_VERSION_MAJOR + GEOS_VERSION_MINOR)
 
-//using geos::geom::Coordinate;
+// using geos::geom::Coordinate;
 using geos::geom::Geometry;
 using geos::geom::GeometryCollection;
 using geos::geom::LinearRing;
@@ -73,7 +73,6 @@ std::string pretty(double num, const char* format)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-}  // namespace
 
 // Needed since two functions call each other
 void writeSVG(std::string& out, const Geometry* geom, const char* format);
@@ -339,6 +338,8 @@ void writeSVG(std::string& out, const Geometry* geom, const char* format)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!

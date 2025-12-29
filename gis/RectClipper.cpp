@@ -6,6 +6,9 @@
 #include <cassert>
 #include <iostream>
 
+namespace
+{
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Build a ring out of the bbox
@@ -55,36 +58,6 @@ OGRLinearRing *make_hole(const Fmi::Box &theBox, double max_length = 0)
   catch (...)
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Destructor must delete all objects left behind in case of throw
- *
- * Normally build succeeds and clears the containers
- */
-// ----------------------------------------------------------------------
-
-Fmi::RectClipper::~RectClipper()
-{
-  try
-  {
-    for (auto *ptr : itsExteriorRings)
-      delete ptr;
-    for (auto *ptr : itsInteriorRings)
-      delete ptr;
-    for (auto *ptr : itsExteriorLines)
-      delete ptr;
-    for (auto *ptr : itsInteriorLines)
-      delete ptr;
-    for (auto *ptr : itsPolygons)
-      delete ptr;
-  }
-  catch (...)
-  {
-    Fmi::Exception exception(BCP, "Destructor failed", nullptr);
-    exception.printError();
   }
 }
 
@@ -173,185 +146,6 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
       if (pos1 != lines.end())
         ++pos1;
     }
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-void Fmi::RectClipper::reconnect()
-{
-  try
-  {
-    reconnectLines(itsExteriorLines, *this, true);
-    reconnectLines(itsInteriorLines, *this, false);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Export parts to another container
- */
-// ----------------------------------------------------------------------
-
-void Fmi::RectClipper::release(GeometryBuilder &theBuilder)
-{
-  try
-  {
-    for (auto *ptr : itsPolygons)
-      theBuilder.add(ptr);
-    for (auto *ptr : itsExteriorLines)
-      theBuilder.add(ptr);
-
-    clear();
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Clear the parts having transferred ownership elsewhere
- */
-// ----------------------------------------------------------------------
-
-void Fmi::RectClipper::clear()
-{
-  try
-  {
-    itsExteriorRings.clear();
-    itsExteriorLines.clear();
-    itsInteriorRings.clear();
-    itsInteriorLines.clear();
-    itsPolygons.clear();
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Test if there are no parts at all
- */
-// ----------------------------------------------------------------------
-
-bool Fmi::RectClipper::empty() const
-{
-  try
-  {
-    return itsExteriorRings.empty() && itsExteriorLines.empty() && itsInteriorRings.empty() &&
-           itsInteriorLines.empty();
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Add box to the result
- */
-// ----------------------------------------------------------------------
-
-void Fmi::RectClipper::addBox()
-{
-  try
-  {
-    itsAddBoxFlag = true;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Add intermediate OGR Polygon
- */
-// ----------------------------------------------------------------------
-
-void Fmi::RectClipper::addExterior(OGRLinearRing *theRing)
-{
-  try
-  {
-    OGR::normalize(*theRing);
-    if (theRing->isClockwise() == 0)
-      theRing->reversePoints();
-    itsExteriorRings.push_back(theRing);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Add intermediate OGR LineString
- */
-// ----------------------------------------------------------------------
-
-void Fmi::RectClipper::addExterior(OGRLineString *theLine)
-{
-  try
-  {
-    auto n = theLine->getNumPoints();
-
-    // We may have just touched the exterior at a single point
-    if (n < 2)
-      delete theLine;
-    else
-      itsExteriorLines.push_back(theLine);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Add intermediate OGR Polygon
- */
-// ----------------------------------------------------------------------
-
-void Fmi::RectClipper::addInterior(OGRLinearRing *theRing)
-{
-  try
-  {
-    OGR::normalize(*theRing);
-    if (theRing->isClockwise() == 1)
-      theRing->reversePoints();
-    itsInteriorRings.push_back(theRing);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Add intermediate OGR LineString
- */
-// ----------------------------------------------------------------------
-
-void Fmi::RectClipper::addInterior(OGRLineString *theLine)
-{
-  try
-  {
-    itsInteriorLines.push_back(theLine);
   }
   catch (...)
   {
@@ -679,6 +473,217 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
       }
     }
     theLines.clear();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Destructor must delete all objects left behind in case of throw
+ *
+ * Normally build succeeds and clears the containers
+ */
+// ----------------------------------------------------------------------
+
+Fmi::RectClipper::~RectClipper()
+{
+  try
+  {
+    for (auto *ptr : itsExteriorRings)
+      delete ptr;
+    for (auto *ptr : itsInteriorRings)
+      delete ptr;
+    for (auto *ptr : itsExteriorLines)
+      delete ptr;
+    for (auto *ptr : itsInteriorLines)
+      delete ptr;
+    for (auto *ptr : itsPolygons)
+      delete ptr;
+  }
+  catch (...)
+  {
+    Fmi::Exception exception(BCP, "Destructor failed", nullptr);
+    exception.printError();
+  }
+}
+
+void Fmi::RectClipper::reconnect()
+{
+  try
+  {
+    reconnectLines(itsExteriorLines, *this, true);
+    reconnectLines(itsInteriorLines, *this, false);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Export parts to another container
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::release(GeometryBuilder &theBuilder)
+{
+  try
+  {
+    for (auto *ptr : itsPolygons)
+      theBuilder.add(ptr);
+    for (auto *ptr : itsExteriorLines)
+      theBuilder.add(ptr);
+
+    clear();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Clear the parts having transferred ownership elsewhere
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::clear()
+{
+  try
+  {
+    itsExteriorRings.clear();
+    itsExteriorLines.clear();
+    itsInteriorRings.clear();
+    itsInteriorLines.clear();
+    itsPolygons.clear();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Test if there are no parts at all
+ */
+// ----------------------------------------------------------------------
+
+bool Fmi::RectClipper::empty() const
+{
+  try
+  {
+    return itsExteriorRings.empty() && itsExteriorLines.empty() && itsInteriorRings.empty() &&
+           itsInteriorLines.empty();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add box to the result
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::addBox()
+{
+  try
+  {
+    itsAddBoxFlag = true;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add intermediate OGR Polygon
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::addExterior(OGRLinearRing *theRing)
+{
+  try
+  {
+    OGR::normalize(*theRing);
+    if (theRing->isClockwise() == 0)
+      theRing->reversePoints();
+    itsExteriorRings.push_back(theRing);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add intermediate OGR LineString
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::addExterior(OGRLineString *theLine)
+{
+  try
+  {
+    auto n = theLine->getNumPoints();
+
+    // We may have just touched the exterior at a single point
+    if (n < 2)
+      delete theLine;
+    else
+      itsExteriorLines.push_back(theLine);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add intermediate OGR Polygon
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::addInterior(OGRLinearRing *theRing)
+{
+  try
+  {
+    OGR::normalize(*theRing);
+    if (theRing->isClockwise() == 1)
+      theRing->reversePoints();
+    itsInteriorRings.push_back(theRing);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add intermediate OGR LineString
+ */
+// ----------------------------------------------------------------------
+
+void Fmi::RectClipper::addInterior(OGRLineString *theLine)
+{
+  try
+  {
+    itsInteriorLines.push_back(theLine);
   }
   catch (...)
   {

@@ -126,17 +126,17 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
 
   auto* out = new OGRGeometryCollection;  // NOLINT
 
-  const auto next_feature = [layer]() {
-      return std::shared_ptr<OGRFeature>(
-          layer->GetNextFeature(),
-          [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
+  const auto next_feature = [layer]()
+  {
+    return std::shared_ptr<OGRFeature>(
+        layer->GetNextFeature(), [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
   };
 
   std::shared_ptr<OGRFeature> feature;
 
   if (theSR == nullptr)
   {
-    //layer->GetSpatialRef()->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    // layer->GetSpatialRef()->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
     if (layer->GetSpatialRef() == nullptr)
     {
       auto* wgs84 = new OGRSpatialReference();
@@ -146,8 +146,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
     else
     {
       std::unique_ptr<OGRSpatialReference, OGRSpatialReferenceReleaser> crs(
-        layer->GetSpatialRef()->Clone(),
-         OGRSpatialReferenceReleaser());
+          layer->GetSpatialRef()->Clone(), OGRSpatialReferenceReleaser());
       crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
       out->assignSpatialReference(crs.get());
     }
@@ -171,7 +170,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
 
     CoordinateTransformation transformation(*source, *theSR);
     std::shared_ptr<OGRSpatialReference> tmp(theSR->get()->Clone(),
-        [](OGRSpatialReference *sr) { sr->Release(); });
+                                             [](OGRSpatialReference* sr) { sr->Release(); });
     out->assignSpatialReference(tmp.get());
 
     layer->ResetReading();
@@ -199,7 +198,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
     }
   }
 
-  return OGRGeometryPtr(out, [](OGRGeometry* g) { OGRGeometryFactory::destroyGeometry(g); } );
+  return {out, [](OGRGeometry* g) { OGRGeometryFactory::destroyGeometry(g); }};
 }
 
 // ----------------------------------------------------------------------
@@ -252,10 +251,10 @@ Features read(const Fmi::SpatialReference* theSR,
           new CoordinateTransformation(SpatialReference(*layer->GetSpatialRef()), *theSR));
   }
 
-  const auto next_feature = [layer]() {
-      return std::shared_ptr<OGRFeature>(
-          layer->GetNextFeature(),
-          [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
+  const auto next_feature = [layer]()
+  {
+    return std::shared_ptr<OGRFeature>(
+        layer->GetNextFeature(), [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
   };
 
   std::shared_ptr<OGRFeature> feature;
@@ -279,7 +278,7 @@ Features read(const Fmi::SpatialReference* theSR,
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
         std::shared_ptr<OGRSpatialReference> tmp(theSR->get()->Clone(),
-            [](OGRSpatialReference *sr) { sr->Release(); });
+                                                 [](OGRSpatialReference* sr) { sr->Release(); });
         ret_item->geom->assignSpatialReference(tmp.get());
       }
     }
@@ -333,15 +332,14 @@ Features read(const Fmi::SpatialReference* theSR,
           int sec;
           int tzFlag;
           feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
-          Fmi::DateTime timestamp(Fmi::Date(year, month, day),
-                                             Fmi::TimeDuration(hour, min, sec));
+          Fmi::DateTime timestamp(Fmi::Date(year, month, day), Fmi::TimeDuration(hour, min, sec));
 
           ret_item->attributes.insert(make_pair(fieldname, timestamp));
           break;
         }
         default:
           break;
-      };
+      }
     }
     ret.push_back(ret_item);
   }

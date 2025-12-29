@@ -3,8 +3,8 @@
 #ifdef UNIX
 
 #include "BBox.h"
-#include <optional>
 #include <macgyver/Cache.h>
+#include <optional>
 #include <string>
 
 namespace Fmi
@@ -23,7 +23,7 @@ struct EPSG
   bool deprecated = false;
 };
 
-bool isValid(int code);                   // Is the EPSG code valid?
+bool isValid(int code);                 // Is the EPSG code valid?
 std::optional<EPSG> getInfo(int code);  // Get all EPSG information
 
 void setCacheSize(std::size_t newMaxSize);

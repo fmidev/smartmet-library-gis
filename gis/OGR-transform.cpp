@@ -133,7 +133,7 @@ void tr(OGRMultiPoint *geom, const Box &box)
       return;
 
     for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-      tr(dynamic_cast<OGRPoint *>(geom->getGeometryRef(i)), box);
+      tr(geom->getGeometryRef(i), box);
   }
   catch (...)
   {
@@ -155,7 +155,7 @@ void tr(OGRMultiLineString *geom, const Box &box)
       return;
 
     for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-      tr(dynamic_cast<OGRLineString *>(geom->getGeometryRef(i)), box);
+      tr(geom->getGeometryRef(i), box);
   }
   catch (...)
   {
@@ -177,7 +177,7 @@ void tr(OGRMultiPolygon *geom, const Box &box)
       return;
 
     for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
-      tr(dynamic_cast<OGRPolygon *>(geom->getGeometryRef(i)), box);
+      tr(geom->getGeometryRef(i), box);
   }
   catch (...)
   {
@@ -225,21 +225,45 @@ void tr(OGRGeometry *geom, const Box &box)
     switch (id)
     {
       case wkbPoint:
-        return tr(dynamic_cast<OGRPoint *>(geom), box);
+      {
+        tr(dynamic_cast<OGRPoint *>(geom), box);
+        return;
+      }
       case wkbLineString:
-        return tr(dynamic_cast<OGRLineString *>(geom), box);
+      {
+        tr(dynamic_cast<OGRLineString *>(geom), box);
+        return;
+      }
       case wkbLinearRing:
-        return tr(dynamic_cast<OGRLinearRing *>(geom), box);
+      {
+        tr(dynamic_cast<OGRLinearRing *>(geom), box);
+        return;
+      }
       case wkbPolygon:
-        return tr(dynamic_cast<OGRPolygon *>(geom), box);
+      {
+        tr(dynamic_cast<OGRPolygon *>(geom), box);
+        return;
+      }
       case wkbMultiPoint:
-        return tr(dynamic_cast<OGRMultiPoint *>(geom), box);
+      {
+        tr(dynamic_cast<OGRMultiPoint *>(geom), box);
+        return;
+      }
       case wkbMultiLineString:
-        return tr(dynamic_cast<OGRMultiLineString *>(geom), box);
+      {
+        tr(dynamic_cast<OGRMultiLineString *>(geom), box);
+        return;
+      }
       case wkbMultiPolygon:
-        return tr(dynamic_cast<OGRMultiPolygon *>(geom), box);
+      {
+        tr(dynamic_cast<OGRMultiPolygon *>(geom), box);
+        return;
+      }
       case wkbGeometryCollection:
-        return tr(dynamic_cast<OGRGeometryCollection *>(geom), box);
+      {
+        tr(dynamic_cast<OGRGeometryCollection *>(geom), box);
+        return;
+      }
       default:
         throw Fmi::Exception::Trace(
             BCP, "Encountered an unknown geometry component in OGRGeometry transform call");

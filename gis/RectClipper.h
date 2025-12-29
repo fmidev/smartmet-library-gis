@@ -17,8 +17,9 @@ class RectClipper
 {
  public:
   RectClipper() = delete;
-  RectClipper(const Box &theBox, bool keep_inside)
-      : itsBox(theBox), itsKeepInsideFlag(keep_inside){};
+  RectClipper(const Box &theBox, bool keep_inside) : itsBox(theBox), itsKeepInsideFlag(keep_inside)
+  {
+  }
 
   ~RectClipper();
 

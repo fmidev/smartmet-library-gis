@@ -35,7 +35,7 @@ class OGRCoordinateTransformationPool
 // NOTE (2023-08-02): tempoarily disabled as requires at first bugfix for smartmet-utils-devel
 //                    (proj detection not OK in makefile.inc)
 #if PROJ_VERSION_MAJOR >= 9
-    for (auto& item : m_cache)
+    for (auto &item : m_cache)
       delete item.second;
 #endif
   }
@@ -51,7 +51,7 @@ class OGRCoordinateTransformationPool
     WriteLock lock(m_mutex);
 
     // Add as the most recently used to the start
-    m_cache.push_front(std::make_pair(theHash, theTransformation.release()));
+    m_cache.emplace_front(theHash, theTransformation.release());
 
     // Pop the least recently used if the cache is too big
     if (m_cache.size() > m_maxsize)

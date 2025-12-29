@@ -118,6 +118,10 @@
 
 namespace Fmi
 {
+
+namespace
+{
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Test if all positions were outside the box or on the edges
@@ -297,6 +301,7 @@ void do_point(const OGRPoint *theGeom,
  */
 // ----------------------------------------------------------------------
 
+#if 0
 bool inside(const OGRLinearRing *theGeom, const Box &theBox)
 {
   try
@@ -332,6 +337,7 @@ bool inside(const OGRLinearRing *theGeom, const Box &theBox)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+#endif
 
 // ----------------------------------------------------------------------
 /*!
@@ -1006,7 +1012,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       // CLIP: - if all vertices inside box or on the edges, return input as is
       // CUT:  - if all vertices inside box or on the edges, return empty result
       if (keep_inside)
-        theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+        theBuilder.add(theGeom->clone());
       return;
     }
 
@@ -1030,10 +1036,10 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       {
         if (!box_inside)
         {
-          theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+          theBuilder.add(theGeom->clone());
           return;
         }
-        rect.addExterior(dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone()));
+        rect.addExterior(theGeom->getExteriorRing()->clone());
       }
     }
 
@@ -1057,7 +1063,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       if (all_only_inside(holeposition))
       {
         if (keep_inside)
-          rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+          rect.addExterior(hole->clone());
       }
       else if (all_not_inside(holeposition))
       {
@@ -1068,13 +1074,13 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
           // If the box clip is inside a hole the result is empty
           // Otherwise we can keep the original input
           if (!keep_inside)
-            theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+            theBuilder.add(theGeom->clone());
           return;
         }
 
         // Otherwise the hole is outside the box
         if (!keep_inside)
-          rect.addExterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+          rect.addExterior(hole->clone());
       }
     }
 
@@ -1124,7 +1130,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
 
       if (keep_inside)
       {
-        auto *poly = dynamic_cast<OGRPolygon *>(theGeom->clone());
+        auto *poly = theGeom->clone();
         OGR::normalize(*poly);
         theBuilder.add(poly);
       }
@@ -1152,11 +1158,11 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       {
         if (!box_inside)
         {
-          theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+          theBuilder.add(theGeom->clone());
           return;
         }
         // box is inside exterior, must keep exterior
-        rect.addExterior(dynamic_cast<OGRLinearRing *>(theGeom->getExteriorRing()->clone()));
+        rect.addExterior(theGeom->getExteriorRing()->clone());
         rect.addBox();
       }
     }
@@ -1201,7 +1207,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       if (all_only_inside(holeposition))
       {
         if (keep_inside)
-          rect.addInterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+          rect.addInterior(hole->clone());
       }
       else if (all_not_inside(holeposition))
       {
@@ -1212,13 +1218,13 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
           // If the box clip is inside a hole the result is empty
           // Otherwise we can keep the original input
           if (!keep_inside)
-            theBuilder.add(dynamic_cast<OGRPolygon *>(theGeom->clone()));
+            theBuilder.add(theGeom->clone());
           return;
         }
 
         // Otherwise the hole is outside the box
         if (!keep_inside)
-          rect.addInterior(dynamic_cast<OGRLinearRing *>(hole->clone()));
+          rect.addInterior(hole->clone());
       }
     }
 
@@ -1282,12 +1288,12 @@ void do_linestring(const OGRLineString *theGeom,
     if (all_only_inside(position))
     {
       if (keep_inside)
-        theBuilder.add(dynamic_cast<OGRLineString *>(theGeom->clone()));
+        theBuilder.add(theGeom->clone());
     }
     else if (all_only_outside(position))
     {
       if (!keep_inside)
-        theBuilder.add(dynamic_cast<OGRLineString *>(theGeom->clone()));
+        theBuilder.add(theGeom->clone());
     }
     else
     {
@@ -1320,10 +1326,7 @@ void do_multipoint(const OGRMultiPoint *theGeom,
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_point(dynamic_cast<const OGRPoint *>(theGeom->getGeometryRef(i)),
-               theBuilder,
-               theBox,
-               keep_inside);
+      do_point(theGeom->getGeometryRef(i), theBuilder, theBox, keep_inside);
     }
   }
   catch (...)
@@ -1350,10 +1353,7 @@ void do_multilinestring(const OGRMultiLineString *theGeom,
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_linestring(dynamic_cast<const OGRLineString *>(theGeom->getGeometryRef(i)),
-                    theBuilder,
-                    theBox,
-                    keep_inside);
+      do_linestring(theGeom->getGeometryRef(i), theBuilder, theBox, keep_inside);
     }
   }
   catch (...)
@@ -1519,6 +1519,8 @@ void do_geom(const OGRGeometry *theGeom,
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!

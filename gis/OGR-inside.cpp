@@ -2,6 +2,10 @@
 #include <macgyver/Exception.h>
 #include <ogr_geometry.h>
 
+namespace
+{
+}  // namespace
+
 // Forward declaration needed since two functions call each other
 bool inside(const OGRGeometry *theGeom, double theX, double theY);
 
@@ -63,7 +67,7 @@ bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      if (inside(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)), theX, theY))
+      if (inside(theGeom->getGeometryRef(i), theX, theY))
         return true;
     }
     return false;
@@ -154,7 +158,7 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
       case wkbLineString25D:
         if (strcmp(theGeom.getGeometryName(), "LINEARRING") != 0)
           return false;
-      // Fall through
+        [[fallthrough]];
       case wkbLinearRing:
         return inside(dynamic_cast<const OGRLinearRing *>(&theGeom), theX, theY);
       case wkbPolygon:
@@ -170,9 +174,6 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
         throw Fmi::Exception::Trace(
             BCP, "Encountered an unknown geometry component in OGR to SVG conversion");
     }
-
-    // NOT REACHED
-    return false;
   }
   catch (...)
   {
