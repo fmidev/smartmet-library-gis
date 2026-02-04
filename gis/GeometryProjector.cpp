@@ -35,7 +35,7 @@ inline bool nearlyEqual(double a, double b, double tol)
 inline double ringEps(double minX, double minY, double maxX, double maxY)
 {
   const double scale = std::max(maxX - minX, maxY - minY);
-  return std::max(1e-7 * scale, 1e-6);
+  return std::clamp(1e-7 * scale, 1e-8, 1e-4);
 }
 
 inline double boundaryTolMeters(double minX, double minY, double maxX, double maxY)
@@ -52,12 +52,16 @@ inline bool pointInBounds(
 
 inline void forceExactClosure(OGRLinearRing& r)
 {
-  r.closeRings();
   if (r.getNumPoints() < 2)
     return;
-  OGRPoint first;
+  OGRPoint first, last;
   r.getPoint(0, &first);
-  r.setPoint(r.getNumPoints() - 1, first.getX(), first.getY());
+  r.getPoint(r.getNumPoints() - 1, &last);
+  if (std::abs(first.getX() - last.getX()) > 1e-10 || std::abs(first.getY() - last.getY()) > 1e-10)
+  {
+    r.closeRings();
+    r.setPoint(r.getNumPoints() - 1, first.getX(), first.getY());
+  }
 }
 
 // Copy ring coordinates into a LineString.
@@ -138,7 +142,8 @@ void GeometryProjector::setProjectedBounds(double minX, double minY, double maxX
   if (m_autoThreshold)
   {
     const double w = maxX - minX;
-    m_jumpThreshold = 0.5 * w;
+    if (w > 0)
+      m_jumpThreshold = 0.5 * w;
   }
 }
 
@@ -152,7 +157,8 @@ std::unique_ptr<OGRGeometry> GeometryProjector::projectGeometry(const OGRGeometr
   if (!geom)
     return nullptr;
   if (!m_boundsSet)
-    throw std::runtime_error("GeometryProjector: setProjectedBounds must be called first");
+    throw std::runtime_error(
+        "GeometryProjector: setProjectedBounds must be called before projectGeometry");
 
   const auto gt = wkbFlatten(geom->getGeometryType());
 
@@ -1268,6 +1274,10 @@ double GeometryProjector::boundaryLengthOnArc(const OGRLinearRing& ext,
 {
   const int n = ext.getNumPoints();
   const int m = n - 1;
+
+  if (m == 0)
+    return 0.0;
+
   auto nextIdx = [&](int i) { return (i + 1) % m; };
   auto prevIdx = [&](int i) { return (i - 1 + m) % m; };
 

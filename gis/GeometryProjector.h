@@ -73,7 +73,7 @@ class GeometryProjector
   double m_projectedBounds[4] = {0, 0, 0, 0};
   bool m_boundsSet = false;
 
-  double m_densifyKm = 50.0;
+  double m_densifyKm = 50.0;  // default densification is to 50 km
 
   // ---- core dispatch ----
   std::unique_ptr<OGRGeometry> projectPoint(const OGRPoint* point);
