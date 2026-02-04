@@ -105,9 +105,280 @@ static std::unique_ptr<OGRLineString> ringToLineStringPreserveClosure(const OGRL
 
 }  // namespace
 
+// ------------------------------ PIMPL ------------------------------
+
+class GeometryProjector::Impl
+{
+ public:
+  Impl(OGRSpatialReference* sourceSRS, OGRSpatialReference* targetSRS);
+
+  void setProjectedBounds(double minX, double minY, double maxX, double maxY);
+  void setDensifyResolutionKm(double km);
+  std::unique_ptr<OGRGeometry> projectGeometry(const OGRGeometry* geom);
+  void setJumpThreshold(double threshold);
+  void setPoleHandling(bool enable);
+
+ private:
+  struct ProjectionBoundary
+  {
+    double minX, minY, maxX, maxY;
+  };
+
+  struct ClipHit
+  {
+    bool ok = false;
+    OGRPoint a, b;
+  };
+
+  struct SRSDeleter
+  {
+    void operator()(OGRSpatialReference* srs) const noexcept
+    {
+      if (srs)
+        srs->Release();
+    }
+  };
+
+  struct CTDeleter
+  {
+    void operator()(OGRCoordinateTransformation* ct) const noexcept
+    {
+      if (ct)
+        OGRCoordinateTransformation::DestroyCT(ct);
+    }
+  };
+
+  using SrsPtr = std::unique_ptr<OGRSpatialReference, SRSDeleter>;
+  using CtPtr = std::unique_ptr<OGRCoordinateTransformation, CTDeleter>;
+
+  CtPtr m_transform;
+  CtPtr m_inverseTransform;
+  SrsPtr m_sourceSRS;
+  SrsPtr m_targetSRS;
+
+  double m_jumpThreshold = 0.0;
+  bool m_autoThreshold = true;
+  bool m_handlePoles = true;
+
+  double m_projectedBounds[4] = {0, 0, 0, 0};
+  bool m_boundsSet = false;
+
+  double m_densifyKm = 50.0;  // default densification is to 50 km
+
+  // ---- core dispatch ----
+  std::unique_ptr<OGRGeometry> projectPoint(const OGRPoint* point);
+  std::unique_ptr<OGRGeometry> projectLineString(const OGRLineString* line);
+  std::unique_ptr<OGRGeometry> projectPolygon(const OGRPolygon* polygon);
+  std::unique_ptr<OGRGeometry> projectMultiGeometry(const OGRGeometryCollection* collection);
+
+  // ---- helpers ----
+  ProjectionBoundary getProjectionBoundary() const;
+  bool isInsideBounds(double x, double y) const;
+
+  std::unique_ptr<OGRPoint> projectSinglePoint(double x, double y, bool* success = nullptr) const;
+
+  // Densify in geographic CRS using km step (preserves curvature after projection)
+  void densifyGeographicKm(OGRLineString* line, double stepKm) const;
+  static double metersPerDegLat(double phiRad);
+  static double metersPerDegLon(double phiRad);
+  static double approxSegmentMeters(double lon0, double lat0, double lon1, double lat1);
+
+  // Liang–Barsky
+  ClipHit clipSegmentLB(
+      double x0, double y0, double x1, double y1, const ProjectionBoundary& b) const;
+  static void snapToBoundaryPoint(OGRPoint& p, const ProjectionBoundary& b, double tol);
+
+  static void appendPointIfDifferent(OGRLineString& ls, const OGRPoint& p, double eps);
+
+  // Clip a projected polyline to bounds => inside runs (LineStrings)
+  std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(
+      const OGRLineString& proj, const ProjectionBoundary& b) const;
+
+  // Special for rings: merge wrap-around segments if they connect (cyclic continuity)
+  static void mergeCyclicRunsIfConnected(std::vector<std::unique_ptr<OGRLineString>>& runs,
+                                         double eps);
+
+  // Ring closure
+  static bool isRingClosed(const OGRLineString& ls, double eps = 1e-8);
+  static std::unique_ptr<OGRLinearRing> toClosedRing(const OGRLineString& ls);
+
+  // Boundary traversal
+  bool isOnBoundary(const OGRPoint& p, const ProjectionBoundary& b, double tol) const;
+  double boundaryS(const OGRPoint& p, const ProjectionBoundary& b, double tol) const;
+  std::vector<OGRPoint> boundaryPathShortest(const OGRPoint& startOnB,
+                                             const OGRPoint& endOnB,
+                                             const ProjectionBoundary& b) const;
+
+  // Directed boundary walk (goCW=true follows increasing boundaryS: BL->BR->TR->TL->BL)
+  std::vector<OGRPoint> boundaryPathDirected(const OGRPoint& startOnB,
+                                             const OGRPoint& endOnB,
+                                             const ProjectionBoundary& b,
+                                             bool goCW) const;
+
+  // Build a closed ring from an open run by walking bbox boundary from last->first
+  std::unique_ptr<OGRLinearRing> closeRunAlongBoundary(const OGRLineString& run,
+                                                       const ProjectionBoundary& b,
+                                                       bool goCW) const;
+
+  // Polygon splitting: exterior runs => polygon pieces; hole runs => interior rings or boundary
+  // cuts
+  std::unique_ptr<OGRGeometry> splitPolygonWithHolesFast(const OGRPolygon* polygon) const;
+
+  // Merge open hole run as a cut into exterior ring (boundary-parameter insertion)
+  std::unique_ptr<OGRLinearRing> mergeOpenHoleRunAsCut(const OGRLinearRing& exterior,
+                                                       const OGRLineString& holeRun,
+                                                       const ProjectionBoundary& b) const;
+
+  int ensureBoundaryVertex(OGRLinearRing& ring,
+                           const OGRPoint& pOnBoundary,
+                           const ProjectionBoundary& b,
+                           double tol) const;
+
+  bool boundaryEdgeContainsS(double s0, double s1, double s, double per) const;
+
+  // ---- best-effort projection helpers ----
+  std::vector<std::unique_ptr<OGRLineString>> projectToProjectedRunsBestEffort(
+      const OGRLineString& geo) const;
+
+  std::vector<std::unique_ptr<OGRLineString>> clipRunsToBounds(
+      const std::vector<std::unique_ptr<OGRLineString>>& projectedRuns,
+      const ProjectionBoundary& b) const;
+
+  // ---- polygon assembly helpers ----
+  std::vector<std::unique_ptr<OGRPolygon>> buildShellsFromExteriorRuns(
+      std::vector<std::unique_ptr<OGRLineString>>& extRuns, const ProjectionBoundary& b) const;
+
+  std::vector<std::unique_ptr<OGRLinearRing>> cloneInteriorRings(const OGRPolygon& shell) const;
+
+  void attachClosedHoleRingToShells(const OGRLinearRing& holeRing,
+                                    std::vector<std::unique_ptr<OGRPolygon>>& shells) const;
+
+  void applyOpenHoleRunAsCut(const OGRLineString& openRun,
+                             const ProjectionBoundary& b,
+                             std::vector<std::unique_ptr<OGRPolygon>>& shells) const;
+
+  // ---- boundary traversal refactor ----
+  enum class Corner : int
+  {
+    BL = 0,
+    BR = 1,
+    TR = 2,
+    TL = 3
+  };
+
+  OGRPoint cornerPoint(Corner c, const ProjectionBoundary& b) const;
+  double cornerS(Corner c, const ProjectionBoundary& b) const;
+  double nextCornerS(double s, const ProjectionBoundary& b, double tol) const;
+  double prevCornerS(double s, const ProjectionBoundary& b, double tol) const;
+
+  void appendCornerByS(double s,
+                       const ProjectionBoundary& b,
+                       double tol,
+                       std::vector<OGRPoint>& out) const;
+
+  std::vector<OGRPoint> boundaryPathCore(const OGRPoint& startOnB,
+                                         const OGRPoint& endOnB,
+                                         const ProjectionBoundary& b,
+                                         bool goCW) const;
+
+  // ---- open-hole cut merge helpers ----
+  struct BoundaryParams
+  {
+    double tol;
+    double eps;
+    double w;
+    double h;
+    double per;
+  };
+
+  BoundaryParams boundaryParams(const ProjectionBoundary& b) const;
+
+  static OGRLinearRing copyExteriorRing(const OGRLinearRing& exterior);
+
+  bool getSnappedRunEndpointsOnBoundary(const OGRLineString& holeRun,
+                                        const ProjectionBoundary& b,
+                                        const BoundaryParams& bp,
+                                        OGRPoint& hs,
+                                        OGRPoint& he) const;
+
+  bool ensureEndpointsAsBoundaryVertices(OGRLinearRing& ext,
+                                         const ProjectionBoundary& b,
+                                         const BoundaryParams& bp,
+                                         const OGRPoint& hs,
+                                         const OGRPoint& he,
+                                         int& iHs,
+                                         int& iHe) const;
+
+  bool chooseReplaceForwardArc(const OGRLinearRing& ext,
+                               int iHs,
+                               int iHe,
+                               const ProjectionBoundary& b,
+                               const BoundaryParams& bp) const;
+
+  void appendReversedHoleRun(OGRLinearRing& out,
+                             const OGRLineString& holeRun,
+                             const BoundaryParams& bp,
+                             const OGRPoint& heV) const;
+
+  void appendKeptExteriorArc(OGRLinearRing& out,
+                             const OGRLinearRing& ext,
+                             int iHs,
+                             int iHe,
+                             bool replaceForward,
+                             const BoundaryParams& bp) const;
+
+  double deltaSInc(double s1, double s2, double per) const;
+
+  double increasingBoundaryAdvanceScore(const OGRLinearRing& ext,
+                                        int from,
+                                        int to,
+                                        bool forward,
+                                        const ProjectionBoundary& b,
+                                        const BoundaryParams& bp) const;
+
+  double boundaryLengthOnArc(const OGRLinearRing& ext,
+                             int from,
+                             int to,
+                             bool forward,
+                             const ProjectionBoundary& b,
+                             const BoundaryParams& bp) const;
+
+  // ---- boundary classification helpers ----
+  enum class BEdge : int
+  {
+    Bottom = 0,
+    Right = 1,
+    Top = 2,
+    Left = 3,
+    None = 4
+  };
+
+  BEdge classifyBoundaryEdge(const OGRPoint& p, const ProjectionBoundary& b, double tol) const;
+  bool pointOnEdge(const OGRPoint& p, BEdge e, const ProjectionBoundary& b, double tol) const;
+  bool segmentOnSameEdge(
+      const OGRPoint& a, const OGRPoint& c, BEdge e, const ProjectionBoundary& b, double tol) const;
+
+  static bool betweenInclusive(double a, double c, double v, double tol);
+
+  int findInsertAfterIndexOnBoundaryEdge(const OGRLinearRing& ring,
+                                         const OGRPoint& pOnBoundary,
+                                         BEdge edge,
+                                         const ProjectionBoundary& b,
+                                         double tol) const;
+
+  // ---- clipping helpers ----
+  void finalizeCurrentRun(std::vector<std::unique_ptr<OGRLineString>>& runs,
+                          std::unique_ptr<OGRLineString>& cur) const;
+
+  void appendSegmentToCurrentRun(std::unique_ptr<OGRLineString>& cur,
+                                 const OGRPoint& a,
+                                 const OGRPoint& c,
+                                 double eps) const;
+};
+
 // ------------------------------ ctor/dtor ------------------------------
 
-GeometryProjector::GeometryProjector(OGRSpatialReference* sourceSRS, OGRSpatialReference* targetSRS)
+GeometryProjector::Impl::Impl(OGRSpatialReference* sourceSRS, OGRSpatialReference* targetSRS)
 {
   if (!sourceSRS || !targetSRS)
     throw std::runtime_error("GeometryProjector: source/target SRS must be non-null");
@@ -131,7 +402,7 @@ GeometryProjector::GeometryProjector(OGRSpatialReference* sourceSRS, OGRSpatialR
 
 // ------------------------------ public API ------------------------------
 
-void GeometryProjector::setProjectedBounds(double minX, double minY, double maxX, double maxY)
+void GeometryProjector::Impl::setProjectedBounds(double minX, double minY, double maxX, double maxY)
 {
   m_projectedBounds[0] = minX;
   m_projectedBounds[1] = minY;
@@ -147,12 +418,12 @@ void GeometryProjector::setProjectedBounds(double minX, double minY, double maxX
   }
 }
 
-void GeometryProjector::setDensifyResolutionKm(double km)
+void GeometryProjector::Impl::setDensifyResolutionKm(double km)
 {
   m_densifyKm = km;
 }
 
-std::unique_ptr<OGRGeometry> GeometryProjector::projectGeometry(const OGRGeometry* geom)
+std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectGeometry(const OGRGeometry* geom)
 {
   if (!geom)
     return nullptr;
@@ -182,20 +453,20 @@ std::unique_ptr<OGRGeometry> GeometryProjector::projectGeometry(const OGRGeometr
   }
 }
 
-void GeometryProjector::setJumpThreshold(double threshold)
+void GeometryProjector::Impl::setJumpThreshold(double threshold)
 {
   m_jumpThreshold = threshold;
   m_autoThreshold = false;
 }
 
-void GeometryProjector::setPoleHandling(bool enable)
+void GeometryProjector::Impl::setPoleHandling(bool enable)
 {
   m_handlePoles = enable;
 }
 
 // ------------------------------ core dispatch helpers ------------------------------
 
-std::unique_ptr<OGRGeometry> GeometryProjector::projectPoint(const OGRPoint* point)
+std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPoint(const OGRPoint* point)
 {
   if (!point || point->IsEmpty())
     return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbPoint));
@@ -211,7 +482,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::projectPoint(const OGRPoint* poi
   return std::unique_ptr<OGRGeometry>(p.release());
 }
 
-std::unique_ptr<OGRGeometry> GeometryProjector::projectLineString(const OGRLineString* line)
+std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(const OGRLineString* line)
 {
   if (!line || line->IsEmpty())
     return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbLineString));
@@ -237,7 +508,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::projectLineString(const OGRLineS
   return std::unique_ptr<OGRGeometry>(ml);
 }
 
-std::unique_ptr<OGRGeometry> GeometryProjector::projectPolygon(const OGRPolygon* polygon)
+std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPolygon(const OGRPolygon* polygon)
 {
   if (!polygon || polygon->IsEmpty())
     return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbPolygon));
@@ -245,7 +516,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::projectPolygon(const OGRPolygon*
   return splitPolygonWithHolesFast(polygon);
 }
 
-std::unique_ptr<OGRGeometry> GeometryProjector::projectMultiGeometry(
+std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectMultiGeometry(
     const OGRGeometryCollection* collection)
 {
   if (!collection || collection->IsEmpty())
@@ -278,7 +549,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::projectMultiGeometry(
 
 // ------------------------------ basic helpers ------------------------------
 
-GeometryProjector::ProjectionBoundary GeometryProjector::getProjectionBoundary() const
+GeometryProjector::Impl::ProjectionBoundary GeometryProjector::Impl::getProjectionBoundary() const
 {
   ProjectionBoundary b;
   b.minX = m_projectedBounds[0];
@@ -288,15 +559,15 @@ GeometryProjector::ProjectionBoundary GeometryProjector::getProjectionBoundary()
   return b;
 }
 
-bool GeometryProjector::isInsideBounds(double x, double y) const
+bool GeometryProjector::Impl::isInsideBounds(double x, double y) const
 {
   ProjectionBoundary b = getProjectionBoundary();
   return pointInBounds(x, y, b.minX, b.minY, b.maxX, b.maxY);
 }
 
-std::unique_ptr<OGRPoint> GeometryProjector::projectSinglePoint(double x,
-                                                                double y,
-                                                                bool* success) const
+std::unique_ptr<OGRPoint> GeometryProjector::Impl::projectSinglePoint(double x,
+                                                                      double y,
+                                                                      bool* success) const
 {
   double px = x, py = y;
   if (m_transform->Transform(1, &px, &py) == FALSE || !std::isfinite(px) || !std::isfinite(py))
@@ -310,8 +581,8 @@ std::unique_ptr<OGRPoint> GeometryProjector::projectSinglePoint(double x,
   return std::make_unique<OGRPoint>(px, py);
 }
 
-std::vector<std::unique_ptr<OGRLineString>> GeometryProjector::projectToProjectedRunsBestEffort(
-    const OGRLineString& geo) const
+std::vector<std::unique_ptr<OGRLineString>>
+GeometryProjector::Impl::projectToProjectedRunsBestEffort(const OGRLineString& geo) const
 {
   std::vector<std::unique_ptr<OGRLineString>> runs;
   auto cur = std::make_unique<OGRLineString>();
@@ -339,7 +610,7 @@ std::vector<std::unique_ptr<OGRLineString>> GeometryProjector::projectToProjecte
   return runs;
 }
 
-std::vector<std::unique_ptr<OGRLineString>> GeometryProjector::clipRunsToBounds(
+std::vector<std::unique_ptr<OGRLineString>> GeometryProjector::Impl::clipRunsToBounds(
     const std::vector<std::unique_ptr<OGRLineString>>& projectedRuns,
     const ProjectionBoundary& b) const
 {
@@ -358,7 +629,7 @@ std::vector<std::unique_ptr<OGRLineString>> GeometryProjector::clipRunsToBounds(
 
 // ------------------------------ polygon assembly helpers ------------------------------
 
-std::vector<std::unique_ptr<OGRPolygon>> GeometryProjector::buildShellsFromExteriorRuns(
+std::vector<std::unique_ptr<OGRPolygon>> GeometryProjector::Impl::buildShellsFromExteriorRuns(
     std::vector<std::unique_ptr<OGRLineString>>& extRuns, const ProjectionBoundary& b) const
 {
   std::vector<std::unique_ptr<OGRPolygon>> shells;
@@ -383,7 +654,7 @@ std::vector<std::unique_ptr<OGRPolygon>> GeometryProjector::buildShellsFromExter
   return shells;
 }
 
-std::vector<std::unique_ptr<OGRLinearRing>> GeometryProjector::cloneInteriorRings(
+std::vector<std::unique_ptr<OGRLinearRing>> GeometryProjector::Impl::cloneInteriorRings(
     const OGRPolygon& shell) const
 {
   std::vector<std::unique_ptr<OGRLinearRing>> keep;
@@ -404,7 +675,7 @@ std::vector<std::unique_ptr<OGRLinearRing>> GeometryProjector::cloneInteriorRing
   return keep;
 }
 
-void GeometryProjector::attachClosedHoleRingToShells(
+void GeometryProjector::Impl::attachClosedHoleRingToShells(
     const OGRLinearRing& holeRing, std::vector<std::unique_ptr<OGRPolygon>>& shells) const
 {
   OGRPolygon holePoly;
@@ -423,7 +694,7 @@ void GeometryProjector::attachClosedHoleRingToShells(
   }
 }
 
-void GeometryProjector::applyOpenHoleRunAsCut(
+void GeometryProjector::Impl::applyOpenHoleRunAsCut(
     const OGRLineString& openRun,
     const ProjectionBoundary& b,
     std::vector<std::unique_ptr<OGRPolygon>>& shells) const
@@ -459,7 +730,7 @@ void GeometryProjector::applyOpenHoleRunAsCut(
 
 // ------------------------------ corner utilities + core walk ------------------------------
 
-OGRPoint GeometryProjector::cornerPoint(Corner c, const ProjectionBoundary& b) const
+OGRPoint GeometryProjector::Impl::cornerPoint(Corner c, const ProjectionBoundary& b) const
 {
   switch (c)
   {
@@ -475,7 +746,7 @@ OGRPoint GeometryProjector::cornerPoint(Corner c, const ProjectionBoundary& b) c
   return OGRPoint(b.minX, b.minY);
 }
 
-double GeometryProjector::cornerS(Corner c, const ProjectionBoundary& b) const
+double GeometryProjector::Impl::cornerS(Corner c, const ProjectionBoundary& b) const
 {
   const double w = b.maxX - b.minX;
   const double h = b.maxY - b.minY;
@@ -493,7 +764,7 @@ double GeometryProjector::cornerS(Corner c, const ProjectionBoundary& b) const
   return 0.0;
 }
 
-double GeometryProjector::nextCornerS(double s, const ProjectionBoundary& b, double tol) const
+double GeometryProjector::Impl::nextCornerS(double s, const ProjectionBoundary& b, double tol) const
 {
   const double w = b.maxX - b.minX;
   const double h = b.maxY - b.minY;
@@ -508,7 +779,7 @@ double GeometryProjector::nextCornerS(double s, const ProjectionBoundary& b, dou
   return per;
 }
 
-double GeometryProjector::prevCornerS(double s, const ProjectionBoundary& b, double tol) const
+double GeometryProjector::Impl::prevCornerS(double s, const ProjectionBoundary& b, double tol) const
 {
   const double w = b.maxX - b.minX;
   const double h = b.maxY - b.minY;
@@ -522,10 +793,10 @@ double GeometryProjector::prevCornerS(double s, const ProjectionBoundary& b, dou
   return 0.0;
 }
 
-void GeometryProjector::appendCornerByS(double s,
-                                        const ProjectionBoundary& b,
-                                        double tol,
-                                        std::vector<OGRPoint>& out) const
+void GeometryProjector::Impl::appendCornerByS(double s,
+                                              const ProjectionBoundary& b,
+                                              double tol,
+                                              std::vector<OGRPoint>& out) const
 {
   if (nearlyEqual(s, cornerS(Corner::BL, b), tol))
     out.push_back(cornerPoint(Corner::BL, b));
@@ -537,10 +808,10 @@ void GeometryProjector::appendCornerByS(double s,
     out.push_back(cornerPoint(Corner::TL, b));
 }
 
-std::vector<OGRPoint> GeometryProjector::boundaryPathCore(const OGRPoint& startOnB,
-                                                          const OGRPoint& endOnB,
-                                                          const ProjectionBoundary& b,
-                                                          bool goCW) const
+std::vector<OGRPoint> GeometryProjector::Impl::boundaryPathCore(const OGRPoint& startOnB,
+                                                                const OGRPoint& endOnB,
+                                                                const ProjectionBoundary& b,
+                                                                bool goCW) const
 {
   const double tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
   const double w = b.maxX - b.minX;
@@ -617,17 +888,20 @@ std::vector<OGRPoint> GeometryProjector::boundaryPathCore(const OGRPoint& startO
 
 // ------------------------------ geographic densification ------------------------------
 
-double GeometryProjector::metersPerDegLat(double /*phiRad*/)
+double GeometryProjector::Impl::metersPerDegLat(double /*phiRad*/)
 {
   return 111320.0;
 }
 
-double GeometryProjector::metersPerDegLon(double phiRad)
+double GeometryProjector::Impl::metersPerDegLon(double phiRad)
 {
   return 111320.0 * std::cos(phiRad);
 }
 
-double GeometryProjector::approxSegmentMeters(double lon0, double lat0, double lon1, double lat1)
+double GeometryProjector::Impl::approxSegmentMeters(double lon0,
+                                                    double lat0,
+                                                    double lon1,
+                                                    double lat1)
 {
   const double phi = 0.5 * (lat0 + lat1) * kDegToRad;
   const double dx = (lon1 - lon0) * metersPerDegLon(phi);
@@ -635,7 +909,7 @@ double GeometryProjector::approxSegmentMeters(double lon0, double lat0, double l
   return std::sqrt(dx * dx + dy * dy);
 }
 
-void GeometryProjector::densifyGeographicKm(OGRLineString* line, double stepKm) const
+void GeometryProjector::Impl::densifyGeographicKm(OGRLineString* line, double stepKm) const
 {
   if (!line || line->getNumPoints() < 2)
     return;
@@ -674,7 +948,7 @@ void GeometryProjector::densifyGeographicKm(OGRLineString* line, double stepKm) 
 
 // ------------------------------ clipping (Liang–Barsky) ------------------------------
 
-GeometryProjector::ClipHit GeometryProjector::clipSegmentLB(
+GeometryProjector::Impl::ClipHit GeometryProjector::Impl::clipSegmentLB(
     double x0, double y0, double x1, double y1, const ProjectionBoundary& b) const
 {
   ClipHit hit;
@@ -724,7 +998,9 @@ GeometryProjector::ClipHit GeometryProjector::clipSegmentLB(
   return hit;
 }
 
-void GeometryProjector::snapToBoundaryPoint(OGRPoint& p, const ProjectionBoundary& b, double tol)
+void GeometryProjector::Impl::snapToBoundaryPoint(OGRPoint& p,
+                                                  const ProjectionBoundary& b,
+                                                  double tol)
 {
   if (std::abs(p.getX() - b.minX) <= tol)
     p.setX(b.minX);
@@ -737,7 +1013,9 @@ void GeometryProjector::snapToBoundaryPoint(OGRPoint& p, const ProjectionBoundar
     p.setY(b.maxY);
 }
 
-void GeometryProjector::appendPointIfDifferent(OGRLineString& ls, const OGRPoint& p, double eps)
+void GeometryProjector::Impl::appendPointIfDifferent(OGRLineString& ls,
+                                                     const OGRPoint& p,
+                                                     double eps)
 {
   const int n = ls.getNumPoints();
   if (n == 0)
@@ -749,7 +1027,7 @@ void GeometryProjector::appendPointIfDifferent(OGRLineString& ls, const OGRPoint
     ls.addPoint(&p);
 }
 
-std::vector<std::unique_ptr<OGRLineString>> GeometryProjector::clipProjectedLineToBounds(
+std::vector<std::unique_ptr<OGRLineString>> GeometryProjector::Impl::clipProjectedLineToBounds(
     const OGRLineString& proj, const ProjectionBoundary& b) const
 {
   std::vector<std::unique_ptr<OGRLineString>> runs;
@@ -794,7 +1072,7 @@ std::vector<std::unique_ptr<OGRLineString>> GeometryProjector::clipProjectedLine
   return runs;
 }
 
-void GeometryProjector::mergeCyclicRunsIfConnected(
+void GeometryProjector::Impl::mergeCyclicRunsIfConnected(
     std::vector<std::unique_ptr<OGRLineString>>& runs, double eps)
 {
   if (runs.size() < 2)
@@ -822,7 +1100,7 @@ void GeometryProjector::mergeCyclicRunsIfConnected(
 
 // ------------------------------ ring helpers ------------------------------
 
-bool GeometryProjector::isRingClosed(const OGRLineString& ls, double eps)
+bool GeometryProjector::Impl::isRingClosed(const OGRLineString& ls, double eps)
 {
   const int n = ls.getNumPoints();
   if (n < 4)
@@ -831,7 +1109,7 @@ bool GeometryProjector::isRingClosed(const OGRLineString& ls, double eps)
          nearlyEqual(ls.getY(0), ls.getY(n - 1), eps);
 }
 
-std::unique_ptr<OGRLinearRing> GeometryProjector::toClosedRing(const OGRLineString& ls)
+std::unique_ptr<OGRLinearRing> GeometryProjector::Impl::toClosedRing(const OGRLineString& ls)
 {
   auto r = std::make_unique<OGRLinearRing>();
   for (int i = 0; i < ls.getNumPoints(); ++i)
@@ -843,17 +1121,17 @@ std::unique_ptr<OGRLinearRing> GeometryProjector::toClosedRing(const OGRLineStri
 
 // ------------------------------ boundary traversal ------------------------------
 
-bool GeometryProjector::isOnBoundary(const OGRPoint& p,
-                                     const ProjectionBoundary& b,
-                                     double tol) const
+bool GeometryProjector::Impl::isOnBoundary(const OGRPoint& p,
+                                           const ProjectionBoundary& b,
+                                           double tol) const
 {
   return (std::abs(p.getX() - b.minX) <= tol || std::abs(p.getX() - b.maxX) <= tol ||
           std::abs(p.getY() - b.minY) <= tol || std::abs(p.getY() - b.maxY) <= tol);
 }
 
-double GeometryProjector::boundaryS(const OGRPoint& pin,
-                                    const ProjectionBoundary& b,
-                                    double tol) const
+double GeometryProjector::Impl::boundaryS(const OGRPoint& pin,
+                                          const ProjectionBoundary& b,
+                                          double tol) const
 {
   OGRPoint p = pin;
   snapToBoundaryPoint(p, b, tol);
@@ -873,17 +1151,16 @@ double GeometryProjector::boundaryS(const OGRPoint& pin,
   return w + h + w + std::clamp(b.maxY - p.getY(), 0.0, h);
 }
 
-std::vector<OGRPoint> GeometryProjector::boundaryPathDirected(const OGRPoint& startOnB,
-                                                              const OGRPoint& endOnB,
-                                                              const ProjectionBoundary& b,
-                                                              bool goCW) const
+std::vector<OGRPoint> GeometryProjector::Impl::boundaryPathDirected(const OGRPoint& startOnB,
+                                                                    const OGRPoint& endOnB,
+                                                                    const ProjectionBoundary& b,
+                                                                    bool goCW) const
 {
   return boundaryPathCore(startOnB, endOnB, b, goCW);
 }
 
-std::vector<OGRPoint> GeometryProjector::boundaryPathShortest(const OGRPoint& startOnB,
-                                                              const OGRPoint& endOnB,
-                                                              const ProjectionBoundary& b) const
+std::vector<OGRPoint> GeometryProjector::Impl::boundaryPathShortest(
+    const OGRPoint& startOnB, const OGRPoint& endOnB, const ProjectionBoundary& b) const
 {
   const double tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
   const double w = b.maxX - b.minX;
@@ -906,9 +1183,8 @@ std::vector<OGRPoint> GeometryProjector::boundaryPathShortest(const OGRPoint& st
   return boundaryPathCore(a, c, b, goCW);
 }
 
-std::unique_ptr<OGRLinearRing> GeometryProjector::closeRunAlongBoundary(const OGRLineString& run,
-                                                                        const ProjectionBoundary& b,
-                                                                        bool goCW) const
+std::unique_ptr<OGRLinearRing> GeometryProjector::Impl::closeRunAlongBoundary(
+    const OGRLineString& run, const ProjectionBoundary& b, bool goCW) const
 {
   const double tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
   const double eps = ringEps(b.minX, b.minY, b.maxX, b.maxY);
@@ -949,7 +1225,10 @@ std::unique_ptr<OGRLinearRing> GeometryProjector::closeRunAlongBoundary(const OG
 
 // ------------------------------ polygon splitting + hole cuts ------------------------------
 
-bool GeometryProjector::boundaryEdgeContainsS(double s0, double s1, double s, double per) const
+bool GeometryProjector::Impl::boundaryEdgeContainsS(double s0,
+                                                    double s1,
+                                                    double s,
+                                                    double per) const
 {
   if (s0 <= s1)
     return (s >= s0 && s <= s1);
@@ -958,9 +1237,8 @@ bool GeometryProjector::boundaryEdgeContainsS(double s0, double s1, double s, do
 
 // ------------------------------ boundary classification helpers ------------------------------
 
-GeometryProjector::BEdge GeometryProjector::classifyBoundaryEdge(const OGRPoint& pin,
-                                                                 const ProjectionBoundary& b,
-                                                                 double tol) const
+GeometryProjector::Impl::BEdge GeometryProjector::Impl::classifyBoundaryEdge(
+    const OGRPoint& pin, const ProjectionBoundary& b, double tol) const
 {
   OGRPoint p = pin;
   snapToBoundaryPoint(p, b, tol);
@@ -976,10 +1254,10 @@ GeometryProjector::BEdge GeometryProjector::classifyBoundaryEdge(const OGRPoint&
   return BEdge::None;
 }
 
-bool GeometryProjector::pointOnEdge(const OGRPoint& pin,
-                                    BEdge e,
-                                    const ProjectionBoundary& b,
-                                    double tol) const
+bool GeometryProjector::Impl::pointOnEdge(const OGRPoint& pin,
+                                          BEdge e,
+                                          const ProjectionBoundary& b,
+                                          double tol) const
 {
   OGRPoint p = pin;
   snapToBoundaryPoint(p, b, tol);
@@ -999,24 +1277,24 @@ bool GeometryProjector::pointOnEdge(const OGRPoint& pin,
   }
 }
 
-bool GeometryProjector::segmentOnSameEdge(
+bool GeometryProjector::Impl::segmentOnSameEdge(
     const OGRPoint& a, const OGRPoint& c, BEdge e, const ProjectionBoundary& b, double tol) const
 {
   return pointOnEdge(a, e, b, tol) && pointOnEdge(c, e, b, tol);
 }
 
-bool GeometryProjector::betweenInclusive(double a, double c, double v, double tol)
+bool GeometryProjector::Impl::betweenInclusive(double a, double c, double v, double tol)
 {
   const double lo = std::min(a, c) - tol;
   const double hi = std::max(a, c) + tol;
   return v >= lo && v <= hi;
 }
 
-int GeometryProjector::findInsertAfterIndexOnBoundaryEdge(const OGRLinearRing& ring,
-                                                          const OGRPoint& pOnBoundary,
-                                                          BEdge edge,
-                                                          const ProjectionBoundary& b,
-                                                          double tol) const
+int GeometryProjector::Impl::findInsertAfterIndexOnBoundaryEdge(const OGRLinearRing& ring,
+                                                                const OGRPoint& pOnBoundary,
+                                                                BEdge edge,
+                                                                const ProjectionBoundary& b,
+                                                                double tol) const
 {
   const int n = ring.getNumPoints();
   if (n < 4)
@@ -1063,18 +1341,18 @@ int GeometryProjector::findInsertAfterIndexOnBoundaryEdge(const OGRLinearRing& r
 
 // ------------------------------ clipping helpers ------------------------------
 
-void GeometryProjector::finalizeCurrentRun(std::vector<std::unique_ptr<OGRLineString>>& runs,
-                                           std::unique_ptr<OGRLineString>& cur) const
+void GeometryProjector::Impl::finalizeCurrentRun(std::vector<std::unique_ptr<OGRLineString>>& runs,
+                                                 std::unique_ptr<OGRLineString>& cur) const
 {
   if (cur && cur->getNumPoints() >= 2)
     runs.emplace_back(std::move(cur));
   cur.reset();
 }
 
-void GeometryProjector::appendSegmentToCurrentRun(std::unique_ptr<OGRLineString>& cur,
-                                                  const OGRPoint& a,
-                                                  const OGRPoint& c,
-                                                  double eps) const
+void GeometryProjector::Impl::appendSegmentToCurrentRun(std::unique_ptr<OGRLineString>& cur,
+                                                        const OGRPoint& a,
+                                                        const OGRPoint& c,
+                                                        double eps) const
 {
   if (!cur)
     cur = std::make_unique<OGRLineString>();
@@ -1087,10 +1365,10 @@ void GeometryProjector::appendSegmentToCurrentRun(std::unique_ptr<OGRLineString>
   appendPointIfDifferent(*cur, c, eps);
 }
 
-int GeometryProjector::ensureBoundaryVertex(OGRLinearRing& ring,
-                                            const OGRPoint& pOnBoundaryIn,
-                                            const ProjectionBoundary& b,
-                                            double tol) const
+int GeometryProjector::Impl::ensureBoundaryVertex(OGRLinearRing& ring,
+                                                  const OGRPoint& pOnBoundaryIn,
+                                                  const ProjectionBoundary& b,
+                                                  double tol) const
 {
   ring.closeRings();
   forceExactClosure(ring);
@@ -1142,7 +1420,7 @@ int GeometryProjector::ensureBoundaryVertex(OGRLinearRing& ring,
   return insertAfter + 1;
 }
 
-GeometryProjector::BoundaryParams GeometryProjector::boundaryParams(
+GeometryProjector::Impl::BoundaryParams GeometryProjector::Impl::boundaryParams(
     const ProjectionBoundary& b) const
 {
   BoundaryParams bp;
@@ -1154,7 +1432,7 @@ GeometryProjector::BoundaryParams GeometryProjector::boundaryParams(
   return bp;
 }
 
-OGRLinearRing GeometryProjector::copyExteriorRing(const OGRLinearRing& exterior)
+OGRLinearRing GeometryProjector::Impl::copyExteriorRing(const OGRLinearRing& exterior)
 {
   OGRLinearRing ext;
   ext.addSubLineString(&exterior, 0, exterior.getNumPoints() - 1);
@@ -1163,11 +1441,11 @@ OGRLinearRing GeometryProjector::copyExteriorRing(const OGRLinearRing& exterior)
   return ext;
 }
 
-bool GeometryProjector::getSnappedRunEndpointsOnBoundary(const OGRLineString& holeRun,
-                                                         const ProjectionBoundary& b,
-                                                         const BoundaryParams& bp,
-                                                         OGRPoint& hs,
-                                                         OGRPoint& he) const
+bool GeometryProjector::Impl::getSnappedRunEndpointsOnBoundary(const OGRLineString& holeRun,
+                                                               const ProjectionBoundary& b,
+                                                               const BoundaryParams& bp,
+                                                               OGRPoint& hs,
+                                                               OGRPoint& he) const
 {
   if (holeRun.getNumPoints() < 2)
     return false;
@@ -1181,13 +1459,13 @@ bool GeometryProjector::getSnappedRunEndpointsOnBoundary(const OGRLineString& ho
   return isOnBoundary(hs, b, bp.tol) && isOnBoundary(he, b, bp.tol);
 }
 
-bool GeometryProjector::ensureEndpointsAsBoundaryVertices(OGRLinearRing& ext,
-                                                          const ProjectionBoundary& b,
-                                                          const BoundaryParams& bp,
-                                                          const OGRPoint& hs,
-                                                          const OGRPoint& he,
-                                                          int& iHs,
-                                                          int& iHe) const
+bool GeometryProjector::Impl::ensureEndpointsAsBoundaryVertices(OGRLinearRing& ext,
+                                                                const ProjectionBoundary& b,
+                                                                const BoundaryParams& bp,
+                                                                const OGRPoint& hs,
+                                                                const OGRPoint& he,
+                                                                int& iHs,
+                                                                int& iHe) const
 {
   iHs = ensureBoundaryVertex(ext, hs, b, bp.tol);
   iHe = ensureBoundaryVertex(ext, he, b, bp.tol);
@@ -1211,7 +1489,7 @@ bool GeometryProjector::ensureEndpointsAsBoundaryVertices(OGRLinearRing& ext,
   return true;
 }
 
-double GeometryProjector::deltaSInc(double s1, double s2, double per) const
+double GeometryProjector::Impl::deltaSInc(double s1, double s2, double per) const
 {
   double d = s2 - s1;
   if (d > 0.5 * per)
@@ -1221,12 +1499,12 @@ double GeometryProjector::deltaSInc(double s1, double s2, double per) const
   return d;  // positive => increasing boundaryS
 }
 
-double GeometryProjector::increasingBoundaryAdvanceScore(const OGRLinearRing& ext,
-                                                         int from,
-                                                         int to,
-                                                         bool forward,
-                                                         const ProjectionBoundary& b,
-                                                         const BoundaryParams& bp) const
+double GeometryProjector::Impl::increasingBoundaryAdvanceScore(const OGRLinearRing& ext,
+                                                               int from,
+                                                               int to,
+                                                               bool forward,
+                                                               const ProjectionBoundary& b,
+                                                               const BoundaryParams& bp) const
 {
   const int n = ext.getNumPoints();
   const int m = n - 1;
@@ -1265,12 +1543,12 @@ double GeometryProjector::increasingBoundaryAdvanceScore(const OGRLinearRing& ex
   return score;
 }
 
-double GeometryProjector::boundaryLengthOnArc(const OGRLinearRing& ext,
-                                              int from,
-                                              int to,
-                                              bool forward,
-                                              const ProjectionBoundary& b,
-                                              const BoundaryParams& bp) const
+double GeometryProjector::Impl::boundaryLengthOnArc(const OGRLinearRing& ext,
+                                                    int from,
+                                                    int to,
+                                                    bool forward,
+                                                    const ProjectionBoundary& b,
+                                                    const BoundaryParams& bp) const
 {
   const int n = ext.getNumPoints();
   const int m = n - 1;
@@ -1306,11 +1584,11 @@ double GeometryProjector::boundaryLengthOnArc(const OGRLinearRing& ext,
   return len;
 }
 
-bool GeometryProjector::chooseReplaceForwardArc(const OGRLinearRing& ext,
-                                                int iHs,
-                                                int iHe,
-                                                const ProjectionBoundary& b,
-                                                const BoundaryParams& bp) const
+bool GeometryProjector::Impl::chooseReplaceForwardArc(const OGRLinearRing& ext,
+                                                      int iHs,
+                                                      int iHe,
+                                                      const ProjectionBoundary& b,
+                                                      const BoundaryParams& bp) const
 {
   const double incF = increasingBoundaryAdvanceScore(ext, iHs, iHe, /*forward=*/true, b, bp);
   const double incB = increasingBoundaryAdvanceScore(ext, iHs, iHe, /*forward=*/false, b, bp);
@@ -1323,10 +1601,10 @@ bool GeometryProjector::chooseReplaceForwardArc(const OGRLinearRing& ext,
   return (lenF >= lenB);
 }
 
-void GeometryProjector::appendReversedHoleRun(OGRLinearRing& out,
-                                              const OGRLineString& holeRun,
-                                              const BoundaryParams& bp,
-                                              const OGRPoint& heV) const
+void GeometryProjector::Impl::appendReversedHoleRun(OGRLinearRing& out,
+                                                    const OGRLineString& holeRun,
+                                                    const BoundaryParams& bp,
+                                                    const OGRPoint& heV) const
 {
   const int nRun = holeRun.getNumPoints();
   if (nRun < 2)
@@ -1343,12 +1621,12 @@ void GeometryProjector::appendReversedHoleRun(OGRLinearRing& out,
     out.addPoint(holeRun.getX(i), holeRun.getY(i));
 }
 
-void GeometryProjector::appendKeptExteriorArc(OGRLinearRing& out,
-                                              const OGRLinearRing& ext,
-                                              int iHs,
-                                              int iHe,
-                                              bool replaceForward,
-                                              const BoundaryParams& /*bp*/) const
+void GeometryProjector::Impl::appendKeptExteriorArc(OGRLinearRing& out,
+                                                    const OGRLinearRing& ext,
+                                                    int iHs,
+                                                    int iHe,
+                                                    bool replaceForward,
+                                                    const BoundaryParams& /*bp*/) const
 {
   const int n = ext.getNumPoints();
   const int m = n - 1;
@@ -1377,7 +1655,7 @@ void GeometryProjector::appendKeptExteriorArc(OGRLinearRing& out,
   }
 }
 
-std::unique_ptr<OGRLinearRing> GeometryProjector::mergeOpenHoleRunAsCut(
+std::unique_ptr<OGRLinearRing> GeometryProjector::Impl::mergeOpenHoleRunAsCut(
     const OGRLinearRing& exterior, const OGRLineString& holeRun, const ProjectionBoundary& b) const
 {
   // Assumes OGC-valid input: exterior CCW, holes CW.
@@ -1442,7 +1720,7 @@ std::unique_ptr<OGRLinearRing> GeometryProjector::mergeOpenHoleRunAsCut(
 
 // ------------------------------ splitPolygonWithHolesFast ------------------------------
 
-std::unique_ptr<OGRGeometry> GeometryProjector::splitPolygonWithHolesFast(
+std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
     const OGRPolygon* polygon) const
 {
   ProjectionBoundary b = getProjectionBoundary();
@@ -1503,4 +1781,41 @@ std::unique_ptr<OGRGeometry> GeometryProjector::splitPolygonWithHolesFast(
   for (auto& s : shells)
     mp->addGeometry(s.get());
   return std::unique_ptr<OGRGeometry>(mp);
+}
+
+// ------------------------------ GeometryProjector (public) ------------------------------
+
+GeometryProjector::GeometryProjector(OGRSpatialReference* sourceSRS, OGRSpatialReference* targetSRS)
+    : m_impl(std::make_unique<Impl>(sourceSRS, targetSRS))
+{
+}
+
+GeometryProjector::~GeometryProjector() = default;
+
+GeometryProjector::GeometryProjector(GeometryProjector&&) noexcept = default;
+GeometryProjector& GeometryProjector::operator=(GeometryProjector&&) noexcept = default;
+
+void GeometryProjector::setProjectedBounds(double minX, double minY, double maxX, double maxY)
+{
+  m_impl->setProjectedBounds(minX, minY, maxX, maxY);
+}
+
+void GeometryProjector::setDensifyResolutionKm(double km)
+{
+  m_impl->setDensifyResolutionKm(km);
+}
+
+std::unique_ptr<OGRGeometry> GeometryProjector::projectGeometry(const OGRGeometry* geom)
+{
+  return m_impl->projectGeometry(geom);
+}
+
+void GeometryProjector::setJumpThreshold(double threshold)
+{
+  m_impl->setJumpThreshold(threshold);
+}
+
+void GeometryProjector::setPoleHandling(bool enable)
+{
+  m_impl->setPoleHandling(enable);
 }
