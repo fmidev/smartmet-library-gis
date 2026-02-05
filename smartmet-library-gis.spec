@@ -77,6 +77,7 @@ Requires: smartmet-library-macgyver >= 25.12.2
 #TestRequires: smartmet-library-macgyver
 #TestRequires: smartmet-library-regression
 #TestRequires: smartmet-test-data
+#TestRequires: gtest-devel
 
 %description
 FMI GIS library
