@@ -12,7 +12,7 @@ URL: https://github.com/fmidev/smartmet-library-gis
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 
-BuildRequires: proj95-devel
+BuildRequires: proj97-devel
 
 # https://fedoraproject.org/wiki/Changes/Broken_RPATH_will_fail_rpmbuild
 %global __brp_check_rpaths %{nil}
@@ -25,28 +25,23 @@ BuildRequires: proj95-devel
 %define smartmet_sfcgal SFCGAL
 %endif
 
-%if 0%{?rhel} && 0%{rhel} <= 9
-%define smartmet_fmt_min 11.0.1
-%define smartmet_fmt_max 12.0.0
+%define smartmet_fmt_min 12.0.0
+%define smartmet_fmt_max 13.0.0
 %define smartmet_fmt fmt-libs >= %{smartmet_fmt_min}, fmt-libs < %{smartmet_fmt_max}
 %define smartmet_fmt_devel fmt-devel >= %{smartmet_fmt_min}, fmt-devel < %{smartmet_fmt_max}
-%else
-%define smartmet_fmt fmt
-%define smartmet_fmt_devel fmt-devel
-%endif
 
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: %{smartmet_fmt_devel}
 BuildRequires: gcc-c++
-BuildRequires: proj95-devel
-BuildRequires: gdal310-devel
+BuildRequires: proj97-devel
+BuildRequires: gdal312-devel
 BuildRequires: geos313-devel
 BuildRequires: libtiff-devel >= 4.1
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
 BuildRequires: libcurl-devel >= 7.61.0
-BuildRequires: smartmet-library-macgyver-devel >= 25.12.2
+BuildRequires: smartmet-library-macgyver-devel >= 26.2.4
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -61,16 +56,16 @@ Provides: %{LIBNAME}
 Requires: %{smartmet_boost}-thread
 Requires: %{smartmet_fmt}
 Requires: double-conversion
-Requires: gdal310-libs
+Requires: gdal312-libs
 Requires: geos313
-Requires: proj95
+Requires: proj97
 Requires: libtiff >= 4.1
 Requires: libcurl >= 7.61.0
-Requires: smartmet-library-macgyver >= 25.12.2
+Requires: smartmet-library-macgyver >= 26.2.4
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: %{smartmet_fmt_devel}
 #TestRequires: gcc-c++
-#TestRequires: gdal310-devel
+#TestRequires: gdal312-devel
 #TestRequires: geos313-devel
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
@@ -111,10 +106,10 @@ Requires: geos313-devel
 Requires: %{smartmet_boost}-devel
 Requires: fmt-devel >= 7.1.3
 Requires: gcc-c++
-Requires: gdal310-devel
-Requires: proj95-devel
+Requires: gdal312-devel
+Requires: proj97-devel
 Requires: libtiff-devel >= 4.1
-Requires: smartmet-library-macgyver-devel >= 25.12.2
+Requires: smartmet-library-macgyver-devel >= 26.2.4
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
