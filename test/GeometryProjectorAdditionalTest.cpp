@@ -167,9 +167,9 @@ struct Fixture
   OGRSpatialReference wgs84 = makeSRS(4326);
   OGRSpatialReference tm35 = makeSRS(3067);
 
-  GeometryProjector makeProjector(double densifyKm = 50.0)
+  Fmi::GeometryProjector makeProjector(double densifyKm = 50.0)
   {
-    GeometryProjector p(&wgs84, &tm35);
+    Fmi::GeometryProjector p(&wgs84, &tm35);
     p.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
     p.setDensifyResolutionKm(densifyKm);
     return p;
@@ -228,7 +228,7 @@ TEST(AdditionalTests, ExtremeCoordinates_NearFloatingPointLimits_DoesNotOverflow
   OGRSpatialReference wgs84 = makeSRS(4326);
   OGRSpatialReference webMerc = makeSRS(3857);  // Web Mercator has large coordinates
 
-  GeometryProjector projector(&wgs84, &webMerc);
+  Fmi::GeometryProjector projector(&wgs84, &webMerc);
   projector.setProjectedBounds(largeB.minX, largeB.minY, largeB.maxX, largeB.maxY);
 
   OGRPoint p(0.0, 0.0);
@@ -331,9 +331,9 @@ TEST(AdditionalTests, ProjectionDomainBoundary_GeometryCrossingValidityBoundary)
 
   // Line that crosses from valid TM35 domain (Finland) to invalid (far south)
   OGRLineString line;
-  line.addPoint(25.0, 60.0);   // Valid for TM35
-  line.addPoint(25.0, 40.0);   // Questionable for TM35
-  line.addPoint(25.0, 0.0);    // Invalid for TM35
+  line.addPoint(25.0, 60.0);  // Valid for TM35
+  line.addPoint(25.0, 40.0);  // Questionable for TM35
+  line.addPoint(25.0, 0.0);   // Invalid for TM35
 
   auto out = projector.projectGeometry(&line);
   ASSERT_TRUE(out);
@@ -502,13 +502,13 @@ TEST(AdditionalTests, ComplexHoles_AdjacentHoles_BothExcluded)
   {
     EXPECT_TRUE(allVerticesWithinBounds(out.get(), fx.B));
     EXPECT_TRUE(allPolygonRingsClosed(out.get()));
-    
+
     // Adjacent holes sharing an edge can create "disconnected interior" which
     // is topologically problematic. The projection handles this without crashing,
     // but the result may not pass OGR's strict validity check.
     // We verify the geometry is bounded and closed, but allow invalid topology.
     // If you need valid output, the input should avoid touching holes.
-    
+
     // Optional: Check if valid, but don't fail test if not
     if (!geometryIsValid(out.get()))
     {
@@ -730,7 +730,7 @@ TEST(AdditionalTests, Antimeridian_LineStringCrossingDateline)
 
   Bounds largeB{-20000000, -20000000, 20000000, 20000000};
 
-  GeometryProjector projector(&wgs84, &pacific);
+  Fmi::GeometryProjector projector(&wgs84, &pacific);
   projector.setProjectedBounds(largeB.minX, largeB.minY, largeB.maxX, largeB.maxY);
   projector.setDensifyResolutionKm(100.0);
 
@@ -755,7 +755,7 @@ TEST(AdditionalTests, Antimeridian_PolygonStraddlingDateline)
 
   Bounds largeB{-20000000, -20000000, 20000000, 20000000};
 
-  GeometryProjector projector(&wgs84, &pacific);
+  Fmi::GeometryProjector projector(&wgs84, &pacific);
   projector.setProjectedBounds(largeB.minX, largeB.minY, largeB.maxX, largeB.maxY);
   projector.setDensifyResolutionKm(100.0);
 
@@ -788,7 +788,7 @@ TEST(AdditionalTests, Poles_GeometryNearNorthPole_PoleHandlingEnabled)
 
   Bounds largeB{-10000000, -10000000, 10000000, 10000000};
 
-  GeometryProjector projector(&wgs84, &stereo);
+  Fmi::GeometryProjector projector(&wgs84, &stereo);
   projector.setProjectedBounds(largeB.minX, largeB.minY, largeB.maxX, largeB.maxY);
   projector.setPoleHandling(true);
   projector.setDensifyResolutionKm(100.0);
@@ -823,7 +823,7 @@ TEST(AdditionalTests, Poles_PoleHandlingDisabled_StillDoesNotCrash)
 
   Bounds largeB{-10000000, -10000000, 10000000, 10000000};
 
-  GeometryProjector projector(&wgs84, &stereo);
+  Fmi::GeometryProjector projector(&wgs84, &stereo);
   projector.setProjectedBounds(largeB.minX, largeB.minY, largeB.maxX, largeB.maxY);
   projector.setPoleHandling(false);
 
@@ -933,7 +933,7 @@ TEST(AdditionalTests, BoundaryWalk_ClockwiseWalk_ProducesValidRing)
   // Create a polygon that will definitely clip and require boundary walking
   OGRPolygon poly;
   OGRLinearRing ring;
-  ring.addPoint(5.0, 60.0);   // West of bounds
+  ring.addPoint(5.0, 60.0);  // West of bounds
   ring.addPoint(25.0, 60.0);
   ring.addPoint(25.0, 70.0);
   ring.addPoint(5.0, 70.0);
@@ -965,7 +965,7 @@ TEST(AdditionalTests, DifferentProjections_WebMercator_WorksCorrectly)
 
   Bounds mercBounds{-20000000, -20000000, 20000000, 20000000};
 
-  GeometryProjector projector(&wgs84, &webMerc);
+  Fmi::GeometryProjector projector(&wgs84, &webMerc);
   projector.setProjectedBounds(mercBounds.minX, mercBounds.minY, mercBounds.maxX, mercBounds.maxY);
 
   OGRPoint p(0.0, 0.0);
@@ -984,7 +984,7 @@ TEST(AdditionalTests, DifferentProjections_UTM_Zone33N_WorksCorrectly)
 
   Bounds utmBounds{200000, 6000000, 800000, 8000000};
 
-  GeometryProjector projector(&wgs84, &utm33n);
+  Fmi::GeometryProjector projector(&wgs84, &utm33n);
   projector.setProjectedBounds(utmBounds.minX, utmBounds.minY, utmBounds.maxX, utmBounds.maxY);
 
   OGRPolygon poly;
@@ -1013,7 +1013,7 @@ TEST(AdditionalTests, BoundsConfig_VerySmallBounds_HandlesCorrectly)
   // Very small bounds (1 meter x 1 meter)
   Bounds tinyB{500000.0, 7000000.0, 500001.0, 7000001.0};
 
-  GeometryProjector projector(&fx.wgs84, &fx.tm35);
+  Fmi::GeometryProjector projector(&fx.wgs84, &fx.tm35);
   projector.setProjectedBounds(tinyB.minX, tinyB.minY, tinyB.maxX, tinyB.maxY);
 
   OGRPoint p(25.0, 63.0);
@@ -1033,7 +1033,7 @@ TEST(AdditionalTests, BoundsConfig_NegativeBounds_WorksCorrectly)
   // Negative bounds (can happen in some projections)
   Bounds negB{-1000000, -1000000, 1000000, 1000000};
 
-  GeometryProjector projector(&wgs84, &utm);
+  Fmi::GeometryProjector projector(&wgs84, &utm);
   projector.setProjectedBounds(negB.minX, negB.minY, negB.maxX, negB.maxY);
 
   OGRPoint p(-5.0, 50.0);  // West of prime meridian

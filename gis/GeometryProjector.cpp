@@ -17,6 +17,9 @@
 #include <utility>
 #include <vector>
 
+namespace Fmi
+{
+
 // ------------------------------ small helpers ------------------------------
 
 namespace
@@ -637,7 +640,8 @@ std::unique_ptr<OGRLinearRing> closeRunAlongBoundary(const OGRLineString& run,
 }
 
 std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRLineString& proj,
-                                                                      const ProjectionBoundary& b)
+                                                                      const ProjectionBoundary& b,
+                                                                      bool cyclic)
 {
   std::vector<std::unique_ptr<OGRLineString>> runs;
   if (proj.getNumPoints() < 2)
@@ -679,7 +683,8 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
   if (cur)
     finalizeCurrentRun(runs, cur);
 
-  mergeCyclicRunsIfConnected(runs, eps);
+  if (cyclic)
+    mergeCyclicRunsIfConnected(runs, eps);
   return runs;
 }
 
@@ -965,7 +970,9 @@ bool chooseReplaceForwardArc(const OGRLinearRing& ext,
 // ---- best-effort projection helpers ----
 
 std::vector<std::unique_ptr<OGRLineString>> clipRunsToBounds(
-    const std::vector<std::unique_ptr<OGRLineString>>& projectedRuns, const ProjectionBoundary& b)
+    const std::vector<std::unique_ptr<OGRLineString>>& projectedRuns,
+    const ProjectionBoundary& b,
+    bool mergeCyclic)
 {
   std::vector<std::unique_ptr<OGRLineString>> out;
   for (const auto& pr : projectedRuns)
@@ -973,7 +980,10 @@ std::vector<std::unique_ptr<OGRLineString>> clipRunsToBounds(
     if (!pr || pr->getNumPoints() < 2)
       continue;
 
-    auto clipped = clipProjectedLineToBounds(*pr, b);
+    // projectedRuns can originate either from ordinary polylines (LineString semantics)
+    // or from rings (LinearRing semantics). Only rings should be allowed to merge the
+    // last and first clipped run when they reconnect at the same boundary point.
+    auto clipped = clipProjectedLineToBounds(*pr, b, mergeCyclic);
     for (auto& r : clipped)
       out.push_back(std::move(r));
   }
@@ -1307,8 +1317,17 @@ void GeometryProjector::Impl::setProjectedBounds(double minX, double minY, doubl
   if (m_autoThreshold)
   {
     const double w = maxX - minX;
-    if (w > 0)
-      m_jumpThreshold = 0.5 * w;
+    const double h = maxY - minY;
+    const double m = (w > 0 && h > 0) ? std::min(w, h) : (w > 0 ? w : h);
+    if (m > 0)
+    {
+      // Keep a bounds-scaled heuristic (useful for huge user bounds), but apply a floor.
+      // Without the floor, Finland-scale bounds (~1e6m) produce a threshold ~1e5m, which
+      // fragments normal outputs into single-point runs that later get dropped.
+      const double byBounds = 0.15 * m;
+      const double floorMeters = 3.0e6;
+      m_jumpThreshold = std::max(floorMeters, byBounds);
+    }
   }
 }
 
@@ -1388,7 +1407,8 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(const OG
     densifyGeographicKm(geo.get(), m_densifyKm);
 
   auto projRuns = projectToProjectedRunsBestEffort(*geo);
-  auto clippedRuns = clipRunsToBounds(projRuns, b);
+  // LineString semantics: never merge last<->first runs.
+  auto clippedRuns = clipRunsToBounds(projRuns, b, /*mergeCyclic=*/false);
 
   if (clippedRuns.empty())
     return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbLineString));
@@ -1482,11 +1502,20 @@ GeometryProjector::Impl::projectToProjectedRunsBestEffort(const OGRLineString& g
   std::vector<std::unique_ptr<OGRLineString>> runs;
   auto cur = std::make_unique<OGRLineString>();
 
-  auto flush = [&]()
+  auto finalize = [&]()
   {
     if (cur && cur->getNumPoints() >= 2)
       runs.push_back(std::move(cur));
     cur = std::make_unique<OGRLineString>();
+  };
+
+  auto isBigJump = [&](double x0, double y0, double x1, double y1)
+  {
+    if (m_jumpThreshold <= 0.0)
+      return false;
+    const double dx = x1 - x0;
+    const double dy = y1 - y0;
+    return (dx * dx + dy * dy) > (m_jumpThreshold * m_jumpThreshold);
   };
 
   for (int i = 0; i < geo.getNumPoints(); ++i)
@@ -1495,12 +1524,29 @@ GeometryProjector::Impl::projectToProjectedRunsBestEffort(const OGRLineString& g
     auto p = projectSinglePoint(geo.getX(i), geo.getY(i), &ok);
     if (!ok || !p)
     {
-      flush();  // split at failure (no bridging)
+      finalize();  // split at failure (no bridging)
       continue;
     }
+
+    if (cur->getNumPoints() > 0)
+    {
+      const double lx = cur->getX(cur->getNumPoints() - 1);
+      const double ly = cur->getY(cur->getNumPoints() - 1);
+      if (isBigJump(lx, ly, p->getX(), p->getY()))
+      {
+        // Split at discontinuity, but keep the current point as the first vertex of the next run.
+        // This avoids repeatedly creating and then dropping single-point runs.
+        finalize();
+        cur->addPoint(p->getX(), p->getY());
+        continue;
+      }
+    }
+
     cur->addPoint(p->getX(), p->getY());
   }
-  flush();
+
+  if (cur && cur->getNumPoints() >= 2)
+    runs.push_back(std::move(cur));
 
   return runs;
 }
@@ -1522,7 +1568,8 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
     densifyGeographicKm(extGeo.get(), m_densifyKm);
 
   auto extProjRuns = projectToProjectedRunsBestEffort(*extGeo);
-  auto extRuns = clipRunsToBounds(extProjRuns, b);
+  // Ring semantics: allow cyclic merge of last<->first if they reconnect.
+  auto extRuns = clipRunsToBounds(extProjRuns, b, /*mergeCyclic=*/true);
 
   auto shells = buildShellsFromExteriorRuns(extRuns, b);
   if (shells.empty())
@@ -1539,7 +1586,8 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
       densifyGeographicKm(holeGeo.get(), m_densifyKm);
 
     auto holeProjRuns = projectToProjectedRunsBestEffort(*holeGeo);
-    auto holeRuns = clipRunsToBounds(holeProjRuns, b);
+    // Ring semantics for holes as well.
+    auto holeRuns = clipRunsToBounds(holeProjRuns, b, /*mergeCyclic=*/true);
 
     for (auto& hr : holeRuns)
     {
@@ -1606,3 +1654,5 @@ void GeometryProjector::setPoleHandling(bool enable)
 {
   m_impl->setPoleHandling(enable);
 }
+
+}  // namespace Fmi

@@ -224,9 +224,9 @@ struct Fixture
   OGRSpatialReference wgs84 = makeSRS(4326);
   OGRSpatialReference tm35 = makeSRS(3067);
 
-  GeometryProjector makeProjector(double densifyKm = 50.0)
+  Fmi::GeometryProjector makeProjector(double densifyKm = 50.0)
   {
-    GeometryProjector p(&wgs84, &tm35);
+    Fmi::GeometryProjector p(&wgs84, &tm35);
     p.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
     p.setDensifyResolutionKm(densifyKm);
     return p;
@@ -414,7 +414,7 @@ TEST(GeometryProjectorTests, HoleFullyInsideBBox_RemainsInteriorRing_PointInside
   // Enlarged bounds so hole won't clip
   Bounds B2{-300000.0, 6500000.0, 1000000.0, 8500000.0};
 
-  GeometryProjector projector(&fx.wgs84, &fx.tm35);
+  Fmi::GeometryProjector projector(&fx.wgs84, &fx.tm35);
   projector.setProjectedBounds(B2.minX, B2.minY, B2.maxX, B2.maxY);
   projector.setDensifyResolutionKm(50.0);
 
@@ -659,7 +659,7 @@ TEST(GeometryProjectorTests, OutputWinding_IsOGC_ExteriorCCW_HolesCW_WhenHoleInt
 
   Bounds B2{-300000.0, 6500000.0, 1000000.0, 8500000.0};
 
-  GeometryProjector projector(&fx.wgs84, &fx.tm35);
+  Fmi::GeometryProjector projector(&fx.wgs84, &fx.tm35);
   projector.setProjectedBounds(B2.minX, B2.minY, B2.maxX, B2.maxY);
   projector.setDensifyResolutionKm(50.0);
 
@@ -876,7 +876,7 @@ TEST(GeometryProjectorTests, HoleTouchesExteriorAtVertex_RemainsInteriorRing)
 
   // Bounds large enough so nothing clips: hole should remain a proper interior ring.
   Bounds B2{-300000.0, 6500000.0, 1000000.0, 8500000.0};
-  GeometryProjector projector(&fx.wgs84, &fx.tm35);
+  Fmi::GeometryProjector projector(&fx.wgs84, &fx.tm35);
   projector.setProjectedBounds(B2.minX, B2.minY, B2.maxX, B2.maxY);
   projector.setDensifyResolutionKm(50.0);
 
@@ -1120,5 +1120,90 @@ TEST(GeometryProjectorTests, PolygonClippingBoundaryClosure_NoConsecutiveDuplica
     EXPECT_TRUE(allVerticesWithinBounds(out.get(), fx.B)) << wktOf(out.get());
     EXPECT_TRUE(allPolygonRingsClosed(out.get()));
     EXPECT_TRUE(geometryIsValid(out.get())) << wktOf(out.get());
+  }
+}
+
+TEST(GeometryProjectorTests, GlobalGraticule_NoLargeProjectionJumps)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+
+  const double MAX_REASONABLE_STEP = 3e6;  // ~3000 km in projected space
+
+  auto checkLineStringContinuity = [&](const OGRLineString* ls)
+  {
+    if (!ls || ls->getNumPoints() < 2)
+      return;
+
+    for (int i = 1; i < ls->getNumPoints(); ++i)
+    {
+      const double dx = ls->getX(i) - ls->getX(i - 1);
+      const double dy = ls->getY(i) - ls->getY(i - 1);
+      const double dist = std::sqrt(dx * dx + dy * dy);
+
+      EXPECT_FALSE(std::isnan(dist));
+      EXPECT_FALSE(std::isinf(dist));
+
+      EXPECT_LT(dist, MAX_REASONABLE_STEP) << "Large discontinuity inside a single run:\n"
+                                           << wktOf(ls);
+    }
+  };
+
+  OGRSpatialReference wgs84 = makeSRS(4326);
+  OGRSpatialReference tm35 = makeSRS(3067);
+
+  Fmi::GeometryProjector projector(&wgs84, &tm35);
+
+  // "Global-ish" bounds for this stress test
+  projector.setProjectedBounds(-1e7, -1e7, 1e7, 1e7);
+  projector.setDensifyResolutionKm(0.0);  // we control segmentation manually
+
+  auto makeMeridian = [](double lon)
+  {
+    auto ls = std::make_unique<OGRLineString>();
+    for (int lat = -90; lat < 90; ++lat)  // 1-degree segments
+      ls->addPoint(lon, static_cast<double>(lat));
+    return ls;
+  };
+
+  auto makeParallel = [](double lat)
+  {
+    auto ls = std::make_unique<OGRLineString>();
+    for (int lon = -180; lon < 180; ++lon)  // 1-degree segments
+      ls->addPoint(static_cast<double>(lon), lat);
+    return ls;
+  };
+
+  std::vector<std::unique_ptr<OGRGeometry>> graticule;
+
+  // Meridians every 10°
+  for (int lon = -180; lon <= 180; lon += 10)
+    graticule.emplace_back(makeMeridian(static_cast<double>(lon)));
+
+  // Parallels every 10° (avoid exact poles)
+  for (int lat = -80; lat <= 80; lat += 10)
+    graticule.emplace_back(makeParallel(static_cast<double>(lat)));
+
+  // Silence expected PROJ/GDAL domain errors for this stress test only.
+  GdalErrorSilencer silence;
+
+  for (auto& g : graticule)
+  {
+    auto out = projector.projectGeometry(g.get());
+    ASSERT_TRUE(out);
+
+    const auto t = wkbFlatten(out->getGeometryType());
+
+    if (t == wkbLineString)
+    {
+      checkLineStringContinuity(dynamic_cast<const OGRLineString*>(out.get()));
+    }
+    else if (t == wkbMultiLineString)
+    {
+      auto* ml = dynamic_cast<const OGRMultiLineString*>(out.get());
+      for (int i = 0; i < ml->getNumGeometries(); ++i)
+        checkLineStringContinuity(dynamic_cast<const OGRLineString*>(ml->getGeometryRef(i)));
+    }
+    // else: ignore empties / non-lines; the projector may legitimately drop pieces.
   }
 }

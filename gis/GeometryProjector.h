@@ -6,6 +6,9 @@
 class OGRSpatialReference;
 class OGRGeometry;
 
+namespace Fmi
+{
+
 class GeometryProjector
 {
  public:
@@ -33,3 +36,5 @@ class GeometryProjector
   class Impl;
   std::unique_ptr<Impl> m_impl;
 };
+
+}  // namespace Fmi
