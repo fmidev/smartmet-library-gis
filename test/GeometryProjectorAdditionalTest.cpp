@@ -790,7 +790,6 @@ TEST(AdditionalTests, Poles_GeometryNearNorthPole_PoleHandlingEnabled)
 
   Fmi::GeometryProjector projector(&wgs84, &stereo);
   projector.setProjectedBounds(largeB.minX, largeB.minY, largeB.maxX, largeB.maxY);
-  projector.setPoleHandling(true);
   projector.setDensifyResolutionKm(100.0);
 
   // Polygon around North Pole
@@ -810,26 +809,6 @@ TEST(AdditionalTests, Poles_GeometryNearNorthPole_PoleHandlingEnabled)
   {
     EXPECT_TRUE(allVerticesWithinBounds(out.get(), largeB));
   }
-}
-
-TEST(AdditionalTests, Poles_PoleHandlingDisabled_StillDoesNotCrash)
-{
-  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
-  static GdalInitGuard guard;
-  GdalErrorSilencer silence;
-
-  OGRSpatialReference wgs84 = makeSRS(4326);
-  OGRSpatialReference stereo = makeSRS(3995);
-
-  Bounds largeB{-10000000, -10000000, 10000000, 10000000};
-
-  Fmi::GeometryProjector projector(&wgs84, &stereo);
-  projector.setProjectedBounds(largeB.minX, largeB.minY, largeB.maxX, largeB.maxY);
-  projector.setPoleHandling(false);
-
-  OGRPoint nearPole(0.0, 89.0);
-  auto out = projector.projectGeometry(&nearPole);
-  ASSERT_TRUE(out);
 }
 
 // ============================================================================

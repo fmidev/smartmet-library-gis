@@ -1,7 +1,8 @@
 // GeometryProjector.cpp
 
 #include "GeometryProjector.h"
-#include <macgyver/Exception.h>
+#include "OGR.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -17,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "OGR.h"
 #include <fmt/printf.h>
 
 namespace Fmi
@@ -475,10 +475,7 @@ void appendSegmentToCurrentRun(std::unique_ptr<OGRLineString>& cur,
                                double eps)
 {
   if (!cur)
-  {
-    fmt::print("Creating new current segment\n");
     cur = std::make_unique<OGRLineString>();
-  }
 
   if (cur->getNumPoints() == 0)
     cur->addPoint(&a);
@@ -655,7 +652,7 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
   if (proj.getNumPoints() < 2)
     return runs;
 
-  fmt::print("\n\nMaxJump: {} km\n", maxJumpMeters / 1000);
+  fmt::print("MaxJump: {} km\n", maxJumpMeters / 1000);
 
   const double eps = ringEps(b.minX, b.minY, b.maxX, b.maxY);
   const double snapTol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
@@ -675,17 +672,23 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
       const double dx = x1 - x0;
       const double dy = y1 - y0;
       const double segLen = std::sqrt(dx * dx + dy * dy);
-      if (std::isfinite(segLen) && segLen > maxJumpMeters)
+      if (!std::isfinite(segLen) || segLen > maxJumpMeters)
       {
         debug = true;
         fmt::print("Too long: {} km\n", segLen / 1000);
         // Treat pathological jumps (typically from reprojection domain discontinuities) as run
         // breaks.
         if (cur)
-        {
-          if (debug)
-            fmt::print("Finalizing current run\n");
           finalizeCurrentRun(runs, cur);
+        // If p1 (the far end of the jump) is inside the bounding box, seed a new run there so
+        // the re-entry point is not silently discarded.  Without this, a meridian that re-enters
+        // the box with a large projected step on both its entry and exit side would produce zero
+        // output because p1 would never be added to any run.
+        if (pointInBounds(x1, y1, b.minX, b.minY, b.maxX, b.maxY))
+        {
+          if (!cur)
+            cur = std::make_unique<OGRLineString>();
+          cur->addPoint(x1, y1);
         }
         continue;
       }
@@ -697,11 +700,7 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
     if (!hit.ok)
     {
       if (cur)
-      {
-        if (debug)
-          fmt::print("\tFinalizing boundary cut\n");
         finalizeCurrentRun(runs, cur);
-      }
       continue;
     }
 
@@ -713,28 +712,22 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
     appendSegmentToCurrentRun(cur, a, c, eps);
 
     if (!p1in)
-    {
-      fmt::print("\tFinalizing because p1 is not in\n");
       finalizeCurrentRun(runs, cur);
-    }
   }
 
   if (cur)
-  {
-    if (debug)
-      fmt::print("\tFinalizing final run\n");
     finalizeCurrentRun(runs, cur);
-  }
-  if (mergeCyclicRuns)
-    mergeCyclicRunsIfConnected(runs, eps);
 
   if (debug)
   {
-    fmt::print("\tFINAL SIZE: {}\n", runs.size());
-    for (const auto& line : runs)
-      fmt::print("\tRun: {}\n", OGR::exportToWkt(*line));
+    for (const auto& run : runs)
+    {
+      fmt::print("\trun : {}\n", OGR::exportToWkt(*run));
+    }
   }
 
+  if (mergeCyclicRuns)
+    mergeCyclicRunsIfConnected(runs, eps);
   return runs;
 }
 
@@ -1299,8 +1292,7 @@ class GeometryProjector::Impl
   SrsPtr m_sourceSRS;
   SrsPtr m_targetSRS;
 
-  double m_jumpThreshold =
-      1000e3;  // default max jump: 1000 km (used when densification is disabled)
+  double m_jumpThreshold = 500e3;  // segment to max 500 km by default
 
   std::array<double, 4> m_projectedBounds{0, 0, 0, 0};
   bool m_boundsSet = false;
@@ -1433,8 +1425,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(const OG
     densifyGeographicKm(geo.get(), m_densifyKm);
 
   auto projRuns = projectToProjectedRunsBestEffort(*geo);
-  const double maxJumpMeters =
-      (m_densifyKm > 0.0) ? (m_densifyKm * 1000.0 * 10.0) : m_jumpThreshold;
+  const double maxJumpMeters = (m_densifyKm > 0.0) ? (m_densifyKm * 1000 * 10) : m_jumpThreshold;
   auto clippedRuns =
       clipRunsToBounds(projRuns, b, /*mergeCyclicRuns=*/false, /*detectJumps=*/true, maxJumpMeters);
 
@@ -1445,22 +1436,8 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(const OG
     return std::unique_ptr<OGRGeometry>(clippedRuns[0].release());
 
   auto* ml = new OGRMultiLineString();
-
   for (auto& r : clippedRuns)
-  {
-    if (!r || r->getNumPoints() < 2)
-      continue;
-
-    OGRLineString* raw = r.release();
-    const OGRErr e = ml->addGeometryDirectly(raw);
-    if (e != OGRERR_NONE)
-    {
-      delete raw;  // prevent leak on failure
-      throw Fmi::Exception(BCP, "Failed to add geometry directly")
-          .addParameter("Reason", CPLGetLastErrorMsg());
-    }
-  }
-
+    ml->addGeometry(r.get());
   return std::unique_ptr<OGRGeometry>(ml);
 }
 
@@ -1496,8 +1473,25 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectMultiGeometry(
     if (!g)
       continue;
     auto pg = projectGeometry(g);
-    if (pg && !pg->IsEmpty())
+    if (!pg || pg->IsEmpty())
+      continue;
+
+    // projectLineString may return a MultiLineString when a line is split by
+    // the bounding box (e.g. a meridian that exits and re-enters the box).
+    // Flatten those into the output collection so children are never lost —
+    // GDAL silently drops a MultiLineString added as a child of another
+    // MultiLineString.
+    const auto pgt = wkbFlatten(pg->getGeometryType());
+    if (pgt == wkbMultiLineString || pgt == wkbGeometryCollection)
+    {
+      auto* sub = static_cast<OGRGeometryCollection*>(pg.get());
+      for (int j = 0; j < sub->getNumGeometries(); ++j)
+        out->addGeometry(sub->getGeometryRef(j));
+    }
+    else
+    {
       out->addGeometry(pg.get());
+    }
   }
 
   return std::unique_ptr<OGRGeometry>(out);
