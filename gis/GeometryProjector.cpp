@@ -18,8 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include <fmt/printf.h>
-
 namespace Fmi
 {
 
@@ -652,8 +650,6 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
   if (proj.getNumPoints() < 2)
     return runs;
 
-  fmt::print("MaxJump: {} km\n", maxJumpMeters / 1000);
-
   const double eps = ringEps(b.minX, b.minY, b.maxX, b.maxY);
   const double snapTol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
 
@@ -674,8 +670,6 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
       const double segLen = std::sqrt(dx * dx + dy * dy);
       if (!std::isfinite(segLen) || segLen > maxJumpMeters)
       {
-        debug = true;
-        fmt::print("Too long: {} km\n", segLen / 1000);
         // Treat pathological jumps (typically from reprojection domain discontinuities) as run
         // breaks.
         if (cur)
@@ -717,14 +711,6 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
 
   if (cur)
     finalizeCurrentRun(runs, cur);
-
-  if (debug)
-  {
-    for (const auto& run : runs)
-    {
-      fmt::print("\trun : {}\n", OGR::exportToWkt(*run));
-    }
-  }
 
   if (mergeCyclicRuns)
     mergeCyclicRunsIfConnected(runs, eps);
