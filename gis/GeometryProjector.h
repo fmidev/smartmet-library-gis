@@ -30,7 +30,6 @@ class GeometryProjector
   std::unique_ptr<OGRGeometry> projectGeometry(const OGRGeometry* geom);
 
   void setJumpThreshold(double threshold);
-  void setPoleHandling(bool enable);
 
  private:
   class Impl;
