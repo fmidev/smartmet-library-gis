@@ -1,5 +1,6 @@
 #include "CoordinateTransformation.h"
 #include "GeometryBuilder.h"
+#include "GeometryProjector.h"
 #include "Interrupt.h"
 #include "OGR.h"
 #include "OGRCoordinateTransformationFactory.h"
@@ -321,9 +322,20 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
         return nullptr;
     }
 
-    // Here GDAL would also check if the geometry is geometric and circles the pole etc, we skip
-    // that for now since almost all our data is in WGS84.
+    // Here GDAL would also check if the geometry is geometric and circles the pole etc., we just
+    // apply our GeometryProjector.
 
+#if 0
+    if (impl->m_source.isGeographic())
+    {
+      GeometryProjector projector(impl->m_source.get(), impl->m_target.get());
+      const double global_bound = 21000 * 1e3;  // meters
+      projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
+      auto result = projector.projectGeometry(g.get());
+      g.reset(result.release());
+    }
+    else
+#endif
     if (!this->transform(*g))
     {
       // std::cerr << "Failed to transform geometry\n";

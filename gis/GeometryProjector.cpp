@@ -655,8 +655,6 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
 
   std::unique_ptr<OGRLineString> cur;
 
-  bool debug = false;
-
   for (int i = 0; i < proj.getNumPoints() - 1; ++i)
   {
     const double x0 = proj.getX(i);
@@ -1453,6 +1451,14 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectMultiGeometry(
   else
     out = new OGRGeometryCollection();
 
+  auto addGeomChecked = [&](const OGRGeometry* geom)
+  {
+    if (!geom || geom->IsEmpty())
+      return;
+    const OGRErr err = out->addGeometry(geom);
+    (void)err;
+  };
+
   for (int i = 0; i < collection->getNumGeometries(); ++i)
   {
     const OGRGeometry* g = collection->getGeometryRef(i);
@@ -1468,16 +1474,14 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectMultiGeometry(
     // GDAL silently drops a MultiLineString added as a child of another
     // MultiLineString.
     const auto pgt = wkbFlatten(pg->getGeometryType());
-    if (pgt == wkbMultiLineString || pgt == wkbGeometryCollection)
+    if (pgt == wkbMultiLineString || pgt == wkbMultiPolygon || pgt == wkbGeometryCollection)
     {
       auto* sub = static_cast<OGRGeometryCollection*>(pg.get());
       for (int j = 0; j < sub->getNumGeometries(); ++j)
-        out->addGeometry(sub->getGeometryRef(j));
+        addGeomChecked(sub->getGeometryRef(j));
     }
     else
-    {
-      out->addGeometry(pg.get());
-    }
+      out->addGeometryDirectly(pg.release());
   }
 
   return std::unique_ptr<OGRGeometry>(out);
