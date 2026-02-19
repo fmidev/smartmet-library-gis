@@ -256,88 +256,105 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 {
   try
   {
-    OGRGeometryPtr g(OGR::normalizeWindingOrder(geom));
-
-    const auto make_geometry_ptr = [](OGRGeometry* geometry)
+    // Automatic deleter for temporary unique_ptr results
+    struct OGRGeometryDeleter
     {
-      return std::shared_ptr<OGRGeometry>(
-          geometry, [](OGRGeometry* geometry) { OGRGeometryFactory::destroyGeometry(geometry); });
+      void operator()(OGRGeometry* g) const noexcept { OGRGeometryFactory::destroyGeometry(g); }
     };
 
-    // If input is geographic apply geographic cuts
-    if (impl->m_source.isGeographic())
+    const auto make_geometry_ptr = [](OGRGeometry* geometry)
+    { return std::unique_ptr<OGRGeometry, OGRGeometryDeleter>(geometry); };
+
+    // Handle non-geographic sources separately
+
+    if (!impl->m_source.isGeographic())
     {
-      auto target_envelope = interruptEnvelope(impl->m_target);
+      auto g = make_geometry_ptr(geom.clone());
+      if (!this->transform(*g))
+        return nullptr;
+      OGR::normalizeWindingOrder(g.get());
+      return g.release();
+    }
 
-      OGREnvelope shape_envelope;
-      geom.getEnvelope(&shape_envelope);
+    // Source is geographic
 
-      Interrupt interrupt = interruptGeometry(impl->m_target);
+    GeometryProjector projector(impl->m_source.get(), impl->m_target.get());
+    const double global_bound = 30000 * 1e3;  // 30,000 km
+    projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
 
-      // Do quick vertical cuts
-      for (const auto& box : interrupt.cuts)
-      {
-        g = make_geometry_ptr(OGR::polycut(*g, box, theMaximumSegmentLength));
-        if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
-          return nullptr;
-      }
+    auto target_envelope = interruptEnvelope(impl->m_target);
 
-      // printf("***** CUTS ****\n");
-      for (auto& shape : interrupt.shapeCuts)
+    OGREnvelope shape_envelope;
+    geom.getEnvelope(&shape_envelope);
+
+    Interrupt interrupt = interruptGeometry(impl->m_target);
+
+    // No need to make a clone if there are no cuts in the target projection
+    if (interrupt.empty())
+    {
+      auto result = projector.projectGeometry(&geom);
+      return result.release();
+    }
+
+    // Strictly speaking making a clone is not necessary if we kept track where the first
+    // operation is done, and use geom instead of g as input. Something to optimize later+
+
+    auto g = make_geometry_ptr(geom.clone());
+
+    // Do quick vertical cuts
+    for (const auto& box : interrupt.cuts)
+    {
+      g = make_geometry_ptr(OGR::polycut(*g, box, theMaximumSegmentLength));
+      if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
+        return nullptr;
+    }
+
+    // printf("***** CUTS ****\n");
+    for (auto& shape : interrupt.shapeCuts)
+    {
+      // shape.print(std::cout);
+      g = make_geometry_ptr(OGR::polycut(*g, shape, theMaximumSegmentLength));
+      if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
+        return nullptr;
+    }
+
+    if (!interrupt.shapeClips.empty())
+    {
+      // printf("***** CLIPS ****\n");
+      for (auto& shape : interrupt.shapeClips)
       {
         // shape.print(std::cout);
-        g = make_geometry_ptr(OGR::polycut(*g, shape, theMaximumSegmentLength));
+        g = make_geometry_ptr(OGR::polyclip(*g, shape, theMaximumSegmentLength));
         if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
           return nullptr;
       }
+    }
 
-      if (!interrupt.shapeClips.empty())
+    // If the target envelope is not set, we must try clipping.
+    // Otherwise if the geometry contains the target area, no clipping is needed.
+    // We test only X-containment, since the target envelope may reach the North Pole,
+    // but there is really no data beyond the 84th latitude.
+
+    if (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope))
+    {
+      if (interrupt.cutGeometry)
       {
-        // printf("***** CLIPS ****\n");
-        for (auto& shape : interrupt.shapeClips)
-        {
-          // shape.print(std::cout);
-          g = make_geometry_ptr(OGR::polyclip(*g, shape, theMaximumSegmentLength));
-          if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
-            return nullptr;
-        }
-      }
-
-      // If the target envelope is not set, we must try clipping.
-      // Otherwise if the geometry contains the target area, no clipping is needed.
-      // We test only X-containment, since the target envelope may reach the North Pole,
-      // but there is really no data beyond the 84th latitude.
-
-      if (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope))
-      {
-        if (interrupt.cutGeometry)
-          g = make_geometry_ptr(g->Difference(interrupt.cutGeometry.get()));
+        g = make_geometry_ptr(g->Difference(interrupt.cutGeometry.get()));
         if (!g || g->IsEmpty())
           return nullptr;
       }
+    }
 
-      if (interrupt.andGeometry)
-        g = make_geometry_ptr(g->Intersection(interrupt.andGeometry.get()));
+    if (interrupt.andGeometry)
+    {
+      g = make_geometry_ptr(g->Intersection(interrupt.andGeometry.get()));
       if (!g || g->IsEmpty())
         return nullptr;
     }
 
-    // Here GDAL would also check if the geometry is geometric and circles the pole etc., we just
-    // apply our GeometryProjector.
-
-#if 1
-    if (impl->m_source.isGeographic())
-    {
-      GeometryProjector projector(impl->m_source.get(), impl->m_target.get());
-      const double global_bound = 21000 * 1e3;  // meters
-      projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
-      auto result = projector.projectGeometry(g.get());
-      return result.release();
-    }
-#endif
-    if (!this->transform(*g))
-      return OGR::renormalizeWindingOrder(*g);
-    return nullptr;
+    auto result = projector.projectGeometry(g.get());
+    OGR::normalizeWindingOrder(result.get());
+    return result.release();
   }
   catch (...)
   {

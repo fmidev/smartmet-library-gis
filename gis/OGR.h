@@ -74,14 +74,8 @@ OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);
 void normalize(OGRPolygon& thePoly);
 void normalize(OGRLinearRing& theRing);
 
-// Normalize winding order: exterior=CW, interior=CCW
-OGRGeometry* normalizeWindingOrder(const OGRGeometry& theGeom);
-
-// Renormalize winding order after a coordinate transformation - some rings may have reverted order
-OGRGeometry* renormalizeWindingOrder(const OGRGeometry& theGeom);
-
-// Reverse winding order
-OGRGeometry* reverseWindingOrder(const OGRGeometry& theGeom);
+// Normalize winding order: exterior=CCW, interior=CW (RFC 7946)
+void normalizeWindingOrder(OGRGeometry* theGeom);
 
 // Is the given coordinate inside a shape?
 bool inside(const OGRGeometry& theGeom, double theX, double theY);

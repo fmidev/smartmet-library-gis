@@ -641,8 +641,8 @@ std::unique_ptr<OGRLinearRing> closeRunAlongBoundary(const OGRLineString& run,
   forceExactClosure(*ring);
   if (ring->getNumPoints() < 4)
     return nullptr;
-  if (ring->isClockwise())
-    ring->reversePoints();
+  // if (ring->isClockwise())
+  // ring->reversePoints();
 
   return ring;
 }

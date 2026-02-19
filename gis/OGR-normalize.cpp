@@ -5,6 +5,7 @@
 
 namespace
 {
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Reverse given segment in a linestring
@@ -34,7 +35,7 @@ void reverse(OGRLineString &line, int start, int end)
 }
 
 // Forward declaration needed since two functions call each other
-OGRGeometry *normalize_winding(const OGRGeometry *theGeom);
+void normalize_winding(OGRGeometry *theGeom);
 
 // ----------------------------------------------------------------------
 /*!
@@ -42,37 +43,24 @@ OGRGeometry *normalize_winding(const OGRGeometry *theGeom);
  */
 // ----------------------------------------------------------------------
 
-OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
+void normalize_winding(OGRPolygon *theGeom)
 {
   try
   {
     if (theGeom == nullptr || theGeom->IsEmpty() != 0)
-      return nullptr;
+      return;
 
-    auto *out = new OGRPolygon;
+    auto *exterior = theGeom->getExteriorRing();
 
-    // Preserve Z/M flags
-    if (theGeom->Is3D())
-      out->set3D(TRUE);
-    if (theGeom->IsMeasured())
-      out->setMeasured(TRUE);
-
-    auto *exterior = theGeom->getExteriorRing()->clone();
-
-    if (!exterior->isClockwise())
+    if (exterior->isClockwise())
       exterior->reversePoints();
-
-    out->addRingDirectly(exterior);
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; i++)
     {
-      auto *geom = theGeom->getInteriorRing(i)->clone();
-      if (geom->isClockwise())
-        geom->reversePoints();
-      out->addRingDirectly(geom);
+      auto hole = theGeom->getInteriorRing(i);
+      if (!hole->isClockwise())
+        hole->reversePoints();
     }
-
-    return out;
   }
   catch (...)
   {
@@ -86,28 +74,15 @@ OGRPolygon *normalize_winding(const OGRPolygon *theGeom)
  */
 // ----------------------------------------------------------------------
 
-OGRMultiPolygon *normalize_winding(const OGRMultiPolygon *theGeom)
+void normalize_winding(OGRMultiPolygon *theGeom)
 {
   try
   {
     if (theGeom == nullptr || theGeom->IsEmpty() != 0)
-      return nullptr;
-
-    auto *out = new OGRMultiPolygon();
-
-    // Preserve Z/M flags for the collection itself
-    if (theGeom->Is3D())
-      out->set3D(TRUE);
-    if (theGeom->IsMeasured())
-      out->setMeasured(TRUE);
+      return;
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
-    {
-      auto *geom = normalize_winding(theGeom->getGeometryRef(i));
-      if (geom != nullptr)
-        out->addGeometryDirectly(geom);
-    }
-    return out;
+      normalize_winding(theGeom->getGeometryRef(i));
   }
   catch (...)
   {
@@ -121,28 +96,15 @@ OGRMultiPolygon *normalize_winding(const OGRMultiPolygon *theGeom)
  */
 // ----------------------------------------------------------------------
 
-OGRGeometryCollection *normalize_winding(const OGRGeometryCollection *theGeom)
+void normalize_winding(OGRGeometryCollection *theGeom)
 {
   try
   {
     if (theGeom == nullptr || theGeom->IsEmpty() != 0)
-      return nullptr;
-
-    auto *out = new OGRGeometryCollection();
-
-    // Preserve Z/M flags for the collection itself
-    if (theGeom->Is3D())
-      out->set3D(TRUE);
-    if (theGeom->IsMeasured())
-      out->setMeasured(TRUE);
+      return;
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
-    {
-      auto *geom = normalize_winding(theGeom->getGeometryRef(i));
-      if (geom != nullptr)
-        out->addGeometryDirectly(geom);
-    }
-    return out;
+      normalize_winding(theGeom->getGeometryRef(i));
   }
   catch (...)
   {
@@ -156,43 +118,25 @@ OGRGeometryCollection *normalize_winding(const OGRGeometryCollection *theGeom)
  */
 // ----------------------------------------------------------------------
 
-OGRGeometry *normalize_winding(const OGRGeometry *theGeom)
+void normalize_winding(OGRGeometry *theGeom)
 {
   try
   {
     if (theGeom == nullptr)
-      return nullptr;
+      return;
 
     const OGRwkbGeometryType id = theGeom->getGeometryType();
 
     // Note the flattening call to ignore Z/M properties
     switch (wkbFlatten(id))
     {
-      case wkbPoint:
-      case wkbMultiPoint:
-      case wkbMultiLineString:
-      case wkbLineString:
-        return theGeom->clone();
       case wkbPolygon:
-        return normalize_winding(dynamic_cast<const OGRPolygon *>(theGeom));
+        return normalize_winding(dynamic_cast<OGRPolygon *>(theGeom));
       case wkbMultiPolygon:
-        return normalize_winding(dynamic_cast<const OGRMultiPolygon *>(theGeom));
+        return normalize_winding(dynamic_cast<OGRMultiPolygon *>(theGeom));
       case wkbGeometryCollection:
-        return normalize_winding(dynamic_cast<const OGRGeometryCollection *>(theGeom));
-
-      case wkbNone:
-        throw Fmi::Exception::Trace(
-            BCP,
-            "Encountered a 'none' geometry component while changing winding order of an OGR "
-            "geometry");
-      default:
-      {
-        const char *pszName = OGRGeometryTypeToName(id);
-        throw Fmi::Exception::Trace(BCP,
-                                    "Encountered an unknown geometry component while normalizing "
-                                    "winding order of an OGR geometry")
-            .addParameter("Type", pszName);
-      }
+        return normalize_winding(dynamic_cast<OGRGeometryCollection *>(theGeom));
+      default:;
     }
   }
   catch (...)
@@ -214,16 +158,12 @@ OGRGeometry *normalize_winding(const OGRGeometry *theGeom)
  */
 // ----------------------------------------------------------------------
 
-OGRGeometry *Fmi::OGR::normalizeWindingOrder(const OGRGeometry &theGeom)
+void Fmi::OGR::normalizeWindingOrder(OGRGeometry *theGeom)
 {
   try
   {
-    auto *geom = normalize_winding(&theGeom);
-
-    if (geom != nullptr)
-      geom->assignSpatialReference(theGeom.getSpatialReference());  // SR is ref. counter
-
-    return geom;
+    if (theGeom != nullptr)
+      normalize_winding(theGeom);
   }
   catch (...)
   {

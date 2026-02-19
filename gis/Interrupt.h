@@ -21,6 +21,12 @@ struct Interrupt
   std::shared_ptr<OGRGeometry> cutGeometry;
   std::list<Shape_sptr> shapeClips;
   std::list<Shape_sptr> shapeCuts;
+
+  bool empty() const
+  {
+    return (cuts.empty() && !andGeometry && !cutGeometry && shapeClips.empty() &&
+            shapeCuts.empty());
+  }
 };
 
 Interrupt interruptGeometry(const SpatialReference& theSRS);
