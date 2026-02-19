@@ -1084,13 +1084,14 @@ std::unique_ptr<OGRLineString> ringToLineStringPreserveClosure(const OGRLinearRi
                                                                bool forceClose,
                                                                double eps)
 {
-  auto ls = std::make_unique<OGRLineString>();
   if (!r)
-    return ls;
+    return nullptr;
 
   const int n = r->getNumPoints();
   if (n == 0)
-    return ls;
+    return nullptr;
+
+  auto ls = std::make_unique<OGRLineString>();
 
   // Copy all points as-is
   for (int i = 0; i < n; ++i)
@@ -1408,15 +1409,15 @@ void GeometryProjector::Impl::setJumpThreshold(double threshold)
 std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPoint(const OGRPoint* point)
 {
   if (!point || point->IsEmpty())
-    return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbPoint));
+    return nullptr;
 
   bool ok = false;
   auto p = projectSinglePoint(point->getX(), point->getY(), &ok);
   if (!ok || !p)
-    return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbPoint));
+    return nullptr;
 
   if (!isInsideBounds(p->getX(), p->getY()))
-    return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbPoint));
+    return nullptr;
 
   return std::unique_ptr<OGRGeometry>(p.release());
 }
@@ -1424,7 +1425,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPoint(const OGRPoin
 std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(const OGRLineString* line)
 {
   if (!line || line->IsEmpty())
-    return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbLineString));
+    return nullptr;
 
   ProjectionBoundary b = getProjectionBoundary();
 
@@ -1439,7 +1440,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(const OG
       clipRunsToBounds(projRuns, b, /*mergeCyclicRuns=*/false, /*detectJumps=*/true, maxJumpMeters);
 
   if (clippedRuns.empty())
-    return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbLineString));
+    return nullptr;
 
   if (clippedRuns.size() == 1)
     return std::unique_ptr<OGRGeometry>(clippedRuns[0].release());
@@ -1453,7 +1454,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(const OG
 std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPolygon(const OGRPolygon* polygon)
 {
   if (!polygon || polygon->IsEmpty())
-    return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbPolygon));
+    return nullptr;
 
   return splitPolygonWithHolesFast(polygon);
 }
@@ -1462,7 +1463,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectMultiGeometry(
     const OGRGeometryCollection* collection)
 {
   if (!collection || collection->IsEmpty())
-    return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbGeometryCollection));
+    return nullptr;
 
   const auto gt = wkbFlatten(collection->getGeometryType());
 
@@ -1598,7 +1599,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
 
   const OGRLinearRing* ext = polygon->getExteriorRing();
   if (!ext || ext->getNumPoints() < 4)
-    return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbPolygon));
+    return nullptr;
 
   auto extGeo = ringToLineStringPreserveClosure(ext, /*forceClose=*/true, eps);
   if (m_densifyKm > 0.0)
@@ -1691,7 +1692,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
 #endif
 
   if (shells.empty())
-    return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbPolygon));
+    return nullptr;
 
   for (int h = 0; h < polygon->getNumInteriorRings(); ++h)
   {
