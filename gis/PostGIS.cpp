@@ -9,6 +9,9 @@
 #include <ogrsf_frmts.h>
 #include <stdexcept>
 
+#include "Box.h"
+#include <geos_c.h>
+
 // Segment geometries by 1 degree accuracy when clipping/cutting to a rectangle
 const double default_segmentation_length = 1.0;
 
@@ -174,24 +177,32 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
     out->assignSpatialReference(tmp.get());
 
     layer->ResetReading();
+    int featurecount = 0;
     while ((feature = next_feature()))
     {
+      const auto* defn = feature->GetDefnRef();
+      int fieldIndex = defn->GetFieldIndex("iso_a2");
+      bool hasfield = (fieldIndex >= 0 && feature->IsFieldSetAndNotNull(fieldIndex));
+      std::string name;
+      if (hasfield)
+        name = feature->GetFieldAsString(fieldIndex);
+
       // owned by feature
       OGRGeometry* geometry = feature->GetGeometryRef();
       if (geometry != nullptr)
       {
-#if 1
         auto* clone = transformation.transformGeometry(*geometry, default_segmentation_length);
-#else
-        // This one timeouts WMS ice.get tests:
-        // const char* const opts[] = {"WRAPDATELINE=YES", nullptr};
-
-        // This one timeouts the same this:
-        // const char* const opts[] = {nullptr};
-
-        auto* clone = OGRGeometryFactory::transformWithOptions(
-            geometry, transformation.get(), const_cast<char**>(opts));
+        if (clone != nullptr)
+        {
+#if 1
+          if (!clone->IsValid())
+          {
+            std::cerr << "'" << name << "' NOT valid\n";
+            delete clone;
+            clone = nullptr;
+          }
 #endif
+        }
         if (clone != nullptr)
           out->addGeometryDirectly(clone);  // takes ownership
       }

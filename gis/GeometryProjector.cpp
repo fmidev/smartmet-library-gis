@@ -9,6 +9,7 @@
 #include <cpl_conv.h>
 #include <cpl_error.h>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <ogr_api.h>
@@ -17,6 +18,9 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
+
+#include <geos_c.h>
+#include <iostream>
 
 namespace Fmi
 {
@@ -1116,12 +1120,38 @@ std::vector<std::unique_ptr<OGRPolygon>> buildShellsFromExteriorRuns(
   std::vector<std::unique_ptr<OGRPolygon>> shells;
   shells.reserve(extRuns.size());
 
+  const double tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
+
+  // Determine closure direction per run based on boundary parameter order.
+  // Runs whose start has a smaller boundary parameter than their end get
+  // closed CW (increasing s); runs whose start has a larger boundary
+  // parameter get closed CCW (decreasing s). This ensures that when a
+  // polygon is split into multiple runs by the bounding box, adjacent runs
+  // get opposite closure directions and their boundary segments do not
+  // overlap or cross.
   for (auto& run : extRuns)
   {
     if (!run || run->getNumPoints() < 2)
       continue;
 
-    auto shellRing = closeRunAlongBoundary(*run, b, /*goCW=*/true);
+    OGRPoint first(run->getX(0), run->getY(0));
+    OGRPoint last(run->getX(run->getNumPoints() - 1), run->getY(run->getNumPoints() - 1));
+    snapToBoundaryPoint(first, b, tol);
+    snapToBoundaryPoint(last, b, tol);
+
+    // For closed runs (fully inside box) direction doesn't matter — use CW.
+    bool goCW = true;
+    if (isOnBoundary(last, b, tol) && isOnBoundary(first, b, tol))
+    {
+      const double sFirst = boundaryS(first, b, tol);
+      const double sLast = boundaryS(last, b, tol);
+      // Close CW (increasing s) when last comes before first on the boundary
+      // perimeter, meaning the short CW path from last->first is the correct
+      // closure for a CCW exterior ring.
+      goCW = (sLast < sFirst);
+    }
+
+    auto shellRing = closeRunAlongBoundary(*run, b, goCW);
     if (!shellRing || shellRing->getNumPoints() < 4)
       continue;
 
@@ -1367,7 +1397,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectGeometry(const OGRG
     case wkbMultiLineString:
     case wkbMultiPolygon:
     case wkbGeometryCollection:
-      return projectMultiGeometry(dynamic_cast<const OGRGeometryCollection*>(geom));
+      return projectMultiGeometry(geom->toGeometryCollection());
     default:
       return std::unique_ptr<OGRGeometry>(
           OGRGeometryFactory::createGeometry(wkbGeometryCollection));
@@ -1409,7 +1439,8 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(const OG
     densifyGeographicKm(geo.get(), m_densifyKm);
 
   auto projRuns = projectToProjectedRunsBestEffort(*geo);
-  const double maxJumpMeters = (m_densifyKm > 0.0) ? (m_densifyKm * 1000 * 10) : m_jumpThreshold;
+  const double maxJumpMeters =
+      (m_densifyKm > 0.0) ? (m_densifyKm * 1000 * 10) : std::max(m_jumpThreshold, 1000 * 1e3);
   auto clippedRuns =
       clipRunsToBounds(projRuns, b, /*mergeCyclicRuns=*/false, /*detectJumps=*/true, maxJumpMeters);
 
@@ -1444,19 +1475,35 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectMultiGeometry(
   OGRGeometryCollection* out = nullptr;
   if (gt == wkbMultiPoint)
     out = new OGRMultiPoint();
-  else if (gt == wkbMultiLineString)
-    out = new OGRMultiLineString();
   else if (gt == wkbMultiPolygon)
     out = new OGRMultiPolygon();
   else
     out = new OGRGeometryCollection();
 
-  auto addGeomChecked = [&](const OGRGeometry* geom)
+  // This calls itself recursively since a database call may return a multilinestring
+  // containing multilinestrings, which is technically invalid, but GDAL accepts it.
+  // Recursion flattens the structure.
+  // Note: auto does not work easily for recursive lambdas.
+
+  std::function<void(const OGRGeometry*)> addFlattened = [&](const OGRGeometry* geom)
   {
     if (!geom || geom->IsEmpty())
       return;
-    const OGRErr err = out->addGeometry(geom);
-    (void)err;
+    const auto ggt = wkbFlatten(geom->getGeometryType());
+    if (ggt == wkbMultiLineString || ggt == wkbMultiPolygon || ggt == wkbGeometryCollection)
+    {
+      const auto* coll = static_cast<const OGRGeometryCollection*>(geom);
+      for (int j = 0; j < coll->getNumGeometries(); ++j)
+        addFlattened(coll->getGeometryRef(j));
+    }
+    else
+    {
+      const OGRErr err = out->addGeometry(geom);
+      if (err != OGRERR_NONE)
+        std::cerr << "  addGeometry FAILED err=" << err
+                  << " geomType=" << OGRGeometryTypeToName(geom->getGeometryType())
+                  << " outType=" << OGRGeometryTypeToName(out->getGeometryType()) << "\n";
+    }
   };
 
   for (int i = 0; i < collection->getNumGeometries(); ++i)
@@ -1467,21 +1514,8 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectMultiGeometry(
     auto pg = projectGeometry(g);
     if (!pg || pg->IsEmpty())
       continue;
-
-    // projectLineString may return a MultiLineString when a line is split by
-    // the bounding box (e.g. a meridian that exits and re-enters the box).
-    // Flatten those into the output collection so children are never lost —
-    // GDAL silently drops a MultiLineString added as a child of another
-    // MultiLineString.
-    const auto pgt = wkbFlatten(pg->getGeometryType());
-    if (pgt == wkbMultiLineString || pgt == wkbMultiPolygon || pgt == wkbGeometryCollection)
-    {
-      auto* sub = static_cast<OGRGeometryCollection*>(pg.get());
-      for (int j = 0; j < sub->getNumGeometries(); ++j)
-        addGeomChecked(sub->getGeometryRef(j));
-    }
-    else
-      out->addGeometryDirectly(pg.release());
+    // if (!pg->IsValid())  continue;  // drop invalid pieces before they can corrupt the collection
+    addFlattened(pg.get());
   }
 
   return std::unique_ptr<OGRGeometry>(out);
@@ -1517,6 +1551,23 @@ std::unique_ptr<OGRPoint> GeometryProjector::Impl::projectSinglePoint(double x,
       *success = false;
     return nullptr;
   }
+
+  // Reject points that are implausibly far outside the bounding box —
+  // these are PROJ sentinel values or degenerate projections that would
+  // corrupt polygon rings. Allow a generous margin (10x box size) to
+  // avoid rejecting legitimate far-outside points that will be clipped.
+  const double boxW = m_projectedBounds[2] - m_projectedBounds[0];
+  const double boxH = m_projectedBounds[3] - m_projectedBounds[1];
+  const double margin = 10.0 * std::max(boxW, boxH);
+  const double centerX = 0.5 * (m_projectedBounds[0] + m_projectedBounds[2]);
+  const double centerY = 0.5 * (m_projectedBounds[1] + m_projectedBounds[3]);
+  if (std::abs(px - centerX) > margin || std::abs(py - centerY) > margin)
+  {
+    if (success)
+      *success = false;
+    return nullptr;
+  }
+
   if (success)
     *success = true;
   return std::make_unique<OGRPoint>(px, py);
@@ -1528,25 +1579,17 @@ GeometryProjector::Impl::projectToProjectedRunsBestEffort(const OGRLineString& g
   std::vector<std::unique_ptr<OGRLineString>> runs;
   auto cur = std::make_unique<OGRLineString>();
 
-  auto flush = [&]()
-  {
-    if (cur && cur->getNumPoints() >= 2)
-      runs.push_back(std::move(cur));
-    cur = std::make_unique<OGRLineString>();
-  };
-
   for (int i = 0; i < geo.getNumPoints(); ++i)
   {
     bool ok = false;
     auto p = projectSinglePoint(geo.getX(i), geo.getY(i), &ok);
     if (!ok || !p)
-    {
-      flush();  // split at failure (no bridging)
-      continue;
-    }
+      continue;  // skip failed point, do NOT split the run
     cur->addPoint(p->getX(), p->getY());
   }
-  flush();
+
+  if (cur && cur->getNumPoints() >= 2)
+    runs.push_back(std::move(cur));
 
   return runs;
 }
@@ -1568,10 +1611,50 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
     densifyGeographicKm(extGeo.get(), m_densifyKm);
 
   auto extProjRuns = projectToProjectedRunsBestEffort(*extGeo);
+
+  if (extProjRuns.size() > 1)
+  {
+    auto merged = std::make_unique<OGRLineString>();
+    for (const auto& run : extProjRuns)
+    {
+      if (!run || run->getNumPoints() < 1)
+        continue;
+      const int start = (merged->getNumPoints() == 0) ? 0 : 1;
+      for (int i = start; i < run->getNumPoints(); ++i)
+        merged->addPoint(run->getX(i), run->getY(i));
+    }
+    extProjRuns.clear();
+    if (merged->getNumPoints() >= 2)
+      extProjRuns.push_back(std::move(merged));
+  }
+
   auto extRuns = clipRunsToBounds(
       extProjRuns, b, /*mergeCyclicRuns=*/true, /*detectJumps=*/false, /*maxJumpMeters=*/0.0);
 
   auto shells = buildShellsFromExteriorRuns(extRuns, b);
+
+#if 1
+  // Disabled since does not seem to cause problems
+  for (size_t i = 0; i < shells.size(); ++i)
+  {
+    if (!shells[i]->IsValid())
+    {
+      // Get the GEOS handle from the geometry
+      GEOSContextHandle_t hGEOSCtx = OGRGeometry::createGEOSContext();
+      GEOSGeom hGEOSGeom = shells[i]->exportToGEOS(hGEOSCtx);
+
+      char* pszReason = GEOSisValidReason_r(hGEOSCtx, hGEOSGeom);
+
+      std::cerr << "    shell[" << i << "] valid=false"
+                << " reason=" << (pszReason ? pszReason : "?") << "\n";
+
+      GEOSFree(pszReason);
+      GEOSGeom_destroy_r(hGEOSCtx, hGEOSGeom);
+      OGRGeometry::freeGEOSContext(hGEOSCtx);
+    }
+  }
+#endif
+
   if (shells.empty())
     return std::unique_ptr<OGRGeometry>(OGRGeometryFactory::createGeometry(wkbPolygon));
 

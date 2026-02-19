@@ -325,24 +325,19 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
     // Here GDAL would also check if the geometry is geometric and circles the pole etc., we just
     // apply our GeometryProjector.
 
-#if 0
+#if 1
     if (impl->m_source.isGeographic())
     {
       GeometryProjector projector(impl->m_source.get(), impl->m_target.get());
       const double global_bound = 21000 * 1e3;  // meters
       projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
       auto result = projector.projectGeometry(g.get());
-      g.reset(result.release());
+      return result.release();
     }
-    else
 #endif
     if (!this->transform(*g))
-    {
-      // std::cerr << "Failed to transform geometry\n";
-      // return nullptr;
-    }
-
-    return OGR::renormalizeWindingOrder(*g);
+      return OGR::renormalizeWindingOrder(*g);
+    return nullptr;
   }
   catch (...)
   {
