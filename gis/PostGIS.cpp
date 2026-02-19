@@ -194,12 +194,12 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
         auto* clone = transformation.transformGeometry(*geometry, default_segmentation_length);
         if (clone != nullptr)
         {
-#if 1
+#if 0
           if (!clone->IsValid())
           {
             std::cerr << "'" << name << "' NOT valid\n";
-            delete clone;
-            clone = nullptr;
+            // delete clone;
+            // clone = nullptr;
           }
 #endif
         }

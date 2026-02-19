@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-#include <geos_c.h>
+// #include <geos_c.h>
 #include <iostream>
 
 namespace Fmi
@@ -641,6 +641,9 @@ std::unique_ptr<OGRLinearRing> closeRunAlongBoundary(const OGRLineString& run,
   forceExactClosure(*ring);
   if (ring->getNumPoints() < 4)
     return nullptr;
+  if (ring->isClockwise())
+    ring->reversePoints();
+
   return ring;
 }
 
@@ -716,6 +719,7 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
 
   if (mergeCyclicRuns)
     mergeCyclicRunsIfConnected(runs, eps);
+
   return runs;
 }
 
@@ -1119,16 +1123,8 @@ std::vector<std::unique_ptr<OGRPolygon>> buildShellsFromExteriorRuns(
 {
   std::vector<std::unique_ptr<OGRPolygon>> shells;
   shells.reserve(extRuns.size());
-
   const double tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
 
-  // Determine closure direction per run based on boundary parameter order.
-  // Runs whose start has a smaller boundary parameter than their end get
-  // closed CW (increasing s); runs whose start has a larger boundary
-  // parameter get closed CCW (decreasing s). This ensures that when a
-  // polygon is split into multiple runs by the bounding box, adjacent runs
-  // get opposite closure directions and their boundary segments do not
-  // overlap or cross.
   for (auto& run : extRuns)
   {
     if (!run || run->getNumPoints() < 2)
@@ -1139,24 +1135,22 @@ std::vector<std::unique_ptr<OGRPolygon>> buildShellsFromExteriorRuns(
     snapToBoundaryPoint(first, b, tol);
     snapToBoundaryPoint(last, b, tol);
 
-    // For closed runs (fully inside box) direction doesn't matter — use CW.
-    bool goCW = true;
-    if (isOnBoundary(last, b, tol) && isOnBoundary(first, b, tol))
-    {
-      const double sFirst = boundaryS(first, b, tol);
-      const double sLast = boundaryS(last, b, tol);
-      // Close CW (increasing s) when last comes before first on the boundary
-      // perimeter, meaning the short CW path from last->first is the correct
-      // closure for a CCW exterior ring.
-      goCW = (sLast < sFirst);
-    }
+    const double sFirst = isOnBoundary(first, b, tol) ? boundaryS(first, b, tol) : -1.0;
+    const double sLast = isOnBoundary(last, b, tol) ? boundaryS(last, b, tol) : -1.0;
 
+    bool goCW = true;
+    if (isOnBoundary(first, b, tol) && isOnBoundary(last, b, tol))
+    {
+      const double per = 2.0 * ((b.maxX - b.minX) + (b.maxY - b.minY));
+      double distCW = sFirst - sLast;
+      if (distCW < 0)
+        distCW += per;
+      goCW = (distCW <= per / 2.0);  // take the shorter path
+    }
     auto shellRing = closeRunAlongBoundary(*run, b, goCW);
     if (!shellRing || shellRing->getNumPoints() < 4)
       continue;
-
     forceExactClosure(*shellRing);
-
     auto poly = std::make_unique<OGRPolygon>();
     poly->addRing(shellRing.get());
     shells.emplace_back(std::move(poly));
@@ -1628,12 +1622,53 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
       extProjRuns.push_back(std::move(merged));
   }
 
-  auto extRuns = clipRunsToBounds(
-      extProjRuns, b, /*mergeCyclicRuns=*/true, /*detectJumps=*/false, /*maxJumpMeters=*/0.0);
+  // Using 10* here might be a bit too aggressive, 20* might be better (Claude.ai)
+  const double maxJumpMeters =
+      (m_densifyKm > 0.0) ? (m_densifyKm * 1000.0 * 10.0) : m_jumpThreshold;
+  auto extRuns = clipRunsToBounds(extProjRuns,
+                                  b,
+                                  /*mergeCyclicRuns=*/true,
+                                  /*detectJumps=*/true,
+                                  /*maxJumpMeters=*/maxJumpMeters);
+
+  // After clipRunsToBounds, handle cyclic fragments:
+  // If the first run starts off-boundary and the last run ends off-boundary,
+  // they are the two halves of a split at a projection failure point.
+  // Merge last into first (cyclic wrap).
+
+  if (extRuns.size() > 1)
+  {
+    const double tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
+    auto& first = extRuns.front();
+    auto& last = extRuns.back();
+    if (first && last)
+    {
+      OGRPoint firstFront(first->getX(0), first->getY(0));
+      OGRPoint lastBack(last->getX(last->getNumPoints() - 1), last->getY(last->getNumPoints() - 1));
+      if (!isOnBoundary(firstFront, b, tol) && !isOnBoundary(lastBack, b, tol))
+      {
+        const double dx = lastBack.getX() - firstFront.getX();
+        const double dy = lastBack.getY() - firstFront.getY();
+        const double dist = std::sqrt(dx * dx + dy * dy);
+        const double kMaxBridgeMeters = m_densifyKm * 1000.0 * 3.0;  // 3x densify step
+
+        if (dist <= kMaxBridgeMeters)
+        {
+          auto merged = std::make_unique<OGRLineString>();
+          for (int i = 0; i < last->getNumPoints(); ++i)
+            merged->addPoint(last->getX(i), last->getY(i));
+          for (int i = 1; i < first->getNumPoints(); ++i)
+            merged->addPoint(first->getX(i), first->getY(i));
+          extRuns.front() = std::move(merged);
+          extRuns.pop_back();
+        }
+      }
+    }
+  }
 
   auto shells = buildShellsFromExteriorRuns(extRuns, b);
 
-#if 1
+#if 0
   // Disabled since does not seem to cause problems
   for (size_t i = 0; i < shells.size(); ++i)
   {
