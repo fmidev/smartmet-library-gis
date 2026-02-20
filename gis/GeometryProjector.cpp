@@ -1136,18 +1136,19 @@ std::vector<std::unique_ptr<OGRPolygon>> buildShellsFromExteriorRuns(
     snapToBoundaryPoint(first, b, tol);
     snapToBoundaryPoint(last, b, tol);
 
-    const double sFirst = isOnBoundary(first, b, tol) ? boundaryS(first, b, tol) : -1.0;
-    const double sLast = isOnBoundary(last, b, tol) ? boundaryS(last, b, tol) : -1.0;
-
     bool goCW = true;
     if (isOnBoundary(first, b, tol) && isOnBoundary(last, b, tol))
     {
-      const double per = 2.0 * ((b.maxX - b.minX) + (b.maxY - b.minY));
-      double distCW = sFirst - sLast;
-      if (distCW < 0)
-        distCW += per;
-      goCW = (distCW <= per / 2.0);  // take the shorter path
+      double signedArea = 0.0;
+      for (int i = 0; i < run->getNumPoints() - 1; ++i)
+      {
+        signedArea += run->getX(i) * run->getY(i + 1) - run->getX(i + 1) * run->getY(i);
+      }
+      // Positive signed area = CCW run = interior to the left = close CCW
+      // Negative signed area = CW run = interior to the right = close CW
+      goCW = (signedArea < 0);
     }
+
     auto shellRing = closeRunAlongBoundary(*run, b, goCW);
     if (!shellRing || shellRing->getNumPoints() < 4)
       continue;
