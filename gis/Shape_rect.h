@@ -53,6 +53,8 @@ class Shape_rect : public Shape
                           double &x2,
                           double &y2) const override;
 
+  void reorientLines(std::list<OGRLineString *> &lines) const override;
+
   void print(std::ostream &stream) override;
 
  protected:

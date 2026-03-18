@@ -1151,6 +1151,29 @@ bool Shape_rect::different(double x1, double y1, double x2, double y2)
   return !(x1 == x2 && y1 == y2);
 }
 
+void Shape_rect::reorientLines(std::list<OGRLineString *> &lines) const
+{
+  for (auto *line : lines)
+  {
+    int n = line->getNumPoints();
+    if (n < 2)
+      continue;
+    double x1 = line->getX(0), y1 = line->getY(0);
+    double x2 = line->getX(n - 1), y2 = line->getY(n - 1);
+    bool needs_reversal = false;
+    if (x1 == itsXMin && x2 == itsXMin && y1 < y2)
+      needs_reversal = true;
+    else if (x1 == itsXMax && x2 == itsXMax && y1 > y2)
+      needs_reversal = true;
+    else if (y1 == itsYMin && y2 == itsYMin && x1 > x2)
+      needs_reversal = true;
+    else if (y1 == itsYMax && y2 == itsYMax && x1 < x2)
+      needs_reversal = true;
+    if (needs_reversal)
+      line->reversePoints();
+  }
+}
+
 void Shape_rect::print(std::ostream &stream)
 {
   try

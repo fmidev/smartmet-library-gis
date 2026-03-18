@@ -2,6 +2,7 @@
 
 #include <macgyver/Exception.h>
 #include <iostream>
+#include <list>
 #include <ogr_geometry.h>
 
 namespace Fmi
@@ -61,6 +62,8 @@ class Shape
                                   double y1,
                                   double &x2,
                                   double &y2) const;
+
+  virtual void reorientLines(std::list<OGRLineString *> &lines) const {}
 
   virtual void print(std::ostream &stream);
 
