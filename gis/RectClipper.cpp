@@ -21,9 +21,9 @@ OGRLinearRing *make_exterior(const Fmi::Box &theBox, double max_length = 0)
   {
     auto *ring = new OGRLinearRing;
     ring->addPoint(theBox.xmin(), theBox.ymin());
-    ring->addPoint(theBox.xmin(), theBox.ymax());
-    ring->addPoint(theBox.xmax(), theBox.ymax());
     ring->addPoint(theBox.xmax(), theBox.ymin());
+    ring->addPoint(theBox.xmax(), theBox.ymax());
+    ring->addPoint(theBox.xmin(), theBox.ymax());
     ring->addPoint(theBox.xmin(), theBox.ymin());
     if (max_length > 0)
       ring->segmentize(max_length);
@@ -47,9 +47,9 @@ OGRLinearRing *make_hole(const Fmi::Box &theBox, double max_length = 0)
   {
     auto *ring = new OGRLinearRing;
     ring->addPoint(theBox.xmin(), theBox.ymin());
-    ring->addPoint(theBox.xmax(), theBox.ymin());
-    ring->addPoint(theBox.xmax(), theBox.ymax());
     ring->addPoint(theBox.xmin(), theBox.ymax());
+    ring->addPoint(theBox.xmax(), theBox.ymax());
+    ring->addPoint(theBox.xmax(), theBox.ymin());
     ring->addPoint(theBox.xmin(), theBox.ymin());
     if (max_length > 0)
       ring->segmentize(max_length);
@@ -81,6 +81,8 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
 {
   try
   {
+    std::cerr << "Reconnecting " << lines.size() << " lines\n";
+
     // Nothing to reconnect if there aren't at least two lines
     if (lines.size() < 2)
       return;
@@ -155,7 +157,7 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Search for matching line segment clockwise (clipping)
+ * \brief Search for matching line segment clockwise (cutting)
  */
 // ----------------------------------------------------------------------
 
@@ -169,6 +171,7 @@ std::list<OGRLineString *>::iterator search_cw(OGRLinearRing *ring,
 {
   try
   {
+    std::cerr << "Searching cw\n";
     auto best = lines.end();
 
     if (y1 == box.ymin() && x1 > box.xmin())
@@ -266,7 +269,7 @@ std::list<OGRLineString *>::iterator search_cw(OGRLinearRing *ring,
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Search for matching line segment counter-clockwise (cutting)
+ * \brief Search for matching line segment counter-clockwise (clipping)
  */
 // ----------------------------------------------------------------------
 
@@ -280,6 +283,8 @@ std::list<OGRLineString *>::iterator search_ccw(OGRLinearRing *ring,
 {
   try
   {
+    std::cerr << "Searching ccw\n";
+
     auto best = lines.end();
 
     if (y1 == box.ymin() && x1 < box.xmax())
@@ -393,11 +398,24 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
     if (theLines.empty())
       return;
 
+#if 1
+    std::cerr << "connectLines: " << theLines.size() << " lines, "
+              << "box=(" << theBox.xmin() << "," << theBox.ymin() << "," << theBox.xmax() << ","
+              << theBox.ymax() << ")\n";
+    int lineIdx = 0;
+    for (auto *line : theLines)
+      std::cerr << "Line: " << ++lineIdx << " " << Fmi::OGR::exportToWkt(*line) << "\n";
+
+#endif
+
     bool cw = false;
     if (keep_inside)
-      cw = exterior;
+      cw = !exterior;  // clipping: holes CW, exteriors CCW
+    else
+      cw = exterior;  // cutting: exteriors CW, holes CCW
 
     OGRLinearRing *ring = nullptr;
+    int cornerSteps = 0;
 
     while (!theLines.empty() || ring != nullptr)
     {
@@ -408,11 +426,11 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
         theLines.pop_front();
         ring->addSubLineString(line);
         delete line;
+        cornerSteps = 0;
+#if 1
+        std::cerr << "  started new ring at (" << ring->getX(0) << "," << ring->getY(0) << ")\n";
+#endif
       }
-
-      // Proceed clockwise until the ring can be closed or the
-      // start point of another linestring is encountered.
-      // Always make the choice that is next in clockwise order.
 
       int nr = ring->getNumPoints();
       double x1 = ring->getX(nr - 1);
@@ -420,56 +438,56 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
       double x2 = x1;
       double y2 = y1;
 
-      // No linestring to move onto found next - meaning we'd
-      // either move to the next corner or close the current ring.
-
       auto best = (cw ? search_cw(ring, theLines, x1, y1, x2, y2, theBox)
                       : search_ccw(ring, theLines, x1, y1, x2, y2, theBox));
 
       if (best != theLines.end())
       {
-        // Found a matching linestring to continue to from the same edge we were studying. Move to
-        // it and continue building. The line might continue from the same point, in which case we
-        // must skip the first point.
-
+        cornerSteps = 0;
+#if 1
+        std::cerr << "  found match at (" << (*best)->getX(0) << "," << (*best)->getY(0)
+                  << ") from (" << x1 << "," << y1 << ")\n";
+#endif
         if (x1 != (*best)->getX(0) || y1 != (*best)->getY(0))
           ring->addSubLineString(*best);
         else
-          ring->addSubLineString(*best, 1);  // start from 2nd point
+          ring->addSubLineString(*best, 1);
         delete *best;
         theLines.erase(best);
       }
       else
       {
-        // Couldn't find a matching best line. Either close the ring or move to next corner.
-        if (max_length > 0)
-        {
-          OGRPoint startpoint;
-          ring->EndPoint(&startpoint);
-          x1 = startpoint.getX();
-          y1 = startpoint.getY();
-          const auto dx = x2 - x1;
-          const auto dy = y2 - y1;
+        ++cornerSteps;
+#if 1
+        std::cerr << "  no match from (" << x1 << "," << y1 << ")"
+                  << " -> corner (" << x2 << "," << y2 << ")"
+                  << " cornerSteps=" << cornerSteps << "\n";
+#endif
 
-          auto length = std::hypot(dx, dy);
-          if (length > max_length)
-          {
-            auto num = static_cast<int>(std::ceil(length / max_length));
-            for (auto i = 1; i < num; i++)
-            {
-              auto fraction = 1.0 * i / num;
-              ring->addPoint(x1 + fraction * dx, y1 + fraction * dy);
-            }
-          }
+        if (cornerSteps > 4)
+        {
+          throw Fmi::Exception(BCP, "Stuck, discarding ring");
+#if 1
+          std::cerr << "  stuck, discarding ring\n";
+          delete ring;
+          ring = nullptr;
+          cornerSteps = 0;
+          continue;
+#endif
         }
+
         ring->addPoint(x2, y2);
       }
 
       if (ring->get_IsClosed())
       {
+#if 1
+        std::cerr << "  ring closed with " << ring->getNumPoints() << " points\n";
+#endif
         Fmi::OGR::normalize(*ring);
         theRings.push_back(ring);
         ring = nullptr;
+        cornerSteps = 0;
       }
     }
     theLines.clear();
@@ -516,8 +534,8 @@ void Fmi::RectClipper::reconnect()
 {
   try
   {
-    reconnectLines(itsExteriorLines, *this, true);
-    reconnectLines(itsInteriorLines, *this, false);
+    reconnectLines(itsExteriorLines, *this, /*exterior=*/true);
+    reconnectLines(itsInteriorLines, *this, /*exterior=*/false);
   }
   catch (...)
   {
@@ -617,8 +635,13 @@ void Fmi::RectClipper::addExterior(OGRLinearRing *theRing)
 {
   try
   {
+#if 1
+    std::cerr << "  RectClipper::addExterior ring pts=" << theRing->getNumPoints()
+              << " isClockwise=" << theRing->isClockwise() << "\n";
+#endif
+
     OGR::normalize(*theRing);
-    if (theRing->isClockwise() == 0)
+    if (theRing->isClockwise() == 1)
       theRing->reversePoints();
     itsExteriorRings.push_back(theRing);
   }
@@ -638,6 +661,9 @@ void Fmi::RectClipper::addExterior(OGRLineString *theLine)
 {
   try
   {
+#if 1
+    std::cerr << "Adding exterior line " << Fmi::OGR::exportToWkt(*theLine) << "\n";
+#endif
     auto n = theLine->getNumPoints();
 
     // We may have just touched the exterior at a single point
@@ -662,8 +688,13 @@ void Fmi::RectClipper::addInterior(OGRLinearRing *theRing)
 {
   try
   {
+#if 1
+    std::cerr << "  RectClipper::addInterior ring pts=" << theRing->getNumPoints()
+              << " isClockwise=" << theRing->isClockwise() << "\n";
+#endif
+
     OGR::normalize(*theRing);
-    if (theRing->isClockwise() == 1)
+    if (theRing->isClockwise() == 0)
       theRing->reversePoints();
     itsInteriorRings.push_back(theRing);
   }
@@ -713,8 +744,17 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
   {
     // Make exterior box if necessary
 
+#if 1
+    std::cerr << "Reconnecting with bbox\n";
+    std::cerr << "\nitsKeepInsideFlag=" << itsKeepInsideFlag << "  itsAddBoxFlag=" << itsAddBoxFlag
+              << "\n";
+#endif
+
     if (itsKeepInsideFlag && itsAddBoxFlag && itsExteriorLines.empty())
     {
+#if 1
+      std::cerr << "Making exterior\n";
+#endif
       auto *ring = make_exterior(itsBox, theMaximumSegmentLength);
       itsExteriorRings.push_back(ring);
     }
@@ -723,6 +763,10 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
 
     if (!itsKeepInsideFlag && itsAddBoxFlag && itsInteriorLines.empty())
     {
+#if 1
+      std::cerr << "Making hole\n";
+#endif
+
       auto *ring = make_hole(itsBox, theMaximumSegmentLength);
       itsInteriorRings.push_back(ring);
     }
@@ -732,6 +776,15 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
     // holes are either part of the interior unless the exterior is also clipped,
     // if we have both lines they must by definition all belong to the exterior.
 
+#if 1
+    std::cerr << "Exterior lines:\n";
+    for (const auto *line : itsExteriorLines)
+      std::cerr << Fmi::OGR::exportToWkt(*line) << "\n";
+    std::cerr << "Interior lines:\n";
+    for (const auto *line : itsInteriorLines)
+      std::cerr << Fmi::OGR::exportToWkt(*line) << "\n";
+#endif
+
     if (!itsExteriorLines.empty() && !itsInteriorLines.empty())
     {
       std::move(
@@ -739,19 +792,26 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
       itsInteriorLines.clear();
     }
 
+#if 1
+    std::cerr << "Connecting exteriors\n";
+#endif
+
     connectLines(itsExteriorRings,
                  itsExteriorLines,
                  itsBox,
                  theMaximumSegmentLength,
                  itsKeepInsideFlag,
-                 true);
+                 /*exterior=*/true);
 
+#if 1
+    std::cerr << "Connecting interiors\n";
+#endif
     connectLines(itsInteriorRings,
                  itsInteriorLines,
                  itsBox,
                  theMaximumSegmentLength,
                  itsKeepInsideFlag,
-                 false);
+                 /*exterior=*/false);
 
     // Build polygons starting from the built exterior rings
     for (auto *exterior : itsExteriorRings)
@@ -806,6 +866,8 @@ void Fmi::RectClipper::reconnectWithoutBox()
 {
   try
   {
+    std::cerr << "Reconnecting without bbox\n";
+
     // Make exterior box if necessary
 
     if (itsKeepInsideFlag && itsAddBoxFlag && itsExteriorLines.empty())

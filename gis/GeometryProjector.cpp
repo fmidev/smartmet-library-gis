@@ -3,6 +3,8 @@
 #include "GeometryProjector.h"
 #include "OGR.h"
 
+#include <gis/GeometryBuilder.h>
+#include <gis/RectClipper.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -115,49 +117,6 @@ void densifyGeographicKm(OGRLineString* line, double stepKm)
 
 // ------------------------------ ring helpers ------------------------------
 
-bool isRingClosed(const OGRLineString& ls, double eps)
-{
-  const int n = ls.getNumPoints();
-  if (n < 4)
-    return false;
-  return nearlyEqual(ls.getX(0), ls.getX(n - 1), eps) &&
-         nearlyEqual(ls.getY(0), ls.getY(n - 1), eps);
-}
-
-void forceExactClosure(OGRLinearRing& r)
-{
-  if (r.getNumPoints() < 2)
-    return;
-  OGRPoint first;
-  OGRPoint last;
-  r.getPoint(0, &first);
-  r.getPoint(r.getNumPoints() - 1, &last);
-  if (std::abs(first.getX() - last.getX()) > 1e-10 || std::abs(first.getY() - last.getY()) > 1e-10)
-  {
-    r.closeRings();
-    r.setPoint(r.getNumPoints() - 1, first.getX(), first.getY());
-  }
-}
-
-std::unique_ptr<OGRLinearRing> toClosedRing(const OGRLineString& ls)
-{
-  auto r = std::make_unique<OGRLinearRing>();
-  for (int i = 0; i < ls.getNumPoints(); ++i)
-    r->addPoint(ls.getX(i), ls.getY(i));
-  r->closeRings();
-  forceExactClosure(*r);
-  return r;
-}
-
-OGRLinearRing copyExteriorRing(const OGRLinearRing& exterior)
-{
-  OGRLinearRing ext;
-  ext.addSubLineString(&exterior, 0, exterior.getNumPoints() - 1);
-  ext.closeRings();
-  forceExactClosure(ext);
-  return ext;
-}
-
 // ---- boundary classification ----
 
 enum class BEdge : std::uint8_t
@@ -174,13 +133,6 @@ struct ProjectionBoundary
   double minX, minY, maxX, maxY;
 };
 
-bool betweenInclusive(double a, double c, double v, double tol)
-{
-  const double lo = std::min(a, c) - tol;
-  const double hi = std::max(a, c) + tol;
-  return v >= lo && v <= hi;
-}
-
 void snapToBoundaryPoint(OGRPoint& p, const ProjectionBoundary& b, double tol)
 {
   if (std::abs(p.getX() - b.minX) <= tol)
@@ -194,48 +146,6 @@ void snapToBoundaryPoint(OGRPoint& p, const ProjectionBoundary& b, double tol)
     p.setY(b.maxY);
 }
 
-BEdge classifyBoundaryEdge(const OGRPoint& pin, const ProjectionBoundary& b, double tol)
-{
-  OGRPoint p = pin;
-  snapToBoundaryPoint(p, b, tol);
-
-  if (std::abs(p.getY() - b.minY) <= tol)
-    return BEdge::Bottom;
-  if (std::abs(p.getX() - b.maxX) <= tol)
-    return BEdge::Right;
-  if (std::abs(p.getY() - b.maxY) <= tol)
-    return BEdge::Top;
-  if (std::abs(p.getX() - b.minX) <= tol)
-    return BEdge::Left;
-  return BEdge::None;
-}
-
-bool pointOnEdge(const OGRPoint& pin, BEdge e, const ProjectionBoundary& b, double tol)
-{
-  OGRPoint p = pin;
-  snapToBoundaryPoint(p, b, tol);
-
-  switch (e)
-  {
-    case BEdge::Bottom:
-      return std::abs(p.getY() - b.minY) <= tol;
-    case BEdge::Right:
-      return std::abs(p.getX() - b.maxX) <= tol;
-    case BEdge::Top:
-      return std::abs(p.getY() - b.maxY) <= tol;
-    case BEdge::Left:
-      return std::abs(p.getX() - b.minX) <= tol;
-    default:
-      return false;
-  }
-}
-
-bool segmentOnSameEdge(
-    const OGRPoint& a, const OGRPoint& c, BEdge e, const ProjectionBoundary& b, double tol)
-{
-  return pointOnEdge(a, e, b, tol) && pointOnEdge(c, e, b, tol);
-}
-
 enum class Corner : std::uint8_t
 {
   BL = 0,
@@ -244,155 +154,12 @@ enum class Corner : std::uint8_t
   TL = 3
 };
 
-OGRPoint cornerPoint(Corner c, const ProjectionBoundary& b)
-{
-  switch (c)
-  {
-    case Corner::BL:
-      return {b.minX, b.minY};
-    case Corner::BR:
-      return {b.maxX, b.minY};
-    case Corner::TR:
-      return {b.maxX, b.maxY};
-    case Corner::TL:
-      return {b.minX, b.maxY};
-  }
-  return {b.minX, b.minY};
-}
-
-double cornerS(Corner c, const ProjectionBoundary& b)
-{
-  const double w = b.maxX - b.minX;
-  const double h = b.maxY - b.minY;
-  switch (c)
-  {
-    case Corner::BL:
-      return 0.0;
-    case Corner::BR:
-      return w;
-    case Corner::TR:
-      return w + h;
-    case Corner::TL:
-      return w + h + w;
-  }
-  return 0.0;
-}
-
-double nextCornerS(double s, const ProjectionBoundary& b, double tol)
-{
-  const double w = b.maxX - b.minX;
-  const double h = b.maxY - b.minY;
-  const double per = 2.0 * (w + h);
-
-  if (s < w - tol)
-    return w;
-  if (s < w + h - tol)
-    return w + h;
-  if (s < w + h + w - tol)
-    return w + h + w;
-  return per;
-}
-
-double prevCornerS(double s, const ProjectionBoundary& b, double tol)
-{
-  const double w = b.maxX - b.minX;
-  const double h = b.maxY - b.minY;
-
-  if (s > w + h + w + tol)
-    return w + h + w;
-  if (s > w + h + tol)
-    return w + h;
-  if (s > w + tol)
-    return w;
-  return 0.0;
-}
-
 bool isOnBoundary(const OGRPoint& p, const ProjectionBoundary& b, double tol)
 {
   return (std::abs(p.getX() - b.minX) <= tol || std::abs(p.getX() - b.maxX) <= tol ||
           std::abs(p.getY() - b.minY) <= tol || std::abs(p.getY() - b.maxY) <= tol);
 }
 
-double boundaryS(const OGRPoint& pin, const ProjectionBoundary& b, double tol)
-{
-  OGRPoint p = pin;
-  snapToBoundaryPoint(p, b, tol);
-
-  const double w = b.maxX - b.minX;
-  const double h = b.maxY - b.minY;
-
-  if (std::abs(p.getY() - b.minY) <= tol)
-    return std::clamp(p.getX() - b.minX, 0.0, w);
-
-  if (std::abs(p.getX() - b.maxX) <= tol)
-    return w + std::clamp(p.getY() - b.minY, 0.0, h);
-
-  if (std::abs(p.getY() - b.maxY) <= tol)
-    return w + h + std::clamp(b.maxX - p.getX(), 0.0, w);
-
-  return w + h + w + std::clamp(b.maxY - p.getY(), 0.0, h);
-}
-
-void appendCornerByS(double s, const ProjectionBoundary& b, double tol, std::vector<OGRPoint>& out)
-{
-  if (nearlyEqual(s, cornerS(Corner::BL, b), tol))
-    out.push_back(cornerPoint(Corner::BL, b));
-  else if (nearlyEqual(s, cornerS(Corner::BR, b), tol))
-    out.push_back(cornerPoint(Corner::BR, b));
-  else if (nearlyEqual(s, cornerS(Corner::TR, b), tol))
-    out.push_back(cornerPoint(Corner::TR, b));
-  else if (nearlyEqual(s, cornerS(Corner::TL, b), tol))
-    out.push_back(cornerPoint(Corner::TL, b));
-}
-
-int findInsertAfterIndexOnBoundaryEdge(const OGRLinearRing& ring,
-                                       const OGRPoint& pOnBoundary,
-                                       BEdge edge,
-                                       const ProjectionBoundary& b,
-                                       double tol)
-{
-  const int n = ring.getNumPoints();
-  if (n < 4)
-    return -1;
-
-  const int m = n - 1;  // last duplicates first
-
-  // test membership along the varying coordinate depending on edge
-  auto fitsBetween = [&](const OGRPoint& a, const OGRPoint& c) -> bool
-  {
-    switch (edge)
-    {
-      case BEdge::Right:
-      case BEdge::Left:
-        return betweenInclusive(a.getY(), c.getY(), pOnBoundary.getY(), tol);
-      case BEdge::Bottom:
-      case BEdge::Top:
-        return betweenInclusive(a.getX(), c.getX(), pOnBoundary.getX(), tol);
-      default:
-        return false;
-    }
-  };
-
-  for (int i = 0; i < m; ++i)
-  {
-    const int j = (i + 1) % m;
-
-    OGRPoint a(ring.getX(i), ring.getY(i));
-    OGRPoint c(ring.getX(j), ring.getY(j));
-
-    if (!segmentOnSameEdge(a, c, edge, b, tol))
-      continue;
-
-    // Ensure p is on the same edge too
-    if (!pointOnEdge(pOnBoundary, edge, b, tol))
-      continue;
-
-    if (fitsBetween(a, c))
-      return i;
-  }
-
-  return -1;
-}
 // ------------------------------ Liang-Barsky helpers ------------------------------
 
 struct ClipHit
@@ -514,139 +281,6 @@ void mergeCyclicRunsIfConnected(std::vector<std::unique_ptr<OGRLineString>>& run
   }
 }
 
-std::vector<OGRPoint> boundaryPathCore(const OGRPoint& startOnB,
-                                       const OGRPoint& endOnB,
-                                       const ProjectionBoundary& b,
-                                       bool goCW)
-{
-  const double tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
-  const double w = b.maxX - b.minX;
-  const double h = b.maxY - b.minY;
-  const double per = 2.0 * (w + h);
-
-  OGRPoint a = startOnB;
-  OGRPoint c = endOnB;
-  snapToBoundaryPoint(a, b, tol);
-  snapToBoundaryPoint(c, b, tol);
-
-  const double sA = boundaryS(a, b, tol);
-  const double sC = boundaryS(c, b, tol);
-
-  if (std::abs(sA - sC) <= tol)
-    return {c};
-
-  std::vector<OGRPoint> out;
-  double s = sA;
-
-  if (goCW)
-  {
-    for (int guard = 0; guard < 16; ++guard)
-    {
-      const double nc = nextCornerS(s, b, tol);
-
-      double distToC = sC - s;
-      if (distToC < 0)
-        distToC += per;
-
-      double distToCorner = nc - s;
-      if (distToCorner < 0)
-        distToCorner += per;
-
-      if (distToCorner + tol >= distToC)
-        break;
-
-      if (nc >= per - tol)
-      {
-        out.push_back(cornerPoint(Corner::BL, b));  // wrap
-        s = 0.0;
-      }
-      else
-      {
-        appendCornerByS(nc, b, tol, out);
-        s = nc;
-      }
-    }
-  }
-  else
-  {
-    for (int guard = 0; guard < 16; ++guard)
-    {
-      const double pc = prevCornerS(s, b, tol);
-
-      double distToC = s - sC;
-      if (distToC < 0)
-        distToC += per;
-
-      double distToCorner = s - pc;
-      if (distToCorner < 0)
-        distToCorner += per;
-
-      if (distToCorner + tol >= distToC)
-        break;
-
-      appendCornerByS(pc, b, tol, out);
-      s = pc;
-    }
-  }
-
-  out.push_back(c);
-  return out;
-}
-
-// Directed boundary walk (goCW=true follows increasing boundaryS: BL->BR->TR->TL->BL)
-std::vector<OGRPoint> boundaryPathDirected(const OGRPoint& startOnB,
-                                           const OGRPoint& endOnB,
-                                           const ProjectionBoundary& b,
-                                           bool goCW)
-{
-  return boundaryPathCore(startOnB, endOnB, b, goCW);
-}
-
-// Build a closed ring from an open run by walking bbox boundary from last->first
-std::unique_ptr<OGRLinearRing> closeRunAlongBoundary(const OGRLineString& run,
-                                                     const ProjectionBoundary& b,
-                                                     bool goCW)
-{
-  const double tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
-  const double eps = ringEps(b.minX, b.minY, b.maxX, b.maxY);
-
-  if (run.getNumPoints() < 2)
-    return nullptr;
-
-  OGRPoint first(run.getX(0), run.getY(0));
-  OGRPoint last(run.getX(run.getNumPoints() - 1), run.getY(run.getNumPoints() - 1));
-
-  snapToBoundaryPoint(first, b, tol);
-  snapToBoundaryPoint(last, b, tol);
-
-  auto ring = std::make_unique<OGRLinearRing>();
-  for (int i = 0; i < run.getNumPoints(); ++i)
-    ring->addPoint(run.getX(i), run.getY(i));
-
-  if (!nearlyEqual(first.getX(), last.getX(), eps) || !nearlyEqual(first.getY(), last.getY(), eps))
-  {
-    if (isOnBoundary(last, b, tol) && isOnBoundary(first, b, tol))
-    {
-      auto path = boundaryPathDirected(last, first, b, goCW);
-      for (const auto& p : path)
-        ring->addPoint(&p);
-    }
-    else
-    {
-      ring->addPoint(&first);
-    }
-  }
-
-  ring->closeRings();
-  forceExactClosure(*ring);
-  if (ring->getNumPoints() < 4)
-    return nullptr;
-  // if (ring->isClockwise())
-  // ring->reversePoints();
-
-  return ring;
-}
-
 std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRLineString& proj,
                                                                       const ProjectionBoundary& b,
                                                                       bool mergeCyclicRuns,
@@ -723,61 +357,6 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
   return runs;
 }
 
-int ensureBoundaryVertex(OGRLinearRing& ring,
-                         const OGRPoint& pOnBoundaryIn,
-                         const ProjectionBoundary& b,
-                         double tol)
-{
-  ring.closeRings();
-  forceExactClosure(ring);
-
-  OGRPoint p = pOnBoundaryIn;
-  snapToBoundaryPoint(p, b, tol);
-
-  // Must lie on some boundary edge
-  const BEdge edge = classifyBoundaryEdge(p, b, tol);
-  if (edge == BEdge::None)
-    return -1;
-
-  // 1) If already a vertex, return existing index
-  for (int i = 0; i < ring.getNumPoints(); ++i)
-  {
-    if (nearlyEqual(ring.getX(i), p.getX(), tol) && nearlyEqual(ring.getY(i), p.getY(), tol))
-      return i;
-  }
-
-  const int n = ring.getNumPoints();
-  if (n < 4)
-    return -1;
-
-  // 2) Find boundary edge segment where insertion is valid
-  const int insertAfter = findInsertAfterIndexOnBoundaryEdge(ring, p, edge, b, tol);
-  if (insertAfter < 0)
-    return -1;
-
-  // 3) Rebuild ring with inserted point after insertAfter (excluding closure duplicate)
-  const int m = n - 1;
-  std::vector<OGRPoint> pts;
-  pts.reserve(m + 2);
-
-  for (int i = 0; i < m; ++i)
-  {
-    pts.emplace_back(ring.getX(i), ring.getY(i));
-    if (i == insertAfter)
-      pts.emplace_back(p.getX(), p.getY());
-  }
-  pts.push_back(pts.front());  // closure
-
-  ring.empty();
-  for (const auto& q : pts)
-    ring.addPoint(q.getX(), q.getY());
-
-  ring.closeRings();
-  forceExactClosure(ring);
-
-  return insertAfter + 1;
-}
-
 // ------------------------------ polygon splitting + hole cuts ------------------------------
 
 // ---- open-hole cut merge helpers ----
@@ -790,217 +369,6 @@ struct BoundaryParams
   double h;
   double per;
 };
-
-void appendKeptExteriorArc(OGRLinearRing& out,
-                           const OGRLinearRing& ext,
-                           int iHs,
-                           int iHe,
-                           bool replaceForward,
-                           const BoundaryParams& /*bp*/)
-{
-  const int n = ext.getNumPoints();
-  const int m = n - 1;
-  auto nextIdx = [&](int i) { return (i + 1) % m; };
-  auto prevIdx = [&](int i) { return (i - 1 + m) % m; };
-
-  if (replaceForward)
-  {
-    // keep backward arc from hs -> he
-    int i = iHs;
-    while (i != iHe)
-    {
-      i = prevIdx(i);
-      out.addPoint(ext.getX(i), ext.getY(i));
-    }
-  }
-  else
-  {
-    // keep forward arc from hs -> he
-    int i = iHs;
-    while (i != iHe)
-    {
-      i = nextIdx(i);
-      out.addPoint(ext.getX(i), ext.getY(i));
-    }
-  }
-}
-
-bool getSnappedRunEndpointsOnBoundary(const OGRLineString& holeRun,
-                                      const ProjectionBoundary& b,
-                                      const BoundaryParams& bp,
-                                      OGRPoint& hs,
-                                      OGRPoint& he)
-{
-  if (holeRun.getNumPoints() < 2)
-    return false;
-
-  hs = OGRPoint(holeRun.getX(0), holeRun.getY(0));
-  he = OGRPoint(holeRun.getX(holeRun.getNumPoints() - 1), holeRun.getY(holeRun.getNumPoints() - 1));
-
-  snapToBoundaryPoint(hs, b, bp.tol);
-  snapToBoundaryPoint(he, b, bp.tol);
-
-  return isOnBoundary(hs, b, bp.tol) && isOnBoundary(he, b, bp.tol);
-}
-
-double deltaSInc(double s1, double s2, double per)
-{
-  double d = s2 - s1;
-  if (d > 0.5 * per)
-    d -= per;
-  else if (d < -0.5 * per)
-    d += per;
-  return d;  // positive => increasing boundaryS
-}
-
-double boundaryLengthOnArc(const OGRLinearRing& ext,
-                           int from,
-                           int to,
-                           bool forward,
-                           const ProjectionBoundary& b,
-                           const BoundaryParams& bp)
-{
-  const int n = ext.getNumPoints();
-  const int m = n - 1;
-
-  if (m == 0)
-    return 0.0;
-
-  auto nextIdx = [&](int i) { return (i + 1) % m; };
-  auto prevIdx = [&](int i) { return (i - 1 + m) % m; };
-
-  auto segLen = [&](int i, int j)
-  {
-    const double dx = ext.getX(j) - ext.getX(i);
-    const double dy = ext.getY(j) - ext.getY(i);
-    return std::sqrt(dx * dx + dy * dy);
-  };
-
-  double len = 0.0;
-  int i = from;
-  while (i != to)
-  {
-    const int j = forward ? nextIdx(i) : prevIdx(i);
-
-    OGRPoint a(ext.getX(i), ext.getY(i));
-    OGRPoint c(ext.getX(j), ext.getY(j));
-
-    if (isOnBoundary(a, b, bp.tol) && isOnBoundary(c, b, bp.tol))
-      len += segLen(i, j);
-
-    i = j;
-  }
-
-  return len;
-}
-
-bool ensureEndpointsAsBoundaryVertices(OGRLinearRing& ext,
-                                       const ProjectionBoundary& b,
-                                       const BoundaryParams& bp,
-                                       const OGRPoint& hs,
-                                       const OGRPoint& he,
-                                       int& iHs,
-                                       int& iHe)
-{
-  iHs = ensureBoundaryVertex(ext, hs, b, bp.tol);
-  iHe = ensureBoundaryVertex(ext, he, b, bp.tol);
-
-  if (iHs < 0 || iHe < 0 || iHs == iHe)
-    return false;
-
-  ext.closeRings();
-  forceExactClosure(ext);
-
-  const int n = ext.getNumPoints();
-  if (n < 4)
-    return false;
-
-  // ensureBoundaryVertex returns an index in the current ring; but we also use m=n-1 for wrap
-  // logic. iHs/iHe should be within [0..m-1] already; guard anyway.
-  const int m = n - 1;
-  return iHs >= 0 && iHs < m && iHe >= 0 && iHe < m;
-}
-
-void appendReversedHoleRun(OGRLinearRing& out,
-                           const OGRLineString& holeRun,
-                           const BoundaryParams& bp,
-                           const OGRPoint& heV)
-{
-  const int nRun = holeRun.getNumPoints();
-  if (nRun < 2)
-    return;
-
-  const bool dupFirst = nearlyEqual(holeRun.getX(nRun - 1), heV.getX(), bp.tol) &&
-                        nearlyEqual(holeRun.getY(nRun - 1), heV.getY(), bp.tol);
-
-  int start = nRun - 1;
-  if (dupFirst)
-    start = nRun - 2;
-
-  for (int i = start; i >= 0; --i)
-    out.addPoint(holeRun.getX(i), holeRun.getY(i));
-}
-
-double increasingBoundaryAdvanceScore(const OGRLinearRing& ext,
-                                      int from,
-                                      int to,
-                                      bool forward,
-                                      const ProjectionBoundary& b,
-                                      const BoundaryParams& bp)
-{
-  const int n = ext.getNumPoints();
-  const int m = n - 1;
-  auto nextIdx = [&](int i) { return (i + 1) % m; };
-  auto prevIdx = [&](int i) { return (i - 1 + m) % m; };
-
-  auto segLen = [&](int i, int j)
-  {
-    const double dx = ext.getX(j) - ext.getX(i);
-    const double dy = ext.getY(j) - ext.getY(i);
-    return std::sqrt(dx * dx + dy * dy);
-  };
-
-  double score = 0.0;
-  int i = from;
-  while (i != to)
-  {
-    const int j = forward ? nextIdx(i) : prevIdx(i);
-
-    OGRPoint a(ext.getX(i), ext.getY(i));
-    OGRPoint c(ext.getX(j), ext.getY(j));
-
-    if (isOnBoundary(a, b, bp.tol) && isOnBoundary(c, b, bp.tol))
-    {
-      const double sA = boundaryS(a, b, bp.tol);
-      const double sC = boundaryS(c, b, bp.tol);
-      const double ds = deltaSInc(sA, sC, bp.per);
-
-      if (ds >= -bp.tol)  // allow tiny numeric noise
-        score += segLen(i, j);
-    }
-
-    i = j;
-  }
-
-  return score;
-}
-
-bool chooseReplaceForwardArc(const OGRLinearRing& ext,
-                             int iHs,
-                             int iHe,
-                             const ProjectionBoundary& b,
-                             const BoundaryParams& bp)
-{
-  const double incF = increasingBoundaryAdvanceScore(ext, iHs, iHe, /*forward=*/true, b, bp);
-  const double incB = increasingBoundaryAdvanceScore(ext, iHs, iHe, /*forward=*/false, b, bp);
-
-  if (std::abs(incF - incB) > bp.tol)
-    return (incF > incB);
-
-  const double lenF = boundaryLengthOnArc(ext, iHs, iHe, /*forward=*/true, b, bp);
-  const double lenB = boundaryLengthOnArc(ext, iHs, iHe, /*forward=*/false, b, bp);
-  return (lenF >= lenB);
-}
 
 // ---- best-effort projection helpers ----
 
@@ -1025,57 +393,7 @@ std::vector<std::unique_ptr<OGRLineString>> clipRunsToBounds(
   return out;
 }
 
-BoundaryParams boundaryParams(const ProjectionBoundary& b)
-{
-  BoundaryParams bp;
-  bp.tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
-  bp.eps = ringEps(b.minX, b.minY, b.maxX, b.maxY);
-  bp.w = b.maxX - b.minX;
-  bp.h = b.maxY - b.minY;
-  bp.per = 2.0 * (bp.w + bp.h);
-  return bp;
-}
-
 // ---- polygon assembly helpers ----
-
-std::vector<std::unique_ptr<OGRLinearRing>> cloneInteriorRings(const OGRPolygon& shell)
-{
-  std::vector<std::unique_ptr<OGRLinearRing>> keep;
-  keep.reserve(shell.getNumInteriorRings());
-
-  for (int k = 0; k < shell.getNumInteriorRings(); ++k)
-  {
-    const OGRLinearRing* r = shell.getInteriorRing(k);
-    if (!r)
-      continue;
-
-    auto c = std::make_unique<OGRLinearRing>();
-    c->addSubLineString(r, 0, r->getNumPoints() - 1);
-    c->closeRings();
-    forceExactClosure(*c);
-    keep.emplace_back(std::move(c));
-  }
-  return keep;
-}
-
-void attachClosedHoleRingToShells(const OGRLinearRing& holeRing,
-                                  std::vector<std::unique_ptr<OGRPolygon>>& shells)
-{
-  OGRPolygon holePoly;
-  holePoly.addRing(&holeRing);
-
-  for (auto& shell : shells)
-  {
-    if (!shell || shell->IsEmpty())
-      continue;
-
-    if (shell->Contains(&holePoly) || shell->Intersects(&holePoly))
-    {
-      shell->addRing(&holeRing);
-      return;
-    }
-  }
-}
 
 // Copy ring coordinates into a LineString.
 // - If forceClose==true: ensure closed by appending first point (if needed).
@@ -1115,150 +433,6 @@ std::unique_ptr<OGRLineString> ringToLineStringPreserveClosure(const OGRLinearRi
   }
 
   return ls;
-}
-
-// ---- polygon assembly helpers ----
-
-std::vector<std::unique_ptr<OGRPolygon>> buildShellsFromExteriorRuns(
-    std::vector<std::unique_ptr<OGRLineString>>& extRuns, const ProjectionBoundary& b)
-{
-  std::vector<std::unique_ptr<OGRPolygon>> shells;
-  shells.reserve(extRuns.size());
-  const double tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
-
-  for (auto& run : extRuns)
-  {
-    if (!run || run->getNumPoints() < 2)
-      continue;
-
-    OGRPoint first(run->getX(0), run->getY(0));
-    OGRPoint last(run->getX(run->getNumPoints() - 1), run->getY(run->getNumPoints() - 1));
-    snapToBoundaryPoint(first, b, tol);
-    snapToBoundaryPoint(last, b, tol);
-
-    bool goCW = true;
-    if (isOnBoundary(first, b, tol) && isOnBoundary(last, b, tol))
-    {
-      double signedArea = 0.0;
-      for (int i = 0; i < run->getNumPoints() - 1; ++i)
-      {
-        signedArea += run->getX(i) * run->getY(i + 1) - run->getX(i + 1) * run->getY(i);
-      }
-      // Positive signed area = CCW run = interior to the left = close CCW
-      // Negative signed area = CW run = interior to the right = close CW
-      goCW = (signedArea < 0);
-    }
-
-    auto shellRing = closeRunAlongBoundary(*run, b, goCW);
-    if (!shellRing || shellRing->getNumPoints() < 4)
-      continue;
-    forceExactClosure(*shellRing);
-    auto poly = std::make_unique<OGRPolygon>();
-    poly->addRing(shellRing.get());
-    shells.emplace_back(std::move(poly));
-  }
-
-  return shells;
-}
-
-// Merge open hole run as a cut into exterior ring (boundary-parameter insertion)
-std::unique_ptr<OGRLinearRing> mergeOpenHoleRunAsCut(const OGRLinearRing& exterior,
-                                                     const OGRLineString& holeRun,
-                                                     const ProjectionBoundary& b)
-{
-  // Assumes OGC-valid input: exterior CCW, holes CW.
-  // Produces CCW exterior output by replacing the boundary-following arc with the reversed hole
-  // run.
-
-  const BoundaryParams bp = boundaryParams(b);
-
-  if (holeRun.getNumPoints() < 2)
-    return nullptr;
-
-  // 1) Endpoints of hole run snapped to boundary
-  OGRPoint hs;
-  OGRPoint he;
-  if (!getSnappedRunEndpointsOnBoundary(holeRun, b, bp, hs, he))
-    return nullptr;
-
-  // 2) Copy/normalize exterior and ensure hs/he are explicit boundary vertices
-  OGRLinearRing ext = copyExteriorRing(exterior);
-
-  int iHs = -1;
-  int iHe = -1;
-  if (!ensureEndpointsAsBoundaryVertices(ext, b, bp, hs, he, iHs, iHe))
-    return nullptr;
-
-  const int n = ext.getNumPoints();
-  const int m = n - 1;
-  if (m < 3)
-    return nullptr;
-
-  const OGRPoint hsV(ext.getX(iHs), ext.getY(iHs));
-  const OGRPoint heV(ext.getX(iHe), ext.getY(iHe));
-
-  // 3) Decide which arc hs->he is boundary-following (increasing boundaryS) and should be replaced
-  const bool replaceForward = chooseReplaceForwardArc(ext, iHs, iHe, b, bp);
-
-  // 4) Build output: start at he, traverse reversed hole run to hs, then traverse kept exterior arc
-  // hs->he
-  auto out = std::make_unique<OGRLinearRing>();
-  out->addPoint(heV.getX(), heV.getY());
-
-  appendReversedHoleRun(*out, holeRun, bp, heV);
-
-  // Ensure we land exactly on hsV (avoid tiny drift)
-  {
-    const int k = out->getNumPoints();
-    if (k == 0)
-      return nullptr;
-    if (!nearlyEqual(out->getX(k - 1), hsV.getX(), bp.eps) ||
-        !nearlyEqual(out->getY(k - 1), hsV.getY(), bp.eps))
-      out->addPoint(hsV.getX(), hsV.getY());
-  }
-
-  appendKeptExteriorArc(*out, ext, iHs, iHe, replaceForward, bp);
-
-  out->closeRings();
-  forceExactClosure(*out);
-
-  if (out->getNumPoints() < 4)
-    return nullptr;
-
-  return out;
-}
-
-void applyOpenHoleRunAsCut(const OGRLineString& openRun,
-                           const ProjectionBoundary& b,
-                           std::vector<std::unique_ptr<OGRPolygon>>& shells)
-{
-  for (auto& shell : shells)
-  {
-    if (!shell || shell->IsEmpty())
-      continue;
-
-    if (!shell->Intersects(&openRun))
-      continue;
-
-    const OGRLinearRing* curExt = shell->getExteriorRing();
-    if (!curExt)
-      continue;
-
-    auto newExt = mergeOpenHoleRunAsCut(*curExt, openRun, b);
-    if (!newExt)
-      continue;
-
-    forceExactClosure(*newExt);
-
-    auto keep = cloneInteriorRings(*shell);
-
-    shell->empty();
-    shell->addRing(newExt.get());
-    for (auto& r : keep)
-      shell->addRing(r.get());
-
-    return;  // applied
-  }
 }
 
 }  // namespace
@@ -1305,6 +479,7 @@ class GeometryProjector::Impl
   double m_jumpThreshold = 500e3;  // segment to max 500 km by default
 
   std::array<double, 4> m_projectedBounds{0, 0, 0, 0};
+  double tol = 0;
   bool m_boundsSet = false;
 
   double m_densifyKm = 50.0;  // default densification is to 50 km
@@ -1327,7 +502,7 @@ class GeometryProjector::Impl
 
   // ---- best-effort projection helpers ----
   std::vector<std::unique_ptr<OGRLineString>> projectToProjectedRunsBestEffort(
-      const OGRLineString& geo) const;
+      const OGRLineString& geo, bool spitAtFailures) const;
 };
 
 // ------------------------------ ctor/dtor ------------------------------
@@ -1363,6 +538,7 @@ void GeometryProjector::Impl::setProjectedBounds(double minX, double minY, doubl
   m_projectedBounds[2] = maxX;
   m_projectedBounds[3] = maxY;
   m_boundsSet = true;
+  tol = boundaryTolMeters(minX, minY, maxX, maxY);
 }
 
 void GeometryProjector::Impl::setDensifyResolutionKm(double km)
@@ -1434,7 +610,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(const OG
   if (geo && m_densifyKm > 0.0)
     densifyGeographicKm(geo.get(), m_densifyKm);
 
-  auto projRuns = projectToProjectedRunsBestEffort(*geo);
+  auto projRuns = projectToProjectedRunsBestEffort(*geo, /*splitAtFailures=*/true);
   const double maxJumpMeters =
       (m_densifyKm > 0.0) ? (m_densifyKm * 1000 * 10) : std::max(m_jumpThreshold, 1000 * 1e3);
   auto clippedRuns =
@@ -1526,6 +702,7 @@ ProjectionBoundary GeometryProjector::Impl::getProjectionBoundary() const
   b.minY = m_projectedBounds[1];
   b.maxX = m_projectedBounds[2];
   b.maxY = m_projectedBounds[3];
+
   return b;
 }
 
@@ -1570,23 +747,32 @@ std::unique_ptr<OGRPoint> GeometryProjector::Impl::projectSinglePoint(double x,
 }
 
 std::vector<std::unique_ptr<OGRLineString>>
-GeometryProjector::Impl::projectToProjectedRunsBestEffort(const OGRLineString& geo) const
+GeometryProjector::Impl::projectToProjectedRunsBestEffort(const OGRLineString& geo,
+                                                          bool splitAtFailures) const
 {
   std::vector<std::unique_ptr<OGRLineString>> runs;
   auto cur = std::make_unique<OGRLineString>();
+
+  auto flush = [&]()
+  {
+    if (cur && cur->getNumPoints() >= 2)
+      runs.push_back(std::move(cur));
+    cur = std::make_unique<OGRLineString>();
+  };
 
   for (int i = 0; i < geo.getNumPoints(); ++i)
   {
     bool ok = false;
     auto p = projectSinglePoint(geo.getX(i), geo.getY(i), &ok);
     if (!ok || !p)
-      continue;  // skip failed point, do NOT split the run
+    {
+      if (splitAtFailures)
+        flush();
+      continue;
+    }
     cur->addPoint(p->getX(), p->getY());
   }
-
-  if (cur && cur->getNumPoints() >= 2)
-    runs.push_back(std::move(cur));
-
+  flush();  // always flush at end regardless of splitAtFailures
   return runs;
 }
 
@@ -1597,78 +783,173 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
 {
   ProjectionBoundary b = getProjectionBoundary();
   const double eps = ringEps(b.minX, b.minY, b.maxX, b.maxY);
+  const Fmi::Box box(b.minX, b.minY, b.maxX, b.maxY);
+  Fmi::RectClipper clipper(box, /*keep_inside=*/true);
 
+  // Helper: project a ring and feed its runs into the clipper
+  auto projectRingIntoClipper = [&](const OGRLinearRing* ring, bool isExterior) -> bool
+  {
+    if (!ring || ring->getNumPoints() < 4)
+      return false;
+
+    auto geo = ringToLineStringPreserveClosure(ring, /*forceClose=*/true, eps);
+    if (m_densifyKm > 0.0)
+      densifyGeographicKm(geo.get(), m_densifyKm);
+
+    const double maxJumpMeters =
+        (m_densifyKm > 0.0) ? (m_densifyKm * 1000.0 * 10.0) : m_jumpThreshold;
+
+    auto projRuns = projectToProjectedRunsBestEffort(*geo, /*splitAtFailures=*/false);
+
+#if 0
+    std::cerr << "  projRuns=" << projRuns.size();
+    int totalPts = 0;
+    for (const auto& r : projRuns)
+      if (r)
+        totalPts += r->getNumPoints();
+    std::cerr << " totalPts=" << totalPts << " geoPts=" << geo->getNumPoints();
+    if (totalPts < geo->getNumPoints())
+      std::cerr << " *** PROJECTION FAILURES: " << (geo->getNumPoints() - totalPts)
+                << " points lost";
+    std::cerr << "\n";
+    if (!projRuns.empty())
+    {
+      const auto& first = projRuns.front();
+      const auto& last = projRuns.back();
+      if (first)
+        std::cerr << "  first run front=(" << first->getX(0) << "," << first->getY(0) << ")"
+                  << " back=(" << first->getX(first->getNumPoints() - 1) << ","
+                  << first->getY(first->getNumPoints() - 1) << ")\n";
+      if (projRuns.size() > 1 && last)
+        std::cerr << "  last run front=(" << last->getX(0) << "," << last->getY(0) << ")"
+                  << " back=(" << last->getX(last->getNumPoints() - 1) << ","
+                  << last->getY(last->getNumPoints() - 1) << ")\n";
+    }
+#endif
+
+    if (projRuns.empty())
+      return false;
+
+    // Cyclic merge: if first run starts off-boundary and last run ends
+    // off-boundary, they are two halves of a split at a projection failure.
+    if (projRuns.size() > 1)
+    {
+      auto& first = projRuns.front();
+      auto& last = projRuns.back();
+      if (first && last)
+      {
+        OGRPoint firstFront(first->getX(0), first->getY(0));
+        OGRPoint lastBack(last->getX(last->getNumPoints() - 1),
+                          last->getY(last->getNumPoints() - 1));
+        if (!isOnBoundary(firstFront, b, tol) && !isOnBoundary(lastBack, b, tol))
+        {
+          const double dx = lastBack.getX() - firstFront.getX();
+          const double dy = lastBack.getY() - firstFront.getY();
+          const double dist = std::sqrt(dx * dx + dy * dy);
+          if (dist <= m_densifyKm * 1000.0 * 3.0)
+          {
+            auto merged = std::make_unique<OGRLineString>();
+            for (int i = 0; i < last->getNumPoints(); ++i)
+              merged->addPoint(last->getX(i), last->getY(i));
+            for (int i = 1; i < first->getNumPoints(); ++i)
+              merged->addPoint(first->getX(i), first->getY(i));
+            projRuns.front() = std::move(merged);
+            projRuns.pop_back();
+          }
+        }
+      }
+    }
+
+    // Clip runs to bounding box with jump detection, then feed into clipper
+    auto clippedRuns = clipRunsToBounds(
+        projRuns, b, /*mergeCyclicRuns=*/true, /*detectJumps=*/true, maxJumpMeters);
+
+    auto snapToExactBoundary = [&](OGRLineString* line)
+    {
+      if (!line || line->getNumPoints() < 2)
+        return;
+      auto snapCoord = [&](int idx)
+      {
+        double x = line->getX(idx);
+        double y = line->getY(idx);
+        if (std::abs(x - b.minX) < tol)
+          x = b.minX;
+        else if (std::abs(x - b.maxX) < tol)
+          x = b.maxX;
+        if (std::abs(y - b.minY) < tol)
+          y = b.minY;
+        else if (std::abs(y - b.maxY) < tol)
+          y = b.maxY;
+        line->setPoint(idx, x, y);
+      };
+
+      snapCoord(0);
+      snapCoord(line->getNumPoints() - 1);
+    };
+
+    for (auto& run : clippedRuns)
+      if (run)
+        snapToExactBoundary(run.get());
+
+    for (auto& run : clippedRuns)
+    {
+      if (!run || run->getNumPoints() < 2)
+        continue;
+
+      const int n = run->getNumPoints();
+      const bool isOpen = (run->getX(0) != run->getX(n - 1) || run->getY(0) != run->getY(n - 1));
+
+#if 0      
+      std::cerr << (isExterior ? "  exterior" : "  interior") << " run: pts=" << n
+                << " isOpen=" << isOpen << " front=(" << run->getX(0) << "," << run->getY(0) << ")"
+                << " back=(" << run->getX(n - 1) << "," << run->getY(n - 1) << ")\n";
+#endif
+
+      if (isOpen)
+      {
+        // Genuinely clipped by boundary - pass as linestring
+        auto* line = static_cast<OGRLineString*>(run->clone());
+        if (isExterior)
+          clipper.addExterior(line);
+        else
+          clipper.addInterior(line);
+      }
+      else
+      {
+        // Naturally closed ring - pass directly as ring
+        auto* ring = new OGRLinearRing;
+        ring->addSubLineString(run.get());
+        if (isExterior)
+          clipper.addExterior(ring);
+        else
+          clipper.addInterior(ring);
+      }
+    }
+
+    return true;
+  };
+
+  // Project exterior ring
   const OGRLinearRing* ext = polygon->getExteriorRing();
   if (!ext || ext->getNumPoints() < 4)
     return nullptr;
 
-  auto extGeo = ringToLineStringPreserveClosure(ext, /*forceClose=*/true, eps);
-  if (m_densifyKm > 0.0)
-    densifyGeographicKm(extGeo.get(), m_densifyKm);
+  projectRingIntoClipper(ext, /*isExterior=*/true);
 
-  auto extProjRuns = projectToProjectedRunsBestEffort(*extGeo);
+  // Project holes
+  for (int i = 0; i < polygon->getNumInteriorRings(); ++i)
+    projectRingIntoClipper(polygon->getInteriorRing(i), /*isExterior=*/false);
 
-  if (extProjRuns.size() > 1)
-  {
-    auto merged = std::make_unique<OGRLineString>();
-    for (const auto& run : extProjRuns)
-    {
-      if (!run || run->getNumPoints() < 1)
-        continue;
-      const int start = (merged->getNumPoints() == 0) ? 0 : 1;
-      for (int i = start; i < run->getNumPoints(); ++i)
-        merged->addPoint(run->getX(i), run->getY(i));
-    }
-    extProjRuns.clear();
-    if (merged->getNumPoints() >= 2)
-      extProjRuns.push_back(std::move(merged));
-  }
+  if (clipper.empty())
+    return nullptr;
 
-  // Using 10* here might be a bit too aggressive, 20* might be better (Claude.ai)
-  const double maxJumpMeters =
-      (m_densifyKm > 0.0) ? (m_densifyKm * 1000.0 * 10.0) : m_jumpThreshold;
-  auto extRuns = clipRunsToBounds(extProjRuns,
-                                  b,
-                                  /*mergeCyclicRuns=*/true,
-                                  /*detectJumps=*/true,
-                                  /*maxJumpMeters=*/maxJumpMeters);
+  clipper.reconnect();
+  clipper.reconnectWithBox(/*theMaximumSegmentLength=*/0.0);
 
-  // After clipRunsToBounds, handle cyclic fragments:
-  // If the first run starts off-boundary and the last run ends off-boundary,
-  // they are the two halves of a split at a projection failure point.
-  // Merge last into first (cyclic wrap).
-
-  if (extRuns.size() > 1)
-  {
-    const double tol = boundaryTolMeters(b.minX, b.minY, b.maxX, b.maxY);
-    auto& first = extRuns.front();
-    auto& last = extRuns.back();
-    if (first && last)
-    {
-      OGRPoint firstFront(first->getX(0), first->getY(0));
-      OGRPoint lastBack(last->getX(last->getNumPoints() - 1), last->getY(last->getNumPoints() - 1));
-      if (!isOnBoundary(firstFront, b, tol) && !isOnBoundary(lastBack, b, tol))
-      {
-        const double dx = lastBack.getX() - firstFront.getX();
-        const double dy = lastBack.getY() - firstFront.getY();
-        const double dist = std::sqrt(dx * dx + dy * dy);
-        const double kMaxBridgeMeters = m_densifyKm * 1000.0 * 3.0;  // 3x densify step
-
-        if (dist <= kMaxBridgeMeters)
-        {
-          auto merged = std::make_unique<OGRLineString>();
-          for (int i = 0; i < last->getNumPoints(); ++i)
-            merged->addPoint(last->getX(i), last->getY(i));
-          for (int i = 1; i < first->getNumPoints(); ++i)
-            merged->addPoint(first->getX(i), first->getY(i));
-          extRuns.front() = std::move(merged);
-          extRuns.pop_back();
-        }
-      }
-    }
-  }
-
-  auto shells = buildShellsFromExteriorRuns(extRuns, b);
+  GeometryBuilder builder;
+  clipper.release(builder);
+  return std::unique_ptr<OGRGeometry>(builder.build());
+}
 
 #if 0
   // Disabled since does not seem to cause problems
@@ -1691,52 +972,6 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
     }
   }
 #endif
-
-  if (shells.empty())
-    return nullptr;
-
-  for (int h = 0; h < polygon->getNumInteriorRings(); ++h)
-  {
-    const OGRLinearRing* hole = polygon->getInteriorRing(h);
-    if (!hole || hole->getNumPoints() < 3)
-      continue;
-
-    auto holeGeo = ringToLineStringPreserveClosure(hole, /*forceClose=*/false, eps);
-    if (m_densifyKm > 0.0)
-      densifyGeographicKm(holeGeo.get(), m_densifyKm);
-
-    auto holeProjRuns = projectToProjectedRunsBestEffort(*holeGeo);
-    auto holeRuns = clipRunsToBounds(
-        holeProjRuns, b, /*mergeCyclicRuns=*/true, /*detectJumps=*/false, /*maxJumpMeters=*/0.0);
-
-    for (auto& hr : holeRuns)
-    {
-      if (!hr || hr->getNumPoints() < 2)
-        continue;
-
-      if (isRingClosed(*hr, eps))
-      {
-        auto holeRing = toClosedRing(*hr);
-        if (!holeRing)
-          continue;
-        forceExactClosure(*holeRing);
-        attachClosedHoleRingToShells(*holeRing, shells);
-      }
-      else
-      {
-        applyOpenHoleRunAsCut(*hr, b, shells);
-      }
-    }
-  }
-
-  if (shells.size() == 1)
-    return std::unique_ptr<OGRGeometry>(shells[0].release());
-
-  auto* mp = new OGRMultiPolygon();
-  for (auto& s : shells)
-    mp->addGeometry(s.get());
-  return std::unique_ptr<OGRGeometry>(mp);
-}
 
 // ------------------------------ GeometryProjector (public) ------------------------------
 

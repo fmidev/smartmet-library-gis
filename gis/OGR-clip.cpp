@@ -1016,7 +1016,8 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       return;
     }
 
-    if (all_not_inside(position))
+    // If no clipped lines were generated and no vertex is inside...
+    if (all_not_inside(position) && rect.empty())
     {
       // CLIP:
       // -if box inside exterior, omit exterior
@@ -1121,10 +1122,13 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
 
     RectClipper rect(theBox, keep_inside);
 
+    std::cerr << "do_rect\n";
     auto position = do_rect(theGeom->getExteriorRing(), rect, theBox, keep_inside, true);
 
     if (all_not_outside(position))
     {
+      std::cerr << "all_not_outside true\n";
+
       // CLIP: - if all vertices inside box or on the edges, return input as is
       // CUT:  - if all vertices inside box or on the edges, return empty result
 
@@ -1137,21 +1141,28 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       return;
     }
 
-    if (all_not_inside(position))
+    // If clipping produced no lines and nothing is inside...
+    if (all_not_inside(position) && rect.empty())
     {
+      std::cerr << "all_not_inside true\n";
+
       // CLIP:
       // -if box inside exterior, box becomes part of new exterior ; ADD_BOX
-      // -if if box outside exterior, return empty result
+      // -if box outside exterior, return empty result
       // CUT:
       // - if box inside exterior, box becomes part of new holes ; ADD_BOX
       // - if box outside exterior, return input as is
 
       bool box_inside = box_inside_ring(theBox, *theGeom->getExteriorRing());
+      std::cerr << "box_inside = " << box_inside << "\n";
 
       if (keep_inside)
       {
         if (!box_inside)
+        {
+          std::cerr << "Returning\n";
           return;
+        }
         rect.addBox();
       }
       else
@@ -1159,6 +1170,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
         if (!box_inside)
         {
           theBuilder.add(theGeom->clone());
+          std::cerr << "Returning clone\n";
           return;
         }
         // box is inside exterior, must keep exterior
@@ -1178,8 +1190,8 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
     // as it is. The bbox becomes a hole. Any hole intersecting the hole
     // is unioned with it.
 
-    // Force exterior to be clockwise
-    // if (!ext_clockwise) rect.reverseLines();
+    // Force exterior to be counter clockwise
+    // if (ext_clockwise) rect.reverseLines();
     // Must do this to make sure all end points are on the edges
     // rect.reconnect();
 
@@ -1197,6 +1209,8 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
     // - Clipped ones are merged with the bbox hole
     // - Intact ones are retained as is
     // - If there are no merges, bbox becomes a new hole
+
+    std::cerr << "Prosessing holes\n";
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
     {
@@ -1228,7 +1242,9 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       }
     }
 
-    rect.reconnect();                   // trivial reconnect of endpoints
+    std::cerr << "Calling reconnect\n";
+    rect.reconnect();  // trivial reconnect of endpoints
+    std::cerr << "Calling reconnectWithBox\n";
     rect.reconnectWithBox(max_length);  // reconnect along box boundaries
     rect.release(theBuilder);
   }
