@@ -1161,14 +1161,25 @@ void Shape_rect::reorientLines(std::list<OGRLineString *> &lines) const
     double x1 = line->getX(0), y1 = line->getY(0);
     double x2 = line->getX(n - 1), y2 = line->getY(n - 1);
     bool needs_reversal = false;
+    // Same-edge: endpoints on same edge going against CCW direction
     if (x1 == itsXMin && x2 == itsXMin && y1 < y2)
-      needs_reversal = true;
+      needs_reversal = true;  // left edge going up
     else if (x1 == itsXMax && x2 == itsXMax && y1 > y2)
-      needs_reversal = true;
+      needs_reversal = true;  // right edge going down
     else if (y1 == itsYMin && y2 == itsYMin && x1 > x2)
-      needs_reversal = true;
+      needs_reversal = true;  // bottom edge going left
     else if (y1 == itsYMax && y2 == itsYMax && x1 < x2)
-      needs_reversal = true;
+      needs_reversal = true;  // top edge going right
+    // Adjacent-edge corner cases: CCW from end reaches start via short path through a corner.
+    // Reversing the line makes CCW take the long (correct) path that incorporates the box.
+    else if (x2 == itsXMin && y1 == itsYMin)
+      needs_reversal = true;  // end on left, start on bottom -> CCW short path via BL corner
+    else if (y2 == itsYMin && x1 == itsXMax)
+      needs_reversal = true;  // end on bottom, start on right -> CCW short path via BR corner
+    else if (x2 == itsXMax && y1 == itsYMax)
+      needs_reversal = true;  // end on right, start on top -> CCW short path via TR corner
+    else if (y2 == itsYMax && x1 == itsXMin)
+      needs_reversal = true;  // end on top, start on left -> CCW short path via TL corner
     if (needs_reversal)
       line->reversePoints();
   }

@@ -327,18 +327,44 @@ class tests : public tframe::tests
               string ret;
               if (output)
               {
+                OGR::normalizeWindingOrder(output);
                 bool isvalid = output->IsValid();
 
-                ret = exportToWkt(*output, precision);
+                // Round-trip through WKT to normalize floating-point representation
+                // (e.g. 1.0+eps exported as "1.0" vs "1" after re-parse)
+                {
+                  OGRGeometry *roundtripped = nullptr;
+                  string tmp = exportToWkt(*output, precision);
+                  if (OGRGeometryFactory::createFromWkt(tmp.c_str(), nullptr, &roundtripped) ==
+                      OGRERR_NONE)
+                  {
+                    OGR::normalizeWindingOrder(roundtripped);
+                    ret = exportToWkt(*roundtripped, precision);
+                    OGRGeometryFactory::destroyGeometry(roundtripped);
+                  }
+                  else
+                    ret = tmp;
+                }
 
-                if (ret != outWkt || !isvalid)
+                // Normalize expected output to RFC winding order for comparison
+                string normalizedExpected = outWkt;
+                OGRGeometry *expected = nullptr;
+                if (OGRGeometryFactory::createFromWkt(outWkt.c_str(), nullptr, &expected) ==
+                    OGRERR_NONE)
+                {
+                  OGR::normalizeWindingOrder(expected);
+                  normalizedExpected = exportToWkt(*expected, precision);
+                  OGRGeometryFactory::destroyGeometry(expected);
+                }
+
+                if (ret != normalizedExpected || !isvalid)
                 {
                   addFailure();
                   out << "Test " << testId << " : ";
                   out << "*** FAILED ***\n";
                   out << "\tFile     : " << filename << " (" << line << ")\n";
                   out << "\tInput    : " << inWkt << "\n";
-                  out << "\tExpected : " << outWkt << "\n";
+                  out << "\tExpected : " << normalizedExpected << "\n";
                   out << "\tGot      : " << ret << "\n";
                   if (!isvalid)
                   {

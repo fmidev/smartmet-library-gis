@@ -319,6 +319,12 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
     if (theGeom == nullptr || theGeom->IsEmpty() != 0)
       return;
 
+    // Normalize to RFC 7946 winding order (exterior CCW, holes CW) so that
+    // connectLines can use a consistent traversal direction formula.
+    std::unique_ptr<OGRGeometry> normalizedOwner(theGeom->clone());
+    OGR::normalizeWindingOrder(normalizedOwner.get());
+    theGeom = static_cast<const OGRPolygon *>(normalizedOwner.get());
+
     // Clip the exterior first to see what's going on
 
     ShapeClipper clipper(theShape, keep_inside);

@@ -599,7 +599,12 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
   if (theLines.empty())
     return;
 
-  bool cw = exterior;  // CW for exteriors, CCW for interiors (both clip and cut)
+  // With RFC-normalized input (exterior CCW, holes CW):
+  //   CUT exterior (CCW): cw=true  → CW traversal  → short path
+  //   CUT hole    (CW):  cw=false → CCW traversal → short path
+  //   CLIP exterior (CCW): cw=false → CCW traversal → short path
+  //   CLIP hole    (CW):  cw=true  → CW traversal  → short path
+  bool cw = (keep_inside != exterior);
 
   OGRLinearRing *ring = nullptr;
 
@@ -738,10 +743,9 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
       itsInteriorLines.clear();
     }
 
-    // In cut mode, interior lines whose endpoints both land on the same box edge must be
-    // reoriented so connectLines traverses the full box boundary (CCW) rather than shortcutting.
-    // Only do this when there are no exterior lines: if both exist, interior lines are merged into
-    // the exterior pool and traversed CW, so reversing them here (for CCW) would break search_cw.
+    // In cut mode with no exterior lines (exterior surrounds the box), interior lines whose
+    // both endpoints land on the same box edge need to be reoriented so that CCW traversal
+    // goes around the full box boundary instead of taking the short path along the edge.
     if (!itsKeepInsideFlag && itsExteriorLines.empty())
       itsShape->reorientLines(itsInteriorLines);
 
