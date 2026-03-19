@@ -149,6 +149,67 @@ void removeDoubles(std::list<OGRLineString *> &lines)
   }
 }
 
+// Split a ring that crosses itself at a single point (figure-8) into two simple rings.
+// Returns true if a split was performed and ring1/ring2 are set.
+bool split_figure8(OGRLinearRing *ring, OGRLinearRing *&ring1, OGRLinearRing *&ring2)
+{
+  const int n = ring->getNumPoints();
+  // Indices 0..n-2 are the unique vertices (n-1 == 0 for a closed ring)
+  for (int i = 0; i < n - 1; i++)
+  {
+    const double xi = ring->getX(i);
+    const double yi = ring->getY(i);
+    for (int j = i + 1; j < n - 1; j++)
+    {
+      if (ring->getX(j) == xi && ring->getY(j) == yi)
+      {
+        // Vertex at index i and j is the same: split here.
+        // Ring 1 covers indices i..j (already closed since ring[i]=ring[j])
+        ring1 = new OGRLinearRing;
+        ring1->addSubLineString(ring, i, j);
+        ring1->closeRings();
+
+        // Ring 2 covers indices j..n-1, then 1..i
+        // (skip index 0 since ring[0]=ring[n-1] which was already added)
+        ring2 = new OGRLinearRing;
+        ring2->addSubLineString(ring, j, n - 1);
+        if (i > 0)
+          ring2->addSubLineString(ring, 1, i);
+        ring2->closeRings();
+
+        Fmi::OGR::normalize(*ring1);
+        Fmi::OGR::normalize(*ring2);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void split_figure8_rings(std::list<OGRLinearRing *> &rings)
+{
+  std::list<OGRLinearRing *> queue(rings.begin(), rings.end());
+  rings.clear();
+
+  while (!queue.empty())
+  {
+    auto *ring = queue.front();
+    queue.pop_front();
+
+    OGRLinearRing *ring1 = nullptr, *ring2 = nullptr;
+    if (split_figure8(ring, ring1, ring2))
+    {
+      delete ring;
+      queue.push_back(ring1);
+      queue.push_back(ring2);
+    }
+    else
+    {
+      rings.push_back(ring);
+    }
+  }
+}
+
 void split_touches(const VertexCounts &counts, OGRLineStringList &lines)
 {
   // Avoid traversal if there are no touches
@@ -751,8 +812,10 @@ void Fmi::ShapeClipper::reconnectWithShape(double theMaximumSegmentLength)
 
     connectLines(
         itsExteriorRings, itsExteriorLines, theMaximumSegmentLength, itsKeepInsideFlag, true);
+    split_figure8_rings(itsExteriorRings);
     connectLines(
         itsInteriorRings, itsInteriorLines, theMaximumSegmentLength, itsKeepInsideFlag, false);
+    split_figure8_rings(itsInteriorRings);
 
     // Build polygons starting from the built exterior rings
 
