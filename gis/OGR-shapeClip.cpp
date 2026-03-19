@@ -359,9 +359,17 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       if (keep_inside)
       {
         if (!insideRing)
-          return;
-
-        clipper.addShape();
+        {
+          // No vertex is strictly inside, and the shape is not inside the ring.
+          // If do_circle produced no clipped segments, the ring truly misses the box.
+          // If it did produce segments, ring edges cross the box — proceed with reconnect.
+          if (clipper.empty())
+            return;
+        }
+        else
+        {
+          clipper.addShape();
+        }
       }
       else
       {
