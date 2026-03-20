@@ -1268,6 +1268,149 @@ TEST(GeometryProjectorTests, PolygonClippingBoundaryClosure_NoConsecutiveDuplica
   }
 }
 
+// --- API contract / edge-case tests ---
+
+// The header documents: "Returns nullptr only if input geom is nullptr."
+TEST(GeometryProjectorTests, NullInput_ReturnsNull)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  auto projector = fx.makeProjector();
+  auto out = projector.projectGeometry(nullptr);
+  EXPECT_EQ(out, nullptr);
+}
+
+// An already-empty geometry should not crash and should produce a null or empty result.
+TEST(GeometryProjectorTests, EmptyGeometry_DoesNotCrash)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  auto projector = fx.makeProjector();
+  OGRPoint empty;  // default-constructed OGRPoint is empty
+  std::unique_ptr<OGRGeometry> out;
+  ASSERT_NO_THROW(out = projector.projectGeometry(&empty));
+  EXPECT_TRUE(!out || out->IsEmpty());
+}
+
+// A point that projects outside the clip box should yield a null or empty result.
+TEST(GeometryProjectorTests, Point_OutsideBounds_IsDropped)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  // Fixture bounds cover roughly Finland in TM35. (0,0) projects far outside.
+  auto projector = fx.makeProjector();
+  OGRPoint p(0.0, 0.0);
+  auto out = projector.projectGeometry(&p);
+  EXPECT_TRUE(!out || out->IsEmpty());
+}
+
+// A linestring entirely outside the clip box should return null or empty.
+TEST(GeometryProjectorTests, LineString_FullyOutsideBounds_ReturnsEmpty)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  auto projector = fx.makeProjector();
+  // Both endpoints are near (0,0) which projects far outside the TM35 bbox.
+  OGRLineString line;
+  line.addPoint(0.0, 0.0);
+  line.addPoint(1.0, 0.0);
+  auto out = projector.projectGeometry(&line);
+  EXPECT_TRUE(!out || out->IsEmpty());
+}
+
+// A linestring that starts inside the bbox and ends outside should be clipped.
+// Only the in-bounds portion should appear in the output.
+TEST(GeometryProjectorTests, LineString_ClipsToBox)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  auto projector = fx.makeProjector(0.0);  // no densify to keep it simple
+  // (20,62) is inside the Finnish TM35 bbox; (5,62) projects far to the west (outside minX).
+  OGRLineString line;
+  line.addPoint(20.0, 62.0);
+  line.addPoint(5.0, 62.0);
+  auto out = projector.projectGeometry(&line);
+  ASSERT_TRUE(out);
+  ASSERT_FALSE(out->IsEmpty());
+  EXPECT_TRUE(allVerticesWithinBounds(out.get(), fx.B)) << wktOf(out.get());
+}
+
+// Move construction and move assignment must leave the projector fully operational.
+TEST(GeometryProjectorTests, MoveSemantics_ProjectorRemainsUsable)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  OGRPoint pt(25.0, 60.0);
+
+  // Move constructor
+  Fmi::GeometryProjector p1 = fx.makeProjector();
+  Fmi::GeometryProjector p2(std::move(p1));
+  auto out1 = p2.projectGeometry(&pt);
+  ASSERT_TRUE(out1);
+  EXPECT_FALSE(out1->IsEmpty());
+
+  // Move assignment
+  Fmi::GeometryProjector p3 = fx.makeProjector();
+  p3 = std::move(p2);
+  auto out2 = p3.projectGeometry(&pt);
+  ASSERT_TRUE(out2);
+  EXPECT_FALSE(out2->IsEmpty());
+}
+
+// setJumpThreshold controls whether segments are split when geographic densification
+// is disabled (densifyKm <= 0).  A segment whose projected length exceeds the threshold
+// is treated as a domain discontinuity and its endpoints end up in separate runs.
+// For a 2-point linestring this means both runs are length-1 (invalid) → empty output.
+//
+// Setup: +proj=tmerc (central meridian = 0).  The segment lon=0→lon=87 at lat=0
+// projects to x≈0 and x≈24 500 km — a genuine ~24 500 km jump across the wide
+// area of the tmerc domain.  Bounds are set wide enough to contain both endpoints.
+TEST(GeometryProjectorTests, SetJumpThreshold_ControlsSplittingWhenDensifyDisabled)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  OGRSpatialReference wgs84 = makeSRS(4326);
+  OGRSpatialReference tmerc = makeSRSFromProj4("+proj=tmerc +datum=WGS84 +units=m");
+
+  // Wide bounds that contain both projected endpoints.
+  const Bounds B{-4e7, -1e7, 4e7, 1e7};
+
+  OGRLineString line;
+  line.addPoint(0.0, 0.0);
+  line.addPoint(87.0, 0.0);  // projects to x ≈ 24 500 km in tmerc
+
+  // Threshold well below ~24 500 km → jump detected → each run has 1 point → empty.
+  {
+    Fmi::GeometryProjector p(&wgs84, &tmerc);
+    p.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
+    p.setDensifyResolutionKm(0.0);
+    p.setJumpThreshold(1e6);  // 1 000 km
+    auto out = p.projectGeometry(&line);
+    EXPECT_TRUE(!out || out->IsEmpty())
+        << "Expected empty with 1000 km threshold; got: " << (out ? wktOf(out.get()) : "null");
+  }
+
+  // Threshold well above ~24 500 km → segment kept as-is → non-empty.
+  {
+    Fmi::GeometryProjector p(&wgs84, &tmerc);
+    p.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
+    p.setDensifyResolutionKm(0.0);
+    p.setJumpThreshold(5e7);  // 50 000 km
+    auto out = p.projectGeometry(&line);
+    ASSERT_TRUE(out) << "Expected non-null with 50 000 km threshold";
+    EXPECT_FALSE(out->IsEmpty()) << "Expected non-empty with 50 000 km threshold";
+    EXPECT_TRUE(allVerticesWithinBounds(out.get(), B)) << wktOf(out.get());
+  }
+}
+
 TEST(GeometryProjectorTests, GlobalGraticule_NoLargeProjectionJumps)
 {
   CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
