@@ -1454,6 +1454,7 @@ TEST(GeometryProjectorTests, WorldPolygon_GlobalProjections_BothWindingsProduceS
       // then creates a WGS84→WGS84 identity pipeline that skips the laea
       // projection entirely. The bare +ellps=GRS80 form matches EPSG:3035.
       {"laea_EU", "+proj=laea +lat_0=52 +lon_0=10 +ellps=GRS80 +units=m"},
+      {"laea_EPSG3035", "+init=EPSG:3035"},
       // --- Miscellaneous global projections ---
       {"adams_ws1", "+proj=adams_ws1 +datum=WGS84 +units=m"},
       {"adams_ws2", "+proj=adams_ws2 +datum=WGS84 +units=m"},
