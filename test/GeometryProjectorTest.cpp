@@ -1353,12 +1353,17 @@ TEST(GeometryProjectorTests, GlobalGraticule_NoLargeProjectionJumps)
   }
 }
 
-// World polygon projected through global pseudocylindrical projections.
-// Both CCW and CW winding orders must produce a non-empty, non-degenerate polygon.
+// World polygon projected through global projections.
+// Both CCW and CW winding orders must produce a non-empty, non-degenerate polygon
+// covering at least 25% of the natural bounding box.
+//
 // The CW case is the regression test for the ring-winding fix: before the fix the
 // jump-detection runs were produced in reverse order and the CCW reconnection in
 // RectClipper assembled only a zero-width sliver along the leftmost meridian.
-TEST(GeometryProjectorTests, WorldPolygon_EckertAndBacon_BothWindingsProduceSubstantialResult)
+//
+// All projections use computeBoundsForGlobalProjection() to derive the bounding box
+// from the projection's natural extent — no hard-coded bounds.
+TEST(GeometryProjectorTests, WorldPolygon_GlobalProjections_BothWindingsProduceSubstantialResult)
 {
   CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
   static GdalInitGuard guard;
@@ -1371,13 +1376,99 @@ TEST(GeometryProjectorTests, WorldPolygon_EckertAndBacon_BothWindingsProduceSubs
   };
 
   const Case cases[] = {
+      // --- Eckert family ---
       {"eck1", "+proj=eck1 +datum=WGS84 +units=m"},
       {"eck2", "+proj=eck2 +datum=WGS84 +units=m"},
       {"eck3", "+proj=eck3 +datum=WGS84 +units=m"},
       {"eck4", "+proj=eck4 +datum=WGS84 +units=m"},
       {"eck5", "+proj=eck5 +datum=WGS84 +units=m"},
       {"eck6", "+proj=eck6 +datum=WGS84 +units=m"},
+      // --- Other pseudocylindrical ---
+      {"apian", "+proj=apian +datum=WGS84 +units=m"},
       {"bacon", "+proj=bacon +datum=WGS84 +units=m"},
+      {"boggs", "+proj=boggs +datum=WGS84 +units=m"},
+      {"collg", "+proj=collg +datum=WGS84 +units=m"},
+      {"comill", "+proj=comill +datum=WGS84 +units=m"},
+      {"crast", "+proj=crast +datum=WGS84 +units=m"},
+      {"denoy", "+proj=denoy +datum=WGS84 +units=m"},
+      {"eqearth", "+proj=eqearth +datum=WGS84 +units=m"},
+      {"fouc", "+proj=fouc +datum=WGS84 +units=m"},
+      {"fouc_s", "+proj=fouc_s +datum=WGS84 +units=m"},
+      {"gins8", "+proj=gins8 +datum=WGS84 +units=m"},
+      {"goode", "+proj=goode +datum=WGS84 +units=m"},
+      {"hatano", "+proj=hatano +datum=WGS84 +units=m"},
+      {"kav5", "+proj=kav5 +datum=WGS84 +units=m"},
+      {"kav7", "+proj=kav7 +datum=WGS84 +units=m"},
+      {"lask", "+proj=lask +datum=WGS84 +units=m"},
+      {"mbt_fps", "+proj=mbt_fps +datum=WGS84 +units=m"},
+      {"mbtfpp", "+proj=mbtfpp +datum=WGS84 +units=m"},
+      {"mbtfpq", "+proj=mbtfpq +datum=WGS84 +units=m"},
+      {"mbtfps", "+proj=mbtfps +datum=WGS84 +units=m"},
+      {"moll", "+proj=moll +datum=WGS84 +units=m"},
+      {"natearth", "+proj=natearth +datum=WGS84 +units=m"},
+      {"natearth2", "+proj=natearth2 +datum=WGS84 +units=m"},
+      {"nell", "+proj=nell +datum=WGS84 +units=m"},
+      {"nell_h", "+proj=nell_h +datum=WGS84 +units=m"},
+      {"nicol", "+proj=nicol +datum=WGS84 +units=m"},
+      {"ortel", "+proj=ortel +datum=WGS84 +units=m"},
+      {"patterson", "+proj=patterson +datum=WGS84 +units=m"},
+      {"putp2", "+proj=putp2 +datum=WGS84 +units=m"},
+      {"putp3", "+proj=putp3 +datum=WGS84 +units=m"},
+      {"putp3p", "+proj=putp3p +datum=WGS84 +units=m"},
+      {"putp4p", "+proj=putp4p +datum=WGS84 +units=m"},
+      {"putp5", "+proj=putp5 +datum=WGS84 +units=m"},
+      {"putp5p", "+proj=putp5p +datum=WGS84 +units=m"},
+      {"putp6", "+proj=putp6 +datum=WGS84 +units=m"},
+      {"putp6p", "+proj=putp6p +datum=WGS84 +units=m"},
+      {"qua_aut", "+proj=qua_aut +datum=WGS84 +units=m"},
+      {"robin", "+proj=robin +datum=WGS84 +units=m"},
+      {"sinu", "+proj=sinu +datum=WGS84 +units=m"},
+      {"times", "+proj=times +datum=WGS84 +units=m"},
+      {"urm5", "+proj=urm5 +n=0.9 +q=0.142 +alpha=0.97 +datum=WGS84 +units=m"},
+      {"urmfps", "+proj=urmfps +n=0.5 +datum=WGS84 +units=m"},
+      {"wag1", "+proj=wag1 +datum=WGS84 +units=m"},
+      {"wag2", "+proj=wag2 +datum=WGS84 +units=m"},
+      {"wag3", "+proj=wag3 +datum=WGS84 +units=m"},
+      {"wag4", "+proj=wag4 +datum=WGS84 +units=m"},
+      {"wag5", "+proj=wag5 +datum=WGS84 +units=m"},
+      {"wag6", "+proj=wag6 +datum=WGS84 +units=m"},
+      {"wag7", "+proj=wag7 +datum=WGS84 +units=m"},
+      {"weren", "+proj=weren +datum=WGS84 +units=m"},
+      {"wink1", "+proj=wink1 +datum=WGS84 +units=m"},
+      {"wink2", "+proj=wink2 +datum=WGS84 +units=m"},
+      {"wintri", "+proj=wintri +datum=WGS84 +units=m"},
+      // --- Polyconic / Cassini ---
+      {"cass", "+proj=cass +datum=WGS84 +units=m"},
+      {"poly", "+proj=poly +datum=WGS84 +units=m"},
+      // --- Modified azimuthal / other global ---
+      {"aitoff", "+proj=aitoff +datum=WGS84 +units=m"},
+      {"august", "+proj=august +datum=WGS84 +units=m"},
+      {"hammer", "+proj=hammer +datum=WGS84 +units=m"},
+      // --- Van der Grinten family ---
+      {"vandg", "+proj=vandg +datum=WGS84 +units=m"},
+      {"vandg2", "+proj=vandg2 +datum=WGS84 +units=m"},
+      {"vandg3", "+proj=vandg3 +datum=WGS84 +units=m"},
+      {"vandg4", "+proj=vandg4 +datum=WGS84 +units=m"},
+      // --- Miscellaneous global projections ---
+      {"adams_ws1", "+proj=adams_ws1 +datum=WGS84 +units=m"},
+      {"adams_ws2", "+proj=adams_ws2 +datum=WGS84 +units=m"},
+      {"bertin1953", "+proj=bertin1953 +datum=WGS84 +units=m"},
+      {"fahey", "+proj=fahey +datum=WGS84 +units=m"},
+      {"lagrng", "+proj=lagrng +datum=WGS84 +units=m"},
+      {"loxim", "+proj=loxim +datum=WGS84 +units=m"},
+      {"mill", "+proj=mill +datum=WGS84 +units=m"},
+      {"tobmerc", "+proj=tobmerc +datum=WGS84 +units=m"},
+      // --- Cylindrical (finite-extent variant) ---
+      {"eqc", "+proj=eqc +datum=WGS84 +units=m"},
+      {"cea", "+proj=cea +datum=WGS84 +units=m"},
+      {"gall", "+proj=gall +datum=WGS84 +units=m"},
+      // --- Conical/conic (with standard parallels) ---
+      {"bonne", "+proj=bonne +lat_1=45 +datum=WGS84 +units=m"},
+      {"eqdc", "+proj=eqdc +lat_1=29.5 +lat_2=45.5 +datum=WGS84 +units=m"},
+      // --- Generalised sinusoidal family ---
+      {"gn_sinu", "+proj=gn_sinu +m=2 +n=3 +datum=WGS84 +units=m"},
+      // --- Oblique transform (world-covering) ---
+      {"ob_tran_eck4", "+proj=ob_tran +o_proj=eck4 +o_lon_p=0 +o_lat_p=90 +datum=WGS84 +units=m"},
   };
 
   const bool windings[] = {true, false};
@@ -1435,9 +1526,13 @@ TEST(GeometryProjectorTests, WorldPolygon_EckertAndBacon_BothWindingsProduceSubs
   }
 }
 
-// Polyconic and Cassini are limited-domain projections; a CCW world polygon should
-// produce a non-empty result without crashing (they cannot cover the full globe).
-TEST(GeometryProjectorTests, WorldPolygon_PolyconicAndCassini_CCWDoesNotCrashAndIsNonEmpty)
+// Projections that cannot cover the full globe with auto-computed bounds, but
+// produce a non-empty, non-crashing result when given a large fixed bounding box.
+//
+// Includes transverse/conformal projections (seam at antimeridian), azimuthal/polar
+// projections (valid only in a hemisphere or bounded area), and conical projections
+// with required standard parallels.  Only CCW winding is tested here.
+TEST(GeometryProjectorTests, WorldPolygon_LimitedDomainProjections_CCWDoesNotCrashAndIsNonEmpty)
 {
   CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
   static GdalInitGuard guard;
@@ -1450,10 +1545,26 @@ TEST(GeometryProjectorTests, WorldPolygon_PolyconicAndCassini_CCWDoesNotCrashAnd
     double minX, minY, maxX, maxY;
   };
 
-  // Use large bounds so the valid projection area of each projection fits inside.
+  // Large bounds so the valid projection area of each projection fits inside.
   const Case cases[] = {
+      // Previously tested (kept for regression coverage)
       {"poly", "+proj=poly +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
       {"cass", "+proj=cass +datum=WGS84 +units=m", -1e7, -1e7, 1e7, 1e7},
+      // Transverse / oblique cylindrical (seam at antimeridian → auto-bounds fail)
+      {"tmerc", "+proj=tmerc +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+      {"tcc", "+proj=tcc +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+      {"tcea", "+proj=tcea +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+      {"mil_os", "+proj=mil_os +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
+      {"sterea", "+proj=sterea +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
+      // Polar / azimuthal (auto-bounds give pole_y but ring wraps antipodal region)
+      {"stere", "+proj=stere +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
+      {"ups", "+proj=ups +datum=WGS84 +units=m", -8.5e6, -8.5e6, 8.5e6, 8.5e6},
+      // Cylindrical conformal (poles at infinity → auto-bounds use fallback y)
+      {"merc", "+proj=merc +datum=WGS84 +units=m", -2.1e7, -2.1e7, 2.1e7, 2.1e7},
+      // Conical (requires standard parallels; auto-bounds pick a limited extent)
+      {"lcc", "+proj=lcc +lat_1=33 +lat_2=45 +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
+      // Misc limited-domain (non-empty with large bounds; tiny area fraction)
+      {"gstmerc", "+proj=gstmerc +datum=WGS84 +units=m", -4e7, -1.5e7, 4e7, 1.5e7},
   };
 
   OGRPolygon poly = worldPolygonCCW();
