@@ -1449,6 +1449,10 @@ TEST(GeometryProjectorTests, WorldPolygon_GlobalProjections_BothWindingsProduceS
       {"vandg2", "+proj=vandg2 +datum=WGS84 +units=m"},
       {"vandg3", "+proj=vandg3 +datum=WGS84 +units=m"},
       {"vandg4", "+proj=vandg4 +datum=WGS84 +units=m"},
+      // --- Azimuthal equal-area (EU standard oblique aspect) ---
+      // +ellps=GRS80 required: +datum=WGS84 causes PROJ to create a WGS84→WGS84
+      // identity pipeline that skips the actual laea projection.
+      {"laea_EU", "+proj=laea +lat_0=52 +lon_0=10 +ellps=GRS80 +units=m"},
       // --- Miscellaneous global projections ---
       {"adams_ws1", "+proj=adams_ws1 +datum=WGS84 +units=m"},
       {"adams_ws2", "+proj=adams_ws2 +datum=WGS84 +units=m"},
