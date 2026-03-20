@@ -810,14 +810,24 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
     if (m_densifyKm > 0.0)
       densifyGeographicKm(geo.get(), m_densifyKm);
 
-    // Jump threshold: 20× the densification step.
-    // Pole-line jumps (lat=±90 traversed at constant latitude) project to 10-30 million m,
-    // far above this threshold.  ECK3's steeply-curved meridians near the poles produce
-    // legitimate segments up to ~900 km at 50 km densification; the 10× multiplier (500 km)
-    // was too low for those.  20× (1000 km at 50 km densification) safely clears all known
-    // legitimate segments while remaining far below any pole-line jump.
+    // Jump threshold: the larger of 20× the densification step and 35% of the box height.
+    //
+    // Why two components?
+    //   - Pole-LINE projections (ECK1-6, Bacon, Ortelius, …): the south/north pole maps to
+    //     a horizontal line segment whose length equals the full box width (10–30 Mm).  The
+    //     SW→SE and NE→NW pole-line traversals exceed this threshold and are correctly split.
+    //     ECK3's steeply-curved meridians produce legitimate segments up to ~900 km near the
+    //     poles; the old 10× (500 km) multiplier was too low for those.
+    //   - Pole-POINT projections (van der Grinten I-III, Lagrange, Fahey, Loximuthal, …):
+    //     all meridians converge to a single point at each pole.  No pole-line jump exists,
+    //     but the first meridian segment from the pole to the nearest densified latitude can
+    //     reach ~9 000 km (vandg3).  Using 35% of the box height (≥ 14 Mm for vandg3) keeps
+    //     these legitimate segments below the threshold.  The threshold still sits well below
+    //     any actual pole-line (which spans 50–100% of the box width).
     const double maxJumpMeters =
-        (m_densifyKm > 0.0) ? (m_densifyKm * 1000.0 * 20.0) : m_jumpThreshold;
+        (m_densifyKm > 0.0)
+            ? std::max(m_densifyKm * 1000.0 * 20.0, (b.maxY - b.minY) * 0.35)
+            : m_jumpThreshold;
 
     auto projRuns = projectToProjectedRunsBestEffort(*geo, /*splitAtFailures=*/false);
 

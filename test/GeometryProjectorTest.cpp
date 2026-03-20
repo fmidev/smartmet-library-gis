@@ -362,26 +362,33 @@ double totalArea(const OGRGeometry* g)
 }
 
 // Compute the bounding box that makes RectClipper's connectLines work correctly
-// for global pseudocylindrical projections (ECK1-6, Bacon, etc.).
+// for global projections.
 //
 // How jump detection produces run endpoints:
-//   For a CCW-normalised world ring (SW→SE→NE→NW), the two pole lines
+//   For a CCW-normalised world ring (SW→SE→NE→NW), the two pole traversals
 //   (lat=±90, lon=-180..+180) exceed the jump threshold and are split.  The
-//   resulting run endpoints are exactly the projected coordinates of the four
-//   geographic points (lon=±180, lat=±90) — the "pole corners".
+//   resulting run endpoints are the projected coordinates of the geographic
+//   points at (lon=±180, lat=±90) — the "pole corners".
 //
 // What connectLines needs:
-//   search_ccw uses "y1==ymax → top-edge-going-left" and
-//   "y1==ymin → bottom-edge-going-right" to match runs.  For those branches to
-//   trigger the box ymin/ymax must coincide EXACTLY with the run endpoints' y
-//   coordinates, i.e. ymax = y(lon=0, lat=+90) and ymin = y(lon=0, lat=-90).
+//   search_ccw uses exact equality to match run endpoints on the box boundary.
+//   Therefore ymin/ymax must equal the y-coordinates of the pole-corner run
+//   endpoints exactly — they must come from projecting lat=±90 points, NOT from
+//   off-pole latitudes.
 //
-//   The x extent of the box must be ≥ the natural x extent of the projection
-//   (e.g. the equatorial maximum) so that the curved meridians are not clipped
-//   away and the runs remain inside the box.
+// How we compute ymin/ymax:
+//   We scan ALL longitudes at lat=±90 and take the extremes.  For projections
+//   where all meridians converge to a single pole point (most projections) every
+//   longitude gives the same y, so the result is just pole_y.  For projections
+//   where the pole maps to a curve (e.g. bertin1953, adams_ws2) we get the true
+//   y-extremes of that curve, which are the endpoints of the pole run.
 //
-// Therefore: ymin/ymax come from projecting the geographic poles (no margin);
-//            xmin/xmax come from sampling the full globe (finding the widest extent).
+//   Off-pole latitudes are deliberately excluded from the y computation; they
+//   can yield larger y values for some projections (transverse/conformal variants)
+//   that would shift the box boundary away from the run endpoints and cause
+//   connectLines to fail with "Stuck, discarding ring".
+//
+// xmin/xmax come from sampling the full globe.
 Bounds computeBoundsForGlobalProjection(OGRCoordinateTransformation* ct)
 {
   const double cap = 1e10;
@@ -391,44 +398,28 @@ Bounds computeBoundsForGlobalProjection(OGRCoordinateTransformation* ct)
     return std::isfinite(x) && std::isfinite(y) && std::abs(x) < cap && std::abs(y) < cap;
   };
 
-  // --- Y extent: use the geographic poles (exact, no margin) ---
-  double xN = 0.0, yN = 90.0;
-  double xS = 0.0, yS = -90.0;
-  bool okN = ct->Transform(1, &xN, &yN) && valid(xN, yN);
-  bool okS = ct->Transform(1, &xS, &yS) && valid(xS, yS);
-
-  // If the central meridian pole is degenerate, scan all longitudes at lat=±90
-  if (!okN)
+  // --- Y extent: scan ALL longitudes at lat=±90 and take the extremes ---
+  // This handles both "single-point poles" (all lons give same y) and
+  // "wandering poles" (different lons give different y; e.g. bertin1953, adams_ws2).
+  double ymax = std::numeric_limits<double>::lowest();
+  double ymin = std::numeric_limits<double>::max();
+  for (int lon = -180; lon <= 180; lon += 5)
   {
-    for (int lon = -179; lon <= 179; lon += 5)
-    {
-      double x = lon, y = 90.0;
-      if (ct->Transform(1, &x, &y) && valid(x, y))
-      {
-        yN = y;
-        okN = true;
-        break;
-      }
-    }
-  }
-  if (!okS)
-  {
-    for (int lon = -179; lon <= 179; lon += 5)
-    {
-      double x = lon, y = -90.0;
-      if (ct->Transform(1, &x, &y) && valid(x, y))
-      {
-        yS = y;
-        okS = true;
-        break;
-      }
-    }
-  }
+    double x = lon, y = 90.0;
+    if (ct->Transform(1, &x, &y) && valid(x, y))
+      ymax = std::max(ymax, y);
 
-  const double ymax = okN ? yN : 1e7;
-  const double ymin = okS ? yS : -1e7;
+    x = lon;
+    y = -90.0;
+    if (ct->Transform(1, &x, &y) && valid(x, y))
+      ymin = std::min(ymin, y);
+  }
+  if (ymax == std::numeric_limits<double>::lowest())
+    ymax = 1e7;
+  if (ymin == std::numeric_limits<double>::max())
+    ymin = -1e7;
 
-  // --- X extent: sample the full globe to find the widest horizontal extent ---
+  // --- X extent: sample the full globe (y NOT updated here) ---
   double xmin = 0.0, xmax = 0.0;
   for (int lat = -90; lat <= 90; lat += 2)
   {
