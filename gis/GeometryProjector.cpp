@@ -793,11 +793,31 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
       return false;
 
     auto geo = ringToLineStringPreserveClosure(ring, /*forceClose=*/true, eps);
+
+    // Normalize winding before densification so that jump-detection runs are produced
+    // in the order the CCW reconnection algorithm (connectLines/search_ccw) expects.
+    // For exterior rings: CCW so the bottom edge is traversed first, seeding Run 1 at
+    // the bottom-right corner and Run 2 at the top-left corner.
+    // For interior rings: CW (the opposite).
+    // OGRLinearRing::isClockwise()==1 means CW (negative signed area in y-up coordinates).
+    {
+      int cw = ring->isClockwise();
+      bool doReverse = isExterior ? (cw != 0) : (cw == 0);
+      if (doReverse)
+        geo->reversePoints();
+    }
+
     if (m_densifyKm > 0.0)
       densifyGeographicKm(geo.get(), m_densifyKm);
 
+    // Jump threshold: 20× the densification step.
+    // Pole-line jumps (lat=±90 traversed at constant latitude) project to 10-30 million m,
+    // far above this threshold.  ECK3's steeply-curved meridians near the poles produce
+    // legitimate segments up to ~900 km at 50 km densification; the 10× multiplier (500 km)
+    // was too low for those.  20× (1000 km at 50 km densification) safely clears all known
+    // legitimate segments while remaining far below any pole-line jump.
     const double maxJumpMeters =
-        (m_densifyKm > 0.0) ? (m_densifyKm * 1000.0 * 10.0) : m_jumpThreshold;
+        (m_densifyKm > 0.0) ? (m_densifyKm * 1000.0 * 20.0) : m_jumpThreshold;
 
     auto projRuns = projectToProjectedRunsBestEffort(*geo, /*splitAtFailures=*/false);
 
@@ -899,7 +919,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
       const int n = run->getNumPoints();
       const bool isOpen = (run->getX(0) != run->getX(n - 1) || run->getY(0) != run->getY(n - 1));
 
-#if 0      
+#if 0
       std::cerr << (isExterior ? "  exterior" : "  interior") << " run: pts=" << n
                 << " isOpen=" << isOpen << " front=(" << run->getX(0) << "," << run->getY(0) << ")"
                 << " back=(" << run->getX(n - 1) << "," << run->getY(n - 1) << ")\n";

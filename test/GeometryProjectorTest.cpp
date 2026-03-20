@@ -305,6 +305,153 @@ bool anyPolygonHasConsecutiveDuplicates(const OGRGeometry* g, double eps = 1e-9)
   return false;
 }
 
+OGRSpatialReference makeSRSFromProj4(const std::string& proj4)
+{
+  OGRSpatialReference s;
+  s.importFromProj4(proj4.c_str());
+  s.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+  return s;
+}
+
+// World polygon CCW: SW→SE→NE→NW (counter-clockwise in y-up convention)
+OGRPolygon worldPolygonCCW()
+{
+  OGRPolygon poly;
+  OGRLinearRing ext;
+  ext.addPoint(-180, -90);
+  ext.addPoint(180, -90);
+  ext.addPoint(180, 90);
+  ext.addPoint(-180, 90);
+  ext.addPoint(-180, -90);
+  poly.addRing(&ext);
+  return poly;
+}
+
+// World polygon CW: SW→NW→NE→SE (clockwise in y-up convention)
+// Before the ring-winding fix, this produced zero-area slivers for global
+// pseudocylindrical projections.
+OGRPolygon worldPolygonCW()
+{
+  OGRPolygon poly;
+  OGRLinearRing ext;
+  ext.addPoint(-180, -90);
+  ext.addPoint(-180, 90);
+  ext.addPoint(180, 90);
+  ext.addPoint(180, -90);
+  ext.addPoint(-180, -90);
+  poly.addRing(&ext);
+  return poly;
+}
+
+double totalArea(const OGRGeometry* g)
+{
+  if (!g || g->IsEmpty())
+    return 0.0;
+  const auto t = wkbFlatten(g->getGeometryType());
+  if (t == wkbPolygon)
+    return static_cast<const OGRPolygon*>(g)->get_Area();
+  if (t == wkbMultiPolygon)
+  {
+    const auto* mp = static_cast<const OGRMultiPolygon*>(g);
+    double area = 0.0;
+    for (int i = 0; i < mp->getNumGeometries(); ++i)
+      area += static_cast<const OGRPolygon*>(mp->getGeometryRef(i))->get_Area();
+    return area;
+  }
+  return 0.0;
+}
+
+// Compute the bounding box that makes RectClipper's connectLines work correctly
+// for global pseudocylindrical projections (ECK1-6, Bacon, etc.).
+//
+// How jump detection produces run endpoints:
+//   For a CCW-normalised world ring (SW→SE→NE→NW), the two pole lines
+//   (lat=±90, lon=-180..+180) exceed the jump threshold and are split.  The
+//   resulting run endpoints are exactly the projected coordinates of the four
+//   geographic points (lon=±180, lat=±90) — the "pole corners".
+//
+// What connectLines needs:
+//   search_ccw uses "y1==ymax → top-edge-going-left" and
+//   "y1==ymin → bottom-edge-going-right" to match runs.  For those branches to
+//   trigger the box ymin/ymax must coincide EXACTLY with the run endpoints' y
+//   coordinates, i.e. ymax = y(lon=0, lat=+90) and ymin = y(lon=0, lat=-90).
+//
+//   The x extent of the box must be ≥ the natural x extent of the projection
+//   (e.g. the equatorial maximum) so that the curved meridians are not clipped
+//   away and the runs remain inside the box.
+//
+// Therefore: ymin/ymax come from projecting the geographic poles (no margin);
+//            xmin/xmax come from sampling the full globe (finding the widest extent).
+Bounds computeBoundsForGlobalProjection(OGRCoordinateTransformation* ct)
+{
+  const double cap = 1e10;
+
+  auto valid = [&](double x, double y) -> bool
+  {
+    return std::isfinite(x) && std::isfinite(y) && std::abs(x) < cap && std::abs(y) < cap;
+  };
+
+  // --- Y extent: use the geographic poles (exact, no margin) ---
+  double xN = 0.0, yN = 90.0;
+  double xS = 0.0, yS = -90.0;
+  bool okN = ct->Transform(1, &xN, &yN) && valid(xN, yN);
+  bool okS = ct->Transform(1, &xS, &yS) && valid(xS, yS);
+
+  // If the central meridian pole is degenerate, scan all longitudes at lat=±90
+  if (!okN)
+  {
+    for (int lon = -179; lon <= 179; lon += 5)
+    {
+      double x = lon, y = 90.0;
+      if (ct->Transform(1, &x, &y) && valid(x, y))
+      {
+        yN = y;
+        okN = true;
+        break;
+      }
+    }
+  }
+  if (!okS)
+  {
+    for (int lon = -179; lon <= 179; lon += 5)
+    {
+      double x = lon, y = -90.0;
+      if (ct->Transform(1, &x, &y) && valid(x, y))
+      {
+        yS = y;
+        okS = true;
+        break;
+      }
+    }
+  }
+
+  const double ymax = okN ? yN : 1e7;
+  const double ymin = okS ? yS : -1e7;
+
+  // --- X extent: sample the full globe to find the widest horizontal extent ---
+  double xmin = 0.0, xmax = 0.0;
+  for (int lat = -90; lat <= 90; lat += 2)
+  {
+    for (int lon = -180; lon <= 180; lon += 2)
+    {
+      double x = lon, y = lat;
+      if (!ct->Transform(1, &x, &y) || !valid(x, y))
+        continue;
+      xmin = std::min(xmin, x);
+      xmax = std::max(xmax, x);
+    }
+  }
+
+  if (xmin >= xmax)
+  {
+    // Degenerate — fall back to something symmetric around y extent
+    xmin = ymin * 2.0;
+    xmax = ymax * 2.0;
+  }
+
+  return {xmin, ymin, xmax, ymax};
+}
+
 }  // namespace
 
 // ---------------- TESTS ----------------
@@ -1212,5 +1359,130 @@ TEST(GeometryProjectorTests, GlobalGraticule_NoLargeProjectionJumps)
         checkLineStringContinuity(dynamic_cast<const OGRLineString*>(ml->getGeometryRef(i)));
     }
     // else: ignore empties / non-lines; the projector may legitimately drop pieces.
+  }
+}
+
+// World polygon projected through global pseudocylindrical projections.
+// Both CCW and CW winding orders must produce a non-empty, non-degenerate polygon.
+// The CW case is the regression test for the ring-winding fix: before the fix the
+// jump-detection runs were produced in reverse order and the CCW reconnection in
+// RectClipper assembled only a zero-width sliver along the leftmost meridian.
+TEST(GeometryProjectorTests, WorldPolygon_EckertAndBacon_BothWindingsProduceSubstantialResult)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+  };
+
+  const Case cases[] = {
+      {"eck1", "+proj=eck1 +datum=WGS84 +units=m"},
+      {"eck2", "+proj=eck2 +datum=WGS84 +units=m"},
+      {"eck3", "+proj=eck3 +datum=WGS84 +units=m"},
+      {"eck4", "+proj=eck4 +datum=WGS84 +units=m"},
+      {"eck5", "+proj=eck5 +datum=WGS84 +units=m"},
+      {"eck6", "+proj=eck6 +datum=WGS84 +units=m"},
+      {"bacon", "+proj=bacon +datum=WGS84 +units=m"},
+  };
+
+  const bool windings[] = {true, false};
+  const char* const labels[] = {"CCW", "CW"};
+
+  for (const auto& tc : cases)
+  {
+    OGRSpatialReference wgs84 = makeSRS(4326);
+    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+
+    // Compute the natural projected extent by sampling the full globe through this
+    // projection. Using the natural extent as the bounding box ensures that pole-edge
+    // run endpoints produced by jump detection land exactly on the box boundary, which
+    // is required for RectClipper's connectLines to reconnect them correctly.
+    std::unique_ptr<OGRCoordinateTransformation> ct(
+        OGRCreateCoordinateTransformation(&wgs84, &target));
+    ASSERT_TRUE(ct) << tc.name << ": failed to create coordinate transformation";
+
+    const Bounds B = computeBoundsForGlobalProjection(ct.get());
+    ASSERT_LT(B.minX, B.maxX) << tc.name << ": degenerate bounds";
+
+    const double boxArea = (B.maxX - B.minX) * (B.maxY - B.minY);
+
+    for (int w = 0; w < 2; ++w)
+    {
+      Fmi::GeometryProjector projector(&wgs84, &target);
+      projector.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
+      projector.setDensifyResolutionKm(50.0);
+
+      OGRPolygon poly = windings[w] ? worldPolygonCCW() : worldPolygonCW();
+      auto out = projector.projectGeometry(&poly);
+
+      ASSERT_TRUE(out) << tc.name << " (" << labels[w] << "): result is null";
+      ASSERT_FALSE(out->IsEmpty()) << tc.name << " (" << labels[w] << "): result is empty";
+
+      const auto gt = wkbFlatten(out->getGeometryType());
+      EXPECT_TRUE(gt == wkbPolygon || gt == wkbMultiPolygon)
+          << tc.name << " (" << labels[w] << "): expected polygon, got "
+          << OGRGeometryTypeToName(out->getGeometryType());
+
+      EXPECT_TRUE(allVerticesWithinBounds(out.get(), B))
+          << tc.name << " (" << labels[w] << "): vertices outside bounds";
+
+      EXPECT_TRUE(allPolygonRingsClosed(out.get()))
+          << tc.name << " (" << labels[w] << "): rings not closed";
+
+      // The world polygon should cover a substantial portion of the bounding box.
+      // A zero-width sliver (the pre-fix CW failure mode) has ~0 area and fails this.
+      const double area = totalArea(out.get());
+      EXPECT_GT(area, 0.25 * boxArea)
+          << tc.name << " (" << labels[w] << "): area " << area
+          << " is less than 25% of natural box area " << boxArea
+          << " — likely a zero-width meridian sliver";
+    }
+  }
+}
+
+// Polyconic and Cassini are limited-domain projections; a CCW world polygon should
+// produce a non-empty result without crashing (they cannot cover the full globe).
+TEST(GeometryProjectorTests, WorldPolygon_PolyconicAndCassini_CCWDoesNotCrashAndIsNonEmpty)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+    double minX, minY, maxX, maxY;
+  };
+
+  // Use large bounds so the valid projection area of each projection fits inside.
+  const Case cases[] = {
+      {"poly", "+proj=poly +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
+      {"cass", "+proj=cass +datum=WGS84 +units=m", -1e7, -1e7, 1e7, 1e7},
+  };
+
+  OGRPolygon poly = worldPolygonCCW();
+
+  for (const auto& tc : cases)
+  {
+    OGRSpatialReference wgs84 = makeSRS(4326);
+    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+    const Bounds B{tc.minX, tc.minY, tc.maxX, tc.maxY};
+
+    Fmi::GeometryProjector projector(&wgs84, &target);
+    projector.setProjectedBounds(tc.minX, tc.minY, tc.maxX, tc.maxY);
+    projector.setDensifyResolutionKm(50.0);
+
+    std::unique_ptr<OGRGeometry> out;
+    ASSERT_NO_THROW(out = projector.projectGeometry(&poly)) << tc.name << ": threw exception";
+    ASSERT_TRUE(out) << tc.name << ": result is null";
+    ASSERT_FALSE(out->IsEmpty()) << tc.name << ": result is empty";
+
+    EXPECT_TRUE(allVerticesWithinBounds(out.get(), B)) << tc.name << ": vertices outside bounds";
+    EXPECT_TRUE(allPolygonRingsClosed(out.get())) << tc.name << ": rings not closed";
   }
 }
