@@ -1368,28 +1368,33 @@ TEST(GeometryProjectorTests, MoveSemantics_ProjectorRemainsUsable)
 // is treated as a domain discontinuity and its endpoints end up in separate runs.
 // For a 2-point linestring this means both runs are length-1 (invalid) → empty output.
 //
-// Setup: +proj=tmerc (central meridian = 0).  The segment lon=0→lon=87 at lat=0
-// projects to x≈0 and x≈24 500 km — a genuine ~24 500 km jump across the wide
-// area of the tmerc domain.  Bounds are set wide enough to contain both endpoints.
+// Setup: Mercator projection, 3-point line (0°,0°)→(0°,80°)→(0°,1°).
+// All three points project to finite, in-bounds coordinates:
+//   y(lat=0)  = 0
+//   y(lat=80) ≈ +15 500 km  (within bounds of ±21 000 km)
+//   y(lat=1)  ≈ +111 km
+// Consecutive projected distances are ~15 500 km and ~15 400 km.
+// With threshold below those distances each segment is a "jump" and all 1-point
+// runs are discarded → empty.  With threshold above them no split occurs → non-empty.
 TEST(GeometryProjectorTests, SetJumpThreshold_ControlsSplittingWhenDensifyDisabled)
 {
   CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
   static GdalInitGuard guard;
-  GdalErrorSilencer silence;
 
   OGRSpatialReference wgs84 = makeSRS(4326);
-  OGRSpatialReference tmerc = makeSRSFromProj4("+proj=tmerc +datum=WGS84 +units=m");
+  OGRSpatialReference merc = makeSRSFromProj4("+proj=merc +datum=WGS84 +units=m");
 
-  // Wide bounds that contain both projected endpoints.
-  const Bounds B{-4e7, -1e7, 4e7, 1e7};
+  const Bounds B{-2.1e7, -2.1e7, 2.1e7, 2.1e7};
 
   OGRLineString line;
   line.addPoint(0.0, 0.0);
-  line.addPoint(87.0, 0.0);  // projects to x ≈ 24 500 km in tmerc
+  line.addPoint(0.0, 80.0);  // y ≈ +15 520 km in merc
+  line.addPoint(0.0, 1.0);   // y ≈ +111 km in merc
 
-  // Threshold well below ~24 500 km → jump detected → each run has 1 point → empty.
+  // Threshold well below ~15 400 km → both segments are "jumps" → all runs length-1
+  // → discarded → output null or empty.
   {
-    Fmi::GeometryProjector p(&wgs84, &tmerc);
+    Fmi::GeometryProjector p(&wgs84, &merc);
     p.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
     p.setDensifyResolutionKm(0.0);
     p.setJumpThreshold(1e6);  // 1 000 km
@@ -1398,15 +1403,15 @@ TEST(GeometryProjectorTests, SetJumpThreshold_ControlsSplittingWhenDensifyDisabl
         << "Expected empty with 1000 km threshold; got: " << (out ? wktOf(out.get()) : "null");
   }
 
-  // Threshold well above ~24 500 km → segment kept as-is → non-empty.
+  // Threshold well above ~15 500 km → no jumps → 3-point line kept → non-empty.
   {
-    Fmi::GeometryProjector p(&wgs84, &tmerc);
+    Fmi::GeometryProjector p(&wgs84, &merc);
     p.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
     p.setDensifyResolutionKm(0.0);
-    p.setJumpThreshold(5e7);  // 50 000 km
+    p.setJumpThreshold(2e7);  // 20 000 km
     auto out = p.projectGeometry(&line);
-    ASSERT_TRUE(out) << "Expected non-null with 50 000 km threshold";
-    EXPECT_FALSE(out->IsEmpty()) << "Expected non-empty with 50 000 km threshold";
+    ASSERT_TRUE(out) << "Expected non-null with 20 000 km threshold";
+    EXPECT_FALSE(out->IsEmpty()) << "Expected non-empty with 20 000 km threshold";
     EXPECT_TRUE(allVerticesWithinBounds(out.get(), B)) << wktOf(out.get());
   }
 }
