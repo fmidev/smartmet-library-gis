@@ -1622,7 +1622,15 @@ TEST(GeometryProjectorTests, WorldPolygon_GlobalProjections_BothWindingsProduceS
       // --- Generalised sinusoidal family ---
       {"gn_sinu", "+proj=gn_sinu +m=2 +n=3 +datum=WGS84 +units=m"},
       // --- Oblique transform (world-covering) ---
-      {"ob_tran_eck4", "+proj=ob_tran +o_proj=eck4 +o_lon_p=0 +o_lat_p=90 +datum=WGS84 +units=m"},
+      // All use o_lat_p=90 (transverse aspect): the geographic poles become the
+      // "equatorial" points of the base projection, so computeBoundsForGlobalProjection
+      // (which scans lat=±90) correctly captures the y-extremes.  Genuinely oblique
+      // poles (o_lat_p < 90) would require a full-globe y-scan and are left for a
+      // future dedicated test.  o_lon_p varies to exercise different rotations.
+      {"ob_tran_eck4",   "+proj=ob_tran +o_proj=eck4   +o_lon_p=0   +o_lat_p=90 +datum=WGS84 +units=m"},
+      {"ob_tran_moll",   "+proj=ob_tran +o_proj=moll   +o_lon_p=90  +o_lat_p=90 +datum=WGS84 +units=m"},
+      {"ob_tran_wag4",   "+proj=ob_tran +o_proj=wag4   +o_lon_p=0   +o_lat_p=90 +datum=WGS84 +units=m"},
+      {"ob_tran_wintri", "+proj=ob_tran +o_proj=wintri +o_lon_p=0   +o_lat_p=90 +datum=WGS84 +units=m"},
   };
 
   const bool windings[] = {true, false};
@@ -1719,6 +1727,25 @@ TEST(GeometryProjectorTests, WorldPolygon_LimitedDomainProjections_CCWDoesNotCra
       {"lcc", "+proj=lcc +lat_1=33 +lat_2=45 +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
       // Misc limited-domain (non-empty with large bounds; tiny area fraction)
       {"gstmerc", "+proj=gstmerc +datum=WGS84 +units=m", -4e7, -1.5e7, 4e7, 1.5e7},
+      // Polar LAEA (azimuthal equal-area, polar aspects).
+      // The projection pole maps to the origin (0,0).  Auto-computed bounds give
+      // ymax=0 (exactly on the boundary) for the north pole, which causes
+      // connectLines to go "Stuck" — the box ceiling must be a tiny epsilon above
+      // the pole.  The symmetric asymmetry applies for the south polar aspect.
+      // +ellps=GRS80 required for the same reason as the oblique EU aspect.
+      {"laea_north_polar", "+proj=laea +lat_0=90  +lon_0=0 +ellps=GRS80 +units=m",
+       -1.35e7, -1.35e7, 1.35e7, 0.1e6},
+      {"laea_south_polar", "+proj=laea +lat_0=-90 +lon_0=0 +ellps=GRS80 +units=m",
+       -1.35e7, -0.1e6, 1.35e7, 1.35e7},
+      // UTM zones — transverse Mercator with zone-specific false easting (500 000 m).
+      // Wide tmerc-like bounds contain the full projected world; the world polygon
+      // clips to a valid polygon for these specific zone numbers.  Not all zones
+      // produce non-degenerate results with this approach (the run endpoints must
+      // coincide exactly with the box boundary for RectClipper to close the ring);
+      // zones 22, 33, and 43 have been verified to give frac ≈ 1.0.
+      {"utm_zone22n", "+proj=utm +zone=22 +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+      {"utm_zone33n", "+proj=utm +zone=33 +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+      {"utm_zone43n", "+proj=utm +zone=43 +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
   };
 
   OGRPolygon poly = worldPolygonCCW();
