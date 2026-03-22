@@ -11,16 +11,9 @@
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 #include <gdal_version.h>
-#include <iostream>
 #include <limits>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
-
-// So far we've had no data with axes swapped since we force axis orientation in all constructors.
-// This might change when using external sources for spatial references, then we'll need to put this
-// flag on.
-
-#define CHECK_AXES 0
 
 namespace Fmi
 {
@@ -112,11 +105,6 @@ bool CoordinateTransformation::transform(double& x, double& y) const
 {
   try
   {
-#if CHECK_AXES
-    if (impl->m_swapInput)
-      std::swap(x, y);
-#endif
-
     bool ok = (impl->m_transformation->Transform(1, &x, &y) != 0);
 
     if (!ok)
@@ -126,7 +114,6 @@ bool CoordinateTransformation::transform(double& x, double& y) const
       return false;
     }
 
-    // if (impl->m_swapOutput) std::swap(x, y);
     return true;
   }
   catch (...)
@@ -146,21 +133,11 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
       throw Fmi::Exception::Trace(
           BCP, "Cannot do coordinate transformation for empty X- and Y-coordinate vectors");
 
-#if CHECK_AXES
-    if (impl->m_swapInput)
-      std::swap(x, y);
-#endif
-
     int n = static_cast<int>(x.size());
     std::vector<int> flags(n, 0);
 
     bool ok =
         (impl->m_transformation->Transform(n, x.data(), y.data(), nullptr, flags.data()) != 0);
-
-#if CHECK_AXES
-    if (impl->m_swapOutput)
-      std::swap(x, y);
-#endif
 
     for (std::size_t i = 0; i < flags.size(); i++)
     {
@@ -183,18 +160,7 @@ bool CoordinateTransformation::transform(OGRGeometry& geom) const
 {
   try
   {
-#if CHECK_AXES
-    if (impl->m_swapInput)
-      geom.swapXY();
-#endif
-
-    bool ok = (geom.transform(impl->m_transformation.get()) != OGRERR_NONE);
-
-#if CHECK_AXES
-    if (ok && impl->m_swapOutput)
-      geom.swapXY();
-#endif
-
+    bool ok = (geom.transform(impl->m_transformation.get()) == OGRERR_NONE);
     return ok;
   }
   catch (...)

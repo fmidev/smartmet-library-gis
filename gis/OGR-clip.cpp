@@ -112,9 +112,6 @@
 #include "OGR.h"
 #include "RectClipper.h"
 #include <macgyver/Exception.h>
-#include <iomanip>
-#include <iostream>
-#include <list>
 
 namespace Fmi
 {
@@ -1026,7 +1023,10 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       // - if box inside exterior, keep exterior and continue
       // - if box outside exterior, return input as is
 
-      bool box_inside = box_inside_ring(theBox, *theGeom->getExteriorRing());
+      const auto *exterior = theGeom->getExteriorRing();
+      if (exterior == nullptr)
+        return;
+      bool box_inside = box_inside_ring(theBox, *exterior);
 
       if (keep_inside)
       {
@@ -1153,8 +1153,10 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       // - if box inside exterior, box becomes part of new holes ; ADD_BOX
       // - if box outside exterior, return input as is
 
-      bool box_inside = box_inside_ring(theBox, *theGeom->getExteriorRing());
-      // std::cerr << "box_inside = " << box_inside << "\n";
+      const auto *exterior = theGeom->getExteriorRing();
+      if (exterior == nullptr)
+        return;
+      bool box_inside = box_inside_ring(theBox, *exterior);
 
       if (keep_inside)
       {

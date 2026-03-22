@@ -83,7 +83,7 @@ void append_number(std::string &out, double num, const char *format, int /* deci
 {
   try
   {
-    char buffer[30]{};  // zero initialized!
+    char buffer[168]{};  // zero initialized; sized to match the UNIX path buffer
     if (strcmp(format, "%.0f") == 0)
       fmt::format_to(buffer, "%d", std::round(num));
     else
