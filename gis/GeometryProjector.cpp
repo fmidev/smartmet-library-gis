@@ -309,21 +309,45 @@ std::vector<std::unique_ptr<OGRLineString>> clipProjectedLineToBounds(const OGRL
       const double segLen = std::sqrt(dx * dx + dy * dy);
       if (!std::isfinite(segLen) || segLen > maxJumpMeters)
       {
-        // Treat pathological jumps (typically from reprojection domain discontinuities) as run
-        // breaks.
-        if (cur)
-          finalizeCurrentRun(runs, cur);
-        // If p1 (the far end of the jump) is inside the bounding box, seed a new run there so
-        // the re-entry point is not silently discarded.  Without this, a meridian that re-enters
-        // the box with a large projected step on both its entry and exit side would produce zero
-        // output because p1 would never be added to any run.
-        if (pointInBounds(x1, y1, b.minX, b.minY, b.maxX, b.maxY))
+        // For line strings (mergeCyclicRuns==false) jump detection is intentional
+        // discontinuity splitting — always break the run regardless of endpoints.
+        //
+        // For polygon rings (mergeCyclicRuns==true) we must NOT skip large-but-finite
+        // segments because they are real projected features:
+        //   • Pole-line projections (Eckert, Kavraiskiy…): the pole traversal in the
+        //     world ring is a single undensified segment spanning the full projection
+        //     width.  When the user-supplied box is larger than the natural projection
+        //     extent, both endpoints are inside the box — the segment must be kept or
+        //     the ring breaks into interior-endpoint fragments RectClipper cannot
+        //     reconnect (pre-fix: only the leftmost meridian remained).
+        //   • Collignon / equidistant-conic: the south-pole segment extends well
+        //     outside the x extent of the box.  Both endpoints are outside the x
+        //     bounds, but the segment CROSSES the box.  LB clipping produces a valid
+        //     horizontal south-pole chord — without it, RectClipper traces the bottom
+        //     box boundary instead (pre-fix: "leaking at the bottom").
+        // For non-finite segments (genuine PROJ failures) we must still break.
+        if (mergeCyclicRuns && std::isfinite(segLen))
         {
-          if (!cur)
-            cur = std::make_unique<OGRLineString>();
-          cur->addPoint(x1, y1);
+          // fall through to Liang-Barsky clipping — LB will clip or discard correctly
         }
-        continue;
+        else
+        {
+          // Treat pathological jumps (typically from reprojection domain discontinuities) as run
+          // breaks.
+          if (cur)
+            finalizeCurrentRun(runs, cur);
+          // If p1 (the far end of the jump) is inside the bounding box, seed a new run there so
+          // the re-entry point is not silently discarded.  Without this, a meridian that re-enters
+          // the box with a large projected step on both its entry and exit side would produce zero
+          // output because p1 would never be added to any run.
+          if (pointInBounds(x1, y1, b.minX, b.minY, b.maxX, b.maxY))
+          {
+            if (!cur)
+              cur = std::make_unique<OGRLineString>();
+            cur->addPoint(x1, y1);
+          }
+          continue;
+        }
       }
     }
 

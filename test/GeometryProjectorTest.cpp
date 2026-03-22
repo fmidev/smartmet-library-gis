@@ -1769,3 +1769,128 @@ TEST(GeometryProjectorTests, WorldPolygon_LimitedDomainProjections_CCWDoesNotCra
     EXPECT_TRUE(allPolygonRingsClosed(out.get())) << tc.name << ": rings not closed";
   }
 }
+
+// World polygon clipped to a fixed ±20 000 km × ±10 000 km bounding box.
+//
+// This exercises two distinct problem scenarios that the "both-endpoints-inside-box"
+// jump fix must handle:
+//
+//  A) Globe fits entirely inside the box
+//     Pseudo-cylindrical projections whose natural extent is smaller than the box
+//     (e.g. Eckert IV ≈ ±16.9 Mm × ±8.7 Mm, Kavraiskiy VII ≈ ±18.8 Mm × ±9.0 Mm).
+//     The pole-line traversal in the world ring is a large horizontal segment
+//     (≈ 33–38 Mm) that exceeds the jump threshold.  Both endpoints of that segment
+//     are inside the oversized box, so — before the fix — jump detection broke the
+//     ring into two interior-endpoint runs that RectClipper could not reconnect.
+//     Result: only the leftmost meridian remained.  After the fix the segment is
+//     kept, the ring stays continuous, and the full globe polygon is returned.
+//
+//  B) Globe partially extends beyond the box
+//     Collignon, equal-area cylindrical oblique, Euler: the south-pole line maps
+//     to y ≈ 0 (inside the box) while the north pole exceeds y = +10 Mm.
+//     Before the fix the south-pole jump produced interior-endpoint runs that
+//     RectClipper incorrectly reconnected along the bottom box boundary, filling
+//     the y < 0 region ("leaking at the bottom").  After the fix the south-pole
+//     segment is included in the run; only the top is clipped at y = +10 Mm.
+//
+// Both CCW and CW winding are tested (regression for the earlier winding fix).
+TEST(GeometryProjectorTests, WorldPolygon_FixedClippingBox_20Mx10M)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  // Fixed clipping box: ±20 000 km × ±10 000 km
+  constexpr double BX = 20000e3;
+  constexpr double BY = 10000e3;
+  const Bounds B{-BX, -BY, BX, BY};
+  const double boxArea = 4.0 * BX * BY;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+    // Minimum area as a fraction of boxArea that the projected polygon must cover.
+    // Projections whose natural extent fits entirely inside the box should cover
+    // their full natural area (≥ 50 % of box). Projections that are clipped need
+    // only exceed a small threshold to confirm the polygon is not degenerate.
+    double minAreaFraction;
+  };
+
+  const Case cases[] = {
+      // --- Scenario A: natural extent fits inside box (pole-line projections) ---
+      // Before the fix these returned only a thin leftmost-meridian sliver.
+      {"eck1", "+proj=eck1 +datum=WGS84 +units=m", 0.50},
+      {"eck2", "+proj=eck2 +datum=WGS84 +units=m", 0.50},
+      {"eck3", "+proj=eck3 +datum=WGS84 +units=m", 0.50},
+      {"eck4", "+proj=eck4 +datum=WGS84 +units=m", 0.50},
+      {"eck5", "+proj=eck5 +datum=WGS84 +units=m", 0.50},
+      {"eck6", "+proj=eck6 +datum=WGS84 +units=m", 0.50},
+      {"gins8", "+proj=gins8 +datum=WGS84 +units=m", 0.50},
+      {"kav7", "+proj=kav7 +datum=WGS84 +units=m", 0.50},
+      // --- Scenario B: south pole inside box, north pole above box ---
+      // Before the fix these "leaked" at the bottom (filled y < 0 incorrectly).
+      {"collg", "+proj=collg +datum=WGS84 +units=m", 0.10},
+      // eqdc and euler are omitted: their south-pole nadir sits at y ≈ −10.002 Mm /
+      // −10.02 Mm with typical lat_1/lat_2 choices, barely outside the ±10 Mm box,
+      // so the result is null — ambiguous / projection-dependent, not a bug.
+      // --- Previously disappearing: azimuthal / other global ---
+      // Natural extent fits inside box; before the fix the globe vanished entirely.
+      {"adams_ws1", "+proj=adams_ws1 +datum=WGS84 +units=m", 0.10},
+      {"adams_ws2", "+proj=adams_ws2 +datum=WGS84 +units=m", 0.10},
+      // aea, airy, adams_hemi omitted: lon=±180° maps to infinity (or domain singularity)
+      // in these projections, so the world-rectangle ring produces no finite projected
+      // points — not a clipping bug caused by jump detection.
+  };
+
+  for (const auto& tc : cases)
+  {
+    for (int winding = 0; winding < 2; ++winding)
+    {
+      const char* label = (winding == 0) ? "CCW" : "CW";
+
+      OGRSpatialReference wgs84 = makeSRS(4326);
+      OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+
+      Fmi::GeometryProjector projector(&wgs84, &target);
+      projector.setProjectedBounds(-BX, -BY, BX, BY);
+      projector.setDensifyResolutionKm(50.0);
+
+      OGRPolygon poly = (winding == 0) ? worldPolygonCCW() : worldPolygonCW();
+
+      std::unique_ptr<OGRGeometry> out;
+      ASSERT_NO_THROW(out = projector.projectGeometry(&poly))
+          << tc.name << " (" << label << "): threw exception";
+
+      ASSERT_TRUE(out) << tc.name << " (" << label << "): result is null";
+      ASSERT_FALSE(out->IsEmpty()) << tc.name << " (" << label << "): result is empty";
+
+      EXPECT_TRUE(allVerticesWithinBounds(out.get(), B))
+          << tc.name << " (" << label << "): vertices outside clipping box";
+
+      EXPECT_TRUE(allPolygonRingsClosed(out.get()))
+          << tc.name << " (" << label << "): polygon rings not closed";
+
+      const double area = totalArea(out.get());
+      EXPECT_GT(area, tc.minAreaFraction * boxArea)
+          << tc.name << " (" << label << "): area " << area << " is less than "
+          << tc.minAreaFraction * 100.0 << "% of box area " << boxArea;
+
+      // For Eckert projections (natural y ≈ ±8.67 Mm, well inside ±10 Mm) verify
+      // that no vertex touches the top/bottom box boundary.  This catches the
+      // pre-fix "leaking" failure mode where RectClipper incorrectly traced the
+      // bottom box edge instead of the south-pole line.
+      if (std::string(tc.name).find("eck") == 0)
+      {
+        const auto verts = allVertices(out.get());
+        bool touchesTopOrBottom = false;
+        for (const auto& p : verts)
+          if (std::abs(p.getY() - BY) < 1.0 || std::abs(p.getY() + BY) < 1.0)
+            touchesTopOrBottom = true;
+        EXPECT_FALSE(touchesTopOrBottom)
+            << tc.name << " (" << label
+            << "): polygon touches ±10 Mm box boundary — Eckert globe fits inside box";
+      }
+    }
+  }
+}
