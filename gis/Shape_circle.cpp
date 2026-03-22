@@ -477,7 +477,7 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
     double xA = g.getX(0);
     double yA = g.getY(0);
     auto posA = getPosition(xA, yA);
-    auto posB = posA;
+    int posB = 0;
     auto position = posA;
 
     if (posA == Position::Outside)
@@ -532,7 +532,6 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
           break;
       }
 
-      posA = posB;
       xA = xB;
       yA = yB;
     }
@@ -587,7 +586,7 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
     double xA = g.getX(0);
     double yA = g.getY(0);
     auto posA = getPosition(xA, yA);
-    auto posB = posA;
+    int posB = 0;
     auto position = posA;
 
     if (posA == Position::Inside)
@@ -642,7 +641,6 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
           break;
       }
 
-      posA = posB;
       xA = xB;
       yA = yB;
     }

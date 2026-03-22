@@ -525,7 +525,7 @@ class GeometryProjector::Impl
 
   // ---- best-effort projection helpers ----
   std::vector<std::unique_ptr<OGRLineString>> projectToProjectedRunsBestEffort(
-      const OGRLineString& geo, bool spitAtFailures) const;
+      const OGRLineString& geo, bool splitAtFailures) const;
 };
 
 // ------------------------------ ctor/dtor ------------------------------
@@ -957,7 +957,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
       if (isOpen)
       {
         // Genuinely clipped by boundary - pass as linestring
-        auto* line = static_cast<OGRLineString*>(run->clone());
+        auto* line = run->clone();
         if (isExterior)
           clipper.addExterior(line);
         else

@@ -388,7 +388,7 @@ std::list<OGRLineString *>::iterator search_ccw(OGRLinearRing *ring,
 void connectLines(std::list<OGRLinearRing *> &theRings,
                   std::list<OGRLineString *> &theLines,
                   const Fmi::Box &theBox,
-                  double max_length,
+                  double /*max_length*/,
                   bool keep_inside,
                   bool exterior)
 {

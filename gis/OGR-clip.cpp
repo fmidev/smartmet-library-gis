@@ -1405,7 +1405,7 @@ void do_multipolygon(const OGRMultiPolygon *theGeom,
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_polygon(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)),
+      do_polygon(theGeom->getGeometryRef(i),
                  theBuilder,
                  theBox,
                  max_length,

@@ -2,12 +2,8 @@
 #include <macgyver/Exception.h>
 #include <ogr_geometry.h>
 
-namespace
-{
-}  // namespace
-
 // Forward declaration needed since two functions call each other
-bool inside(const OGRGeometry *theGeom, double theX, double theY);
+static bool inside(const OGRGeometry *theGeom, double theX, double theY);
 
 // ----------------------------------------------------------------------
 /*!
@@ -15,7 +11,7 @@ bool inside(const OGRGeometry *theGeom, double theX, double theY);
  */
 // ----------------------------------------------------------------------
 
-bool inside(const OGRLinearRing *theGeom, double theX, double theY)
+static bool inside(const OGRLinearRing *theGeom, double theX, double theY)
 {
   try
   {
@@ -37,7 +33,7 @@ bool inside(const OGRLinearRing *theGeom, double theX, double theY)
  */
 // ----------------------------------------------------------------------
 
-bool inside(const OGRPolygon *theGeom, double theX, double theY)
+static bool inside(const OGRPolygon *theGeom, double theX, double theY)
 {
   try
   {
@@ -58,7 +54,7 @@ bool inside(const OGRPolygon *theGeom, double theX, double theY)
  */
 // ----------------------------------------------------------------------
 
-bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
+static bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
 {
   try
   {
@@ -84,7 +80,7 @@ bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
  */
 // ----------------------------------------------------------------------
 
-bool inside(const OGRGeometryCollection *theGeom, double theX, double theY)
+static bool inside(const OGRGeometryCollection *theGeom, double theX, double theY)
 {
   try
   {
@@ -97,6 +93,27 @@ bool inside(const OGRGeometryCollection *theGeom, double theX, double theY)
         return true;
     }
     return false;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Dispatch by geometry type (pointer overload, used for recursive calls)
+ */
+// ----------------------------------------------------------------------
+
+static bool inside(const OGRGeometry *theGeom, double theX, double theY)
+{
+  try
+  {
+    if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+      return false;
+
+    return Fmi::OGR::inside(*theGeom, theX, theY);
   }
   catch (...)
   {
@@ -174,27 +191,6 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
         throw Fmi::Exception::Trace(
             BCP, "Encountered an unknown geometry component in OGR to SVG conversion");
     }
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Is the given coordinate inside the geometry?
- */
-// ----------------------------------------------------------------------
-
-bool inside(const OGRGeometry *theGeom, double theX, double theY)
-{
-  try
-  {
-    if (theGeom == nullptr || theGeom->IsEmpty() != 0)
-      return false;
-
-    return Fmi::OGR::inside(*theGeom, theX, theY);
   }
   catch (...)
   {
