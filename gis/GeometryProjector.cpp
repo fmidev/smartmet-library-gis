@@ -22,7 +22,6 @@
 #include <vector>
 
 // #include <geos_c.h>
-#include <iostream>
 
 namespace Fmi
 {
@@ -694,11 +693,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectMultiGeometry(
     }
     else
     {
-      const OGRErr err = out->addGeometry(geom);
-      if (err != OGRERR_NONE)
-        std::cerr << "  addGeometry FAILED err=" << err
-                  << " geomType=" << OGRGeometryTypeToName(geom->getGeometryType())
-                  << " outType=" << OGRGeometryTypeToName(out->getGeometryType()) << "\n";
+      out->addGeometry(geom);
     }
   };
 

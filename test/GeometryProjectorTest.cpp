@@ -12,6 +12,7 @@
 
 #include "CoordinateTransformation.h"
 #include "GeometryProjector.h"
+#include "Interrupt.h"
 #include "SpatialReference.h"
 
 namespace
@@ -1835,6 +1836,30 @@ TEST(GeometryProjectorTests, WorldPolygon_ProblematicProjections_ViaTransformGeo
       // needed — the Interrupt handler now correctly returns an empty interrupt.
       {"adams_ws1", "+proj=adams_ws1 +datum=WGS84 +units=m"},
       {"adams_ws2", "+proj=adams_ws2 +datum=WGS84 +units=m"},
+      // --- Scenario D: conic projections needing anti-meridian + polar cuts ---
+      // lcc: Interrupt previously fell through to the default after adding its own
+      // cuts, applying the anti-meridian shapeCut twice.  The second (redundant) cut
+      // was harmless but wasted a full polycut pass per polygon.
+      {"lcc", "+proj=lcc +lat_1=33 +lat_2=45 +datum=WGS84 +units=m"},
+      {"lcc_lon0_90", "+proj=lcc +lat_1=33 +lat_2=45 +lon_0=90 +datum=WGS84 +units=m"},
+      // --- Scenario E: satellite/perspective projections with height-dependent clip ---
+      // tpers/geos: the clip radius is now derived from h via cos(θ)=R/(R+h) instead
+      // of a hardcoded angle.  Test orbits that produce a visible disk large enough
+      // (> 1 % of Earth surface) to pass the area floor.
+      // h = 5 500 km ≈ old hardcoded 50° for tpers; horizon ≈ 53°.
+      {"tpers_meo",  "+proj=tpers +h=5500000 +datum=WGS84 +units=m"},
+      // h = 20 000 km (GPS-like orbit): horizon ≈ 76°.
+      {"tpers_high", "+proj=tpers +h=20000000 +datum=WGS84 +units=m"},
+      // Standard geostationary orbit (~35 786 km): horizon ≈ 81°.
+      {"geos_geo",   "+proj=geos +h=35786000 +datum=WGS84 +units=m"},
+      // Non-standard high orbit at 42 000 km: verifies h is read, not hardcoded.
+      {"geos_high",  "+proj=geos +h=42000000 +datum=WGS84 +units=m"},
+      // --- Scenario F: Transverse Mercator — hemisphere clip now applied ---
+      // tmerc previously returned an empty interrupt and relied on jump-detection.
+      // It now uses the same 89.5° circle clip as gstmerc.
+      {"tmerc_utm33",  "+proj=tmerc +lon_0=15 +datum=WGS84 +units=m"},
+      {"tmerc_lon0_90", "+proj=tmerc +lon_0=90 +datum=WGS84 +units=m"},
+      {"gstmerc",      "+proj=gstmerc +lon_0=0 +datum=WGS84 +units=m"},
   };
 
   // 1 % of Earth's surface area — a conservative floor that rules out degenerate
@@ -1884,6 +1909,125 @@ TEST(GeometryProjectorTests, WorldPolygon_ProblematicProjections_ViaTransformGeo
             << tc.name << " (" << label
             << "): vertex below −15 Mm — likely south-pole leaking bug";
       }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Interrupt geometry unit tests
+// ----------------------------------------------------------------------------
+
+// Verify that the tpeqd clip circle is centred at the correct midpoint when
+// the two control points straddle the anti-meridian.  Before the fix, the
+// naive arithmetic mean (lon_1+lon_2)/2 placed the circle at 0° (Greenwich)
+// instead of ±180° when lon_1=170 and lon_2=-170.
+//
+// We inspect the bounding box of the andGeometry: when the clip circle is
+// correctly centred at lon=±180 it straddles the anti-meridian, so MaxX > 90
+// or MinX < -90.  When incorrectly centred at 0° the envelope stays near 0°.
+TEST(GeometryProjectorTests, Interrupt_TpeqdAntimeridianMidpoint)
+{
+  static GdalInitGuard guard;
+
+  // Anti-meridian crossing: correct centre is lon=±180.
+  Fmi::SpatialReference antimeridian(
+      "+proj=tpeqd +lon_1=170 +lat_1=40 +lon_2=-170 +lat_2=40 +datum=WGS84 +units=m");
+  auto intr = Fmi::interruptGeometry(antimeridian);
+  ASSERT_TRUE(intr.andGeometry) << "tpeqd antimeridian: expected andGeometry";
+
+  OGREnvelope env;
+  intr.andGeometry->getEnvelope(&env);
+  // Circle centred at ±180° spans more than 90° from the centre in both directions.
+  const bool straddlesAntimeridian = (env.MaxX > 90.0) || (env.MinX < -90.0);
+  EXPECT_TRUE(straddlesAntimeridian)
+      << "tpeqd antimeridian: clip circle not centred near ±180 — "
+      << "envelope [" << env.MinX << ", " << env.MaxX << "]; likely midpoint bug";
+
+  // Normal case (no anti-meridian crossing): centre should be at lon=0.
+  Fmi::SpatialReference normal(
+      "+proj=tpeqd +lon_1=-90 +lat_1=40 +lon_2=90 +lat_2=40 +datum=WGS84 +units=m");
+  auto intr2 = Fmi::interruptGeometry(normal);
+  ASSERT_TRUE(intr2.andGeometry) << "tpeqd normal: expected andGeometry";
+
+  OGREnvelope env2;
+  intr2.andGeometry->getEnvelope(&env2);
+  EXPECT_LT(env2.MinX, 0.0) << "tpeqd normal: clip circle should extend west of 0°";
+  EXPECT_GT(env2.MaxX, 0.0) << "tpeqd normal: clip circle should extend east of 0°";
+  EXPECT_NEAR((env2.MinX + env2.MaxX) / 2.0, 0.0, 5.0)
+      << "tpeqd normal: clip circle centre not near 0°";
+}
+
+// Verify that the laea interrupt now correctly handles all projection aspects
+// by cutting a small disc around the antipodal singularity point instead of
+// using the old ±178° rectangular clip (which only worked for lat_0=90°).
+//
+// For each aspect we check:
+//   1. cutGeometry is set (antipodal disc cut); shapeClips is empty (no old rect).
+//   2. The cut disc is a small region: its bounding box spans < 5° in both axes.
+//   3. The cut disc is centred near the antipodal point (lon_0+180°, −lat_0).
+TEST(GeometryProjectorTests, Interrupt_LaeaAntipodeCut)
+{
+  static GdalInitGuard guard;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+    double antiLon;  // expected antipodal longitude
+    double antiLat;  // expected antipodal latitude
+  };
+
+  const Case cases[] = {
+      // North-polar: antipode = south pole (0°, −90°)
+      {"laea_north_polar", "+proj=laea +lat_0=90 +lon_0=0 +datum=WGS84 +units=m", 0.0, -90.0},
+      // South-polar: antipode = north pole (0°, +90°)
+      {"laea_south_polar", "+proj=laea +lat_0=-90 +lon_0=0 +datum=WGS84 +units=m", 0.0, 90.0},
+      // Oblique European (ETRS-LAEA, lon_0=10, lat_0=52): antipode = (−170°, −52°)
+      {"laea_oblique_eu", "+proj=laea +lat_0=52 +lon_0=10 +datum=WGS84 +units=m", -170.0, -52.0},
+      // Equatorial: antipode = (−80°, 0°)
+      {"laea_equatorial", "+proj=laea +lat_0=0 +lon_0=100 +datum=WGS84 +units=m", -80.0, 0.0},
+  };
+
+  for (const auto& tc : cases)
+  {
+    Fmi::SpatialReference srs(tc.proj4);
+    auto intr = Fmi::interruptGeometry(srs);
+
+    ASSERT_TRUE(intr.cutGeometry)
+        << tc.name << ": expected cutGeometry (antipodal disc cut)";
+    EXPECT_TRUE(intr.shapeClips.empty())
+        << tc.name << ": expected no shapeClips — old rect clip should be gone";
+
+    OGREnvelope env;
+    intr.cutGeometry->getEnvelope(&env);
+
+    // The cut disc (radius 1°) must be small in latitude — not a large clip.
+    const double latSpan = env.MaxY - env.MinY;
+    EXPECT_LT(latSpan, 5.0)
+        << tc.name << ": cut disc lat span " << latSpan << "° unexpectedly large";
+
+    // Longitude span: for polar antipodes the disc wraps all 360° of longitude
+    // (every meridian passes through the pole) — skip the lon span check there.
+    const bool polarAntiPode = (std::abs(tc.antiLat) > 80.0);
+    if (!polarAntiPode)
+    {
+      const double lonSpan = env.MaxX - env.MinX;
+      EXPECT_LT(lonSpan, 5.0)
+          << tc.name << ": cut disc lon span " << lonSpan << "° unexpectedly large";
+    }
+
+    // The cut disc must be centred near the antipodal latitude.
+    const double centreLat = (env.MinY + env.MaxY) / 2.0;
+    EXPECT_NEAR(centreLat, tc.antiLat, 2.0)
+        << tc.name << ": cut disc lat centre " << centreLat
+        << "° not near antipodal lat " << tc.antiLat << "°";
+    // Longitude centre only meaningful for non-polar antipodes.
+    if (!polarAntiPode)
+    {
+      const double centreLon = (env.MinX + env.MaxX) / 2.0;
+      EXPECT_NEAR(centreLon, tc.antiLon, 5.0)
+          << tc.name << ": cut disc lon centre " << centreLon
+          << "° not near antipodal lon " << tc.antiLon << "°";
     }
   }
 }

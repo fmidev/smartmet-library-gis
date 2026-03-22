@@ -325,11 +325,21 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
 
     if (name == "laea")
     {
-      // Lambert Azimuthal Equal-Area: both poles always project to x=0 regardless
-      // of longitude, so a polygon that includes a pole collapses to a line.
-      // Clip the input slightly away from ±90° and ±180° to avoid this degenerate
-      // case.  A 1e-6° clip would be too small for PROJ to honour in practice.
-      result.shapeClips.push_back(std::make_shared<Shape_rect>(-178, -89.99, 178, 89.99));
+      // Lambert Azimuthal Equal-Area: valid over a full hemisphere (180° from centre).
+      // The antipodal point (lon_0+180°, −lat_0) maps to a circle of infinite radius
+      // and must be excluded.
+      //
+      // circle_cut() cannot be used for a near-full-hemisphere clip (radius ≈ 180°)
+      // because the geodesic ring degenerates near the poles and the interior
+      // orientation of the resulting polygon becomes wrong for radii > 90°.
+      //
+      // Instead we cut away a small disc (radius 1°) centred on the antipodal point.
+      // This correctly handles polar, oblique, and equatorial aspects; the previous
+      // ±178° rectangular clip only worked for the north-polar aspect (lat_0 = 90°).
+      const auto antiLon = modlon(lon_0 + 180.0);
+      const auto antiLat = -lat_0;
+      const auto antiRadius = 1.0 * wgs84radius * degree;
+      result.cutGeometry = circle_cut(antiLon, antiLat, antiRadius);
       return result;
     }
 
@@ -377,6 +387,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       if (lon_0 == 0)
         result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
       result.shapeCuts.emplace_back(make_horizontal_cut(-90, -180, 180));
+      return result;
     }
 
     if (name == "imw_p")
@@ -398,18 +409,12 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       return result;
     }
 
-    if (name == "tmerc")
+    if (name == "tmerc" || name == "gstmerc")
     {
-      // Transverse Mercator: the projection diverges beyond ±90° from the central
-      // meridian.  No reliable circle clip has been found yet; return empty and let
-      // the jump-detection in GeometryProjector handle discontinuities.
-      return result;
-    }
-
-    if (name == "gstmerc")
-    {
-      // Gauss-Schreiber Transverse Mercator: same domain as tmerc but 89.5° was
-      // found experimentally to avoid projection failures at the boundary.
+      // Transverse Mercator (tmerc) and Gauss-Schreiber Transverse Mercator (gstmerc):
+      // both project the hemisphere within ±90° of the central meridian.  Beyond that
+      // boundary the projection diverges.  89.5° was found experimentally to avoid
+      // projection failures right at the ±90° horizon without clipping legitimate data.
       const auto radius = 89.5 * wgs84radius * degree;
       result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
@@ -437,18 +442,30 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
 
     if (name == "tpers")
     {
-      // Tilted Perspective (satellite view): 50° was found experimentally to give
-      // reasonable results without artefacts at the limb.
-      const auto radius = 50 * wgs84radius * degree;
+      // Tilted Perspective (satellite view): the visible disk has the same geometric
+      // horizon as nsper — cos(θ) = R/(R+h).  The tilt and azimuth parameters rotate
+      // the view but do not change the outer boundary of the visible hemisphere.
+      // Reduced by 0.1 % to avoid projection failures right at the horizon edge.
+      // Falls back to 50° (≈ h = 5 500 km) when h is absent.
+      auto opt_h = theSRS.projInfo().getDouble("h");
+      auto h = (opt_h ? *opt_h : 5500000.0);
+      auto radius = acos(wgs84radius / (wgs84radius + h)) * wgs84radius;
+      radius = 0.999 * radius;
       result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
 
     if (name == "geos")
     {
-      // Geostationary Satellite View: similar to nsper but the visible disk is
-      // smaller.  80° was found experimentally to avoid limb artefacts.
-      const auto radius = 80 * wgs84radius * degree;
+      // Geostationary Satellite View: visible horizon is the same geometric formula
+      // as nsper — cos(θ) = R/(R+h).  Standard GEO orbit h ≈ 35 786 km gives
+      // θ ≈ 81.3°; the formula handles any non-standard h correctly.
+      // Reduced by 0.1 % to avoid projection failures right at the horizon edge.
+      // Falls back to the standard GEO orbit height when h is absent.
+      auto opt_h = theSRS.projInfo().getDouble("h");
+      auto h = (opt_h ? *opt_h : 35786000.0);
+      auto radius = acos(wgs84radius / (wgs84radius + h)) * wgs84radius;
+      radius = 0.999 * radius;
       result.andGeometry = circle_cut(lon_0, lat_0, radius);
       return result;
     }
@@ -478,6 +495,11 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       // control points.  145° gives enough coverage without hitting the antipodal
       // singularity region.  This is an approximation; the true valid domain depends
       // on the geometry of the two control points.
+      //
+      // The midpoint longitude must be computed wrap-aware: a simple arithmetic
+      // mean of lon_1 and lon_2 gives the wrong answer when the two points straddle
+      // the anti-meridian (e.g. lon_1=170, lon_2=-170 → mean=0 instead of ±180).
+      // We normalise the angular difference to (−180, +180] before halving.
       const auto opt_lon_1 = theSRS.projInfo().getDouble("lon_1");
       const auto lon_1 = opt_lon_1 ? *opt_lon_1 : 0.0;
 
@@ -490,7 +512,13 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       const auto opt_lat_2 = theSRS.projInfo().getDouble("lat_2");
       const auto lat_2 = opt_lat_2 ? *opt_lat_2 : 0.0;
 
-      const auto lon = 0.5 * (lon_1 + lon_2);
+      // Wrap-aware longitude midpoint: normalise diff to (−180, +180], then add half.
+      double dlon = lon_2 - lon_1;
+      if (dlon > 180.0)
+        dlon -= 360.0;
+      else if (dlon <= -180.0)
+        dlon += 360.0;
+      const auto lon = modlon(lon_1 + 0.5 * dlon);
       const auto lat = 0.5 * (lat_1 + lat_2);
 
       const auto radius = 145 * wgs84radius * degree;
@@ -515,7 +543,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
 
     if (name == "igh_o")
     {
-      // Interrupted Goode Homolosine (Oseanic)
+      // Interrupted Goode Homolosine (Oceanic)
 
       result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
       if (lon_0 == 0)
@@ -620,7 +648,7 @@ OGREnvelope interruptEnvelope(const SpatialReference& theSRS)
 
     if (theSRS.isGeographic())
     {
-      // geographic projections are modified by +lon_wrap which defines the wanter center longitude
+      // geographic projections are modified by +lon_wrap which defines the wanted center longitude
       const auto opt_lon_wrap = theSRS.projInfo().getDouble("lon_wrap");
       const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 0);
 

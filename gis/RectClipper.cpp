@@ -197,7 +197,7 @@ std::list<OGRLineString *>::iterator search_cw(OGRLinearRing *ring,
     }
     else if (x1 == box.xmin() && y1 < box.ymax())
     {
-      // On left edge going up, worst we can do is upper conner, closing might be better
+      // On left edge going up, worst we can do is upper corner, closing might be better
 
       if (ring->getX(0) == x1 && ring->getY(0) > y1)
         y2 = ring->getY(0);
@@ -310,7 +310,7 @@ std::list<OGRLineString *>::iterator search_ccw(OGRLinearRing *ring,
     }
     else if (x1 == box.xmin() && y1 > box.ymin())
     {
-      // On left edge going down, worst we can do is lower conner, closing might be better
+      // On left edge going down, worst we can do is lower corner, closing might be better
 
       if (ring->getX(0) == x1 && ring->getY(0) < y1)
         y2 = ring->getY(0);
@@ -397,16 +397,6 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
     if (theLines.empty())
       return;
 
-#if 1
-    // std::cerr << "connectLines: " << theLines.size() << " lines, "
-    // << "box=(" << theBox.xmin() << "," << theBox.ymin() << "," << theBox.xmax() << ","
-    // << theBox.ymax() << ")\n";
-    // int lineIdx = 0;
-    // for (auto *line : theLines)
-    // std::cerr << "Line: " << ++lineIdx << " " << Fmi::OGR::exportToWkt(*line) << "\n";
-
-#endif
-
     bool cw = false;
     if (keep_inside)
       cw = !exterior;  // clipping: holes CW, exteriors CCW
@@ -426,9 +416,6 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
         ring->addSubLineString(line);
         delete line;
         cornerSteps = 0;
-#if 1
-        // std::cerr << "  started new ring at (" << ring->getX(0) << "," << ring->getY(0) << ")\n";
-#endif
       }
 
       int nr = ring->getNumPoints();
@@ -443,10 +430,6 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
       if (best != theLines.end())
       {
         cornerSteps = 0;
-#if 1
-        // std::cerr << "  found match at (" << (*best)->getX(0) << "," << (*best)->getY(0)
-        // << ") from (" << x1 << "," << y1 << ")\n";
-#endif
         if (x1 != (*best)->getX(0) || y1 != (*best)->getY(0))
           ring->addSubLineString(*best);
         else
@@ -457,32 +440,14 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
       else
       {
         ++cornerSteps;
-#if 1
-        // std::cerr << "  no match from (" << x1 << "," << y1 << ")"
-        // << " -> corner (" << x2 << "," << y2 << ")"
-        // << " cornerSteps=" << cornerSteps << "\n";
-#endif
-
         if (cornerSteps > 5)
-        {
           throw Fmi::Exception(BCP, "Stuck, discarding ring");
-#if 1
-          // std::cerr << "  stuck, discarding ring\n";
-          delete ring;
-          ring = nullptr;
-          cornerSteps = 0;
-          continue;
-#endif
-        }
 
         ring->addPoint(x2, y2);
       }
 
       if (ring->get_IsClosed())
       {
-#if 1
-        // std::cerr << "  ring closed with " << ring->getNumPoints() << " points\n";
-#endif
         Fmi::OGR::normalize(*ring);
         theRings.push_back(ring);
         ring = nullptr;
@@ -634,11 +599,6 @@ void Fmi::RectClipper::addExterior(OGRLinearRing *theRing)
 {
   try
   {
-#if 1
-    // std::cerr << "  RectClipper::addExterior ring pts=" << theRing->getNumPoints()
-    // << " isClockwise=" << theRing->isClockwise() << "\n";
-#endif
-
     OGR::normalize(*theRing);
     if (theRing->isClockwise() == 1)
       theRing->reversePoints();
@@ -660,9 +620,6 @@ void Fmi::RectClipper::addExterior(OGRLineString *theLine)
 {
   try
   {
-#if 1
-    // std::cerr << "Adding exterior line " << Fmi::OGR::exportToWkt(*theLine) << "\n";
-#endif
     auto n = theLine->getNumPoints();
 
     // We may have just touched the exterior at a single point
@@ -687,11 +644,6 @@ void Fmi::RectClipper::addInterior(OGRLinearRing *theRing)
 {
   try
   {
-#if 1
-    // std::cerr << "  RectClipper::addInterior ring pts=" << theRing->getNumPoints()
-    // << " isClockwise=" << theRing->isClockwise() << "\n";
-#endif
-
     OGR::normalize(*theRing);
     if (theRing->isClockwise() == 0)
       theRing->reversePoints();
@@ -743,18 +695,8 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
   {
     // Make exterior box if necessary
 
-#if 1
-    // std::cerr << "Reconnecting with bbox\n";
-    // std::cerr << "\nitsKeepInsideFlag=" << itsKeepInsideFlag << "  itsAddBoxFlag=" <<
-    // itsAddBoxFlag
-    // << "\n";
-#endif
-
     if (itsKeepInsideFlag && itsAddBoxFlag && itsExteriorLines.empty())
     {
-#if 1
-      // std::cerr << "Making exterior\n";
-#endif
       auto *ring = make_exterior(itsBox, theMaximumSegmentLength);
       itsExteriorRings.push_back(ring);
     }
@@ -763,10 +705,6 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
 
     if (!itsKeepInsideFlag && itsAddBoxFlag && itsInteriorLines.empty())
     {
-#if 1
-      // std::cerr << "Making hole\n";
-#endif
-
       auto *ring = make_hole(itsBox, theMaximumSegmentLength);
       itsInteriorRings.push_back(ring);
     }
@@ -776,15 +714,6 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
     // holes are either part of the interior unless the exterior is also clipped,
     // if we have both lines they must by definition all belong to the exterior.
 
-#if 1
-    // std::cerr << "Exterior lines:\n";
-    // for (const auto *line : itsExteriorLines)
-    // std::cerr << Fmi::OGR::exportToWkt(*line) << "\n";
-    // std::cerr << "Interior lines:\n";
-    // for (const auto *line : itsInteriorLines)
-    // std::cerr << Fmi::OGR::exportToWkt(*line) << "\n";
-#endif
-
     if (!itsExteriorLines.empty() && !itsInteriorLines.empty())
     {
       std::move(
@@ -792,20 +721,12 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
       itsInteriorLines.clear();
     }
 
-#if 1
-    // std::cerr << "Connecting exteriors\n";
-#endif
-
     connectLines(itsExteriorRings,
                  itsExteriorLines,
                  itsBox,
                  theMaximumSegmentLength,
                  itsKeepInsideFlag,
                  /*exterior=*/true);
-
-#if 1
-    // std::cerr << "Connecting interiors\n";
-#endif
     connectLines(itsInteriorRings,
                  itsInteriorLines,
                  itsBox,
@@ -835,19 +756,27 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
     for (auto *hole : itsInteriorRings)
     {
       if (itsPolygons.size() == 1)
+      {
+        // addRingDirectly transfers ownership — no delete needed
         itsPolygons.front()->addRingDirectly(hole);
+      }
       else
       {
         OGRPoint point;
         hole->getPoint(0, &point);
+        bool assigned = false;
         for (auto *poly : itsPolygons)
         {
-          if (poly->getExteriorRing()->isPointInRing(&point, 0) != 0)
+          auto *ext = poly->getExteriorRing();
+          if (ext != nullptr && ext->isPointInRing(&point, 0) != 0)
           {
             poly->addRingDirectly(hole);
+            assigned = true;
             break;
           }
         }
+        if (!assigned)
+          delete hole;  // no enclosing polygon found — discard
       }
     }
 
@@ -906,21 +835,30 @@ void Fmi::RectClipper::reconnectWithoutBox()
     for (auto *hole : itsInteriorRings)
     {
       if (itsPolygons.size() == 1)
+      {
+        // addRing copies — we keep ownership and must delete
         itsPolygons.front()->addRing(hole);
+        delete hole;
+      }
       else
       {
         OGRPoint point;
         hole->getPoint(0, &point);
+        bool assigned = false;
         for (auto *poly : itsPolygons)
         {
-          if (poly->getExteriorRing()->isPointInRing(&point, 0) != 0)
+          auto *ext = poly->getExteriorRing();
+          if (ext != nullptr && ext->isPointInRing(&point, 0) != 0)
           {
+            // addRingDirectly transfers ownership — do not delete
             poly->addRingDirectly(hole);
+            assigned = true;
             break;
           }
         }
+        if (!assigned)
+          delete hole;  // no enclosing polygon found — discard
       }
-      delete hole;
     }
 
     // Merge all unjoinable lines to one list of lines
