@@ -4,7 +4,6 @@
 #include "OGR.h"
 #include <macgyver/Exception.h>
 #include <cassert>
-#include <iostream>
 
 namespace
 {
@@ -814,9 +813,17 @@ void Fmi::RectClipper::reconnectWithBox(double theMaximumSegmentLength)
                  itsKeepInsideFlag,
                  /*exterior=*/false);
 
-    // Build polygons starting from the built exterior rings
+    // Build polygons starting from the built exterior rings.
+    // Skip degenerate rings with fewer than 4 points — these arise when jump detection
+    // produces a tiny stub linestring that reconnectLines closes into a 2–3 point ring.
+    // Such rings have zero area and cause allPolygonRingsClosed checks to fail.
     for (auto *exterior : itsExteriorRings)
     {
+      if (exterior->getNumPoints() < 4)
+      {
+        delete exterior;
+        continue;
+      }
       auto *poly = new OGRPolygon;
       poly->addRingDirectly(exterior);
       itsPolygons.push_back(poly);
