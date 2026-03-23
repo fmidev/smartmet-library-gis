@@ -1354,6 +1354,60 @@ TEST(GeometryProjectorTests, NearlyClosedRing_InsideBBox_NoLeakToBoundary)
   }
 }
 
+// Small exactly-closed polygons inside the bbox should not produce spurious lines
+// to the bounding-box edge.  The bug: when a small island has few vertices, a tiny
+// sub-eps rounding gap between first and last projected points causes the ring to
+// look "open" (exact ==), and the extension code draws a line to the boundary.
+// The fix: force-close in mergeCyclicRunsIfConnected (single-run path) and use
+// nearlyEqual in the extension code's closure check.
+TEST(GeometryProjectorTests, SmallExactlyClosedIsland_NoLeakToBoundary)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  auto projector = fx.makeProjector(50.0);
+
+  const struct
+  {
+    double lon, lat;
+  } positions[] = {
+      {25.0, 65.0},  // west Finland, negative TM35-x
+      {28.0, 65.0},  // east of central meridian, positive TM35-x
+      {25.0, 70.0},  // northern Finland
+      {27.0, 64.0},  // near central meridian
+  };
+
+  for (const auto& pos : positions)
+  {
+    OGRPolygon poly;
+    OGRLinearRing ext;
+    ext.addPoint(pos.lon, pos.lat);
+    ext.addPoint(pos.lon + 0.01, pos.lat);
+    ext.addPoint(pos.lon + 0.01, pos.lat + 0.01);
+    ext.addPoint(pos.lon, pos.lat + 0.01);
+    ext.addPoint(pos.lon, pos.lat);  // exact closure
+    poly.addRing(&ext);
+
+    const OGRLinearRing* ring = poly.getExteriorRing();
+    ASSERT_TRUE(ring != nullptr);
+    const int n = ring->getNumPoints();
+    ASSERT_EQ(ring->getX(0), ring->getX(n - 1));
+    ASSERT_EQ(ring->getY(0), ring->getY(n - 1));
+
+    auto out = projector.projectGeometry(&poly);
+    ASSERT_TRUE(out);
+
+    if (!out->IsEmpty())
+    {
+      const Bounds strict{fx.B.minX + 1.0, fx.B.minY + 1.0, fx.B.maxX - 1.0, fx.B.maxY - 1.0};
+      EXPECT_TRUE(allVerticesWithinBounds(out.get(), strict))
+          << "Small island at (" << pos.lon << "," << pos.lat
+          << ") leaked to bounding-box edge: " << wktOf(out.get());
+      EXPECT_TRUE(allPolygonRingsClosed(out.get()));
+    }
+  }
+}
+
 // --- API contract / edge-case tests ---
 
 // The header documents: "Returns nullptr only if input geom is nullptr."

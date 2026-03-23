@@ -253,11 +253,29 @@ void appendSegmentToCurrentRun(std::unique_ptr<OGRLineString>& cur,
   appendPointIfDifferent(*cur, c, eps);
 }
 
-// Special for rings: merge wrap-around segments if they connect (cyclic continuity)
+// Special for rings: merge wrap-around segments if they connect (cyclic continuity).
+// For a single run that is nearly-but-not-exactly closed (e.g. due to Liang-Barsky
+// floating-point rounding, boundary-snap asymmetry, or sub-ULP PROJ non-determinism),
+// force-close it so the exact-== check in the extension code sees a closed ring.
 void mergeCyclicRunsIfConnected(std::vector<std::unique_ptr<OGRLineString>>& runs, double eps)
 {
-  if (runs.size() < 2)
+  if (runs.empty())
     return;
+
+  // Single run: force-close if nearly closed.
+  // This fixes the snap-asymmetry bug where the first vertex was snapped to the
+  // bbox boundary but the LB-computed last vertex (P0 + floating-point noise) fell
+  // just outside the snap zone, leaving cur[0] != cur[last] by a sub-eps amount.
+  if (runs.size() == 1)
+  {
+    auto& r = runs.front();
+    if (!r || r->getNumPoints() < 2)
+      return;
+    const int n = r->getNumPoints();
+    if (nearlyEqual(r->getX(0), r->getX(n - 1), eps) && nearlyEqual(r->getY(0), r->getY(n - 1), eps))
+      r->setPoint(n - 1, r->getX(0), r->getY(0));  // force exact closure
+    return;
+  }
 
   auto& first = runs.front();
   auto& last = runs.back();
@@ -921,6 +939,74 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
     auto clippedRuns = clipRunsToBounds(
         projRuns, b, /*mergeCyclicRuns=*/true, /*detectJumps=*/true, maxJumpMeters);
 
+    // Detect and fix degenerate "world polygon" case.
+    //
+    // For azimuthal/oblique projections (LAEA, bertin1953, ob_tran with non-zero
+    // o_lon_p, …) the geographic antimeridian (lon=±180) is NOT the natural seam
+    // of the projection.  Both sides of the world-rectangle's vertical edges
+    // (lon=-180 and lon=180) project to the same curve — PROJ normalises all
+    // longitudes modulo the central meridian — so the projected ring traces the
+    // antimeridian curve TWICE (there and back), producing a zero-area "lollipop"
+    // instead of a full-coverage polygon.
+    //
+    // We detect this situation with two conditions:
+    //   1. The geographic ring spans the full globe (≥359° longitude, ≥179° latitude).
+    //   2. The single surviving clipped run has near-zero signed area relative to the
+    //      bounding box (|area| < 0.1 % of box area).
+    //
+    // Fix: substitute the bounding-box rectangle as the exterior ring.  The bounding
+    // box was computed from the projection's natural extent (via
+    // computeBoundsForGlobalProjection), so it IS the correct "full coverage"
+    // polygon for these projections.
+    if (isExterior && clippedRuns.size() == 1)
+    {
+      auto& run0 = clippedRuns.front();
+      if (run0 && run0->getNumPoints() >= 3)
+      {
+        // Check if the geographic ring spans the full world
+        double geoLonMin = std::numeric_limits<double>::max();
+        double geoLonMax = -geoLonMin;
+        double geoLatMin = geoLonMin;
+        double geoLatMax = -geoLonMin;
+        for (int i = 0; i < geo->getNumPoints(); ++i)
+        {
+          geoLonMin = std::min(geoLonMin, geo->getX(i));
+          geoLonMax = std::max(geoLonMax, geo->getX(i));
+          geoLatMin = std::min(geoLatMin, geo->getY(i));
+          geoLatMax = std::max(geoLatMax, geo->getY(i));
+        }
+        const bool fullWorld =
+            (geoLonMax - geoLonMin >= 359.0) && (geoLatMax - geoLatMin >= 179.0);
+
+        if (fullWorld)
+        {
+          // Compute signed area of the clipped run via shoelace formula
+          double projArea = 0.0;
+          const int n = run0->getNumPoints();
+          for (int i = 0; i < n - 1; ++i)
+            projArea +=
+                run0->getX(i) * run0->getY(i + 1) - run0->getX(i + 1) * run0->getY(i);
+          projArea = std::abs(projArea) * 0.5;
+
+          const double boxArea = (b.maxX - b.minX) * (b.maxY - b.minY);
+          if (projArea < 1e-3 * boxArea)
+          {
+            // Degenerate: the world ring traces the antimeridian curve twice and
+            // encloses no area.  The entire bounding box is the correct "world
+            // coverage" polygon for this projection.
+            auto* ring = new OGRLinearRing;  // NOLINT
+            ring->addPoint(b.minX, b.minY);
+            ring->addPoint(b.maxX, b.minY);
+            ring->addPoint(b.maxX, b.maxY);
+            ring->addPoint(b.minX, b.maxY);
+            ring->addPoint(b.minX, b.minY);
+            clipper.addExterior(ring);
+            return true;
+          }
+        }
+      }
+    }
+
     auto snapToExactBoundary = [&](OGRLineString* line)
     {
       if (!line || line->getNumPoints() < 2)
@@ -958,9 +1044,17 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
       if (!run || run->getNumPoints() < 2)
         continue;
       const int rn = run->getNumPoints();
-      // Only open runs need extension
-      if (run->getX(0) == run->getX(rn - 1) && run->getY(0) == run->getY(rn - 1))
+      // Only open runs need extension.  Use nearlyEqual (not exact ==) as a second
+      // line of defence against sub-eps snap/rounding discrepancies that
+      // mergeCyclicRunsIfConnected may not have caught (e.g. when the run came
+      // from the cyclic-merge code path rather than clipProjectedLineToBounds).
+      // Force-close before skipping so the ring path below gets an exact ring.
+      if (nearlyEqual(run->getX(0), run->getX(rn - 1), eps) &&
+          nearlyEqual(run->getY(0), run->getY(rn - 1), eps))
+      {
+        run->setPoint(rn - 1, run->getX(0), run->getY(0));
         continue;
+      }
 
       auto extendEndpointToBound = [&](bool atFront)
       {
