@@ -4,7 +4,6 @@
 #include "GeometryBuilder.h"
 #include "OGR.h"
 #include "RectClipper.h"
-
 #include <algorithm>
 #include <array>
 #include <cmath>
