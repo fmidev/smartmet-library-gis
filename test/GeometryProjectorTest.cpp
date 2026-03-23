@@ -2062,51 +2062,211 @@ TEST(GeometryProjectorTests, Interrupt_LaeaAntipodeCut)
   }
 }
 
+// ---------------------------------------------------------------------------
+// Polar-cap regression helper
+// ---------------------------------------------------------------------------
+
+// Case for polar-cap tests.  If minX == maxX == 0 the bounding box is derived
+// from computeBoundsForGlobalProjection (identical to WorldPolygon_Global).
+// Otherwise the explicit bounds are used directly.
+struct PolarCapCase
+{
+  const char* name;
+  const char* proj4;
+  double minX = 0, minY = 0, maxX = 0, maxY = 0;
+};
+
+// Run non-empty assertions for every case.  Uses EXPECT (not ASSERT) so that
+// all projections are exercised even when earlier ones fail.
+void runPolarCapCases(const char* label, OGRPolygon& poly,
+                      const std::vector<PolarCapCase>& cases)
+{
+  for (const auto& tc : cases)
+  {
+    SCOPED_TRACE(tc.name);
+
+    OGRSpatialReference wgs84 = makeSRS(4326);
+    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+
+    Bounds B;
+    if (tc.minX == 0 && tc.maxX == 0)
+    {
+      std::unique_ptr<OGRCoordinateTransformation> ct(
+          OGRCreateCoordinateTransformation(&wgs84, &target));
+      if (!ct)
+      {
+        ADD_FAILURE() << label << "/" << tc.name << ": could not create CT for bounds";
+        continue;
+      }
+      B = computeBoundsForGlobalProjection(ct.get());
+    }
+    else
+    {
+      B = {tc.minX, tc.minY, tc.maxX, tc.maxY};
+    }
+
+    Fmi::GeometryProjector projector(&wgs84, &target);
+    projector.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
+    projector.setDensifyResolutionKm(50.0);
+
+    std::unique_ptr<OGRGeometry> out;
+    try
+    {
+      out = projector.projectGeometry(&poly);
+    }
+    catch (const std::exception& e)
+    {
+      ADD_FAILURE() << label << "/" << tc.name << ": threw exception: " << e.what();
+      continue;
+    }
+    EXPECT_TRUE(out) << label << "/" << tc.name << ": result is null";
+    if (out)
+    {
+      EXPECT_FALSE(out->IsEmpty()) << label << "/" << tc.name << ": result is empty";
+    }
+  }
+}
+
+// Projections shared between both polar-cap tests.
+// Mirrors WorldPolygon_GlobalProjections_BothWindingsProduceSubstantialResult
+// (auto bounds) plus the limited-domain entries that cover both poles.
+const std::vector<PolarCapCase> kBothCapCases = {
+    // --- Eckert family ---
+    {"eck1",       "+proj=eck1 +datum=WGS84 +units=m"},
+    {"eck2",       "+proj=eck2 +datum=WGS84 +units=m"},
+    {"eck3",       "+proj=eck3 +datum=WGS84 +units=m"},
+    {"eck4",       "+proj=eck4 +datum=WGS84 +units=m"},
+    {"eck5",       "+proj=eck5 +datum=WGS84 +units=m"},
+    {"eck6",       "+proj=eck6 +datum=WGS84 +units=m"},
+    // --- Other pseudocylindrical ---
+    {"apian",      "+proj=apian +datum=WGS84 +units=m"},
+    {"bacon",      "+proj=bacon +datum=WGS84 +units=m"},
+    {"boggs",      "+proj=boggs +datum=WGS84 +units=m"},
+    {"collg",      "+proj=collg +datum=WGS84 +units=m"},
+    {"comill",     "+proj=comill +datum=WGS84 +units=m"},
+    {"crast",      "+proj=crast +datum=WGS84 +units=m"},
+    {"denoy",      "+proj=denoy +datum=WGS84 +units=m"},
+    {"eqearth",    "+proj=eqearth +datum=WGS84 +units=m"},
+    {"fouc",       "+proj=fouc +datum=WGS84 +units=m"},
+    {"fouc_s",     "+proj=fouc_s +datum=WGS84 +units=m"},
+    {"gins8",      "+proj=gins8 +datum=WGS84 +units=m"},
+    {"goode",      "+proj=goode +datum=WGS84 +units=m"},
+    {"hatano",     "+proj=hatano +datum=WGS84 +units=m"},
+    {"kav5",       "+proj=kav5 +datum=WGS84 +units=m"},
+    {"kav7",       "+proj=kav7 +datum=WGS84 +units=m"},
+    {"lask",       "+proj=lask +datum=WGS84 +units=m"},
+    {"mbt_fps",    "+proj=mbt_fps +datum=WGS84 +units=m"},
+    {"mbtfpp",     "+proj=mbtfpp +datum=WGS84 +units=m"},
+    {"mbtfpq",     "+proj=mbtfpq +datum=WGS84 +units=m"},
+    {"mbtfps",     "+proj=mbtfps +datum=WGS84 +units=m"},
+    {"moll",       "+proj=moll +datum=WGS84 +units=m"},
+    {"natearth",   "+proj=natearth +datum=WGS84 +units=m"},
+    {"natearth2",  "+proj=natearth2 +datum=WGS84 +units=m"},
+    {"nell",       "+proj=nell +datum=WGS84 +units=m"},
+    {"nell_h",     "+proj=nell_h +datum=WGS84 +units=m"},
+    {"nicol",      "+proj=nicol +datum=WGS84 +units=m"},
+    {"ortel",      "+proj=ortel +datum=WGS84 +units=m"},
+    {"patterson",  "+proj=patterson +datum=WGS84 +units=m"},
+    {"putp1",      "+proj=putp1 +datum=WGS84 +units=m"},
+    {"putp2",      "+proj=putp2 +datum=WGS84 +units=m"},
+    {"putp3",      "+proj=putp3 +datum=WGS84 +units=m"},
+    {"putp3p",     "+proj=putp3p +datum=WGS84 +units=m"},
+    {"putp4p",     "+proj=putp4p +datum=WGS84 +units=m"},
+    {"putp5",      "+proj=putp5 +datum=WGS84 +units=m"},
+    {"putp5p",     "+proj=putp5p +datum=WGS84 +units=m"},
+    {"putp6",      "+proj=putp6 +datum=WGS84 +units=m"},
+    {"putp6p",     "+proj=putp6p +datum=WGS84 +units=m"},
+    {"qua_aut",    "+proj=qua_aut +datum=WGS84 +units=m"},
+    {"robin",      "+proj=robin +datum=WGS84 +units=m"},
+    {"sinu",       "+proj=sinu +datum=WGS84 +units=m"},
+    {"times",      "+proj=times +datum=WGS84 +units=m"},
+    {"urm5",       "+proj=urm5 +n=0.9 +q=0.142 +alpha=0.97 +datum=WGS84 +units=m"},
+    {"urmfps",     "+proj=urmfps +n=0.5 +datum=WGS84 +units=m"},
+    {"wag1",       "+proj=wag1 +datum=WGS84 +units=m"},
+    {"wag2",       "+proj=wag2 +datum=WGS84 +units=m"},
+    {"wag3",       "+proj=wag3 +datum=WGS84 +units=m"},
+    {"wag4",       "+proj=wag4 +datum=WGS84 +units=m"},
+    {"wag5",       "+proj=wag5 +datum=WGS84 +units=m"},
+    {"wag6",       "+proj=wag6 +datum=WGS84 +units=m"},
+    {"wag7",       "+proj=wag7 +datum=WGS84 +units=m"},
+    {"weren",      "+proj=weren +datum=WGS84 +units=m"},
+    {"wink1",      "+proj=wink1 +datum=WGS84 +units=m"},
+    {"wink2",      "+proj=wink2 +datum=WGS84 +units=m"},
+    {"wintri",     "+proj=wintri +datum=WGS84 +units=m"},
+    // --- Polyconic / Cassini ---
+    {"cass",       "+proj=cass +datum=WGS84 +units=m"},
+    {"poly",       "+proj=poly +datum=WGS84 +units=m"},
+    // --- Modified azimuthal / other global ---
+    {"aitoff",     "+proj=aitoff +datum=WGS84 +units=m"},
+    {"august",     "+proj=august +datum=WGS84 +units=m"},
+    {"hammer",     "+proj=hammer +datum=WGS84 +units=m"},
+    // --- Van der Grinten family ---
+    {"vandg",      "+proj=vandg +datum=WGS84 +units=m"},
+    {"vandg2",     "+proj=vandg2 +datum=WGS84 +units=m"},
+    {"vandg3",     "+proj=vandg3 +datum=WGS84 +units=m"},
+    {"vandg4",     "+proj=vandg4 +datum=WGS84 +units=m"},
+    // --- LAEA oblique aspects ---
+    {"laea_EU",      "+proj=laea +lat_0=52 +lon_0=10 +ellps=GRS80 +units=m"},
+    {"laea_EPSG3035", "+init=EPSG:3035"},
+    // --- Miscellaneous global ---
+    {"adams_ws1",  "+proj=adams_ws1 +datum=WGS84 +units=m"},
+    {"adams_ws2",  "+proj=adams_ws2 +datum=WGS84 +units=m"},
+    {"bertin1953", "+proj=bertin1953 +datum=WGS84 +units=m"},
+    {"fahey",      "+proj=fahey +datum=WGS84 +units=m"},
+    {"lagrng",     "+proj=lagrng +datum=WGS84 +units=m"},
+    {"loxim",      "+proj=loxim +datum=WGS84 +units=m"},
+    {"mill",       "+proj=mill +datum=WGS84 +units=m"},
+    // tobmerc is Mercator-like; poles map to infinity so polar caps cannot be projected
+    // --- Cylindrical ---
+    {"eqc",        "+proj=eqc +datum=WGS84 +units=m"},
+    {"cea",        "+proj=cea +datum=WGS84 +units=m"},
+    {"gall",       "+proj=gall +datum=WGS84 +units=m"},
+    // --- Conic ---
+    {"bonne",      "+proj=bonne +lat_1=45 +datum=WGS84 +units=m"},
+    {"eqdc",       "+proj=eqdc +lat_1=29.5 +lat_2=45.5 +datum=WGS84 +units=m"},
+    // --- Generalised sinusoidal ---
+    {"gn_sinu",    "+proj=gn_sinu +m=2 +n=3 +datum=WGS84 +units=m"},
+    // --- Oblique transform (transverse aspect) ---
+    {"ob_tran_eck4",   "+proj=ob_tran +o_proj=eck4   +o_lon_p=0  +o_lat_p=90 +datum=WGS84 +units=m"},
+    {"ob_tran_moll",   "+proj=ob_tran +o_proj=moll   +o_lon_p=90 +o_lat_p=90 +datum=WGS84 +units=m"},
+    {"ob_tran_wag4",   "+proj=ob_tran +o_proj=wag4   +o_lon_p=0  +o_lat_p=90 +datum=WGS84 +units=m"},
+    {"ob_tran_wintri", "+proj=ob_tran +o_proj=wintri +o_lon_p=0  +o_lat_p=90 +datum=WGS84 +units=m"},
+    // --- From WorldPolygon_LimitedDomainProjections (global enough for both poles) ---
+    {"mil_os",     "+proj=mil_os +datum=WGS84 +units=m",   -2e7, -2e7, 2e7, 2e7},
+};
+
+// Cases only meaningful for the southern polar cap.
+const std::vector<PolarCapCase> kSouthCapOnlyCases = {
+    // South-polar LAEA: the south pole maps to the origin, so the cap is
+    // fully contained within the bounds used for WorldPolygon_LimitedDomain.
+    {"laea_south_polar", "+proj=laea +lat_0=-90 +lon_0=0 +ellps=GRS80 +units=m",
+     -1.35e7, -0.1e6, 1.35e7, 1.35e7},
+};
+
+// Cases only meaningful for the northern polar cap.
+const std::vector<PolarCapCase> kNorthCapOnlyCases = {
+    // North-polar LAEA: the north pole maps to the origin, cap within bounds.
+    {"laea_north_polar", "+proj=laea +lat_0=90 +lon_0=0 +ellps=GRS80 +units=m",
+     -1.35e7, -1.35e7, 1.35e7, 0.1e6},
+    // UPS uses a north-polar stereographic; the south polar cap is far outside its bounds.
+    {"ups",              "+proj=ups +datum=WGS84 +units=m",
+     -8.5e6, -8.5e6, 8.5e6, 8.5e6},
+};
+
+// ---------------------------------------------------------------------------
+
 // Verify that the southern polar cap (bbox -180,-90 to 180,-70) produces a
-// non-empty projected result for projections that previously vanished when the
-// clipping box is set to ±20 000 km.
-//
-// These projections are pseudocylindrical or special-case projections whose
-// handling of the south-polar region caused the entire input to be discarded.
+// non-empty projected result for all projections in the WorldPolygon tests,
+// plus projections that previously caused the region to vanish.
 TEST(GeometryProjectorTests, SouthernPolarCap_ProblematicProjections_IsNonEmpty)
 {
   CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
   static GdalInitGuard guard;
   GdalErrorSilencer silence;
 
-  struct Case
-  {
-    const char* name;
-    const char* proj4;
-  };
-
-  const Case cases[] = {
-      {"cass",    "+proj=cass +datum=WGS84 +units=m"},
-      {"aitoff",  "+proj=aitoff +datum=WGS84 +units=m"},
-      {"fouc",    "+proj=fouc +datum=WGS84 +units=m"},
-      {"mil_os",  "+proj=mil_os +datum=WGS84 +units=m"},
-      {"putp1",   "+proj=putp1 +datum=WGS84 +units=m"},
-      {"putp4p",  "+proj=putp4p +datum=WGS84 +units=m"},
-      {"qua_aut", "+proj=qua_aut +datum=WGS84 +units=m"},
-  };
-
   OGRPolygon poly = southernPolarCapPolygon();
-
-  for (const auto& tc : cases)
-  {
-    OGRSpatialReference wgs84 = makeSRS(4326);
-    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
-
-    Fmi::GeometryProjector projector(&wgs84, &target);
-    projector.setProjectedBounds(-2e7, -2e7, 2e7, 2e7);
-    projector.setDensifyResolutionKm(50.0);
-
-    std::unique_ptr<OGRGeometry> out;
-    ASSERT_NO_THROW(out = projector.projectGeometry(&poly))
-        << tc.name << ": threw exception";
-    ASSERT_TRUE(out) << tc.name << ": result is null";
-    ASSERT_FALSE(out->IsEmpty()) << tc.name << ": result is empty";
-  }
+  runPolarCapCases("SouthernPolarCap", poly, kBothCapCases);
+  runPolarCapCases("SouthernPolarCap", poly, kSouthCapOnlyCases);
 }
 
 // Verify the same for the northern polar cap (bbox -180,70 to 180,90).
@@ -2116,37 +2276,7 @@ TEST(GeometryProjectorTests, NorthernPolarCap_ProblematicProjections_IsNonEmpty)
   static GdalInitGuard guard;
   GdalErrorSilencer silence;
 
-  struct Case
-  {
-    const char* name;
-    const char* proj4;
-  };
-
-  const Case cases[] = {
-      {"cass",    "+proj=cass +datum=WGS84 +units=m"},
-      {"aitoff",  "+proj=aitoff +datum=WGS84 +units=m"},
-      {"fouc",    "+proj=fouc +datum=WGS84 +units=m"},
-      {"mil_os",  "+proj=mil_os +datum=WGS84 +units=m"},
-      {"putp1",   "+proj=putp1 +datum=WGS84 +units=m"},
-      {"putp4p",  "+proj=putp4p +datum=WGS84 +units=m"},
-      {"qua_aut", "+proj=qua_aut +datum=WGS84 +units=m"},
-  };
-
   OGRPolygon poly = northernPolarCapPolygon();
-
-  for (const auto& tc : cases)
-  {
-    OGRSpatialReference wgs84 = makeSRS(4326);
-    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
-
-    Fmi::GeometryProjector projector(&wgs84, &target);
-    projector.setProjectedBounds(-2e7, -2e7, 2e7, 2e7);
-    projector.setDensifyResolutionKm(50.0);
-
-    std::unique_ptr<OGRGeometry> out;
-    ASSERT_NO_THROW(out = projector.projectGeometry(&poly))
-        << tc.name << ": threw exception";
-    ASSERT_TRUE(out) << tc.name << ": result is null";
-    ASSERT_FALSE(out->IsEmpty()) << tc.name << ": result is empty";
-  }
+  runPolarCapCases("NorthernPolarCap", poly, kBothCapCases);
+  runPolarCapCases("NorthernPolarCap", poly, kNorthCapOnlyCases);
 }
