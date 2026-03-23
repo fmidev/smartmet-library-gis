@@ -1301,6 +1301,59 @@ TEST(GeometryProjectorTests, PolygonClippingBoundaryClosure_NoConsecutiveDuplica
   }
 }
 
+// A polygon whose ring is "nearly closed" (last point ≈ first but not exactly equal) should
+// not produce a spurious line to the bounding-box boundary.  Before the fix in
+// ringToLineStringPreserveClosure, the near-closed ring was kept as-is, projected to two
+// slightly-different endpoints, classified as "open" (exact ==), and the extension code
+// drew a line from the polygon interior to the nearest box edge.
+TEST(GeometryProjectorTests, NearlyClosedRing_InsideBBox_NoLeakToBoundary)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+
+  auto projector = fx.makeProjector(50.0);
+
+  // Build an exactly-closed ring inside the Finnish TM35 bbox, add it to a polygon,
+  // then use setPoint to nudge the last coordinate by 1e-6 degrees (~0.1 m on the
+  // ground).  That difference is within ringEps (1e-4 for the fixture box with scale
+  // ~2 Mm) so nearlyEqual considers the ring "already closed" and forceClose was not
+  // overwriting the last point — causing both endpoints to project to different values,
+  // the run to look "open" (exact ==), and a line to be drawn to the boundary.
+  OGRPolygon poly;
+  {
+    OGRLinearRing ext;
+    const double lon0 = 25.0, lat0 = 65.0;
+    ext.addPoint(lon0,        lat0);
+    ext.addPoint(lon0 + 1.0, lat0);
+    ext.addPoint(lon0 + 1.0, lat0 + 1.0);
+    ext.addPoint(lon0,        lat0 + 1.0);
+    ext.addPoint(lon0,        lat0);  // exact closure so OGR accepts the ring
+    poly.addRing(&ext);
+  }
+  // Now nudge the last (closure) point of the stored ring slightly — simulating data
+  // where the stored first/last points are within tolerance but not exactly equal.
+  OGRLinearRing* ring = poly.getExteriorRing();
+  ASSERT_TRUE(ring != nullptr);
+  const int n = ring->getNumPoints();
+  const double lon0 = ring->getX(0);
+  const double lat0 = ring->getY(0);
+  // 1e-6 deg ≈ 0.1 m; within ringEps (1e-4) but non-zero → old code kept pair as-is
+  ring->setPoint(n - 1, lon0 + 1e-6, lat0 + 1e-6);
+
+  auto out = projector.projectGeometry(&poly);
+  ASSERT_TRUE(out) << "polygon should project to a non-null result";
+
+  if (!out->IsEmpty())
+  {
+    // No vertex should touch the bounding-box boundary: the polygon is well inside.
+    const Bounds strict{fx.B.minX + 1.0, fx.B.minY + 1.0, fx.B.maxX - 1.0, fx.B.maxY - 1.0};
+    EXPECT_TRUE(allVerticesWithinBounds(out.get(), strict))
+        << "Polygon leaked to bounding-box edge: " << wktOf(out.get());
+    EXPECT_TRUE(allPolygonRingsClosed(out.get()));
+  }
+}
+
 // --- API contract / edge-case tests ---
 
 // The header documents: "Returns nullptr only if input geom is nullptr."

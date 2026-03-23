@@ -448,6 +448,14 @@ std::unique_ptr<OGRLineString> ringToLineStringPreserveClosure(const OGRLinearRi
   {
     if (!closed)
       ls->addPoint(r->getX(0), r->getY(0));
+    else
+      // Ring is nearly-but-not-exactly closed: overwrite the last point with an
+      // exact copy of p[0] so that after projection both ends map to identical
+      // coordinates.  Without this, the two slightly-different endpoints project
+      // to two slightly-different projected points, the run looks "open" to the
+      // extension code (which uses exact ==), and a spurious line is drawn from
+      // the polygon interior to the bounding-box boundary.
+      ls->setPoint(n - 1, r->getX(0), r->getY(0));
   }
   else
   {
