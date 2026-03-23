@@ -6,14 +6,9 @@
 
 namespace Fmi
 {
-#ifndef PI
-#define PI 3.14159265358979323846
-#define PI2 6.28318530718
-#define EARTH_RADIUS 6378137
-#define DEG_TO_RAD 0.0174532925199
-#endif
-
-#define DELTA 1000000000
+constexpr double PI = 3.14159265358979323846;
+constexpr double PI2 = 6.28318530718;
+constexpr long DELTA = 1000000000;
 
 namespace
 {
@@ -661,6 +656,8 @@ int Shape_sphere::cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bo
           if (pX2 != xB || pY2 != yB)
             line->addPoint(xB, yB);
           break;
+        default:
+          break;
       }
 
       xxA = xxB;
@@ -779,6 +776,8 @@ int Shape_sphere::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, b
           // theClipper.add(line, exterior);
           line = new OGRLineString();
           break;
+        default:
+          break;
       }
 
       xxA = xxB;
@@ -883,7 +882,7 @@ bool Shape_sphere::isRingInside(const OGRLinearRing& theRing) const
  */
 // ----------------------------------------------------------------------
 
-LineIterator Shape_sphere::search_cw(OGRLinearRing* ring,
+LineIterator Shape_sphere::search_cw(OGRLinearRing* /*ring*/,
                                      std::list<OGRLineString*>& lines,
                                      double x1,
                                      double y1,
@@ -967,7 +966,7 @@ LineIterator Shape_sphere::search_cw(OGRLinearRing* ring,
  */
 // ----------------------------------------------------------------------
 
-LineIterator Shape_sphere::search_ccw(OGRLinearRing* ring,
+LineIterator Shape_sphere::search_ccw(OGRLinearRing* /*ring*/,
                                       std::list<OGRLineString*>& lines,
                                       double x1,
                                       double y1,
@@ -1043,7 +1042,7 @@ bool Shape_sphere::connectPoints_cw(OGRLinearRing& ring,
                                     double y1,
                                     double x2,
                                     double y2,
-                                    double theMaximumSegmentLength) const
+                                    double /*theMaximumSegmentLength*/) const
 {
   try
   {
@@ -1114,7 +1113,7 @@ bool Shape_sphere::connectPoints_ccw(OGRLinearRing& ring,
                                      double y1,
                                      double x2,
                                      double y2,
-                                     double theMaximumSegmentLength) const
+                                     double /*theMaximumSegmentLength*/) const
 {
   try
   {

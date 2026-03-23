@@ -196,7 +196,8 @@ void split_figure8_rings(std::list<OGRLinearRing *> &rings)
     auto *ring = queue.front();
     queue.pop_front();
 
-    OGRLinearRing *ring1 = nullptr, *ring2 = nullptr;
+    OGRLinearRing *ring1 = nullptr;
+    OGRLinearRing *ring2 = nullptr;
     if (split_figure8(ring, ring1, ring2))
     {
       delete ring;

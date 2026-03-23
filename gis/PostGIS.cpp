@@ -177,7 +177,6 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
     out->assignSpatialReference(tmp.get());
 
     layer->ResetReading();
-    int featurecount = 0;
     while ((feature = next_feature()))
     {
       const auto* defn = feature->GetDefnRef();
@@ -300,7 +299,7 @@ Features read(const Fmi::SpatialReference* theSR,
 
     // add attribute fields
     OGRFeatureDefn* poFDefn = layer->GetLayerDefn();
-    int iField;
+    int iField = 0;
     for (iField = 0; iField < poFDefn->GetFieldCount(); iField++)
     {
       OGRFieldDefn* poFieldDefn = poFDefn->GetFieldDefn(iField);
@@ -335,13 +334,13 @@ Features read(const Fmi::SpatialReference* theSR,
           break;
         case OFTDateTime:
         {
-          int year;
-          int month;
-          int day;
-          int hour;
-          int min;
-          int sec;
-          int tzFlag;
+          int year = 0;
+          int month = 0;
+          int day = 0;
+          int hour = 0;
+          int min = 0;
+          int sec = 0;
+          int tzFlag = 0;
           feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
           Fmi::DateTime timestamp(Fmi::Date(year, month, day), Fmi::TimeDuration(hour, min, sec));
 

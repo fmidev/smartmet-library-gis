@@ -3,7 +3,8 @@
 #include <ogr_geometry.h>
 
 // Forward declaration needed since two functions call each other
-static bool inside(const OGRGeometry *theGeom, double theX, double theY);
+// NOLINT(misc-use-anonymous-namespace): anonymous namespace breaks ADL lookup for OGRGeometry helpers
+static bool inside(const OGRGeometry *theGeom, double theX, double theY);  // NOLINT(misc-use-anonymous-namespace)
 
 // ----------------------------------------------------------------------
 /*!
@@ -11,7 +12,7 @@ static bool inside(const OGRGeometry *theGeom, double theX, double theY);
  */
 // ----------------------------------------------------------------------
 
-static bool inside(const OGRLinearRing *theGeom, double theX, double theY)
+static bool inside(const OGRLinearRing *theGeom, double theX, double theY)  // NOLINT(misc-use-anonymous-namespace)
 {
   try
   {
@@ -33,7 +34,7 @@ static bool inside(const OGRLinearRing *theGeom, double theX, double theY)
  */
 // ----------------------------------------------------------------------
 
-static bool inside(const OGRPolygon *theGeom, double theX, double theY)
+static bool inside(const OGRPolygon *theGeom, double theX, double theY)  // NOLINT(misc-use-anonymous-namespace)
 {
   try
   {
@@ -54,7 +55,7 @@ static bool inside(const OGRPolygon *theGeom, double theX, double theY)
  */
 // ----------------------------------------------------------------------
 
-static bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
+static bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)  // NOLINT(misc-use-anonymous-namespace)
 {
   try
   {
@@ -80,7 +81,7 @@ static bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
  */
 // ----------------------------------------------------------------------
 
-static bool inside(const OGRGeometryCollection *theGeom, double theX, double theY)
+static bool inside(const OGRGeometryCollection *theGeom, double theX, double theY)  // NOLINT(misc-use-anonymous-namespace)
 {
   try
   {
@@ -106,7 +107,7 @@ static bool inside(const OGRGeometryCollection *theGeom, double theX, double the
  */
 // ----------------------------------------------------------------------
 
-static bool inside(const OGRGeometry *theGeom, double theX, double theY)
+static bool inside(const OGRGeometry *theGeom, double theX, double theY)  // NOLINT(misc-use-anonymous-namespace)
 {
   try
   {
