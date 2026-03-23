@@ -290,24 +290,33 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
 
     if (theSRS.projInfo().getString("proj") == std::string("ob_tran"))
     {
-      auto opt_lat_p = theSRS.projInfo().getDouble("o_lat_p");
-      if (opt_lat_p)
+      const auto opt_lat_p = theSRS.projInfo().getDouble("o_lat_p");
+      const auto lat_p = opt_lat_p ? *opt_lat_p : 0.0;
+
+      if (std::abs(lat_p - 90.0) < 0.01)
       {
-        const auto lat_p = *opt_lat_p;
+        // Transverse aspect (o_lat_p ≈ 90°): the oblique transform is a pure
+        // longitude rotation by o_lon_p.  The natural seam in geographic
+        // coordinates is the meridian at modlon(o_lon_p + 180°) — the
+        // antimeridian of the rotated frame — where PROJ's normalisation wraps
+        // both sides of the input to the same projected longitude, causing
+        // world-spanning polygons to degenerate.
+        const auto opt_o_lon_p = theSRS.projInfo().getDouble("o_lon_p");
+        const auto o_lon_p = opt_o_lon_p ? *opt_o_lon_p : 0.0;
+        const auto seam_lon = modlon(o_lon_p + 180.0);
 
-        result.shapeCuts.emplace_back(make_vertical_cut(0, -90, lat_p - 90));
-        result.shapeCuts.emplace_back(make_vertical_cut(lon_0, -90, lat_p - 90));
-        result.shapeCuts.emplace_back(make_vertical_cut(-lon_0, -90, lat_p - 90));
-
-        result.shapeCuts.emplace_back(make_vertical_cut(lat_p, -90, lat_p - 90));
-        result.shapeCuts.emplace_back(make_vertical_cut(-lat_p, -90, lat_p - 90));
-
-        result.shapeCuts.emplace_back(make_horizontal_cut(-lat_p, -180, 180));
-        result.shapeCuts.emplace_back(make_horizontal_cut(-90, -180, 180));
-        result.shapeCuts.emplace_back(make_horizontal_cut(+90, -180, 180));
-        result.shapeCuts.emplace_back(make_vertical_cut(+180, -90, 90));
-        result.shapeCuts.emplace_back(make_vertical_cut(-180, -90, 90));
+        result.shapeCuts.emplace_back(make_vertical_cut(seam_lon, -90, 90));
+        // When the seam lands on ±180° also add the other side (same meridian,
+        // opposite sign convention) — matching the default antimeridian case.
+        if (std::abs(std::abs(seam_lon) - 180.0) < 0.01)
+          result.shapeCuts.emplace_back(make_vertical_cut(-seam_lon, -90, 90));
+        return result;
       }
+
+      // General oblique (o_lat_p ≠ 90°): the natural seam is a great circle in
+      // geographic coordinates, not a simple meridian.  Exact great-circle
+      // cutting is not yet implemented; fall through to the default antimeridian
+      // cut below, which is a reasonable approximation for mildly oblique cases.
     }
 
     // Geographic: cut everything at lon_wrap (default=Greenwich) antimeridians

@@ -2169,6 +2169,79 @@ TEST(GeometryProjectorTests, Interrupt_LaeaAntipodeCut)
   }
 }
 
+// Verify that ob_tran with transverse aspect (o_lat_p=90) gets a single clean
+// seam cut at modlon(o_lon_p + 180°), not the old experimental multi-cut block.
+//
+// For each case we check:
+//   1. shapeCuts is non-empty (seam cut is present).
+//   2. shapeCuts.size() is 1 or 2 (not the old 10+ experimental cuts).
+//   3. At least one cut is centred near the expected seam longitude.
+TEST(GeometryProjectorTests, Interrupt_ObTranTransverseSeam)
+{
+  static GdalInitGuard guard;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+    double expectedSeam;  // expected centre longitude of the seam cut
+  };
+
+  const Case cases[] = {
+      // o_lon_p=0: seam at modlon(0+180) = 180° — same as the default antimeridian.
+      // Both ±180 are added (matching the default case), so 2 cuts.
+      {"ob_tran_moll_lon0",
+       "+proj=ob_tran +o_proj=moll +o_lon_p=0 +o_lat_p=90 +datum=WGS84 +units=m",
+       180.0},
+      // o_lon_p=90: seam at modlon(90+180) = -90°.
+      {"ob_tran_moll_lon90",
+       "+proj=ob_tran +o_proj=moll +o_lon_p=90 +o_lat_p=90 +datum=WGS84 +units=m",
+       -90.0},
+      // o_lon_p=-45: seam at modlon(-45+180) = 135°.
+      {"ob_tran_eck4_lonm45",
+       "+proj=ob_tran +o_proj=eck4 +o_lon_p=-45 +o_lat_p=90 +datum=WGS84 +units=m",
+       135.0},
+      // o_lon_p=180: seam at modlon(180+180) = 0°.
+      {"ob_tran_wag4_lon180",
+       "+proj=ob_tran +o_proj=wag4 +o_lon_p=180 +o_lat_p=90 +datum=WGS84 +units=m",
+       0.0},
+  };
+
+  for (const auto& tc : cases)
+  {
+    SCOPED_TRACE(tc.name);
+    Fmi::SpatialReference srs(tc.proj4);
+    auto intr = Fmi::interruptGeometry(srs);
+
+    ASSERT_FALSE(intr.shapeCuts.empty()) << tc.name << ": expected shapeCuts (seam cut)";
+
+    // Transverse aspect should produce 1 or 2 cuts, not the old 10+ experimental block.
+    EXPECT_LE(intr.shapeCuts.size(), 2u)
+        << tc.name << ": too many shapeCuts (" << intr.shapeCuts.size()
+        << "); old experimental multi-cut block may still be active";
+
+    // At least one cut must be centred near the expected seam longitude.
+    // makeRing gives the rectangle; its envelope centre is the cut's longitude.
+    bool foundSeam = false;
+    for (const auto& cut : intr.shapeCuts)
+    {
+      std::unique_ptr<OGRLinearRing> ring(cut->makeRing(1.0));
+      if (!ring)
+        continue;
+      OGREnvelope env;
+      ring->getEnvelope(&env);
+      const double centreLon = (env.MinX + env.MaxX) / 2.0;
+      // Accept ±180 as equivalent (same meridian, opposite sign convention).
+      const bool atSeam = std::abs(centreLon - tc.expectedSeam) < 1.0 ||
+                          std::abs(std::abs(centreLon) - std::abs(tc.expectedSeam)) < 1.0;
+      if (atSeam)
+        foundSeam = true;
+    }
+    EXPECT_TRUE(foundSeam) << tc.name << ": no shapeCut centred near expected seam lon "
+                           << tc.expectedSeam << "°";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Polar-cap regression helper
 // ---------------------------------------------------------------------------
