@@ -2,9 +2,12 @@
 #include <macgyver/Exception.h>
 #include <ogr_geometry.h>
 
+namespace Fmi::OGR
+{
+namespace
+{
 // Forward declaration needed since two functions call each other
-// NOLINT(misc-use-anonymous-namespace): anonymous namespace breaks ADL lookup for OGRGeometry helpers
-static bool inside(const OGRGeometry *theGeom, double theX, double theY);  // NOLINT(misc-use-anonymous-namespace)
+bool inside(const OGRGeometry *theGeom, double theX, double theY);
 
 // ----------------------------------------------------------------------
 /*!
@@ -12,7 +15,7 @@ static bool inside(const OGRGeometry *theGeom, double theX, double theY);  // NO
  */
 // ----------------------------------------------------------------------
 
-static bool inside(const OGRLinearRing *theGeom, double theX, double theY)  // NOLINT(misc-use-anonymous-namespace)
+bool inside(const OGRLinearRing *theGeom, double theX, double theY)
 {
   try
   {
@@ -34,7 +37,7 @@ static bool inside(const OGRLinearRing *theGeom, double theX, double theY)  // N
  */
 // ----------------------------------------------------------------------
 
-static bool inside(const OGRPolygon *theGeom, double theX, double theY)  // NOLINT(misc-use-anonymous-namespace)
+bool inside(const OGRPolygon *theGeom, double theX, double theY)
 {
   try
   {
@@ -55,7 +58,7 @@ static bool inside(const OGRPolygon *theGeom, double theX, double theY)  // NOLI
  */
 // ----------------------------------------------------------------------
 
-static bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)  // NOLINT(misc-use-anonymous-namespace)
+bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)
 {
   try
   {
@@ -81,7 +84,7 @@ static bool inside(const OGRMultiPolygon *theGeom, double theX, double theY)  //
  */
 // ----------------------------------------------------------------------
 
-static bool inside(const OGRGeometryCollection *theGeom, double theX, double theY)  // NOLINT(misc-use-anonymous-namespace)
+bool inside(const OGRGeometryCollection *theGeom, double theX, double theY)
 {
   try
   {
@@ -107,7 +110,7 @@ static bool inside(const OGRGeometryCollection *theGeom, double theX, double the
  */
 // ----------------------------------------------------------------------
 
-static bool inside(const OGRGeometry *theGeom, double theX, double theY)  // NOLINT(misc-use-anonymous-namespace)
+bool inside(const OGRGeometry *theGeom, double theX, double theY)
 {
   try
   {
@@ -122,13 +125,15 @@ static bool inside(const OGRGeometry *theGeom, double theX, double theY)  // NOL
   }
 }
 
+}  // namespace
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Handle Polygon
  */
 // ----------------------------------------------------------------------
 
-bool Fmi::OGR::inside(const OGRPolygon &theGeom, double theX, double theY)
+bool inside(const OGRPolygon &theGeom, double theX, double theY)
 {
   try
   {
@@ -157,7 +162,7 @@ bool Fmi::OGR::inside(const OGRPolygon &theGeom, double theX, double theY)
  */
 // ----------------------------------------------------------------------
 
-bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
+bool inside(const OGRGeometry &theGeom, double theX, double theY)
 {
   try
   {
@@ -198,3 +203,5 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+}  // namespace Fmi::OGR

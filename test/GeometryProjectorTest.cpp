@@ -316,6 +316,36 @@ OGRSpatialReference makeSRSFromProj4(const std::string& proj4)
   return s;
 }
 
+// Southern polar cap: bbox (-180,-90) to (180,-70) — the Antarctic region.
+// Used to verify that projections which previously vanished at ±20 000 km
+// produce a non-empty result.
+OGRPolygon southernPolarCapPolygon()
+{
+  OGRPolygon poly;
+  OGRLinearRing ext;
+  ext.addPoint(-180, -90);
+  ext.addPoint(180, -90);
+  ext.addPoint(180, -70);
+  ext.addPoint(-180, -70);
+  ext.addPoint(-180, -90);
+  poly.addRing(&ext);
+  return poly;
+}
+
+// Northern polar cap: bbox (-180,70) to (180,90) — the Arctic region.
+OGRPolygon northernPolarCapPolygon()
+{
+  OGRPolygon poly;
+  OGRLinearRing ext;
+  ext.addPoint(-180, 90);
+  ext.addPoint(180, 90);
+  ext.addPoint(180, 70);
+  ext.addPoint(-180, 70);
+  ext.addPoint(-180, 90);
+  poly.addRing(&ext);
+  return poly;
+}
+
 // World polygon CCW: SW→SE→NE→NW (counter-clockwise in y-up convention)
 OGRPolygon worldPolygonCCW()
 {
@@ -2029,5 +2059,94 @@ TEST(GeometryProjectorTests, Interrupt_LaeaAntipodeCut)
           << tc.name << ": cut disc lon centre " << centreLon
           << "° not near antipodal lon " << tc.antiLon << "°";
     }
+  }
+}
+
+// Verify that the southern polar cap (bbox -180,-90 to 180,-70) produces a
+// non-empty projected result for projections that previously vanished when the
+// clipping box is set to ±20 000 km.
+//
+// These projections are pseudocylindrical or special-case projections whose
+// handling of the south-polar region caused the entire input to be discarded.
+TEST(GeometryProjectorTests, SouthernPolarCap_ProblematicProjections_IsNonEmpty)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+  };
+
+  const Case cases[] = {
+      {"cass",    "+proj=cass +datum=WGS84 +units=m"},
+      {"aitoff",  "+proj=aitoff +datum=WGS84 +units=m"},
+      {"fouc",    "+proj=fouc +datum=WGS84 +units=m"},
+      {"mil_os",  "+proj=mil_os +datum=WGS84 +units=m"},
+      {"putp1",   "+proj=putp1 +datum=WGS84 +units=m"},
+      {"putp4p",  "+proj=putp4p +datum=WGS84 +units=m"},
+      {"qua_aut", "+proj=qua_aut +datum=WGS84 +units=m"},
+  };
+
+  OGRPolygon poly = southernPolarCapPolygon();
+
+  for (const auto& tc : cases)
+  {
+    OGRSpatialReference wgs84 = makeSRS(4326);
+    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+
+    Fmi::GeometryProjector projector(&wgs84, &target);
+    projector.setProjectedBounds(-2e7, -2e7, 2e7, 2e7);
+    projector.setDensifyResolutionKm(50.0);
+
+    std::unique_ptr<OGRGeometry> out;
+    ASSERT_NO_THROW(out = projector.projectGeometry(&poly))
+        << tc.name << ": threw exception";
+    ASSERT_TRUE(out) << tc.name << ": result is null";
+    ASSERT_FALSE(out->IsEmpty()) << tc.name << ": result is empty";
+  }
+}
+
+// Verify the same for the northern polar cap (bbox -180,70 to 180,90).
+TEST(GeometryProjectorTests, NorthernPolarCap_ProblematicProjections_IsNonEmpty)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+  };
+
+  const Case cases[] = {
+      {"cass",    "+proj=cass +datum=WGS84 +units=m"},
+      {"aitoff",  "+proj=aitoff +datum=WGS84 +units=m"},
+      {"fouc",    "+proj=fouc +datum=WGS84 +units=m"},
+      {"mil_os",  "+proj=mil_os +datum=WGS84 +units=m"},
+      {"putp1",   "+proj=putp1 +datum=WGS84 +units=m"},
+      {"putp4p",  "+proj=putp4p +datum=WGS84 +units=m"},
+      {"qua_aut", "+proj=qua_aut +datum=WGS84 +units=m"},
+  };
+
+  OGRPolygon poly = northernPolarCapPolygon();
+
+  for (const auto& tc : cases)
+  {
+    OGRSpatialReference wgs84 = makeSRS(4326);
+    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+
+    Fmi::GeometryProjector projector(&wgs84, &target);
+    projector.setProjectedBounds(-2e7, -2e7, 2e7, 2e7);
+    projector.setDensifyResolutionKm(50.0);
+
+    std::unique_ptr<OGRGeometry> out;
+    ASSERT_NO_THROW(out = projector.projectGeometry(&poly))
+        << tc.name << ": threw exception";
+    ASSERT_TRUE(out) << tc.name << ": result is null";
+    ASSERT_FALSE(out->IsEmpty()) << tc.name << ": result is empty";
   }
 }

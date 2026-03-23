@@ -940,6 +940,72 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
       if (run)
         snapToExactBoundary(run.get());
 
+    // Extend open-run endpoints to the box boundary when they are interior points
+    // rather than on a box edge.  This happens for projections (e.g. cass) where
+    // failures at extreme lat/lon leave the surviving segment endpoints inside the
+    // box.  Without extension, connectLines() cannot close such a linestring and
+    // throws "Stuck, discarding ring".
+    for (auto& run : clippedRuns)
+    {
+      if (!run || run->getNumPoints() < 2)
+        continue;
+      const int rn = run->getNumPoints();
+      // Only open runs need extension
+      if (run->getX(0) == run->getX(rn - 1) && run->getY(0) == run->getY(rn - 1))
+        continue;
+
+      auto extendEndpointToBound = [&](bool atFront)
+      {
+        const int np = run->getNumPoints();
+        if (np < 2)
+          return;
+        double px, py, dx, dy;
+        if (atFront)
+        {
+          px = run->getX(0);
+          py = run->getY(0);
+          dx = px - run->getX(1);
+          dy = py - run->getY(1);
+        }
+        else
+        {
+          px = run->getX(np - 1);
+          py = run->getY(np - 1);
+          dx = px - run->getX(np - 2);
+          dy = py - run->getY(np - 2);
+        }
+        OGRPoint endPt(px, py);
+        if (isOnBoundary(endPt, b, tol))
+          return;  // already on boundary
+        const double len = std::sqrt(dx * dx + dy * dy);
+        if (len < 1e-10)
+          return;  // degenerate segment — cannot extrapolate
+        const double bigDist = 3.0 * std::max(b.maxX - b.minX, b.maxY - b.minY);
+        const ClipHit hit =
+            clipSegmentLB(px, py, px + (dx / len) * bigDist, py + (dy / len) * bigDist, b);
+        if (!hit.ok)
+          return;
+        OGRPoint bPt = hit.b;
+        snapToBoundaryPoint(bPt, b, tol);
+        if (atFront)
+        {
+          auto extended = std::make_unique<OGRLineString>();
+          extended->addPoint(bPt.getX(), bPt.getY());
+          for (int i = 0; i < np; ++i)
+            extended->addPoint(run->getX(i), run->getY(i));
+          run = std::move(extended);
+        }
+        else
+        {
+          run->addPoint(bPt.getX(), bPt.getY());
+        }
+      };
+
+      extendEndpointToBound(/*atFront=*/false);  // back first — does not shift front indices
+      extendEndpointToBound(/*atFront=*/true);   // front second — may prepend a point
+      snapToExactBoundary(run.get());             // snap newly added endpoints to exact boundary
+    }
+
     for (auto& run : clippedRuns)
     {
       if (!run || run->getNumPoints() < 2)
