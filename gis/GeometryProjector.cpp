@@ -2,9 +2,9 @@
 
 #include "GeometryProjector.h"
 #include "OGR.h"
+#include "GeometryBuilder.h"
+#include "RectClipper.h"
 
-#include <gis/GeometryBuilder.h>
-#include <gis/RectClipper.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
