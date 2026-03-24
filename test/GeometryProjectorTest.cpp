@@ -2460,3 +2460,81 @@ TEST(GeometryProjectorTests, NorthernPolarCap_ProblematicProjections_IsNonEmpty)
   runPolarCapCases("NorthernPolarCap", poly, kBothCapCases);
   runPolarCapCases("NorthernPolarCap", poly, kNorthCapOnlyCases);
 }
+
+// ---------------------------------------------------------------------------
+
+// Verify that the world polygon does not vanish when the bounding box is
+// slightly SMALLER than the projection's natural world extent.
+//
+// Two failure modes are covered:
+//
+//   WebMercator (EPSG:3857): natural extent ≈ ±20 037 508 m in both X and Y.
+//   With a ±20 000 km box ALL four projected edges of the world rectangle lie
+//   outside the bbox → Liang-Barsky produces zero runs → polygon vanishes.
+//
+//   Plate Carrée / eqc: natural extent ≈ ±20 037 508 m in X and ±10 018 754 m
+//   in Y.  With a ±20 000 km box the left/right edges (x ≈ ±20.04 Mm) are
+//   outside the bbox, but top/bottom edges (y ≈ ±10.02 Mm) are inside.  Two
+//   runs are produced; the result should be a rectangle ~40 Mm × ~20 Mm.
+//
+// In both cases the expected output covers a substantial fraction of the bbox.
+TEST(GeometryProjectorTests, WorldPolygon_CylindricalProjections_SmallerBboxIsNonEmpty)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+    // Minimum fraction of the bbox area we expect the result to cover.
+    double minFraction;
+  };
+
+  const Case cases[] = {
+      // WebMercator: world extent ≈ ±20.04 Mm in both axes → whole bbox filled.
+      {"webmerc",
+       "+proj=webmerc +datum=WGS84 +units=m",
+       0.90},
+      // Plate Carrée: world y extent ≈ ±10 Mm, inside ±20 Mm → fills a strip.
+      {"eqc",
+       "+proj=eqc +datum=WGS84 +units=m",
+       0.25},
+  };
+
+  // Fixed ±20 000 km bounding box — slightly smaller than the WebMercator natural extent.
+  const double BOX = 20e6;  // 20 000 km
+  const Bounds B{-BOX, -BOX, BOX, BOX};
+  const double boxArea = (B.maxX - B.minX) * (B.maxY - B.minY);
+
+  OGRPolygon poly = worldPolygonCCW();
+
+  for (const auto& tc : cases)
+  {
+    SCOPED_TRACE(tc.name);
+    OGRSpatialReference wgs84 = makeSRS(4326);
+    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+
+    Fmi::GeometryProjector projector(&wgs84, &target);
+    projector.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
+    projector.setDensifyResolutionKm(50.0);
+
+    auto out = projector.projectGeometry(&poly);
+
+    ASSERT_TRUE(out && !out->IsEmpty())
+        << tc.name << ": world polygon vanished with ±20 Mm bbox";
+
+    const auto gt = wkbFlatten(out->getGeometryType());
+    EXPECT_TRUE(gt == wkbPolygon || gt == wkbMultiPolygon)
+        << tc.name << ": expected polygon, got " << OGRGeometryTypeToName(out->getGeometryType());
+
+    EXPECT_TRUE(allVerticesWithinBounds(out.get(), B))
+        << tc.name << ": vertices outside bounds";
+
+    const double area = totalArea(out.get());
+    EXPECT_GT(area, tc.minFraction * boxArea)
+        << tc.name << ": area " << area << " is less than " << (tc.minFraction * 100)
+        << "% of bbox area " << boxArea;
+  }
+}
