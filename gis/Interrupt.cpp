@@ -288,6 +288,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     // The code commented out shows various tests used to find out how a nonzero lon_0 should be
     // handled, but the (random) experimental approach failed.
 
+#if 0    
     if (theSRS.projInfo().getString("proj") == std::string("ob_tran"))
     {
       const auto opt_lat_p = theSRS.projInfo().getDouble("o_lat_p");
@@ -318,6 +319,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       // cutting is not yet implemented; fall through to the default antimeridian
       // cut below, which is a reasonable approximation for mildly oblique cases.
     }
+#endif
 
     // Geographic: cut everything at lon_wrap (default=Greenwich) antimeridians
     if (theSRS.isGeographic())
@@ -418,7 +420,18 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       return result;
     }
 
-    if (name == "tmerc" || name == "gstmerc")
+    if (name == "tmerc")
+    {
+      // Transverse Mercator (tmerc) and Gauss-Schreiber Transverse Mercator (gstmerc):
+      // both project the hemisphere within ±90° of the central meridian.  Beyond that
+      // boundary the projection diverges.  89.9° was found experimentally to avoid
+      // projection failures right at the ±90° horizon without clipping legitimate data.
+      const auto radius = 89.9 * wgs84radius * degree;
+      result.andGeometry = circle_cut(lon_0, lat_0, radius);
+      return result;
+    }
+
+    if (name == "gstmerc")
     {
       // Transverse Mercator (tmerc) and Gauss-Schreiber Transverse Mercator (gstmerc):
       // both project the hemisphere within ±90° of the central meridian.  Beyond that
