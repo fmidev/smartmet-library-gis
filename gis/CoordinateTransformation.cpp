@@ -222,6 +222,24 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 {
   try
   {
+    GeometryProjector projector(impl->m_source.get(), impl->m_target.get());
+    const double global_bound = 30000 * 1e3;  // 30,000 km
+    projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
+    projector.setDensifyResolutionKm(theMaximumSegmentLength);
+
+    return transformGeometry(geom, projector);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom,
+                                                         const GeometryProjector& projector) const
+{
+  try
+  {
     // Automatic deleter for temporary unique_ptr results
     struct OGRGeometryDeleter
     {
@@ -243,10 +261,6 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
     }
 
     // Source is geographic
-
-    GeometryProjector projector(impl->m_source.get(), impl->m_target.get());
-    const double global_bound = 30000 * 1e3;  // 30,000 km
-    projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
 
     auto target_envelope = interruptEnvelope(impl->m_target);
 
@@ -270,7 +284,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
     // Do quick vertical cuts
     for (const auto& box : interrupt.cuts)
     {
-      g = make_geometry_ptr(OGR::polycut(*g, box, theMaximumSegmentLength));
+      g = make_geometry_ptr(OGR::polycut(*g, box, projector.getDensifyResolutionKm()));
       if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
         return nullptr;
     }
@@ -279,7 +293,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
     for (auto& shape : interrupt.shapeCuts)
     {
       // shape.print(std::cout);
-      g = make_geometry_ptr(OGR::polycut(*g, shape, theMaximumSegmentLength));
+      g = make_geometry_ptr(OGR::polycut(*g, shape, projector.getDensifyResolutionKm()));
       if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
         return nullptr;
     }
@@ -290,7 +304,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       for (auto& shape : interrupt.shapeClips)
       {
         // shape.print(std::cout);
-        g = make_geometry_ptr(OGR::polyclip(*g, shape, theMaximumSegmentLength));
+        g = make_geometry_ptr(OGR::polyclip(*g, shape, projector.getDensifyResolutionKm()));
         if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
           return nullptr;
       }

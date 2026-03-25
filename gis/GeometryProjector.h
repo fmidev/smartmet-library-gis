@@ -25,9 +25,10 @@ class GeometryProjector
 
   // Default 50km. Set <=0 to disable geographic densification.
   void setDensifyResolutionKm(double km);
+  double getDensifyResolutionKm() const;
 
   // Project + clip to bounds. Returns nullptr only if input geom is nullptr.
-  std::unique_ptr<OGRGeometry> projectGeometry(const OGRGeometry* geom);
+  std::unique_ptr<OGRGeometry> projectGeometry(const OGRGeometry* geom) const;
 
   void setJumpThreshold(double threshold);
 
