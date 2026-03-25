@@ -482,10 +482,24 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     if (name == "adams_hemi")
     {
       // Adams Hemisphere-in-a-Square: valid domain is exactly one hemisphere (90°
-      // from centre).  Same pole-collapse problem as airy/ortho — clip slightly
-      // inside the boundary so the north/south poles are excluded.
-      const auto radius = 0.999 * 90 * wgs84radius * degree;
-      result.andGeometry = circle_cut(lon_0, lat_0, radius);
+      // from centre).
+
+      if (lon_0 > -90 && lon_0 < 90)
+      {
+        result.shapeCuts.emplace_back(std::make_shared<Shape_rect>(-180, -90, lon_0 - 90, 90));
+        result.shapeCuts.emplace_back(std::make_shared<Shape_rect>(lon_0 + 90, -90, 180, 90));
+      }
+      else if (lon_0 <= -90)
+      {
+        result.shapeCuts.emplace_back(
+            std::make_shared<Shape_rect>(lon_0 + 90, -90, lon_0 + 270, 90));
+      }
+      else if (lon_0 >= 90)
+      {
+        result.shapeCuts.emplace_back(
+            std::make_shared<Shape_rect>(lon_0 - 270, -90, lon_0 - 90, 90));
+      }
+
       return result;
     }
 
@@ -600,29 +614,6 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 72), -90, -30));
       // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 144), -90, -30));
 
-      return result;
-    }
-
-    if (name == "adams_ws1" || name == "adams_ws2")
-    {
-      // Adams World in a Square I and II use a Schwarz–Christoffel conformal mapping
-      // that covers the entire sphere.  The four geographic corners (±180°, ±90°) are
-      // singularities that project to infinity, so even with densification the corner
-      // vertices produce values far outside any finite bounding box and cause RectClipper
-      // to get stuck trying to reconnect the resulting open segments.
-      // Clip to a box that excludes a small margin around the four singularity corners.
-      // 5° is sufficient: points at (±175°, ±85°) project to finite, well-behaved values
-      // while losing less than 0.3 % of the Earth's surface area.
-      const double margin = 5.0;
-      auto* poly = new OGRPolygon;
-      auto* ring = new OGRLinearRing;
-      ring->addPoint(-180 + margin, -90 + margin);
-      ring->addPoint( 180 - margin, -90 + margin);
-      ring->addPoint( 180 - margin,  90 - margin);
-      ring->addPoint(-180 + margin,  90 - margin);
-      ring->addPoint(-180 + margin, -90 + margin);
-      poly->addRingDirectly(ring);
-      result.andGeometry = make_geometry_ptr(poly);
       return result;
     }
 
