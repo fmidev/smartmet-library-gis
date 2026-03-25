@@ -288,7 +288,6 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     // The code commented out shows various tests used to find out how a nonzero lon_0 should be
     // handled, but the (random) experimental approach failed.
 
-#if 0    
     if (theSRS.projInfo().getString("proj") == std::string("ob_tran"))
     {
       const auto opt_lat_p = theSRS.projInfo().getDouble("o_lat_p");
@@ -319,7 +318,6 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
       // cutting is not yet implemented; fall through to the default antimeridian
       // cut below, which is a reasonable approximation for mildly oblique cases.
     }
-#endif
 
     // Geographic: cut everything at lon_wrap (default=Greenwich) antimeridians
     if (theSRS.isGeographic())

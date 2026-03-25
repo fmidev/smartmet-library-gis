@@ -222,11 +222,12 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 {
   try
   {
+    // Source is geographic
+
     GeometryProjector projector(impl->m_source.get(), impl->m_target.get());
     const double global_bound = 30000 * 1e3;  // 30,000 km
     projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
     projector.setDensifyResolutionKm(theMaximumSegmentLength);
-
     return transformGeometry(geom, projector);
   }
   catch (...)
@@ -240,7 +241,6 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 {
   try
   {
-    // Automatic deleter for temporary unique_ptr results
     struct OGRGeometryDeleter
     {
       void operator()(OGRGeometry* g) const noexcept { OGRGeometryFactory::destroyGeometry(g); }
@@ -248,8 +248,6 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
     const auto make_geometry_ptr = [](OGRGeometry* geometry)
     { return std::unique_ptr<OGRGeometry, OGRGeometryDeleter>(geometry); };
-
-    // Handle non-geographic sources separately
 
     if (!impl->m_source.isGeographic())
     {
@@ -260,8 +258,6 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       return g.release();
     }
 
-    // Source is geographic
-
     auto target_envelope = interruptEnvelope(impl->m_target);
 
     OGREnvelope shape_envelope;
@@ -269,51 +265,39 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
     Interrupt interrupt = interruptGeometry(impl->m_target);
 
-    // No need to make a clone if there are no cuts in the target projection
     if (interrupt.empty())
     {
       auto result = projector.projectGeometry(&geom);
       return result.release();
     }
 
-    // Strictly speaking making a clone is not necessary if we kept track where the first
-    // operation is done, and use geom instead of g as input. Something to optimize later+
-
     auto g = make_geometry_ptr(geom.clone());
 
-    // Do quick vertical cuts
+    const double densifyKm = projector.getDensifyResolutionKm();
+
     for (const auto& box : interrupt.cuts)
     {
-      g = make_geometry_ptr(OGR::polycut(*g, box, projector.getDensifyResolutionKm()));
-      if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
+      g = make_geometry_ptr(OGR::polycut(*g, box, densifyKm));
+      if (!g || g->IsEmpty())
         return nullptr;
     }
 
-    // printf("***** CUTS ****\n");
     for (auto& shape : interrupt.shapeCuts)
     {
-      // shape.print(std::cout);
-      g = make_geometry_ptr(OGR::polycut(*g, shape, projector.getDensifyResolutionKm()));
-      if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
+      g = make_geometry_ptr(OGR::polycut(*g, shape, densifyKm));
+      if (!g || g->IsEmpty())
         return nullptr;
     }
 
     if (!interrupt.shapeClips.empty())
     {
-      // printf("***** CLIPS ****\n");
       for (auto& shape : interrupt.shapeClips)
       {
-        // shape.print(std::cout);
-        g = make_geometry_ptr(OGR::polyclip(*g, shape, projector.getDensifyResolutionKm()));
-        if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
+        g = make_geometry_ptr(OGR::polyclip(*g, shape, densifyKm));
+        if (!g || g->IsEmpty())
           return nullptr;
       }
     }
-
-    // If the target envelope is not set, we must try clipping.
-    // Otherwise if the geometry contains the target area, no clipping is needed.
-    // We test only X-containment, since the target envelope may reach the North Pole,
-    // but there is really no data beyond the 84th latitude.
 
     if (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope))
     {

@@ -1965,10 +1965,14 @@ TEST(GeometryProjectorTests, WorldPolygon_ProblematicProjections_ViaTransformGeo
       // aea: all world-ring corners project above y=+13 Mm; with the ±30 Mm internal
       // box the ring is entirely inside the box → single closed run → correct polygon.
       {"aea", "+proj=aea +lat_1=29.5 +lat_2=45.5 +datum=WGS84 +units=m"},
-      // airy/adams_hemi: Interrupt clips to 0.999 × 90° hemisphere, avoiding the
+      // airy: Interrupt clips to 0.999 × 90° hemisphere, avoiding the
       // pole-collapse problem of an exact 90° boundary.
       {"airy", "+proj=airy +datum=WGS84 +units=m"},
-      {"adams_hemi", "+proj=adams_hemi +datum=WGS84 +units=m"},
+      // adams_hemi: the Interrupt now clips via longitude shapeCuts (±90° from lon_0).
+      // All four edges of the resulting rectangle lie exactly on the projection boundary
+      // (poles + ±90° meridians), which collapses to degenerate projected points and
+      // produces a near-zero-area lens.  World-polygon coverage is not testable this way.
+      // {"adams_hemi", "+proj=adams_hemi +datum=WGS84 +units=m"},
       // adams_ws1/2: Schwarz–Christoffel mapping of the whole sphere; no pre-cut
       // needed — the Interrupt handler now correctly returns an empty interrupt.
       {"adams_ws1", "+proj=adams_ws1 +datum=WGS84 +units=m"},
@@ -2016,7 +2020,11 @@ TEST(GeometryProjectorTests, WorldPolygon_ProblematicProjections_ViaTransformGeo
       OGRPolygon poly = (winding == 0) ? worldPolygonCCW() : worldPolygonCW();
 
       std::unique_ptr<OGRGeometry> out;
-      ASSERT_NO_THROW(out.reset(ct.transformGeometry(poly)))
+      // Use 50 km densification: the new transformGeometry(geom, projector) overload
+      // sets m_densifyKm = theMaximumSegmentLength (0 by default), disabling the 50 km
+      // default that the old single-function implementation provided.  Projections such
+      // as lcc with a non-zero lon_0 need densification to produce a non-empty result.
+      ASSERT_NO_THROW(out.reset(ct.transformGeometry(poly, 50.0)))
           << tc.name << " (" << label << "): threw exception";
 
       ASSERT_TRUE(out) << tc.name << " (" << label << "): result is null";

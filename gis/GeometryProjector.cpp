@@ -21,9 +21,7 @@
 #include <utility>
 #include <vector>
 
-#include <fmt/printf.h>
-#include <geos_c.h>
-#include <iostream>
+// #include <geos_c.h>
 
 namespace Fmi
 {
@@ -104,8 +102,6 @@ void densifyGeographicKm(OGRLineString* line, double stepKm)
       d = std::abs(lon1 - lon0) / 360.0 * earth_circumference_m;  // pole traversal
     else
       d = approxSegmentMeters(lon0, lat0, lon1, lat1);  // non pole traversal as non zero distance
-
-    // fmt::print("\tSegment {} : {} {} --> {} {}\tdist = {}\n", i, lon0, lat0, lon1, lat1, d);
 
     if (d <= stepM)
       continue;
@@ -507,7 +503,7 @@ class GeometryProjector::Impl
   void setProjectedBounds(double minX, double minY, double maxX, double maxY);
   void setDensifyResolutionKm(double km);
   double getDensifyResolutionKm() const;
-  std::unique_ptr<OGRGeometry> projectGeometry(const OGRGeometry* geom) const;
+  std::unique_ptr<OGRGeometry> projectGeometry(const OGRGeometry* geom);
   void setJumpThreshold(double threshold);
 
  private:
@@ -546,10 +542,10 @@ class GeometryProjector::Impl
   double m_densifyKm = 50.0;  // default densification is to 50 km
 
   // ---- core dispatch ----
-  std::unique_ptr<OGRGeometry> projectPoint(const OGRPoint* point) const;
-  std::unique_ptr<OGRGeometry> projectLineString(const OGRLineString* line) const;
-  std::unique_ptr<OGRGeometry> projectPolygon(const OGRPolygon* polygon) const;
-  std::unique_ptr<OGRGeometry> projectMultiGeometry(const OGRGeometryCollection* collection) const;
+  std::unique_ptr<OGRGeometry> projectPoint(const OGRPoint* point);
+  std::unique_ptr<OGRGeometry> projectLineString(const OGRLineString* line);
+  std::unique_ptr<OGRGeometry> projectPolygon(const OGRPolygon* polygon);
+  std::unique_ptr<OGRGeometry> projectMultiGeometry(const OGRGeometryCollection* collection);
 
   // ---- helpers ----
   ProjectionBoundary getProjectionBoundary() const;
@@ -612,7 +608,7 @@ double GeometryProjector::Impl::getDensifyResolutionKm() const
   return m_densifyKm;
 }
 
-std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectGeometry(const OGRGeometry* geom) const
+std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectGeometry(const OGRGeometry* geom)
 {
   if (!geom)
     return nullptr;
@@ -649,7 +645,7 @@ void GeometryProjector::Impl::setJumpThreshold(double threshold)
 
 // ------------------------------ core dispatch helpers ------------------------------
 
-std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPoint(const OGRPoint* point) const
+std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPoint(const OGRPoint* point)
 {
   if (!point || point->IsEmpty())
     return nullptr;
@@ -665,8 +661,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPoint(const OGRPoin
   return std::unique_ptr<OGRGeometry>(p.release());
 }
 
-std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(
-    const OGRLineString* line) const
+std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(const OGRLineString* line)
 {
   if (!line || line->IsEmpty())
     return nullptr;
@@ -695,8 +690,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectLineString(
   return std::unique_ptr<OGRGeometry>(ml);
 }
 
-std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPolygon(
-    const OGRPolygon* polygon) const
+std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPolygon(const OGRPolygon* polygon)
 {
   if (!polygon || polygon->IsEmpty())
     return nullptr;
@@ -705,7 +699,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectPolygon(
 }
 
 std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectMultiGeometry(
-    const OGRGeometryCollection* collection) const
+    const OGRGeometryCollection* collection)
 {
   if (!collection || collection->IsEmpty())
     return nullptr;
@@ -835,7 +829,6 @@ GeometryProjector::Impl::projectToProjectedRunsBestEffort(const OGRLineString& g
       continue;
     }
     cur->addPoint(p->getX(), p->getY());
-    // fmt::print("PROJ {} {}\t{} {}\n", geo.getX(i), geo.getY(i), p->getX(), p->getY());
   }
   flush();  // always flush at end regardless of splitAtFailures
   return runs;
@@ -1194,25 +1187,25 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
 }
 
 #if 0
-// Disabled since does not seem to cause problems
-for (size_t i = 0; i < shells.size(); ++i)
-{
-  if (!shells[i]->IsValid())
+  // Disabled since does not seem to cause problems
+  for (size_t i = 0; i < shells.size(); ++i)
   {
-    // Get the GEOS handle from the geometry
-    GEOSContextHandle_t hGEOSCtx = OGRGeometry::createGEOSContext();
-    GEOSGeom hGEOSGeom = shells[i]->exportToGEOS(hGEOSCtx);
+    if (!shells[i]->IsValid())
+    {
+      // Get the GEOS handle from the geometry
+      GEOSContextHandle_t hGEOSCtx = OGRGeometry::createGEOSContext();
+      GEOSGeom hGEOSGeom = shells[i]->exportToGEOS(hGEOSCtx);
 
-    char* pszReason = GEOSisValidReason_r(hGEOSCtx, hGEOSGeom);
+      char* pszReason = GEOSisValidReason_r(hGEOSCtx, hGEOSGeom);
 
-    std::cerr << "    shell[" << i << "] valid=false"
-              << " reason=" << (pszReason ? pszReason : "?") << "\n";
+      std::cerr << "    shell[" << i << "] valid=false"
+                << " reason=" << (pszReason ? pszReason : "?") << "\n";
 
-    GEOSFree(pszReason);
-    GEOSGeom_destroy_r(hGEOSCtx, hGEOSGeom);
-    OGRGeometry::freeGEOSContext(hGEOSCtx);
+      GEOSFree(pszReason);
+      GEOSGeom_destroy_r(hGEOSCtx, hGEOSGeom);
+      OGRGeometry::freeGEOSContext(hGEOSCtx);
+    }
   }
-}
 #endif
 
 // ------------------------------ GeometryProjector (public) ------------------------------
