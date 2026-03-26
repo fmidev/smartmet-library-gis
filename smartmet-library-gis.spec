@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.3.20
+Version: 26.3.26
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -120,6 +120,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Thu Mar 26 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.3.26-1.fmi
+- GeometryProjector and geometry clipper rewrite
+
 * Fri Mar 20 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.3.20-1.fmi
 - GeometryProjector fixes
 
