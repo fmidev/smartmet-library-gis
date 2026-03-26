@@ -55,14 +55,13 @@ std::string pretty(double num, const char* format)
 
     std::string ret = fmt::sprintf(format, num);
     std::size_t pos = ret.size();
-    while (pos > 0 && ret[--pos] == '0')
-    {
-    }
+    while (pos > 0 && ret[pos - 1] == '0')
+      --pos;
 
-    if (ret[pos] != ',' && ret[pos] != '.')
+    if (pos == 0 || (ret[pos - 1] != ',' && ret[pos - 1] != '.'))
       return ret;
 
-    ret.resize(pos);
+    ret.resize(pos - 1);
 
     if (ret != "-0")
       return ret;

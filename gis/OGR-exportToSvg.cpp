@@ -60,11 +60,10 @@ void append_number(std::string &out, double num, const char * /* format */, int 
     auto pos = builder.position();  // must be called before next row!
     builder.Finalize();             // required to avoid asserts in debug mode
 
-    while (pos > 0 && buffer[--pos] == '0')
-    {
-    }
-    if (buffer[pos] != ',' && buffer[pos] != '.')
-      ++pos;
+    while (pos > 0 && buffer[pos - 1] == '0')
+      --pos;
+    if (pos > 0 && (buffer[pos - 1] == ',' || buffer[pos - 1] == '.'))
+      --pos;
 
     out.append(buffer, pos);
   }
@@ -83,7 +82,7 @@ void append_number(std::string &out, double num, const char *format, int /* deci
 {
   try
   {
-    char buffer[30]{};  // zero initialized!
+    char buffer[168]{};  // zero initialized; sized to match the UNIX path buffer
     if (strcmp(format, "%.0f") == 0)
       fmt::format_to(buffer, "%d", std::round(num));
     else
@@ -330,8 +329,7 @@ void writeMultiPointSVG(
 
     for (int i = 0, n = geom->getNumGeometries(); i < n; ++i)
     {
-      writePointSVG(
-          out, dynamic_cast<const OGRPoint *>(geom->getGeometryRef(i)), box, format, decimals);
+      writePointSVG(out, geom->getGeometryRef(i), box, format, decimals);
     }
   }
   catch (...)

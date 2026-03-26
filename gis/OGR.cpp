@@ -119,7 +119,7 @@ std::string Fmi::OGR::exportToWkt(const OGRSpatialReference& theSRS)
 {
   try
   {
-    char* out;
+    char* out = nullptr;
     theSRS.exportToWkt(&out);
     std::string ret = out;
     CPLFree(out);
@@ -143,7 +143,7 @@ std::string Fmi::OGR::exportToSimpleWkt(const OGRSpatialReference& theSRS)
   {
     const char* const options[] = {"FORMAT=WKT1_SIMPLE",
                                    nullptr};  // NOLINT(modernize-avoid-c-arrays)
-    char* out;
+    char* out = nullptr;
     theSRS.exportToWkt(&out, options);
     std::string ret = out;
     CPLFree(out);
@@ -165,7 +165,7 @@ std::string Fmi::OGR::exportToPrettyWkt(const OGRSpatialReference& theSRS)
 {
   try
   {
-    char* out;
+    char* out = nullptr;
     theSRS.exportToPrettyWkt(&out);
     std::string ret = out;
     CPLFree(out);
@@ -187,7 +187,7 @@ std::string Fmi::OGR::exportToProj(const OGRSpatialReference& theSRS)
 {
   try
   {
-    char* out;
+    char* out = nullptr;
     theSRS.exportToProj4(&out);
     std::string ret = out;
     CPLFree(out);
@@ -212,7 +212,7 @@ std::string Fmi::OGR::exportToWkt(const OGRGeometry& theGeom)
 {
   try
   {
-    char* out;
+    char* out = nullptr;
     theGeom.exportToWkt(&out);
     std::string ret = out;
     CPLFree(out);

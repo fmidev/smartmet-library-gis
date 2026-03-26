@@ -57,7 +57,7 @@ void normalize_winding(OGRPolygon *theGeom)
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; i++)
     {
-      auto hole = theGeom->getInteriorRing(i);
+      auto *hole = theGeom->getInteriorRing(i);
       if (!hole->isClockwise())
         hole->reversePoints();
     }
@@ -131,11 +131,14 @@ void normalize_winding(OGRGeometry *theGeom)
     switch (wkbFlatten(id))
     {
       case wkbPolygon:
-        return normalize_winding(dynamic_cast<OGRPolygon *>(theGeom));
+        normalize_winding(dynamic_cast<OGRPolygon *>(theGeom));
+        return;
       case wkbMultiPolygon:
-        return normalize_winding(dynamic_cast<OGRMultiPolygon *>(theGeom));
+        normalize_winding(dynamic_cast<OGRMultiPolygon *>(theGeom));
+        return;
       case wkbGeometryCollection:
-        return normalize_winding(dynamic_cast<OGRGeometryCollection *>(theGeom));
+        normalize_winding(dynamic_cast<OGRGeometryCollection *>(theGeom));
+        return;
       default:;
     }
   }

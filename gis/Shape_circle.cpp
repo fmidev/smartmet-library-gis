@@ -6,12 +6,9 @@
 
 namespace Fmi
 {
-#ifndef PI
-#define PI 3.14159265358979323846
-#define PI2 6.28318530718
-#endif
-
-#define DELTA 1000000000
+constexpr double PI = 3.14159265358979323846;
+constexpr double PI2 = 6.28318530718;
+constexpr long DELTA = 1000000000;
 
 namespace
 {
@@ -477,7 +474,7 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
     double xA = g.getX(0);
     double yA = g.getY(0);
     auto posA = getPosition(xA, yA);
-    auto posB = posA;
+    int posB = 0;
     auto position = posA;
 
     if (posA == Position::Outside)
@@ -530,9 +527,10 @@ int Shape_circle::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bo
           if (pX2 != xB || pY2 != yB)
             line->addPoint(xB, yB);
           break;
+        default:
+          break;
       }
 
-      posA = posB;
       xA = xB;
       yA = yB;
     }
@@ -587,7 +585,7 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
     double xA = g.getX(0);
     double yA = g.getY(0);
     auto posA = getPosition(xA, yA);
-    auto posB = posA;
+    int posB = 0;
     auto position = posA;
 
     if (posA == Position::Inside)
@@ -640,9 +638,10 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
           // theClipper.add(line, exterior);
           line = new OGRLineString();
           break;
+        default:
+          break;
       }
 
-      posA = posB;
       xA = xB;
       yA = yB;
     }
@@ -665,18 +664,14 @@ int Shape_circle::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, b
         // This is a hole and it is inside the clipping area. The current
         // hole is added later (i.e. if we add it here then we have two holes).
 
-        for (auto li = lines.begin(); li != lines.end(); ++li)
-        {
-          delete *li;
-        }
+        for (auto *li : lines)
+          delete li;
         return position;
       }
     }
 
-    for (auto li = lines.begin(); li != lines.end(); ++li)
-    {
-      theClipper.add(*li, exterior);
-    }
+    for (auto *li : lines)
+      theClipper.add(li, exterior);
 
     return position;
   }

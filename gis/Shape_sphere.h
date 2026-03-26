@@ -78,8 +78,8 @@ class Shape_sphere : public Shape
  private:
   double itsX;  // Center coordinates (latlon)
   double itsY;
-  double itsXX;  // Center coordinates (azimuthal equidistant)
-  double itsYY;
+  double itsXX = 0.0;  // Center coordinates (azimuthal equidistant)
+  double itsYY = 0.0;
   double itsXDelta;  // Shifted center coordinates (=> positive calculations)
   double itsYDelta;
   double itsXXDelta;  // Shifted center coordinates (=> positive calculations)

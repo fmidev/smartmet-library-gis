@@ -112,9 +112,6 @@
 #include "OGR.h"
 #include "RectClipper.h"
 #include <macgyver/Exception.h>
-#include <iomanip>
-#include <iostream>
-#include <list>
 
 namespace Fmi
 {
@@ -195,7 +192,7 @@ bool box_inside_ring(const Box &theBox, const OGRLinearRing &theRing)
 
 bool different(double x1, double y1, double x2, double y2)
 {
-  return !(x1 == x2 && y1 == y2);
+  return (x1 != x2 || y1 != y2);
 }
 
 // ----------------------------------------------------------------------
@@ -1026,7 +1023,10 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       // - if box inside exterior, keep exterior and continue
       // - if box outside exterior, return input as is
 
-      bool box_inside = box_inside_ring(theBox, *theGeom->getExteriorRing());
+      const auto *exterior = theGeom->getExteriorRing();
+      if (exterior == nullptr)
+        return;
+      bool box_inside = box_inside_ring(theBox, *exterior);
 
       if (keep_inside)
       {
@@ -1153,8 +1153,10 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
       // - if box inside exterior, box becomes part of new holes ; ADD_BOX
       // - if box outside exterior, return input as is
 
-      bool box_inside = box_inside_ring(theBox, *theGeom->getExteriorRing());
-      // std::cerr << "box_inside = " << box_inside << "\n";
+      const auto *exterior = theGeom->getExteriorRing();
+      if (exterior == nullptr)
+        return;
+      bool box_inside = box_inside_ring(theBox, *exterior);
 
       if (keep_inside)
       {
@@ -1403,7 +1405,7 @@ void do_multipolygon(const OGRMultiPolygon *theGeom,
 
     for (int i = 0, n = theGeom->getNumGeometries(); i < n; ++i)
     {
-      do_polygon(dynamic_cast<const OGRPolygon *>(theGeom->getGeometryRef(i)),
+      do_polygon(theGeom->getGeometryRef(i),
                  theBuilder,
                  theBox,
                  max_length,

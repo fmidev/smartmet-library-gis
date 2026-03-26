@@ -323,7 +323,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
     // connectLines can use a consistent traversal direction formula.
     std::unique_ptr<OGRGeometry> normalizedOwner(theGeom->clone());
     OGR::normalizeWindingOrder(normalizedOwner.get());
-    theGeom = static_cast<const OGRPolygon *>(normalizedOwner.get());
+    theGeom = dynamic_cast<const OGRPolygon *>(normalizedOwner.get());
 
     // Clip the exterior first to see what's going on
 

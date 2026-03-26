@@ -11,16 +11,9 @@
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 #include <gdal_version.h>
-#include <iostream>
 #include <limits>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
-
-// So far we've had no data with axes swapped since we force axis orientation in all constructors.
-// This might change when using external sources for spatial references, then we'll need to put this
-// flag on.
-
-#define CHECK_AXES 0
 
 namespace Fmi
 {
@@ -112,11 +105,6 @@ bool CoordinateTransformation::transform(double& x, double& y) const
 {
   try
   {
-#if CHECK_AXES
-    if (impl->m_swapInput)
-      std::swap(x, y);
-#endif
-
     bool ok = (impl->m_transformation->Transform(1, &x, &y) != 0);
 
     if (!ok)
@@ -126,7 +114,6 @@ bool CoordinateTransformation::transform(double& x, double& y) const
       return false;
     }
 
-    // if (impl->m_swapOutput) std::swap(x, y);
     return true;
   }
   catch (...)
@@ -146,21 +133,11 @@ bool CoordinateTransformation::transform(std::vector<double>& x, std::vector<dou
       throw Fmi::Exception::Trace(
           BCP, "Cannot do coordinate transformation for empty X- and Y-coordinate vectors");
 
-#if CHECK_AXES
-    if (impl->m_swapInput)
-      std::swap(x, y);
-#endif
-
     int n = static_cast<int>(x.size());
     std::vector<int> flags(n, 0);
 
     bool ok =
         (impl->m_transformation->Transform(n, x.data(), y.data(), nullptr, flags.data()) != 0);
-
-#if CHECK_AXES
-    if (impl->m_swapOutput)
-      std::swap(x, y);
-#endif
 
     for (std::size_t i = 0; i < flags.size(); i++)
     {
@@ -183,18 +160,7 @@ bool CoordinateTransformation::transform(OGRGeometry& geom) const
 {
   try
   {
-#if CHECK_AXES
-    if (impl->m_swapInput)
-      geom.swapXY();
-#endif
-
-    bool ok = (geom.transform(impl->m_transformation.get()) != OGRERR_NONE);
-
-#if CHECK_AXES
-    if (ok && impl->m_swapOutput)
-      geom.swapXY();
-#endif
-
+    bool ok = (geom.transform(impl->m_transformation.get()) == OGRERR_NONE);
     return ok;
   }
   catch (...)
@@ -256,7 +222,25 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 {
   try
   {
-    // Automatic deleter for temporary unique_ptr results
+    // Source is geographic
+
+    GeometryProjector projector(impl->m_source.get(), impl->m_target.get());
+    const double global_bound = 30000 * 1e3;  // 30,000 km
+    projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
+    projector.setDensifyResolutionKm(theMaximumSegmentLength);
+    return transformGeometry(geom, projector);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom,
+                                                         const GeometryProjector& projector) const
+{
+  try
+  {
     struct OGRGeometryDeleter
     {
       void operator()(OGRGeometry* g) const noexcept { OGRGeometryFactory::destroyGeometry(g); }
@@ -264,8 +248,6 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
     const auto make_geometry_ptr = [](OGRGeometry* geometry)
     { return std::unique_ptr<OGRGeometry, OGRGeometryDeleter>(geometry); };
-
-    // Handle non-geographic sources separately
 
     if (!impl->m_source.isGeographic())
     {
@@ -276,12 +258,6 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       return g.release();
     }
 
-    // Source is geographic
-
-    GeometryProjector projector(impl->m_source.get(), impl->m_target.get());
-    const double global_bound = 30000 * 1e3;  // 30,000 km
-    projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
-
     auto target_envelope = interruptEnvelope(impl->m_target);
 
     OGREnvelope shape_envelope;
@@ -289,51 +265,39 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
     Interrupt interrupt = interruptGeometry(impl->m_target);
 
-    // No need to make a clone if there are no cuts in the target projection
     if (interrupt.empty())
     {
       auto result = projector.projectGeometry(&geom);
       return result.release();
     }
 
-    // Strictly speaking making a clone is not necessary if we kept track where the first
-    // operation is done, and use geom instead of g as input. Something to optimize later+
-
     auto g = make_geometry_ptr(geom.clone());
 
-    // Do quick vertical cuts
+    const double densifyKm = projector.getDensifyResolutionKm();
+
     for (const auto& box : interrupt.cuts)
     {
-      g = make_geometry_ptr(OGR::polycut(*g, box, theMaximumSegmentLength));
-      if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
+      g = make_geometry_ptr(OGR::polycut(*g, box, densifyKm));
+      if (!g || g->IsEmpty())
         return nullptr;
     }
 
-    // printf("***** CUTS ****\n");
     for (auto& shape : interrupt.shapeCuts)
     {
-      // shape.print(std::cout);
-      g = make_geometry_ptr(OGR::polycut(*g, shape, theMaximumSegmentLength));
-      if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
+      g = make_geometry_ptr(OGR::polycut(*g, shape, densifyKm));
+      if (!g || g->IsEmpty())
         return nullptr;
     }
 
     if (!interrupt.shapeClips.empty())
     {
-      // printf("***** CLIPS ****\n");
       for (auto& shape : interrupt.shapeClips)
       {
-        // shape.print(std::cout);
-        g = make_geometry_ptr(OGR::polyclip(*g, shape, theMaximumSegmentLength));
-        if (!g || g->IsEmpty())  // NOLINT(cppcheck-nullPointerRedundantCheck)
+        g = make_geometry_ptr(OGR::polyclip(*g, shape, densifyKm));
+        if (!g || g->IsEmpty())
           return nullptr;
       }
     }
-
-    // If the target envelope is not set, we must try clipping.
-    // Otherwise if the geometry contains the target area, no clipping is needed.
-    // We test only X-containment, since the target envelope may reach the North Pole,
-    // but there is really no data beyond the 84th latitude.
 
     if (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope))
     {

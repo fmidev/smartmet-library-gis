@@ -10,6 +10,7 @@ class OGRGeometry;
 namespace Fmi
 {
 class SpatialReference;
+class GeometryProjector;
 
 class CoordinateTransformation
 {
@@ -34,6 +35,7 @@ class CoordinateTransformation
 
   // Intelligent transform handling antemeridians etc
   OGRGeometry* transformGeometry(const OGRGeometry& geom, double theMaximumSegmentLength = 0) const;
+  OGRGeometry* transformGeometry(const OGRGeometry& geom, const GeometryProjector& projector) const;
 
   const SpatialReference& getSourceCS() const;
   const SpatialReference& getTargetCS() const;

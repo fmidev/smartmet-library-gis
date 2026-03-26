@@ -2,10 +2,10 @@
 #include <macgyver/Exception.h>
 #include <ogr_geometry.h>
 
+namespace Fmi::OGR
+{
 namespace
 {
-}  // namespace
-
 // Forward declaration needed since two functions call each other
 bool inside(const OGRGeometry *theGeom, double theX, double theY);
 
@@ -106,11 +106,34 @@ bool inside(const OGRGeometryCollection *theGeom, double theX, double theY)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Dispatch by geometry type (pointer overload, used for recursive calls)
+ */
+// ----------------------------------------------------------------------
+
+bool inside(const OGRGeometry *theGeom, double theX, double theY)
+{
+  try
+  {
+    if (theGeom == nullptr || theGeom->IsEmpty() != 0)
+      return false;
+
+    return Fmi::OGR::inside(*theGeom, theX, theY);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+}  // namespace
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Handle Polygon
  */
 // ----------------------------------------------------------------------
 
-bool Fmi::OGR::inside(const OGRPolygon &theGeom, double theX, double theY)
+bool inside(const OGRPolygon &theGeom, double theX, double theY)
 {
   try
   {
@@ -139,7 +162,7 @@ bool Fmi::OGR::inside(const OGRPolygon &theGeom, double theX, double theY)
  */
 // ----------------------------------------------------------------------
 
-bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
+bool inside(const OGRGeometry &theGeom, double theX, double theY)
 {
   try
   {
@@ -181,23 +204,4 @@ bool Fmi::OGR::inside(const OGRGeometry &theGeom, double theX, double theY)
   }
 }
 
-// ----------------------------------------------------------------------
-/*!
- * \brief Is the given coordinate inside the geometry?
- */
-// ----------------------------------------------------------------------
-
-bool inside(const OGRGeometry *theGeom, double theX, double theY)
-{
-  try
-  {
-    if (theGeom == nullptr || theGeom->IsEmpty() != 0)
-      return false;
-
-    return Fmi::OGR::inside(*theGeom, theX, theY);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
+}  // namespace Fmi::OGR

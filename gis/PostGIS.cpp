@@ -15,6 +15,75 @@
 // Segment geometries by 1 degree accuracy when clipping/cutting to a rectangle
 const double default_segmentation_length = 1.0;
 
+namespace
+{
+
+// Force the last point of a polygon ring to be exactly equal to the first when the gap
+// between them is a small floating-point error.  Polygon rings must always be closed by
+// definition; any non-zero gap is a data-quality issue that can cause rendering artefacts
+// (spurious lines from the polygon interior to the bounding-box boundary).
+//
+// We only close gaps that are smaller than 1e-6 × the coordinate magnitude — i.e., gaps
+// that are pure floating-point noise and not a genuine geometry defect.  For typical
+// WGS-84 coordinates (lon ≈ 25, lat ≈ 65) this is about 6.5e-5 degrees ≈ 7 m; for
+// ETRS-TM35FIN coordinates (y ≈ 7 000 000 m) it is about 7 m as well.
+void forceCloseRingIfNeeded(OGRLinearRing* ring)
+{
+  if (!ring)
+    return;
+  const int n = ring->getNumPoints();
+  if (n < 2)
+    return;
+
+  const double x0 = ring->getX(0);
+  const double y0 = ring->getY(0);
+  const double xn = ring->getX(n - 1);
+  const double yn = ring->getY(n - 1);
+
+  if (x0 == xn && y0 == yn)
+    return;  // already exactly closed
+
+  const double dx = x0 - xn;
+  const double dy = y0 - yn;
+  const double gap = std::sqrt(dx * dx + dy * dy);
+
+  // Threshold: 1e-6 × coordinate magnitude, floored at 1e-10 to handle near-zero coords.
+  const double mag =
+      std::max({std::abs(x0), std::abs(y0), std::abs(xn), std::abs(yn), 1.0});
+  if (gap < mag * 1e-6)
+    ring->setPoint(n - 1, x0, y0);
+}
+
+void forceClosePolygonRings(OGRGeometry* geom)
+{
+  if (!geom)
+    return;
+
+  switch (wkbFlatten(geom->getGeometryType()))
+  {
+    case wkbPolygon:
+    {
+      auto* poly = static_cast<OGRPolygon*>(geom);
+      forceCloseRingIfNeeded(poly->getExteriorRing());
+      for (int i = 0; i < poly->getNumInteriorRings(); ++i)
+        forceCloseRingIfNeeded(poly->getInteriorRing(i));
+      break;
+    }
+    case wkbMultiPolygon:
+    case wkbGeometryCollection:
+    {
+      auto* coll = static_cast<OGRGeometryCollection*>(geom);
+      for (int i = 0; i < coll->getNumGeometries(); ++i)
+        forceClosePolygonRings(coll->getGeometryRef(i));
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+}  // namespace
+
 namespace Fmi
 {
 #if 0
@@ -160,7 +229,14 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       // owned by feature
       OGRGeometry* geometry = feature->GetGeometryRef();
       if (geometry != nullptr)
-        out->addGeometry(geometry);  // clones geometry
+      {
+        auto* clone = geometry->clone();
+        if (clone)
+        {
+          forceClosePolygonRings(clone);
+          out->addGeometryDirectly(clone);  // takes ownership
+        }
+      }
     }
   }
   else
@@ -177,7 +253,6 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
     out->assignSpatialReference(tmp.get());
 
     layer->ResetReading();
-    int featurecount = 0;
     while ((feature = next_feature()))
     {
       const auto* defn = feature->GetDefnRef();
@@ -204,7 +279,10 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
 #endif
         }
         if (clone != nullptr)
+        {
+          forceClosePolygonRings(clone);
           out->addGeometryDirectly(clone);  // takes ownership
+        }
       }
     }
   }
@@ -281,11 +359,13 @@ Features read(const Fmi::SpatialReference* theSR,
       if (transformation == nullptr)
       {
         auto* clone = geometry->clone();
+        forceClosePolygonRings(clone);
         ret_item->geom.reset(clone);
       }
       else
       {
         auto* clone = transformation->transformGeometry(*geometry, default_segmentation_length);
+        forceClosePolygonRings(clone);
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it
         std::shared_ptr<OGRSpatialReference> tmp(theSR->get()->Clone(),
@@ -300,7 +380,7 @@ Features read(const Fmi::SpatialReference* theSR,
 
     // add attribute fields
     OGRFeatureDefn* poFDefn = layer->GetLayerDefn();
-    int iField;
+    int iField = 0;
     for (iField = 0; iField < poFDefn->GetFieldCount(); iField++)
     {
       OGRFieldDefn* poFieldDefn = poFDefn->GetFieldDefn(iField);
@@ -335,13 +415,13 @@ Features read(const Fmi::SpatialReference* theSR,
           break;
         case OFTDateTime:
         {
-          int year;
-          int month;
-          int day;
-          int hour;
-          int min;
-          int sec;
-          int tzFlag;
+          int year = 0;
+          int month = 0;
+          int day = 0;
+          int hour = 0;
+          int min = 0;
+          int sec = 0;
+          int tzFlag = 0;
           feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
           Fmi::DateTime timestamp(Fmi::Date(year, month, day), Fmi::TimeDuration(hour, min, sec));
 

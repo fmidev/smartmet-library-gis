@@ -58,14 +58,14 @@ class Shape_rect : public Shape
   void print(std::ostream &stream) override;
 
  protected:
-  int getLineIntersectionPoints(double aX,
-                                double aY,
-                                double bX,
-                                double bY,
-                                double &pX1,
-                                double &pY1,
-                                double &pX2,
-                                double &pY2) const;
+  static int getLineIntersectionPoints(double aX,
+                                       double aY,
+                                       double bX,
+                                       double bY,
+                                       double &pX1,
+                                       double &pY1,
+                                       double &pX2,
+                                       double &pY2);
 
   void clip_to_edges(double &x1, double &y1, double x2, double y2) const;
 

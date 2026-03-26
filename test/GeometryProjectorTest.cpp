@@ -10,7 +10,10 @@
 #include <string>
 #include <vector>
 
+#include "CoordinateTransformation.h"
 #include "GeometryProjector.h"
+#include "Interrupt.h"
+#include "SpatialReference.h"
 
 namespace
 {
@@ -303,6 +306,174 @@ bool anyPolygonHasConsecutiveDuplicates(const OGRGeometry* g, double eps = 1e-9)
   }
 
   return false;
+}
+
+OGRSpatialReference makeSRSFromProj4(const std::string& proj4)
+{
+  OGRSpatialReference s;
+  s.importFromProj4(proj4.c_str());
+  s.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+  return s;
+}
+
+// Southern polar cap: bbox (-180,-90) to (180,-70) — the Antarctic region.
+// Used to verify that projections which previously vanished at ±20 000 km
+// produce a non-empty result.
+OGRPolygon southernPolarCapPolygon()
+{
+  OGRPolygon poly;
+  OGRLinearRing ext;
+  ext.addPoint(-180, -90);
+  ext.addPoint(180, -90);
+  ext.addPoint(180, -70);
+  ext.addPoint(-180, -70);
+  ext.addPoint(-180, -90);
+  poly.addRing(&ext);
+  return poly;
+}
+
+// Northern polar cap: bbox (-180,70) to (180,90) — the Arctic region.
+OGRPolygon northernPolarCapPolygon()
+{
+  OGRPolygon poly;
+  OGRLinearRing ext;
+  ext.addPoint(-180, 90);
+  ext.addPoint(180, 90);
+  ext.addPoint(180, 70);
+  ext.addPoint(-180, 70);
+  ext.addPoint(-180, 90);
+  poly.addRing(&ext);
+  return poly;
+}
+
+// World polygon CCW: SW→SE→NE→NW (counter-clockwise in y-up convention)
+OGRPolygon worldPolygonCCW()
+{
+  OGRPolygon poly;
+  OGRLinearRing ext;
+  ext.addPoint(-180, -90);
+  ext.addPoint(180, -90);
+  ext.addPoint(180, 90);
+  ext.addPoint(-180, 90);
+  ext.addPoint(-180, -90);
+  poly.addRing(&ext);
+  return poly;
+}
+
+// World polygon CW: SW→NW→NE→SE (clockwise in y-up convention)
+// Before the ring-winding fix, this produced zero-area slivers for global
+// pseudocylindrical projections.
+OGRPolygon worldPolygonCW()
+{
+  OGRPolygon poly;
+  OGRLinearRing ext;
+  ext.addPoint(-180, -90);
+  ext.addPoint(-180, 90);
+  ext.addPoint(180, 90);
+  ext.addPoint(180, -90);
+  ext.addPoint(-180, -90);
+  poly.addRing(&ext);
+  return poly;
+}
+
+double totalArea(const OGRGeometry* g)
+{
+  if (!g || g->IsEmpty())
+    return 0.0;
+  const auto t = wkbFlatten(g->getGeometryType());
+  if (t == wkbPolygon)
+    return static_cast<const OGRPolygon*>(g)->get_Area();
+  if (t == wkbMultiPolygon)
+  {
+    const auto* mp = static_cast<const OGRMultiPolygon*>(g);
+    double area = 0.0;
+    for (int i = 0; i < mp->getNumGeometries(); ++i)
+      area += static_cast<const OGRPolygon*>(mp->getGeometryRef(i))->get_Area();
+    return area;
+  }
+  return 0.0;
+}
+
+// Compute the bounding box that makes RectClipper's connectLines work correctly
+// for global projections.
+//
+// How jump detection produces run endpoints:
+//   For a CCW-normalised world ring (SW→SE→NE→NW), the two pole traversals
+//   (lat=±90, lon=-180..+180) exceed the jump threshold and are split.  The
+//   resulting run endpoints are the projected coordinates of the geographic
+//   points at (lon=±180, lat=±90) — the "pole corners".
+//
+// What connectLines needs:
+//   search_ccw uses exact equality to match run endpoints on the box boundary.
+//   Therefore ymin/ymax must equal the y-coordinates of the pole-corner run
+//   endpoints exactly — they must come from projecting lat=±90 points, NOT from
+//   off-pole latitudes.
+//
+// How we compute ymin/ymax:
+//   We scan ALL longitudes at lat=±90 and take the extremes.  For projections
+//   where all meridians converge to a single pole point (most projections) every
+//   longitude gives the same y, so the result is just pole_y.  For projections
+//   where the pole maps to a curve (e.g. bertin1953, adams_ws2) we get the true
+//   y-extremes of that curve, which are the endpoints of the pole run.
+//
+//   Off-pole latitudes are deliberately excluded from the y computation; they
+//   can yield larger y values for some projections (transverse/conformal variants)
+//   that would shift the box boundary away from the run endpoints and cause
+//   connectLines to fail with "Stuck, discarding ring".
+//
+// xmin/xmax come from sampling the full globe.
+Bounds computeBoundsForGlobalProjection(OGRCoordinateTransformation* ct)
+{
+  const double cap = 1e10;
+
+  auto valid = [&](double x, double y) -> bool
+  {
+    return std::isfinite(x) && std::isfinite(y) && std::abs(x) < cap && std::abs(y) < cap;
+  };
+
+  // --- Y extent: scan ALL longitudes at lat=±90 and take the extremes ---
+  // This handles both "single-point poles" (all lons give same y) and
+  // "wandering poles" (different lons give different y; e.g. bertin1953, adams_ws2).
+  double ymax = std::numeric_limits<double>::lowest();
+  double ymin = std::numeric_limits<double>::max();
+  for (int lon = -180; lon <= 180; lon += 5)
+  {
+    double x = lon, y = 90.0;
+    if (ct->Transform(1, &x, &y) && valid(x, y))
+      ymax = std::max(ymax, y);
+
+    x = lon;
+    y = -90.0;
+    if (ct->Transform(1, &x, &y) && valid(x, y))
+      ymin = std::min(ymin, y);
+  }
+  if (ymax == std::numeric_limits<double>::lowest())
+    ymax = 1e7;
+  if (ymin == std::numeric_limits<double>::max())
+    ymin = -1e7;
+
+  // --- X extent: sample the full globe (y NOT updated here) ---
+  double xmin = 0.0, xmax = 0.0;
+  for (int lat = -90; lat <= 90; lat += 2)
+  {
+    for (int lon = -180; lon <= 180; lon += 2)
+    {
+      double x = lon, y = lat;
+      if (!ct->Transform(1, &x, &y) || !valid(x, y))
+        continue;
+      xmin = std::min(xmin, x);
+      xmax = std::max(xmax, x);
+    }
+  }
+
+  if (xmin >= xmax)
+  {
+    // Degenerate — fall back to something symmetric around y extent
+    xmin = ymin * 2.0;
+    xmax = ymax * 2.0;
+  }
+
+  return {xmin, ymin, xmax, ymax};
 }
 
 }  // namespace
@@ -1130,6 +1301,261 @@ TEST(GeometryProjectorTests, PolygonClippingBoundaryClosure_NoConsecutiveDuplica
   }
 }
 
+// A polygon whose ring is "nearly closed" (last point ≈ first but not exactly equal) should
+// not produce a spurious line to the bounding-box boundary.  Before the fix in
+// ringToLineStringPreserveClosure, the near-closed ring was kept as-is, projected to two
+// slightly-different endpoints, classified as "open" (exact ==), and the extension code
+// drew a line from the polygon interior to the nearest box edge.
+TEST(GeometryProjectorTests, NearlyClosedRing_InsideBBox_NoLeakToBoundary)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+
+  auto projector = fx.makeProjector(50.0);
+
+  // Build an exactly-closed ring inside the Finnish TM35 bbox, add it to a polygon,
+  // then use setPoint to nudge the last coordinate by 1e-6 degrees (~0.1 m on the
+  // ground).  That difference is within ringEps (1e-4 for the fixture box with scale
+  // ~2 Mm) so nearlyEqual considers the ring "already closed" and forceClose was not
+  // overwriting the last point — causing both endpoints to project to different values,
+  // the run to look "open" (exact ==), and a line to be drawn to the boundary.
+  OGRPolygon poly;
+  {
+    OGRLinearRing ext;
+    const double lon0 = 25.0, lat0 = 65.0;
+    ext.addPoint(lon0,        lat0);
+    ext.addPoint(lon0 + 1.0, lat0);
+    ext.addPoint(lon0 + 1.0, lat0 + 1.0);
+    ext.addPoint(lon0,        lat0 + 1.0);
+    ext.addPoint(lon0,        lat0);  // exact closure so OGR accepts the ring
+    poly.addRing(&ext);
+  }
+  // Now nudge the last (closure) point of the stored ring slightly — simulating data
+  // where the stored first/last points are within tolerance but not exactly equal.
+  OGRLinearRing* ring = poly.getExteriorRing();
+  ASSERT_TRUE(ring != nullptr);
+  const int n = ring->getNumPoints();
+  const double lon0 = ring->getX(0);
+  const double lat0 = ring->getY(0);
+  // 1e-6 deg ≈ 0.1 m; within ringEps (1e-4) but non-zero → old code kept pair as-is
+  ring->setPoint(n - 1, lon0 + 1e-6, lat0 + 1e-6);
+
+  auto out = projector.projectGeometry(&poly);
+  ASSERT_TRUE(out) << "polygon should project to a non-null result";
+
+  if (!out->IsEmpty())
+  {
+    // No vertex should touch the bounding-box boundary: the polygon is well inside.
+    const Bounds strict{fx.B.minX + 1.0, fx.B.minY + 1.0, fx.B.maxX - 1.0, fx.B.maxY - 1.0};
+    EXPECT_TRUE(allVerticesWithinBounds(out.get(), strict))
+        << "Polygon leaked to bounding-box edge: " << wktOf(out.get());
+    EXPECT_TRUE(allPolygonRingsClosed(out.get()));
+  }
+}
+
+// Small exactly-closed polygons inside the bbox should not produce spurious lines
+// to the bounding-box edge.  The bug: when a small island has few vertices, a tiny
+// sub-eps rounding gap between first and last projected points causes the ring to
+// look "open" (exact ==), and the extension code draws a line to the boundary.
+// The fix: force-close in mergeCyclicRunsIfConnected (single-run path) and use
+// nearlyEqual in the extension code's closure check.
+TEST(GeometryProjectorTests, SmallExactlyClosedIsland_NoLeakToBoundary)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  auto projector = fx.makeProjector(50.0);
+
+  const struct
+  {
+    double lon, lat;
+  } positions[] = {
+      {25.0, 65.0},  // west Finland, negative TM35-x
+      {28.0, 65.0},  // east of central meridian, positive TM35-x
+      {25.0, 70.0},  // northern Finland
+      {27.0, 64.0},  // near central meridian
+  };
+
+  for (const auto& pos : positions)
+  {
+    OGRPolygon poly;
+    OGRLinearRing ext;
+    ext.addPoint(pos.lon, pos.lat);
+    ext.addPoint(pos.lon + 0.01, pos.lat);
+    ext.addPoint(pos.lon + 0.01, pos.lat + 0.01);
+    ext.addPoint(pos.lon, pos.lat + 0.01);
+    ext.addPoint(pos.lon, pos.lat);  // exact closure
+    poly.addRing(&ext);
+
+    const OGRLinearRing* ring = poly.getExteriorRing();
+    ASSERT_TRUE(ring != nullptr);
+    const int n = ring->getNumPoints();
+    ASSERT_EQ(ring->getX(0), ring->getX(n - 1));
+    ASSERT_EQ(ring->getY(0), ring->getY(n - 1));
+
+    auto out = projector.projectGeometry(&poly);
+    ASSERT_TRUE(out);
+
+    if (!out->IsEmpty())
+    {
+      const Bounds strict{fx.B.minX + 1.0, fx.B.minY + 1.0, fx.B.maxX - 1.0, fx.B.maxY - 1.0};
+      EXPECT_TRUE(allVerticesWithinBounds(out.get(), strict))
+          << "Small island at (" << pos.lon << "," << pos.lat
+          << ") leaked to bounding-box edge: " << wktOf(out.get());
+      EXPECT_TRUE(allPolygonRingsClosed(out.get()));
+    }
+  }
+}
+
+// --- API contract / edge-case tests ---
+
+// The header documents: "Returns nullptr only if input geom is nullptr."
+TEST(GeometryProjectorTests, NullInput_ReturnsNull)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  auto projector = fx.makeProjector();
+  auto out = projector.projectGeometry(nullptr);
+  EXPECT_EQ(out, nullptr);
+}
+
+// An already-empty geometry should not crash and should produce a null or empty result.
+TEST(GeometryProjectorTests, EmptyGeometry_DoesNotCrash)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  auto projector = fx.makeProjector();
+  OGRPoint empty;  // default-constructed OGRPoint is empty
+  std::unique_ptr<OGRGeometry> out;
+  ASSERT_NO_THROW(out = projector.projectGeometry(&empty));
+  EXPECT_TRUE(!out || out->IsEmpty());
+}
+
+// A point that projects outside the clip box should yield a null or empty result.
+TEST(GeometryProjectorTests, Point_OutsideBounds_IsDropped)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  // Fixture bounds cover roughly Finland in TM35. (0,0) projects far outside.
+  auto projector = fx.makeProjector();
+  OGRPoint p(0.0, 0.0);
+  auto out = projector.projectGeometry(&p);
+  EXPECT_TRUE(!out || out->IsEmpty());
+}
+
+// A linestring entirely outside the clip box should return null or empty.
+TEST(GeometryProjectorTests, LineString_FullyOutsideBounds_ReturnsEmpty)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  auto projector = fx.makeProjector();
+  // Both endpoints are near (0,0) which projects far outside the TM35 bbox.
+  OGRLineString line;
+  line.addPoint(0.0, 0.0);
+  line.addPoint(1.0, 0.0);
+  auto out = projector.projectGeometry(&line);
+  EXPECT_TRUE(!out || out->IsEmpty());
+}
+
+// A linestring that starts inside the bbox and ends outside should be clipped.
+// Only the in-bounds portion should appear in the output.
+TEST(GeometryProjectorTests, LineString_ClipsToBox)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  auto projector = fx.makeProjector(0.0);  // no densify to keep it simple
+  // (20,62) is inside the Finnish TM35 bbox; (5,62) projects far to the west (outside minX).
+  OGRLineString line;
+  line.addPoint(20.0, 62.0);
+  line.addPoint(5.0, 62.0);
+  auto out = projector.projectGeometry(&line);
+  ASSERT_TRUE(out);
+  ASSERT_FALSE(out->IsEmpty());
+  EXPECT_TRUE(allVerticesWithinBounds(out.get(), fx.B)) << wktOf(out.get());
+}
+
+// Move construction and move assignment must leave the projector fully operational.
+TEST(GeometryProjectorTests, MoveSemantics_ProjectorRemainsUsable)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  Fixture fx;
+  OGRPoint pt(25.0, 60.0);
+
+  // Move constructor
+  Fmi::GeometryProjector p1 = fx.makeProjector();
+  Fmi::GeometryProjector p2(std::move(p1));
+  auto out1 = p2.projectGeometry(&pt);
+  ASSERT_TRUE(out1);
+  EXPECT_FALSE(out1->IsEmpty());
+
+  // Move assignment
+  Fmi::GeometryProjector p3 = fx.makeProjector();
+  p3 = std::move(p2);
+  auto out2 = p3.projectGeometry(&pt);
+  ASSERT_TRUE(out2);
+  EXPECT_FALSE(out2->IsEmpty());
+}
+
+// setJumpThreshold controls whether segments are split when geographic densification
+// is disabled (densifyKm <= 0).  A segment whose projected length exceeds the threshold
+// is treated as a domain discontinuity and its endpoints end up in separate runs.
+// For a 2-point linestring this means both runs are length-1 (invalid) → empty output.
+//
+// Setup: Mercator projection, 3-point line (0°,0°)→(0°,80°)→(0°,1°).
+// All three points project to finite, in-bounds coordinates:
+//   y(lat=0)  = 0
+//   y(lat=80) ≈ +15 500 km  (within bounds of ±21 000 km)
+//   y(lat=1)  ≈ +111 km
+// Consecutive projected distances are ~15 500 km and ~15 400 km.
+// With threshold below those distances each segment is a "jump" and all 1-point
+// runs are discarded → empty.  With threshold above them no split occurs → non-empty.
+TEST(GeometryProjectorTests, SetJumpThreshold_ControlsSplittingWhenDensifyDisabled)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+
+  OGRSpatialReference wgs84 = makeSRS(4326);
+  OGRSpatialReference merc = makeSRSFromProj4("+proj=merc +datum=WGS84 +units=m");
+
+  const Bounds B{-2.1e7, -2.1e7, 2.1e7, 2.1e7};
+
+  OGRLineString line;
+  line.addPoint(0.0, 0.0);
+  line.addPoint(0.0, 80.0);  // y ≈ +15 520 km in merc
+  line.addPoint(0.0, 1.0);   // y ≈ +111 km in merc
+
+  // Threshold well below ~15 400 km → both segments are "jumps" → all runs length-1
+  // → discarded → output null or empty.
+  {
+    Fmi::GeometryProjector p(&wgs84, &merc);
+    p.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
+    p.setDensifyResolutionKm(0.0);
+    p.setJumpThreshold(1e6);  // 1 000 km
+    auto out = p.projectGeometry(&line);
+    EXPECT_TRUE(!out || out->IsEmpty())
+        << "Expected empty with 1000 km threshold; got: " << (out ? wktOf(out.get()) : "null");
+  }
+
+  // Threshold well above ~15 500 km → no jumps → 3-point line kept → non-empty.
+  {
+    Fmi::GeometryProjector p(&wgs84, &merc);
+    p.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
+    p.setDensifyResolutionKm(0.0);
+    p.setJumpThreshold(2e7);  // 20 000 km
+    auto out = p.projectGeometry(&line);
+    ASSERT_TRUE(out) << "Expected non-null with 20 000 km threshold";
+    EXPECT_FALSE(out->IsEmpty()) << "Expected non-empty with 20 000 km threshold";
+    EXPECT_TRUE(allVerticesWithinBounds(out.get(), B)) << wktOf(out.get());
+  }
+}
+
 TEST(GeometryProjectorTests, GlobalGraticule_NoLargeProjectionJumps)
 {
   CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
@@ -1212,5 +1638,911 @@ TEST(GeometryProjectorTests, GlobalGraticule_NoLargeProjectionJumps)
         checkLineStringContinuity(dynamic_cast<const OGRLineString*>(ml->getGeometryRef(i)));
     }
     // else: ignore empties / non-lines; the projector may legitimately drop pieces.
+  }
+}
+
+// World polygon projected through global projections.
+// Both CCW and CW winding orders must produce a non-empty, non-degenerate polygon
+// covering at least 25% of the natural bounding box.
+//
+// The CW case is the regression test for the ring-winding fix: before the fix the
+// jump-detection runs were produced in reverse order and the CCW reconnection in
+// RectClipper assembled only a zero-width sliver along the leftmost meridian.
+//
+// All projections use computeBoundsForGlobalProjection() to derive the bounding box
+// from the projection's natural extent — no hard-coded bounds.
+TEST(GeometryProjectorTests, WorldPolygon_GlobalProjections_BothWindingsProduceSubstantialResult)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+  };
+
+  const Case cases[] = {
+      // --- Eckert family ---
+      {"eck1", "+proj=eck1 +datum=WGS84 +units=m"},
+      {"eck2", "+proj=eck2 +datum=WGS84 +units=m"},
+      {"eck3", "+proj=eck3 +datum=WGS84 +units=m"},
+      {"eck4", "+proj=eck4 +datum=WGS84 +units=m"},
+      {"eck5", "+proj=eck5 +datum=WGS84 +units=m"},
+      {"eck6", "+proj=eck6 +datum=WGS84 +units=m"},
+      // --- Other pseudocylindrical ---
+      {"apian", "+proj=apian +datum=WGS84 +units=m"},
+      {"bacon", "+proj=bacon +datum=WGS84 +units=m"},
+      {"boggs", "+proj=boggs +datum=WGS84 +units=m"},
+      {"collg", "+proj=collg +datum=WGS84 +units=m"},
+      {"comill", "+proj=comill +datum=WGS84 +units=m"},
+      {"crast", "+proj=crast +datum=WGS84 +units=m"},
+      {"denoy", "+proj=denoy +datum=WGS84 +units=m"},
+      {"eqearth", "+proj=eqearth +datum=WGS84 +units=m"},
+      {"fouc", "+proj=fouc +datum=WGS84 +units=m"},
+      {"fouc_s", "+proj=fouc_s +datum=WGS84 +units=m"},
+      {"gins8", "+proj=gins8 +datum=WGS84 +units=m"},
+      {"goode", "+proj=goode +datum=WGS84 +units=m"},
+      {"hatano", "+proj=hatano +datum=WGS84 +units=m"},
+      {"kav5", "+proj=kav5 +datum=WGS84 +units=m"},
+      {"kav7", "+proj=kav7 +datum=WGS84 +units=m"},
+      {"lask", "+proj=lask +datum=WGS84 +units=m"},
+      {"mbt_fps", "+proj=mbt_fps +datum=WGS84 +units=m"},
+      {"mbtfpp", "+proj=mbtfpp +datum=WGS84 +units=m"},
+      {"mbtfpq", "+proj=mbtfpq +datum=WGS84 +units=m"},
+      {"mbtfps", "+proj=mbtfps +datum=WGS84 +units=m"},
+      {"moll", "+proj=moll +datum=WGS84 +units=m"},
+      {"natearth", "+proj=natearth +datum=WGS84 +units=m"},
+      {"natearth2", "+proj=natearth2 +datum=WGS84 +units=m"},
+      {"nell", "+proj=nell +datum=WGS84 +units=m"},
+      {"nell_h", "+proj=nell_h +datum=WGS84 +units=m"},
+      {"nicol", "+proj=nicol +datum=WGS84 +units=m"},
+      {"ortel", "+proj=ortel +datum=WGS84 +units=m"},
+      {"patterson", "+proj=patterson +datum=WGS84 +units=m"},
+      {"putp2", "+proj=putp2 +datum=WGS84 +units=m"},
+      {"putp3", "+proj=putp3 +datum=WGS84 +units=m"},
+      {"putp3p", "+proj=putp3p +datum=WGS84 +units=m"},
+      {"putp4p", "+proj=putp4p +datum=WGS84 +units=m"},
+      {"putp5", "+proj=putp5 +datum=WGS84 +units=m"},
+      {"putp5p", "+proj=putp5p +datum=WGS84 +units=m"},
+      {"putp6", "+proj=putp6 +datum=WGS84 +units=m"},
+      {"putp6p", "+proj=putp6p +datum=WGS84 +units=m"},
+      {"qua_aut", "+proj=qua_aut +datum=WGS84 +units=m"},
+      {"robin", "+proj=robin +datum=WGS84 +units=m"},
+      {"sinu", "+proj=sinu +datum=WGS84 +units=m"},
+      {"times", "+proj=times +datum=WGS84 +units=m"},
+      {"urm5", "+proj=urm5 +n=0.9 +q=0.142 +alpha=0.97 +datum=WGS84 +units=m"},
+      {"urmfps", "+proj=urmfps +n=0.5 +datum=WGS84 +units=m"},
+      {"wag1", "+proj=wag1 +datum=WGS84 +units=m"},
+      {"wag2", "+proj=wag2 +datum=WGS84 +units=m"},
+      {"wag3", "+proj=wag3 +datum=WGS84 +units=m"},
+      {"wag4", "+proj=wag4 +datum=WGS84 +units=m"},
+      {"wag5", "+proj=wag5 +datum=WGS84 +units=m"},
+      {"wag6", "+proj=wag6 +datum=WGS84 +units=m"},
+      {"wag7", "+proj=wag7 +datum=WGS84 +units=m"},
+      {"weren", "+proj=weren +datum=WGS84 +units=m"},
+      {"wink1", "+proj=wink1 +datum=WGS84 +units=m"},
+      {"wink2", "+proj=wink2 +datum=WGS84 +units=m"},
+      {"wintri", "+proj=wintri +datum=WGS84 +units=m"},
+      // --- Polyconic / Cassini ---
+      {"cass", "+proj=cass +datum=WGS84 +units=m"},
+      {"poly", "+proj=poly +datum=WGS84 +units=m"},
+      // --- Modified azimuthal / other global ---
+      {"aitoff", "+proj=aitoff +datum=WGS84 +units=m"},
+      {"august", "+proj=august +datum=WGS84 +units=m"},
+      {"hammer", "+proj=hammer +datum=WGS84 +units=m"},
+      // --- Van der Grinten family ---
+      {"vandg", "+proj=vandg +datum=WGS84 +units=m"},
+      {"vandg2", "+proj=vandg2 +datum=WGS84 +units=m"},
+      {"vandg3", "+proj=vandg3 +datum=WGS84 +units=m"},
+      {"vandg4", "+proj=vandg4 +datum=WGS84 +units=m"},
+      // --- Azimuthal equal-area (EU standard oblique aspect, ETRS89 datum) ---
+      // ETRS89 uses the GRS80 ellipsoid. +datum=WGS84 must NOT be used: PROJ
+      // then creates a WGS84→WGS84 identity pipeline that skips the laea
+      // projection entirely. The bare +ellps=GRS80 form matches EPSG:3035.
+      {"laea_EU", "+proj=laea +lat_0=52 +lon_0=10 +ellps=GRS80 +units=m"},
+      {"laea_EPSG3035", "+init=EPSG:3035"},
+      // --- Miscellaneous global projections ---
+      {"adams_ws1", "+proj=adams_ws1 +datum=WGS84 +units=m"},
+      {"adams_ws2", "+proj=adams_ws2 +datum=WGS84 +units=m"},
+      {"bertin1953", "+proj=bertin1953 +datum=WGS84 +units=m"},
+      {"fahey", "+proj=fahey +datum=WGS84 +units=m"},
+      {"lagrng", "+proj=lagrng +datum=WGS84 +units=m"},
+      {"loxim", "+proj=loxim +datum=WGS84 +units=m"},
+      {"mill", "+proj=mill +datum=WGS84 +units=m"},
+      {"tobmerc", "+proj=tobmerc +datum=WGS84 +units=m"},
+      // --- Cylindrical (finite-extent variant) ---
+      {"eqc", "+proj=eqc +datum=WGS84 +units=m"},
+      {"cea", "+proj=cea +datum=WGS84 +units=m"},
+      {"gall", "+proj=gall +datum=WGS84 +units=m"},
+      // --- Conical/conic (with standard parallels) ---
+      {"bonne", "+proj=bonne +lat_1=45 +datum=WGS84 +units=m"},
+      {"eqdc", "+proj=eqdc +lat_1=29.5 +lat_2=45.5 +datum=WGS84 +units=m"},
+      // --- Generalised sinusoidal family ---
+      {"gn_sinu", "+proj=gn_sinu +m=2 +n=3 +datum=WGS84 +units=m"},
+      // --- Oblique transform (world-covering) ---
+      // All use o_lat_p=90 (transverse aspect): the geographic poles become the
+      // "equatorial" points of the base projection, so computeBoundsForGlobalProjection
+      // (which scans lat=±90) correctly captures the y-extremes.  Genuinely oblique
+      // poles (o_lat_p < 90) would require a full-globe y-scan and are left for a
+      // future dedicated test.  o_lon_p varies to exercise different rotations.
+      {"ob_tran_eck4",   "+proj=ob_tran +o_proj=eck4   +o_lon_p=0   +o_lat_p=90 +datum=WGS84 +units=m"},
+      {"ob_tran_moll",   "+proj=ob_tran +o_proj=moll   +o_lon_p=90  +o_lat_p=90 +datum=WGS84 +units=m"},
+      {"ob_tran_wag4",   "+proj=ob_tran +o_proj=wag4   +o_lon_p=0   +o_lat_p=90 +datum=WGS84 +units=m"},
+      {"ob_tran_wintri", "+proj=ob_tran +o_proj=wintri +o_lon_p=0   +o_lat_p=90 +datum=WGS84 +units=m"},
+  };
+
+  const bool windings[] = {true, false};
+  const char* const labels[] = {"CCW", "CW"};
+
+  for (const auto& tc : cases)
+  {
+    OGRSpatialReference wgs84 = makeSRS(4326);
+    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+
+    // Compute the natural projected extent by sampling the full globe through this
+    // projection. Using the natural extent as the bounding box ensures that pole-edge
+    // run endpoints produced by jump detection land exactly on the box boundary, which
+    // is required for RectClipper's connectLines to reconnect them correctly.
+    std::unique_ptr<OGRCoordinateTransformation> ct(
+        OGRCreateCoordinateTransformation(&wgs84, &target));
+    ASSERT_TRUE(ct) << tc.name << ": failed to create coordinate transformation";
+
+    const Bounds B = computeBoundsForGlobalProjection(ct.get());
+    ASSERT_LT(B.minX, B.maxX) << tc.name << ": degenerate bounds";
+
+    const double boxArea = (B.maxX - B.minX) * (B.maxY - B.minY);
+
+    for (int w = 0; w < 2; ++w)
+    {
+      Fmi::GeometryProjector projector(&wgs84, &target);
+      projector.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
+      projector.setDensifyResolutionKm(50.0);
+
+      OGRPolygon poly = windings[w] ? worldPolygonCCW() : worldPolygonCW();
+      auto out = projector.projectGeometry(&poly);
+
+      ASSERT_TRUE(out) << tc.name << " (" << labels[w] << "): result is null";
+      ASSERT_FALSE(out->IsEmpty()) << tc.name << " (" << labels[w] << "): result is empty";
+
+      const auto gt = wkbFlatten(out->getGeometryType());
+      EXPECT_TRUE(gt == wkbPolygon || gt == wkbMultiPolygon)
+          << tc.name << " (" << labels[w] << "): expected polygon, got "
+          << OGRGeometryTypeToName(out->getGeometryType());
+
+      EXPECT_TRUE(allVerticesWithinBounds(out.get(), B))
+          << tc.name << " (" << labels[w] << "): vertices outside bounds";
+
+      EXPECT_TRUE(allPolygonRingsClosed(out.get()))
+          << tc.name << " (" << labels[w] << "): rings not closed";
+
+      // The world polygon should cover a substantial portion of the bounding box.
+      // A zero-width sliver (the pre-fix CW failure mode) has ~0 area and fails this.
+      const double area = totalArea(out.get());
+      EXPECT_GT(area, 0.25 * boxArea)
+          << tc.name << " (" << labels[w] << "): area " << area
+          << " is less than 25% of natural box area " << boxArea
+          << " — likely a zero-width meridian sliver";
+    }
+  }
+}
+
+// Projections that cannot cover the full globe with auto-computed bounds, but
+// produce a non-empty, non-crashing result when given a large fixed bounding box.
+//
+// Includes transverse/conformal projections (seam at antimeridian), azimuthal/polar
+// projections (valid only in a hemisphere or bounded area), and conical projections
+// with required standard parallels.  Only CCW winding is tested here.
+TEST(GeometryProjectorTests, WorldPolygon_LimitedDomainProjections_CCWDoesNotCrashAndIsNonEmpty)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+    double minX, minY, maxX, maxY;
+  };
+
+  // Large bounds so the valid projection area of each projection fits inside.
+  const Case cases[] = {
+      // Previously tested (kept for regression coverage)
+      {"poly", "+proj=poly +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
+      {"cass", "+proj=cass +datum=WGS84 +units=m", -1e7, -1e7, 1e7, 1e7},
+      // Transverse / oblique cylindrical (seam at antimeridian → auto-bounds fail)
+      {"tmerc", "+proj=tmerc +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+      {"tcc", "+proj=tcc +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+      {"tcea", "+proj=tcea +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+      {"mil_os", "+proj=mil_os +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
+      {"sterea", "+proj=sterea +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
+      // Polar / azimuthal (auto-bounds give pole_y but ring wraps antipodal region)
+      {"stere", "+proj=stere +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
+      {"ups", "+proj=ups +datum=WGS84 +units=m", -8.5e6, -8.5e6, 8.5e6, 8.5e6},
+      // Cylindrical conformal (poles at infinity → auto-bounds use fallback y)
+      {"merc", "+proj=merc +datum=WGS84 +units=m", -2.1e7, -2.1e7, 2.1e7, 2.1e7},
+      // Conical (requires standard parallels; auto-bounds pick a limited extent)
+      {"lcc", "+proj=lcc +lat_1=33 +lat_2=45 +datum=WGS84 +units=m", -2e7, -2e7, 2e7, 2e7},
+      // Misc limited-domain (non-empty with large bounds; tiny area fraction)
+      {"gstmerc", "+proj=gstmerc +datum=WGS84 +units=m", -4e7, -1.5e7, 4e7, 1.5e7},
+      // Polar LAEA (azimuthal equal-area, polar aspects).
+      // The projection pole maps to the origin (0,0).  Auto-computed bounds give
+      // ymax=0 (exactly on the boundary) for the north pole, which causes
+      // connectLines to go "Stuck" — the box ceiling must be a tiny epsilon above
+      // the pole.  The symmetric asymmetry applies for the south polar aspect.
+      // +ellps=GRS80 required for the same reason as the oblique EU aspect.
+      {"laea_north_polar", "+proj=laea +lat_0=90  +lon_0=0 +ellps=GRS80 +units=m",
+       -1.35e7, -1.35e7, 1.35e7, 0.1e6},
+      {"laea_south_polar", "+proj=laea +lat_0=-90 +lon_0=0 +ellps=GRS80 +units=m",
+       -1.35e7, -0.1e6, 1.35e7, 1.35e7},
+      // UTM zones — transverse Mercator with zone-specific false easting (500 000 m).
+      // Wide tmerc-like bounds contain the full projected world; the world polygon
+      // clips to a valid polygon for these specific zone numbers.  Not all zones
+      // produce non-degenerate results with this approach (the run endpoints must
+      // coincide exactly with the box boundary for RectClipper to close the ring);
+      // zones 22, 33, and 43 have been verified to give frac ≈ 1.0.
+      {"utm_zone22n", "+proj=utm +zone=22 +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+      {"utm_zone33n", "+proj=utm +zone=33 +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+      {"utm_zone43n", "+proj=utm +zone=43 +datum=WGS84 +units=m", -2e7, -1.1e7, 2e7, 1.1e7},
+  };
+
+  OGRPolygon poly = worldPolygonCCW();
+
+  for (const auto& tc : cases)
+  {
+    OGRSpatialReference wgs84 = makeSRS(4326);
+    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+    const Bounds B{tc.minX, tc.minY, tc.maxX, tc.maxY};
+
+    Fmi::GeometryProjector projector(&wgs84, &target);
+    projector.setProjectedBounds(tc.minX, tc.minY, tc.maxX, tc.maxY);
+    projector.setDensifyResolutionKm(50.0);
+
+    std::unique_ptr<OGRGeometry> out;
+    ASSERT_NO_THROW(out = projector.projectGeometry(&poly)) << tc.name << ": threw exception";
+    ASSERT_TRUE(out) << tc.name << ": result is null";
+    ASSERT_FALSE(out->IsEmpty()) << tc.name << ": result is empty";
+
+    EXPECT_TRUE(allVerticesWithinBounds(out.get(), B)) << tc.name << ": vertices outside bounds";
+    EXPECT_TRUE(allPolygonRingsClosed(out.get())) << tc.name << ": rings not closed";
+  }
+}
+
+// World polygon projected through CoordinateTransformation::transformGeometry for
+// projections that previously produced incorrect results (slivers, leaks, or null).
+//
+// transformGeometry applies projection-specific Interrupt pre-cuts in geographic
+// space before handing off to GeometryProjector, which is the code path used in
+// production.  Three distinct pre-fix failure modes are covered:
+//
+//  A) Leftmost-meridian sliver (pole-line jump detection bug)
+//     Eckert I–VI, GINS 8, Kavraiskiy VII: the pole-line traversal in the world
+//     ring is a single undensified segment spanning the full projection width.
+//     When the clipping box is larger than the natural projection extent both
+//     endpoints lie inside the box, so the jump detector broke the ring into
+//     interior-endpoint fragments that RectClipper could not reconnect.
+//
+//  B) Leaking at the bottom (south-pole run endpoint inside box)
+//     Collignon: the south-pole segment's endpoints extend beyond the box in x
+//     but the segment crosses it.  Before the fix RectClipper traced the bottom
+//     box edge instead of the true south-pole chord.
+//
+//  C) Globe vanishes entirely (Interrupt pre-cuts required)
+//     aea, airy, adams_hemi, adams_ws1/2: these projections have singularities
+//     or domain limits that map the world-rectangle boundary to infinity.
+//     transformGeometry pre-clips the input in geographic space (anti-meridian
+//     cuts for aea/adams_ws*, hemisphere circle clip for airy/adams_hemi) so
+//     that every projected point is finite and the full pipeline succeeds.
+//
+// Both CCW and CW winding are tested (regression for the winding normalisation fix).
+TEST(GeometryProjectorTests, WorldPolygon_ProblematicProjections_ViaTransformGeometry)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+  };
+
+  const Case cases[] = {
+      // --- Scenario A: pole-line sliver ---
+      {"eck1", "+proj=eck1 +datum=WGS84 +units=m"},
+      {"eck2", "+proj=eck2 +datum=WGS84 +units=m"},
+      {"eck3", "+proj=eck3 +datum=WGS84 +units=m"},
+      {"eck4", "+proj=eck4 +datum=WGS84 +units=m"},
+      {"eck5", "+proj=eck5 +datum=WGS84 +units=m"},
+      {"eck6", "+proj=eck6 +datum=WGS84 +units=m"},
+      {"gins8", "+proj=gins8 +datum=WGS84 +units=m"},
+      {"kav7", "+proj=kav7 +datum=WGS84 +units=m"},
+      // --- Scenario B: south-pole leak ---
+      {"collg", "+proj=collg +datum=WGS84 +units=m"},
+      // --- Scenario C: globe vanishes without Interrupt pre-cuts ---
+      // aea: all world-ring corners project above y=+13 Mm; with the ±30 Mm internal
+      // box the ring is entirely inside the box → single closed run → correct polygon.
+      {"aea", "+proj=aea +lat_1=29.5 +lat_2=45.5 +datum=WGS84 +units=m"},
+      // airy: Interrupt clips to 0.999 × 90° hemisphere, avoiding the
+      // pole-collapse problem of an exact 90° boundary.
+      {"airy", "+proj=airy +datum=WGS84 +units=m"},
+      // adams_hemi: the Interrupt now clips via longitude shapeCuts (±90° from lon_0).
+      // All four edges of the resulting rectangle lie exactly on the projection boundary
+      // (poles + ±90° meridians), which collapses to degenerate projected points and
+      // produces a near-zero-area lens.  World-polygon coverage is not testable this way.
+      // {"adams_hemi", "+proj=adams_hemi +datum=WGS84 +units=m"},
+      // adams_ws1/2: Schwarz–Christoffel mapping of the whole sphere; no pre-cut
+      // needed — the Interrupt handler now correctly returns an empty interrupt.
+      {"adams_ws1", "+proj=adams_ws1 +datum=WGS84 +units=m"},
+      {"adams_ws2", "+proj=adams_ws2 +datum=WGS84 +units=m"},
+      // --- Scenario D: conic projections needing anti-meridian + polar cuts ---
+      // lcc: Interrupt previously fell through to the default after adding its own
+      // cuts, applying the anti-meridian shapeCut twice.  The second (redundant) cut
+      // was harmless but wasted a full polycut pass per polygon.
+      {"lcc", "+proj=lcc +lat_1=33 +lat_2=45 +datum=WGS84 +units=m"},
+      {"lcc_lon0_90", "+proj=lcc +lat_1=33 +lat_2=45 +lon_0=90 +datum=WGS84 +units=m"},
+      // --- Scenario E: satellite/perspective projections with height-dependent clip ---
+      // tpers/geos: the clip radius is now derived from h via cos(θ)=R/(R+h) instead
+      // of a hardcoded angle.  Test orbits that produce a visible disk large enough
+      // (> 1 % of Earth surface) to pass the area floor.
+      // h = 5 500 km ≈ old hardcoded 50° for tpers; horizon ≈ 53°.
+      {"tpers_meo",  "+proj=tpers +h=5500000 +datum=WGS84 +units=m"},
+      // h = 20 000 km (GPS-like orbit): horizon ≈ 76°.
+      {"tpers_high", "+proj=tpers +h=20000000 +datum=WGS84 +units=m"},
+      // Standard geostationary orbit (~35 786 km): horizon ≈ 81°.
+      {"geos_geo",   "+proj=geos +h=35786000 +datum=WGS84 +units=m"},
+      // Non-standard high orbit at 42 000 km: verifies h is read, not hardcoded.
+      {"geos_high",  "+proj=geos +h=42000000 +datum=WGS84 +units=m"},
+      // --- Scenario F: Transverse Mercator — hemisphere clip now applied ---
+      // tmerc previously returned an empty interrupt and relied on jump-detection.
+      // It now uses the same 89.5° circle clip as gstmerc.
+      {"tmerc_utm33",  "+proj=tmerc +lon_0=15 +datum=WGS84 +units=m"},
+      {"tmerc_lon0_90", "+proj=tmerc +lon_0=90 +datum=WGS84 +units=m"},
+      {"gstmerc",      "+proj=gstmerc +lon_0=0 +datum=WGS84 +units=m"},
+  };
+
+  // 1 % of Earth's surface area — a conservative floor that rules out degenerate
+  // slivers while being achievable by any partial-hemisphere projection.
+  const double minArea = 0.01 * 4.0 * M_PI * 6371000.0 * 6371000.0;
+
+  for (const auto& tc : cases)
+  {
+    for (int winding = 0; winding < 2; ++winding)
+    {
+      const char* label = (winding == 0) ? "CCW" : "CW";
+
+      Fmi::SpatialReference wgs84(4326);
+      Fmi::SpatialReference target(tc.proj4);
+      Fmi::CoordinateTransformation ct(wgs84, target);
+
+      OGRPolygon poly = (winding == 0) ? worldPolygonCCW() : worldPolygonCW();
+
+      std::unique_ptr<OGRGeometry> out;
+      // Use 50 km densification: the new transformGeometry(geom, projector) overload
+      // sets m_densifyKm = theMaximumSegmentLength (0 by default), disabling the 50 km
+      // default that the old single-function implementation provided.  Projections such
+      // as lcc with a non-zero lon_0 need densification to produce a non-empty result.
+      ASSERT_NO_THROW(out.reset(ct.transformGeometry(poly, 50.0)))
+          << tc.name << " (" << label << "): threw exception";
+
+      ASSERT_TRUE(out) << tc.name << " (" << label << "): result is null";
+      ASSERT_FALSE(out->IsEmpty()) << tc.name << " (" << label << "): result is empty";
+
+      EXPECT_TRUE(allPolygonRingsClosed(out.get()))
+          << tc.name << " (" << label << "): polygon rings not closed";
+
+      const double area = totalArea(out.get());
+      EXPECT_GT(area, minArea)
+          << tc.name << " (" << label << "): area " << area
+          << " is less than 1 % of Earth surface area — likely a degenerate sliver";
+
+      // For Eckert projections verify that no vertex sits far below the natural
+      // south-pole extent.  Natural south poles: eck1/eck2 ≈ −9.23 Mm,
+      // eck4 ≈ −8.46 Mm.  The pre-fix leaking bug caused RectClipper to trace the
+      // bottom of the clipping box (−30 Mm with transformGeometry's internal box),
+      // producing a flat edge well outside any legitimate Eckert south pole.
+      if (std::string(tc.name).find("eck") == 0)
+      {
+        const auto verts = allVertices(out.get());
+        bool hasSpuriousSouthVertex = false;
+        for (const auto& p : verts)
+          if (p.getY() < -15.0e6)  // well below any real Eckert pole, well above −30 Mm box bottom
+            hasSpuriousSouthVertex = true;
+        EXPECT_FALSE(hasSpuriousSouthVertex)
+            << tc.name << " (" << label
+            << "): vertex below −15 Mm — likely south-pole leaking bug";
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Interrupt geometry unit tests
+// ----------------------------------------------------------------------------
+
+// Verify that the tpeqd clip circle is centred at the correct midpoint when
+// the two control points straddle the anti-meridian.  Before the fix, the
+// naive arithmetic mean (lon_1+lon_2)/2 placed the circle at 0° (Greenwich)
+// instead of ±180° when lon_1=170 and lon_2=-170.
+//
+// We inspect the bounding box of the andGeometry: when the clip circle is
+// correctly centred at lon=±180 it straddles the anti-meridian, so MaxX > 90
+// or MinX < -90.  When incorrectly centred at 0° the envelope stays near 0°.
+TEST(GeometryProjectorTests, Interrupt_TpeqdAntimeridianMidpoint)
+{
+  static GdalInitGuard guard;
+
+  // Anti-meridian crossing: correct centre is lon=±180.
+  Fmi::SpatialReference antimeridian(
+      "+proj=tpeqd +lon_1=170 +lat_1=40 +lon_2=-170 +lat_2=40 +datum=WGS84 +units=m");
+  auto intr = Fmi::interruptGeometry(antimeridian);
+  ASSERT_TRUE(intr.andGeometry) << "tpeqd antimeridian: expected andGeometry";
+
+  OGREnvelope env;
+  intr.andGeometry->getEnvelope(&env);
+  // Circle centred at ±180° spans more than 90° from the centre in both directions.
+  const bool straddlesAntimeridian = (env.MaxX > 90.0) || (env.MinX < -90.0);
+  EXPECT_TRUE(straddlesAntimeridian)
+      << "tpeqd antimeridian: clip circle not centred near ±180 — "
+      << "envelope [" << env.MinX << ", " << env.MaxX << "]; likely midpoint bug";
+
+  // Normal case (no anti-meridian crossing): centre should be at lon=0.
+  Fmi::SpatialReference normal(
+      "+proj=tpeqd +lon_1=-90 +lat_1=40 +lon_2=90 +lat_2=40 +datum=WGS84 +units=m");
+  auto intr2 = Fmi::interruptGeometry(normal);
+  ASSERT_TRUE(intr2.andGeometry) << "tpeqd normal: expected andGeometry";
+
+  OGREnvelope env2;
+  intr2.andGeometry->getEnvelope(&env2);
+  EXPECT_LT(env2.MinX, 0.0) << "tpeqd normal: clip circle should extend west of 0°";
+  EXPECT_GT(env2.MaxX, 0.0) << "tpeqd normal: clip circle should extend east of 0°";
+  EXPECT_NEAR((env2.MinX + env2.MaxX) / 2.0, 0.0, 5.0)
+      << "tpeqd normal: clip circle centre not near 0°";
+}
+
+// Verify that the laea interrupt now correctly handles all projection aspects
+// by cutting a small disc around the antipodal singularity point instead of
+// using the old ±178° rectangular clip (which only worked for lat_0=90°).
+//
+// For each aspect we check:
+//   1. cutGeometry is set (antipodal disc cut); shapeClips is empty (no old rect).
+//   2. The cut disc is a small region: its bounding box spans < 5° in both axes.
+//   3. The cut disc is centred near the antipodal point (lon_0+180°, −lat_0).
+TEST(GeometryProjectorTests, Interrupt_LaeaAntipodeCut)
+{
+  static GdalInitGuard guard;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+    double antiLon;  // expected antipodal longitude
+    double antiLat;  // expected antipodal latitude
+  };
+
+  const Case cases[] = {
+      // North-polar: antipode = south pole (0°, −90°)
+      {"laea_north_polar", "+proj=laea +lat_0=90 +lon_0=0 +datum=WGS84 +units=m", 0.0, -90.0},
+      // South-polar: antipode = north pole (0°, +90°)
+      {"laea_south_polar", "+proj=laea +lat_0=-90 +lon_0=0 +datum=WGS84 +units=m", 0.0, 90.0},
+      // Oblique European (ETRS-LAEA, lon_0=10, lat_0=52): antipode = (−170°, −52°)
+      {"laea_oblique_eu", "+proj=laea +lat_0=52 +lon_0=10 +datum=WGS84 +units=m", -170.0, -52.0},
+      // Equatorial: antipode = (−80°, 0°)
+      {"laea_equatorial", "+proj=laea +lat_0=0 +lon_0=100 +datum=WGS84 +units=m", -80.0, 0.0},
+  };
+
+  for (const auto& tc : cases)
+  {
+    Fmi::SpatialReference srs(tc.proj4);
+    auto intr = Fmi::interruptGeometry(srs);
+
+    ASSERT_TRUE(intr.cutGeometry)
+        << tc.name << ": expected cutGeometry (antipodal disc cut)";
+    EXPECT_TRUE(intr.shapeClips.empty())
+        << tc.name << ": expected no shapeClips — old rect clip should be gone";
+
+    OGREnvelope env;
+    intr.cutGeometry->getEnvelope(&env);
+
+    // The cut disc (radius 1°) must be small in latitude — not a large clip.
+    const double latSpan = env.MaxY - env.MinY;
+    EXPECT_LT(latSpan, 5.0)
+        << tc.name << ": cut disc lat span " << latSpan << "° unexpectedly large";
+
+    // Longitude span: for polar antipodes the disc wraps all 360° of longitude
+    // (every meridian passes through the pole) — skip the lon span check there.
+    const bool polarAntiPode = (std::abs(tc.antiLat) > 80.0);
+    if (!polarAntiPode)
+    {
+      const double lonSpan = env.MaxX - env.MinX;
+      EXPECT_LT(lonSpan, 5.0)
+          << tc.name << ": cut disc lon span " << lonSpan << "° unexpectedly large";
+    }
+
+    // The cut disc must be centred near the antipodal latitude.
+    const double centreLat = (env.MinY + env.MaxY) / 2.0;
+    EXPECT_NEAR(centreLat, tc.antiLat, 2.0)
+        << tc.name << ": cut disc lat centre " << centreLat
+        << "° not near antipodal lat " << tc.antiLat << "°";
+    // Longitude centre only meaningful for non-polar antipodes.
+    if (!polarAntiPode)
+    {
+      const double centreLon = (env.MinX + env.MaxX) / 2.0;
+      EXPECT_NEAR(centreLon, tc.antiLon, 5.0)
+          << tc.name << ": cut disc lon centre " << centreLon
+          << "° not near antipodal lon " << tc.antiLon << "°";
+    }
+  }
+}
+
+// Verify that ob_tran with transverse aspect (o_lat_p=90) gets a single clean
+// seam cut at modlon(o_lon_p + 180°), not the old experimental multi-cut block.
+//
+// For each case we check:
+//   1. shapeCuts is non-empty (seam cut is present).
+//   2. shapeCuts.size() is 1 or 2 (not the old 10+ experimental cuts).
+//   3. At least one cut is centred near the expected seam longitude.
+TEST(GeometryProjectorTests, Interrupt_ObTranTransverseSeam)
+{
+  static GdalInitGuard guard;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+    double expectedSeam;  // expected centre longitude of the seam cut
+  };
+
+  const Case cases[] = {
+      // o_lon_p=0: seam at modlon(0+180) = 180° — same as the default antimeridian.
+      // Both ±180 are added (matching the default case), so 2 cuts.
+      {"ob_tran_moll_lon0",
+       "+proj=ob_tran +o_proj=moll +o_lon_p=0 +o_lat_p=90 +datum=WGS84 +units=m",
+       180.0},
+      // o_lon_p=90: seam at modlon(90+180) = -90°.
+      {"ob_tran_moll_lon90",
+       "+proj=ob_tran +o_proj=moll +o_lon_p=90 +o_lat_p=90 +datum=WGS84 +units=m",
+       -90.0},
+      // o_lon_p=-45: seam at modlon(-45+180) = 135°.
+      {"ob_tran_eck4_lonm45",
+       "+proj=ob_tran +o_proj=eck4 +o_lon_p=-45 +o_lat_p=90 +datum=WGS84 +units=m",
+       135.0},
+      // o_lon_p=180: seam at modlon(180+180) = 0°.
+      {"ob_tran_wag4_lon180",
+       "+proj=ob_tran +o_proj=wag4 +o_lon_p=180 +o_lat_p=90 +datum=WGS84 +units=m",
+       0.0},
+  };
+
+  for (const auto& tc : cases)
+  {
+    SCOPED_TRACE(tc.name);
+    Fmi::SpatialReference srs(tc.proj4);
+    auto intr = Fmi::interruptGeometry(srs);
+
+    ASSERT_FALSE(intr.shapeCuts.empty()) << tc.name << ": expected shapeCuts (seam cut)";
+
+    // Transverse aspect should produce 1 or 2 cuts, not the old 10+ experimental block.
+    EXPECT_LE(intr.shapeCuts.size(), 2u)
+        << tc.name << ": too many shapeCuts (" << intr.shapeCuts.size()
+        << "); old experimental multi-cut block may still be active";
+
+    // At least one cut must be centred near the expected seam longitude.
+    // makeRing gives the rectangle; its envelope centre is the cut's longitude.
+    bool foundSeam = false;
+    for (const auto& cut : intr.shapeCuts)
+    {
+      std::unique_ptr<OGRLinearRing> ring(cut->makeRing(1.0));
+      if (!ring)
+        continue;
+      OGREnvelope env;
+      ring->getEnvelope(&env);
+      const double centreLon = (env.MinX + env.MaxX) / 2.0;
+      // Accept ±180 as equivalent (same meridian, opposite sign convention).
+      const bool atSeam = std::abs(centreLon - tc.expectedSeam) < 1.0 ||
+                          std::abs(std::abs(centreLon) - std::abs(tc.expectedSeam)) < 1.0;
+      if (atSeam)
+        foundSeam = true;
+    }
+    EXPECT_TRUE(foundSeam) << tc.name << ": no shapeCut centred near expected seam lon "
+                           << tc.expectedSeam << "°";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Polar-cap regression helper
+// ---------------------------------------------------------------------------
+
+// Case for polar-cap tests.  If minX == maxX == 0 the bounding box is derived
+// from computeBoundsForGlobalProjection (identical to WorldPolygon_Global).
+// Otherwise the explicit bounds are used directly.
+struct PolarCapCase
+{
+  const char* name;
+  const char* proj4;
+  double minX = 0, minY = 0, maxX = 0, maxY = 0;
+};
+
+// Run non-empty assertions for every case.  Uses EXPECT (not ASSERT) so that
+// all projections are exercised even when earlier ones fail.
+void runPolarCapCases(const char* label, OGRPolygon& poly,
+                      const std::vector<PolarCapCase>& cases)
+{
+  for (const auto& tc : cases)
+  {
+    SCOPED_TRACE(tc.name);
+
+    OGRSpatialReference wgs84 = makeSRS(4326);
+    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+
+    Bounds B;
+    if (tc.minX == 0 && tc.maxX == 0)
+    {
+      std::unique_ptr<OGRCoordinateTransformation> ct(
+          OGRCreateCoordinateTransformation(&wgs84, &target));
+      if (!ct)
+      {
+        ADD_FAILURE() << label << "/" << tc.name << ": could not create CT for bounds";
+        continue;
+      }
+      B = computeBoundsForGlobalProjection(ct.get());
+    }
+    else
+    {
+      B = {tc.minX, tc.minY, tc.maxX, tc.maxY};
+    }
+
+    Fmi::GeometryProjector projector(&wgs84, &target);
+    projector.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
+    projector.setDensifyResolutionKm(50.0);
+
+    std::unique_ptr<OGRGeometry> out;
+    try
+    {
+      out = projector.projectGeometry(&poly);
+    }
+    catch (const std::exception& e)
+    {
+      ADD_FAILURE() << label << "/" << tc.name << ": threw exception: " << e.what();
+      continue;
+    }
+    EXPECT_TRUE(out) << label << "/" << tc.name << ": result is null";
+    if (out)
+    {
+      EXPECT_FALSE(out->IsEmpty()) << label << "/" << tc.name << ": result is empty";
+    }
+  }
+}
+
+// Projections shared between both polar-cap tests.
+// Mirrors WorldPolygon_GlobalProjections_BothWindingsProduceSubstantialResult
+// (auto bounds) plus the limited-domain entries that cover both poles.
+const std::vector<PolarCapCase> kBothCapCases = {
+    // --- Eckert family ---
+    {"eck1",       "+proj=eck1 +datum=WGS84 +units=m"},
+    {"eck2",       "+proj=eck2 +datum=WGS84 +units=m"},
+    {"eck3",       "+proj=eck3 +datum=WGS84 +units=m"},
+    {"eck4",       "+proj=eck4 +datum=WGS84 +units=m"},
+    {"eck5",       "+proj=eck5 +datum=WGS84 +units=m"},
+    {"eck6",       "+proj=eck6 +datum=WGS84 +units=m"},
+    // --- Other pseudocylindrical ---
+    {"apian",      "+proj=apian +datum=WGS84 +units=m"},
+    {"bacon",      "+proj=bacon +datum=WGS84 +units=m"},
+    {"boggs",      "+proj=boggs +datum=WGS84 +units=m"},
+    {"collg",      "+proj=collg +datum=WGS84 +units=m"},
+    {"comill",     "+proj=comill +datum=WGS84 +units=m"},
+    {"crast",      "+proj=crast +datum=WGS84 +units=m"},
+    {"denoy",      "+proj=denoy +datum=WGS84 +units=m"},
+    {"eqearth",    "+proj=eqearth +datum=WGS84 +units=m"},
+    {"fouc",       "+proj=fouc +datum=WGS84 +units=m"},
+    {"fouc_s",     "+proj=fouc_s +datum=WGS84 +units=m"},
+    {"gins8",      "+proj=gins8 +datum=WGS84 +units=m"},
+    {"goode",      "+proj=goode +datum=WGS84 +units=m"},
+    {"hatano",     "+proj=hatano +datum=WGS84 +units=m"},
+    {"kav5",       "+proj=kav5 +datum=WGS84 +units=m"},
+    {"kav7",       "+proj=kav7 +datum=WGS84 +units=m"},
+    {"lask",       "+proj=lask +datum=WGS84 +units=m"},
+    {"mbt_fps",    "+proj=mbt_fps +datum=WGS84 +units=m"},
+    {"mbtfpp",     "+proj=mbtfpp +datum=WGS84 +units=m"},
+    {"mbtfpq",     "+proj=mbtfpq +datum=WGS84 +units=m"},
+    {"mbtfps",     "+proj=mbtfps +datum=WGS84 +units=m"},
+    {"moll",       "+proj=moll +datum=WGS84 +units=m"},
+    {"natearth",   "+proj=natearth +datum=WGS84 +units=m"},
+    {"natearth2",  "+proj=natearth2 +datum=WGS84 +units=m"},
+    {"nell",       "+proj=nell +datum=WGS84 +units=m"},
+    {"nell_h",     "+proj=nell_h +datum=WGS84 +units=m"},
+    {"nicol",      "+proj=nicol +datum=WGS84 +units=m"},
+    {"ortel",      "+proj=ortel +datum=WGS84 +units=m"},
+    {"patterson",  "+proj=patterson +datum=WGS84 +units=m"},
+    {"putp1",      "+proj=putp1 +datum=WGS84 +units=m"},
+    {"putp2",      "+proj=putp2 +datum=WGS84 +units=m"},
+    {"putp3",      "+proj=putp3 +datum=WGS84 +units=m"},
+    {"putp3p",     "+proj=putp3p +datum=WGS84 +units=m"},
+    {"putp4p",     "+proj=putp4p +datum=WGS84 +units=m"},
+    {"putp5",      "+proj=putp5 +datum=WGS84 +units=m"},
+    {"putp5p",     "+proj=putp5p +datum=WGS84 +units=m"},
+    {"putp6",      "+proj=putp6 +datum=WGS84 +units=m"},
+    {"putp6p",     "+proj=putp6p +datum=WGS84 +units=m"},
+    {"qua_aut",    "+proj=qua_aut +datum=WGS84 +units=m"},
+    {"robin",      "+proj=robin +datum=WGS84 +units=m"},
+    {"sinu",       "+proj=sinu +datum=WGS84 +units=m"},
+    {"times",      "+proj=times +datum=WGS84 +units=m"},
+    {"urm5",       "+proj=urm5 +n=0.9 +q=0.142 +alpha=0.97 +datum=WGS84 +units=m"},
+    {"urmfps",     "+proj=urmfps +n=0.5 +datum=WGS84 +units=m"},
+    {"wag1",       "+proj=wag1 +datum=WGS84 +units=m"},
+    {"wag2",       "+proj=wag2 +datum=WGS84 +units=m"},
+    {"wag3",       "+proj=wag3 +datum=WGS84 +units=m"},
+    {"wag4",       "+proj=wag4 +datum=WGS84 +units=m"},
+    {"wag5",       "+proj=wag5 +datum=WGS84 +units=m"},
+    {"wag6",       "+proj=wag6 +datum=WGS84 +units=m"},
+    {"wag7",       "+proj=wag7 +datum=WGS84 +units=m"},
+    {"weren",      "+proj=weren +datum=WGS84 +units=m"},
+    {"wink1",      "+proj=wink1 +datum=WGS84 +units=m"},
+    {"wink2",      "+proj=wink2 +datum=WGS84 +units=m"},
+    {"wintri",     "+proj=wintri +datum=WGS84 +units=m"},
+    // --- Polyconic / Cassini ---
+    {"cass",       "+proj=cass +datum=WGS84 +units=m"},
+    {"poly",       "+proj=poly +datum=WGS84 +units=m"},
+    // --- Modified azimuthal / other global ---
+    {"aitoff",     "+proj=aitoff +datum=WGS84 +units=m"},
+    {"august",     "+proj=august +datum=WGS84 +units=m"},
+    {"hammer",     "+proj=hammer +datum=WGS84 +units=m"},
+    // --- Van der Grinten family ---
+    {"vandg",      "+proj=vandg +datum=WGS84 +units=m"},
+    {"vandg2",     "+proj=vandg2 +datum=WGS84 +units=m"},
+    {"vandg3",     "+proj=vandg3 +datum=WGS84 +units=m"},
+    {"vandg4",     "+proj=vandg4 +datum=WGS84 +units=m"},
+    // --- LAEA oblique aspects ---
+    {"laea_EU",      "+proj=laea +lat_0=52 +lon_0=10 +ellps=GRS80 +units=m"},
+    {"laea_EPSG3035", "+init=EPSG:3035"},
+    // --- Miscellaneous global ---
+    {"adams_ws1",  "+proj=adams_ws1 +datum=WGS84 +units=m"},
+    {"adams_ws2",  "+proj=adams_ws2 +datum=WGS84 +units=m"},
+    {"bertin1953", "+proj=bertin1953 +datum=WGS84 +units=m"},
+    {"fahey",      "+proj=fahey +datum=WGS84 +units=m"},
+    {"lagrng",     "+proj=lagrng +datum=WGS84 +units=m"},
+    {"loxim",      "+proj=loxim +datum=WGS84 +units=m"},
+    {"mill",       "+proj=mill +datum=WGS84 +units=m"},
+    // tobmerc is Mercator-like; poles map to infinity so polar caps cannot be projected
+    // --- Cylindrical ---
+    {"eqc",        "+proj=eqc +datum=WGS84 +units=m"},
+    {"cea",        "+proj=cea +datum=WGS84 +units=m"},
+    {"gall",       "+proj=gall +datum=WGS84 +units=m"},
+    // --- Conic ---
+    {"bonne",      "+proj=bonne +lat_1=45 +datum=WGS84 +units=m"},
+    {"eqdc",       "+proj=eqdc +lat_1=29.5 +lat_2=45.5 +datum=WGS84 +units=m"},
+    // --- Generalised sinusoidal ---
+    {"gn_sinu",    "+proj=gn_sinu +m=2 +n=3 +datum=WGS84 +units=m"},
+    // --- Oblique transform (transverse aspect) ---
+    {"ob_tran_eck4",   "+proj=ob_tran +o_proj=eck4   +o_lon_p=0  +o_lat_p=90 +datum=WGS84 +units=m"},
+    {"ob_tran_moll",   "+proj=ob_tran +o_proj=moll   +o_lon_p=90 +o_lat_p=90 +datum=WGS84 +units=m"},
+    {"ob_tran_wag4",   "+proj=ob_tran +o_proj=wag4   +o_lon_p=0  +o_lat_p=90 +datum=WGS84 +units=m"},
+    {"ob_tran_wintri", "+proj=ob_tran +o_proj=wintri +o_lon_p=0  +o_lat_p=90 +datum=WGS84 +units=m"},
+    // --- From WorldPolygon_LimitedDomainProjections (global enough for both poles) ---
+    {"mil_os",     "+proj=mil_os +datum=WGS84 +units=m",   -2e7, -2e7, 2e7, 2e7},
+};
+
+// Cases only meaningful for the southern polar cap.
+const std::vector<PolarCapCase> kSouthCapOnlyCases = {
+    // South-polar LAEA: the south pole maps to the origin, so the cap is
+    // fully contained within the bounds used for WorldPolygon_LimitedDomain.
+    {"laea_south_polar", "+proj=laea +lat_0=-90 +lon_0=0 +ellps=GRS80 +units=m",
+     -1.35e7, -0.1e6, 1.35e7, 1.35e7},
+};
+
+// Cases only meaningful for the northern polar cap.
+const std::vector<PolarCapCase> kNorthCapOnlyCases = {
+    // North-polar LAEA: the north pole maps to the origin, cap within bounds.
+    {"laea_north_polar", "+proj=laea +lat_0=90 +lon_0=0 +ellps=GRS80 +units=m",
+     -1.35e7, -1.35e7, 1.35e7, 0.1e6},
+    // UPS uses a north-polar stereographic; the south polar cap is far outside its bounds.
+    {"ups",              "+proj=ups +datum=WGS84 +units=m",
+     -8.5e6, -8.5e6, 8.5e6, 8.5e6},
+};
+
+// ---------------------------------------------------------------------------
+
+// Verify that the southern polar cap (bbox -180,-90 to 180,-70) produces a
+// non-empty projected result for all projections in the WorldPolygon tests,
+// plus projections that previously caused the region to vanish.
+TEST(GeometryProjectorTests, SouthernPolarCap_ProblematicProjections_IsNonEmpty)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  OGRPolygon poly = southernPolarCapPolygon();
+  runPolarCapCases("SouthernPolarCap", poly, kBothCapCases);
+  runPolarCapCases("SouthernPolarCap", poly, kSouthCapOnlyCases);
+}
+
+// Verify the same for the northern polar cap (bbox -180,70 to 180,90).
+TEST(GeometryProjectorTests, NorthernPolarCap_ProblematicProjections_IsNonEmpty)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  OGRPolygon poly = northernPolarCapPolygon();
+  runPolarCapCases("NorthernPolarCap", poly, kBothCapCases);
+  runPolarCapCases("NorthernPolarCap", poly, kNorthCapOnlyCases);
+}
+
+// ---------------------------------------------------------------------------
+
+// Verify that the world polygon does not vanish when the bounding box is
+// slightly SMALLER than the projection's natural world extent.
+//
+// Two failure modes are covered:
+//
+//   WebMercator (EPSG:3857): natural extent ≈ ±20 037 508 m in both X and Y.
+//   With a ±20 000 km box ALL four projected edges of the world rectangle lie
+//   outside the bbox → Liang-Barsky produces zero runs → polygon vanishes.
+//
+//   Plate Carrée / eqc: natural extent ≈ ±20 037 508 m in X and ±10 018 754 m
+//   in Y.  With a ±20 000 km box the left/right edges (x ≈ ±20.04 Mm) are
+//   outside the bbox, but top/bottom edges (y ≈ ±10.02 Mm) are inside.  Two
+//   runs are produced; the result should be a rectangle ~40 Mm × ~20 Mm.
+//
+// In both cases the expected output covers a substantial fraction of the bbox.
+TEST(GeometryProjectorTests, WorldPolygon_CylindricalProjections_SmallerBboxIsNonEmpty)
+{
+  CPLSetConfigOption("OGR_GEOMETRY_ACCEPT_UNCLOSED_RING", "NO");
+  static GdalInitGuard guard;
+  GdalErrorSilencer silence;
+
+  struct Case
+  {
+    const char* name;
+    const char* proj4;
+    // Minimum fraction of the bbox area we expect the result to cover.
+    double minFraction;
+  };
+
+  const Case cases[] = {
+      // WebMercator: world extent ≈ ±20.04 Mm in both axes → whole bbox filled.
+      {"webmerc",
+       "+proj=webmerc +datum=WGS84 +units=m",
+       0.90},
+      // Plate Carrée: world y extent ≈ ±10 Mm, inside ±20 Mm → fills a strip.
+      {"eqc",
+       "+proj=eqc +datum=WGS84 +units=m",
+       0.25},
+  };
+
+  // Fixed ±20 000 km bounding box — slightly smaller than the WebMercator natural extent.
+  const double BOX = 20e6;  // 20 000 km
+  const Bounds B{-BOX, -BOX, BOX, BOX};
+  const double boxArea = (B.maxX - B.minX) * (B.maxY - B.minY);
+
+  OGRPolygon poly = worldPolygonCCW();
+
+  for (const auto& tc : cases)
+  {
+    SCOPED_TRACE(tc.name);
+    OGRSpatialReference wgs84 = makeSRS(4326);
+    OGRSpatialReference target = makeSRSFromProj4(tc.proj4);
+
+    Fmi::GeometryProjector projector(&wgs84, &target);
+    projector.setProjectedBounds(B.minX, B.minY, B.maxX, B.maxY);
+    projector.setDensifyResolutionKm(50.0);
+
+    auto out = projector.projectGeometry(&poly);
+
+    ASSERT_TRUE(out && !out->IsEmpty())
+        << tc.name << ": world polygon vanished with ±20 Mm bbox";
+
+    const auto gt = wkbFlatten(out->getGeometryType());
+    EXPECT_TRUE(gt == wkbPolygon || gt == wkbMultiPolygon)
+        << tc.name << ": expected polygon, got " << OGRGeometryTypeToName(out->getGeometryType());
+
+    EXPECT_TRUE(allVerticesWithinBounds(out.get(), B))
+        << tc.name << ": vertices outside bounds";
+
+    const double area = totalArea(out.get());
+    EXPECT_GT(area, tc.minFraction * boxArea)
+        << tc.name << ": area " << area << " is less than " << (tc.minFraction * 100)
+        << "% of bbox area " << boxArea;
   }
 }
