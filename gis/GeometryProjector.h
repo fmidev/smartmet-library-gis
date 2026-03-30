@@ -22,6 +22,8 @@ class GeometryProjector
   GeometryProjector& operator=(GeometryProjector&&) noexcept;
 
   void setProjectedBounds(double minX, double minY, double maxX, double maxY);
+  bool hasProjectedBounds() const;
+  void getProjectedBounds(double& minX, double& minY, double& maxX, double& maxY) const;
 
   // Default 50km. Set <=0 to disable geographic densification.
   void setDensifyResolutionKm(double km);

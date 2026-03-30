@@ -1,4 +1,5 @@
 #include "CoordinateTransformation.h"
+#include "Box.h"
 #include "GeometryBuilder.h"
 #include "GeometryProjector.h"
 #include "Interrupt.h"
@@ -255,6 +256,33 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       if (!this->transform(*g))
         return nullptr;
       OGR::normalizeWindingOrder(g.get());
+      return g.release();
+    }
+
+    // Both source and target are geographic and identical: skip reprojection and interrupts
+    if (impl->m_target.isGeographic() && impl->m_source.get()->IsSame(impl->m_target.get()))
+    {
+      auto g = make_geometry_ptr(geom.clone());
+      OGR::normalizeWindingOrder(g.get());
+
+      if (projector.hasProjectedBounds())
+      {
+        double minX, minY, maxX, maxY;
+        projector.getProjectedBounds(minX, minY, maxX, maxY);
+
+        OGREnvelope env;
+        g->getEnvelope(&env);
+
+        // Only clip if the geometry extends outside the bounds
+        if (env.MinX < minX || env.MaxX > maxX || env.MinY < minY || env.MaxY > maxY)
+        {
+          auto clipped = make_geometry_ptr(OGR::polyclip(*g, Box(minX, minY, maxX, maxY)));
+          if (!clipped || clipped->IsEmpty())
+            return nullptr;
+          g = std::move(clipped);
+        }
+      }
+
       return g.release();
     }
 

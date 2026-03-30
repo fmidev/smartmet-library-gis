@@ -500,6 +500,14 @@ class GeometryProjector::Impl
   Impl(OGRSpatialReference* sourceSRS, OGRSpatialReference* targetSRS);
 
   void setProjectedBounds(double minX, double minY, double maxX, double maxY);
+  bool hasProjectedBounds() const { return m_boundsSet; }
+  void getProjectedBounds(double& minX, double& minY, double& maxX, double& maxY) const
+  {
+    minX = m_projectedBounds[0];
+    minY = m_projectedBounds[1];
+    maxX = m_projectedBounds[2];
+    maxY = m_projectedBounds[3];
+  }
   void setDensifyResolutionKm(double km);
   double getDensifyResolutionKm() const;
   std::unique_ptr<OGRGeometry> projectGeometry(const OGRGeometry* geom);
@@ -1222,6 +1230,16 @@ GeometryProjector& GeometryProjector::operator=(GeometryProjector&&) noexcept = 
 void GeometryProjector::setProjectedBounds(double minX, double minY, double maxX, double maxY)
 {
   m_impl->setProjectedBounds(minX, minY, maxX, maxY);
+}
+
+bool GeometryProjector::hasProjectedBounds() const
+{
+  return m_impl->hasProjectedBounds();
+}
+
+void GeometryProjector::getProjectedBounds(double& minX, double& minY, double& maxX, double& maxY) const
+{
+  m_impl->getProjectedBounds(minX, minY, maxX, maxY);
 }
 
 void GeometryProjector::setDensifyResolutionKm(double km)
