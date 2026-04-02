@@ -82,7 +82,17 @@ Small changes and bug fixes can be submitted via pull request. In larger contrib
 CLA is required in order to contribute. Please contact us for more information!
 
 ## Documentation
-Each module is documented in module [module wiki](../../wiki). 
+
+Library API documentation is in the [docs/](docs/) directory:
+
+- [docs/gis.md](docs/gis.md) — Overview, quick start, dependencies, and design patterns
+- [docs/gis-projection.md](docs/gis-projection.md) — Coordinate systems, transformations, `GeometryProjector`, `CoordinateMatrix`
+- [docs/gis-clipping.md](docs/gis-clipping.md) — Clipping and cutting operations, shape types, geometry smoothing
+- [docs/gis-interrupts.md](docs/gis-interrupts.md) — Geographic interrupts: handling map projection discontinuities and the antimeridian
+- [docs/gis-raster.md](docs/gis-raster.md) — Digital elevation models (DEM/SRTM) and land cover classification
+- [docs/gis-postgis.md](docs/gis-postgis.md) — PostGIS database integration
+
+Each module is also documented in module [module wiki](../../wiki). 
 
 ## Communication and Resources
 You may contact us from following channels:
