@@ -1,105 +1,38 @@
-# SmartMet Server
-SmartMet Server is a data and product server for MetOcean data. It provides a high capacity and high availability data and product server for MetOcean data. The server is written in C++, since 2008 it has been in operational use by the Finnish Meteorological Institute FMI. 
+# smartmet-library-gis
 
-The server can read input data from various sources:
-* GRIB (1 and 2) 
-* NetCDF
-* SQL database
+Part of [SmartMet Server](https://github.com/fmidev/smartmet-library-spine). See the [SmartMet Server documentation](https://github.com/fmidev/smartmet-library-spine) for an overview of the ecosystem.
 
-The server provides several output interfaces:
-* WMS 1.3.0
-* WFS 2.0
-* Several custom interface
-and several output formats:
-* JSON
-* XML
-* ASCII
-* HTML
-* SERIAL
-* GRIB1
-* GRIB2 
-* NetCDF
-* Raster images
+## Overview
 
-The server is INSPIRE compliant. It is used for FMI data services and product generation. It's been operative since 2008 and used for FMI Open Data Portal since 2013.
+The gis library provides GIS (Geographic Information System) operations for SmartMet Server. It handles coordinate projections, geometry operations, and geographic data access needed by the server's spatial processing capabilities.
 
-The server is especially good for extracting weather data and generating products based on gridded data (GRIB and NetCDF). The data is extracted and products generating always on-demand. 
+## Features
 
-## Server Structure
-
-![](https://github.com/fmidev/smartmet-server/blob/master/SmartMet_Structure.png "Server structure")
-
-SmartMet Server consists of following components:
-
-<table>
-<tr>
-<th>Component</th><th>Description</th><th>Source Code</th>
-</tr>
-<tr valign="top">
-<td>qdtools         </td><td>Helper programs to handle underling data          </td><td> https://github.com/fmidev/smartmet-qdtools </td></tr>
-<tr valign="top">
-<td> Libraries       </td><td>Libraries required to run programs and the server </td><td> https://github.com/fmidev/smartmet-library-spine<br>
-     		     				    		     	 		  https://github.com/fmidev/smartmet-library-newbase<br>
-											  https://github.com/fmidev/smartmet-library-macgyver<br>
-											  https://github.com/fmidev/smartmet-library-gis<br>
-											  https://github.com/fmidev/smartmet-library-giza<br>
-											  https://github.com/fmidev/smartmet-library-locus<br>
-											  https://github.com/fmidev/smartmet-library-regression<br>
-											  https://github.com/fmidev/smartmet-library-imagine</td>
-</tr
-<tr valign="top">
-<td>Server          </td><td>The server daemon itself                          </td><td> https://github.com/fmidev/smartmet-server  </td>
-</tr>
-<tr valign="top">
-<td>Engines         </td><td>Common modules with a state                       </td><td> https://github.com/fmidev/smartmet-engine-geonames<br>
-											 https://github.com/fmidev/smartmet-engine-sputnik<br>
-											 https://github.com/fmidev/smartmet-engine-querydata<br>
-											 https://github.com/fmidev/smartmet-engine-observation<br>
-											 https://github.com/fmidev/smartmet-engine-contour<br>
-											 https://github.com/fmidev/smartmet-engine-gis </td>
-</tr>
-<tr valign="top">
-<td>Plugins         </td><td>Plugins providing interfaces to clients           </td><td> https://github.com/fmidev/smartmet-plugin-timeseries<br>
-											  https://github.com/fmidev/smartmet-plugin-meta<br>
-											  https://github.com/fmidev/smartmet-plugin-frontend<br>
-											  https://github.com/fmidev/smartmet-plugin-wfs<br>
-											  https://github.com/fmidev/smartmet-plugin-wms<br>
-											  https://github.com/fmidev/smartmet-plugin-autocomplete<br>
-											  https://github.com/fmidev/smartmet-plugin-backend<br>
-											  https://github.com/fmidev/smartmet-plugin-download<br>
-											  https://github.com/fmidev/smartmet-plugin-admin </td>
-</tr>
-</table>
-
-## Licence
-The server is published with MIT-license.
-
-## How to contribute
-Found a bug? Want to implement a new feature? Your contribution is very welcome!
-
-Small changes and bug fixes can be submitted via pull request. In larger contributions, premilinary plan is recommended (in GitHub wiki). 
-
-CLA is required in order to contribute. Please contact us for more information!
+- **Coordinate projections** — coordinate system transformations using PROJ
+- **Geometry clipping** — clipping geographic features to bounding boxes and arbitrary areas
+- **Antimeridian handling** — correct handling of geographic interrupts at the antimeridian
+- **Raster/DEM data** — Digital Elevation Model (SRTM) and land cover raster access
+- **PostGIS integration** — reading geographic data from PostGIS databases
 
 ## Documentation
 
-Library API documentation is in the [docs/](docs/) directory:
+Detailed documentation is available in the [docs/](docs/) directory:
 
-- [docs/gis.md](docs/gis.md) — Overview, quick start, dependencies, and design patterns
-- [docs/gis-projection.md](docs/gis-projection.md) — Coordinate systems, transformations, `GeometryProjector`, `CoordinateMatrix`
-- [docs/gis-clipping.md](docs/gis-clipping.md) — Clipping and cutting operations, shape types, geometry smoothing
-- [docs/gis-interrupts.md](docs/gis-interrupts.md) — Geographic interrupts: handling map projection discontinuities and the antimeridian
-- [docs/gis-raster.md](docs/gis-raster.md) — Digital elevation models (DEM/SRTM) and land cover classification
-- [docs/gis-postgis.md](docs/gis-postgis.md) — PostGIS database integration
+- [Overview and quick start](docs/gis.md)
+- [Coordinate projections](docs/gis-projection.md)
+- [Geometry clipping](docs/gis-clipping.md)
+- [Geographic interrupts and antimeridian](docs/gis-interrupts.md)
+- [Raster and DEM data](docs/gis-raster.md)
+- [PostGIS integration](docs/gis-postgis.md)
 
-Each module is also documented in module [module wiki](../../wiki). 
+## Usage
 
-## Communication and Resources
-You may contact us from following channels:
-* Email: beta@fmi.fi
-* Facebook: https://www.facebook.com/fmibeta/
-* GitHub: [issues](../../issues)
+Used by [smartmet-engine-gis](https://github.com/fmidev/smartmet-engine-gis), [smartmet-plugin-wms](https://github.com/fmidev/smartmet-plugin-wms), and other components requiring geographic data processing.
 
-Other resources which may be useful:
-* Presentation about the server: http://www.slideshare.net/tervo/smartmet-server-providing-metocean-data
-* Our public web pages (in Finnish):  http://ilmatieteenlaitos.fi/avoin-lahdekoodi
+## License
+
+MIT — see [LICENSE](LICENSE)
+
+## Contributing
+
+Bug reports and pull requests are welcome on [GitHub](../../issues).
