@@ -1,13 +1,13 @@
 # SmartMet GIS Library
 
-The `smartmet-library-gis` is a C++ geometric processing library used by [SmartMet Server](https://github.com/fmidev/smartmet-server), a high-capacity MetOcean data server developed at the Finnish Meteorological Institute (FMI). The library is built as a static library (`libsmartmet-gis.a`) and wraps GDAL/OGR and GEOS with additional algorithms for geographic data.
+The `smartmet-library-gis` is a C++ geometric processing library used by [SmartMet Server](https://github.com/fmidev/smartmet-server), a high-capacity MetOcean data server developed at the Finnish Meteorological Institute (FMI). The library is built as a shared library (`libsmartmet-gis.so`) and wraps GDAL/OGR and GEOS with additional algorithms for geographic data.
 
 All public API lives under the `Fmi` namespace.
 
 ## Contents
 
 - [Coordinate Systems and Transformations](gis-projection.md) — `SpatialReference`, `CoordinateTransformation`, `GeometryProjector`, `CoordinateMatrix`, `ProjInfo`, `EPSGInfo`
-- [Clipping and Cutting](gis-clipping.md) — `OGR` namespace functions, `Box`, `Shape` hierarchy, `GeometryBuilder`, `GeometrySmoother`
+- [Clipping and Cutting](gis-clipping.md) — `OGR` namespace functions, `Box`, `Shape` hierarchy, `GeometryBuilder`, `GeometrySmoother`, `GeometrySimplifier`, `GeometryAmalgamator`
 - [Geographic Interrupts](gis-interrupts.md) — `Interrupt`, map projection discontinuities, antimeridian handling
 - [Elevation and Land Cover](gis-raster.md) — `DEM`, `SrtmTile`, `SrtmMatrix`, `LandCover`
 - [PostGIS Integration](gis-postgis.md) — `PostGIS`, `Host`
@@ -50,11 +50,10 @@ auto result = projector.projectGeometry(geom);
 ## Building
 
 ```bash
-cmake -B build
-cmake --build build
+make            # Build libsmartmet-gis.so
+make test       # Run tests
+make install    # Install headers and library
 ```
-
-The library produces `libsmartmet-gis.a`.
 
 ## Key Design Patterns
 

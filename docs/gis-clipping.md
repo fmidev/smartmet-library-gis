@@ -240,6 +240,76 @@ smoother.apply(geoms, /*preserve_topology=*/true);
 
 ---
 
+## GeometrySimplifier
+
+`#include <gis/GeometrySimplifier.h>`
+
+Reduces vertex count in isolines and isoband boundaries using either the Douglas-Peucker or Visvalingam-Whyatt algorithm. Designed for post-processing contour output before rendering.
+
+```cpp
+Fmi::GeometrySimplifier simplifier;
+simplifier.type(Fmi::GeometrySimplifier::Type::DouglasPeucker);  // or VisvalingamWhyatt
+simplifier.tolerance(2.0);   // pixels (converted to coordinate units via bbox)
+simplifier.bbox(box);        // converts pixel tolerance to coordinate tolerance
+
+std::vector<OGRGeometryPtr> geoms = { ... };
+simplifier.apply(geoms, /*preserve_topology=*/true);
+```
+
+### Algorithm Types
+
+| Type | Tolerance meaning | Method |
+|------|-------------------|--------|
+| `None` | — | No simplification |
+| `DouglasPeucker` | Maximum perpendicular distance | Recursively removes points closer than the tolerance to the line between retained points |
+| `VisvalingamWhyatt` | Maximum triangle area | Iteratively removes the vertex forming the smallest triangle with its neighbours |
+
+### Topology preservation
+
+When `preserve_topology` is true, the simplifier first counts vertex usage across all geometries. Shared vertices (corners where four geometries meet) and unshared edge endpoints are treated as anchors that cannot be removed. Simplification runs independently on each segment between anchors. Shared edges are canonicalised to a consistent direction so that adjacent geometries produce identical simplified boundaries.
+
+When `preserve_topology` is false, each geometry is simplified independently without regard to shared edges.
+
+### Tolerance and bbox
+
+The tolerance is initially specified in pixel units. Calling `bbox(box)` converts it to coordinate units using the box's inverse transform. For Douglas-Peucker this is a distance; for Visvalingam-Whyatt it is squared to produce an area threshold.
+
+---
+
+## GeometryAmalgamator
+
+`#include <gis/GeometryAmalgamator.h>`
+
+Merges nearby polygons by filling narrow gaps between them. Useful for joining archipelago islands, small isoband fragments, or other clusters of nearby polygons into larger connected regions.
+
+The algorithm uses constrained Delaunay triangulation (CDT) to triangulate the gaps between polygon boundaries, then accepts gap triangles whose edges are all shorter than a length limit. Accepted triangles are unioned with the original polygons to bridge the gaps.
+
+```cpp
+Fmi::GeometryAmalgamator amalgamator;
+amalgamator.lengthLimit(50.0);  // max gap triangle edge length (coordinate units)
+amalgamator.areaLimit(100.0);   // discard polygons smaller than this area
+
+std::vector<OGRGeometryPtr> geoms = { ... };
+amalgamator.apply(geoms);
+```
+
+### Parameters
+
+| Parameter | Effect |
+|-----------|--------|
+| `lengthLimit` | Maximum edge length for gap triangles. Only gap triangles with all three edges within this limit are used to bridge polygons. Set to 0 to disable amalgamation (area filtering only). |
+| `areaLimit` | Minimum polygon area to keep in the result. Polygons smaller than this are discarded after amalgamation. Set to 0 to keep all polygons. |
+
+### Algorithm steps
+
+1. Extract all polygon vertices and edges, densifying long edges to half the length limit
+2. Build a constrained Delaunay triangulation over all vertices with polygon edges as constraints
+3. Classify triangles by depth: odd depth = inside a polygon (accept), depth 0 = gap triangle (accept if all edges are short enough), even depth > 0 = hole interior (reject)
+4. Union all accepted triangles into merged polygons
+5. Decompose the result into individual polygons and filter by area limit
+
+---
+
 ## The Shape Abstraction
 
 `#include <gis/Shape.h>`

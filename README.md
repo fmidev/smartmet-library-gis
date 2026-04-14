@@ -10,6 +10,8 @@ The gis library provides GIS (Geographic Information System) operations for Smar
 
 - **Coordinate projections** — coordinate system transformations using PROJ
 - **Geometry clipping** — clipping geographic features to bounding boxes and arbitrary areas
+- **Geometry simplification** — Douglas-Peucker and Visvalingam-Whyatt vertex reduction with topology preservation
+- **Polygon amalgamation** — merging nearby polygons via constrained Delaunay triangulation
 - **Antimeridian handling** — correct handling of geographic interrupts at the antimeridian
 - **Raster/DEM data** — Digital Elevation Model (SRTM) and land cover raster access
 - **PostGIS integration** — reading geographic data from PostGIS databases

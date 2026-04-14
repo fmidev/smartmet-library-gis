@@ -67,7 +67,9 @@ make -C test ASAN=yes test   # Address + UB sanitizer
 - `Box` — rectangle in projected coords with pixel-coordinate transform
 - `ShapeClipper`, `RectClipper` — internal clipping algorithm implementations
 - `GeometryBuilder` — collects clipping output fragments
-- `GeometrySmoother` — Douglas-Peucker-style smoothing
+- `GeometrySmoother` — weighted moving-average smoothing
+- `GeometrySimplifier` — Douglas-Peucker and Visvalingam-Whyatt vertex reduction with topology preservation
+- `GeometryAmalgamator` — merges nearby polygons via constrained Delaunay triangulation (CDT)
 
 **Raster data:**
 - `DEM` — Digital Elevation Model queries (SRTM tiles)
