@@ -6,6 +6,7 @@
 #include "TestDefs.h"
 #include <regression/tframe.h>
 #include <memory>
+#include <set>
 #include <ogr_geometry.h>
 
 using namespace std;
