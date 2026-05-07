@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.4.13
+Version: 26.5.8
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -120,6 +120,10 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-1.fmi
+- GeometrySmoother: preserve closure of closed OGRLineStrings — apply_filter for OGRLineString iterates 0..n-2 and writes n-1 smoothed vertices, then called out->closeRings() to re-establish closure, but closeRings() on OGRLineString is a no-op (only polygon-related types implement it), so the output ended up open; downstream code that relies on first==last (e.g. the bezier fitter's closed-ring detection in smartmet-plugin-wms) then mistreated the polyline as open and emitted visibly cut/kinked isolines near the loop's start/end vertex.  Fix by explicitly appending a copy of the first smoothed vertex when the input was closed.
+- Documentation: cross-reference the cubic Bezier fitter that currently lives in smartmet-plugin-wms; credit Raph Levien's kurbo library (Apache-2.0/MIT) and his 2009 UC Berkeley PhD thesis "From Spiral to Spline: Optimal Techniques in Interactive Curve Design".
+
 * Mon Apr 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.4.13-1.fmi
 - Repackaged due to base library API changes
 
