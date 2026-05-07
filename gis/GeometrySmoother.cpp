@@ -323,9 +323,18 @@ OGRLineString* apply_filter(const OGRLineString* geom, LineFilter& filter, uint 
         }
         filter.append(out);
       }
-      if (closed)
-        out->closeRings();  // Make sure the ring is exactly closed, rounding errors may be
-                            // present
+      if (closed && out->getNumPoints() > 0)
+      {
+        // OGRLineString::closeRings() is a no-op (it only operates on
+        // polygon-related types). The smoothing loop processed indices
+        // 0..n-2 and wrote n-1 vertices, dropping the original closing
+        // duplicate v_{n-1}=v_0. For a closed polyline the caller still
+        // expects first==last, so explicitly append a copy of the first
+        // smoothed vertex.
+        OGRPoint first;
+        out->getPoint(0, &first);
+        out->addPoint(first.getX(), first.getY());
+      }
 
       if (iter > 1)
         delete g;
