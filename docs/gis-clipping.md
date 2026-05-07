@@ -238,6 +238,12 @@ smoother.apply(geoms, /*preserve_topology=*/true);
 
 `preserve_topology` prevents self-intersections from being introduced during smoothing.
 
+### Related: Bezier curve fitting
+
+For applications that need cubic Bezier output rather than polylines (e.g. SVG isobands rendered with smooth curves), the SmartMet WMS plugin (`smartmet-plugin-wms`) carries a `BezierFit` module that fits a polyline to a sequence of cubic Bezier curves within a configurable accuracy.  It is a C++ port of [Raph Levien](https://raphlinus.github.io/)'s moment-matching algorithm from the Rust [`kurbo`](https://github.com/linebender/kurbo) library, which itself implements ideas from his 2009 UC Berkeley PhD thesis [*From Spiral to Spline: Optimal Techniques in Interactive Curve Design*](https://www.levien.com/phd/thesis.pdf).  The algorithm computes the signed area and first moment of the source segment and solves a quartic polynomial for cubic control points whose moments match.  The original Rust implementation is dual-licensed Apache-2.0 / MIT.
+
+This module may eventually move into `smartmet-library-gis` so that other plugins can produce Bezier output without depending on the WMS plugin.
+
 ---
 
 ## GeometrySimplifier
