@@ -124,7 +124,7 @@ Maximum edge length of accepted gap triangles, in **CRS coordinate units**. For 
 
 Larger values dissolve more of the archipelago into solid landmasses; smaller values keep more individual islands visible. The right value depends on the rendering pixel scale: if `lengthLimit` is much smaller than one pixel, the pass is a no-op.
 
-The WMS plugin's regression suite includes a deliberate calibration sequence on the same Northern-Baltic view: `map_amalgamate` (0.01, recommended), `map_amalgamate_wide` (0.02, more abstract but still recognisable), `map_amalgamate_extreme` (0.05, "do not exceed" — Stockholm archipelago dissolves into the Swedish mainland, Åland becomes a single blob). Comparing the three gallery PNGs is the fastest way to pick a value for a new view: find the largest one whose silhouette still reads correctly.
+The WMS plugin's regression suite includes a deliberate calibration sequence on the same Northern-Baltic view: `map_amalgamate` (0.01, recommended), `map_amalgamate_wide` (0.02, more abstract but still recognisable), `map_amalgamate_extreme` (0.05, "do not exceed" — Stockholm archipelago dissolves into the Swedish mainland, Åland becomes a single blob), and `map_amalgamate_pathological` (0.1, algorithm breakdown — cartoonish silhouettes plus scattered "ghost" white spots where narrow interior holes survive the boundary walk). Comparing the four gallery PNGs is the fastest way to pick a value for a new view: find the largest one whose silhouette still reads correctly.
 
 ### `areaLimit` — pre-filter inside the amalgamation
 
