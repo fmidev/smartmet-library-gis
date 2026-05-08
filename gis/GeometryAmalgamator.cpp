@@ -1,8 +1,12 @@
 #include "GeometryAmalgamator.h"
 #include "VertexCounter.h"
+#include <boost/geometry.hpp>
+#include <boost/geometry/index/rtree.hpp>
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
+#include <algorithm>
 #include <cmath>
+#include <map>
 #include <ogr_geometry.h>
 #include <unordered_map>
 #include <vector>
@@ -99,33 +103,44 @@ void extract_polygon(const OGRPolygon* poly,
     extract_ring(poly->getInteriorRing(i), maxLen, vertex_map, vertices, edges);
 }
 
-// Extract from any geometry type (recurses into collections)
-void extract_geometry(const OGRGeometry* geom,
-                      double maxLen,
-                      VertexMap& vertex_map,
-                      std::vector<CDT::V2d<double>>& vertices,
-                      std::vector<CDT::Edge>& edges)
+// Flatten any OGR geometry containing polygons into a list of OGRPolygon* with cached envelopes.
+struct FlatPoly
 {
-  if (geom == nullptr)
+  const OGRPolygon* poly;
+  OGREnvelope env;
+};
+
+void flatten(const OGRGeometry* g, std::vector<FlatPoly>& out)
+{
+  if (g == nullptr)
     return;
 
-  switch (geom->getGeometryType())
+  switch (g->getGeometryType())
   {
     case wkbPolygon:
-      extract_polygon(dynamic_cast<const OGRPolygon*>(geom), maxLen, vertex_map, vertices, edges);
+    {
+      const auto* p = dynamic_cast<const OGRPolygon*>(g);
+      if (p != nullptr && p->IsEmpty() == 0)
+      {
+        FlatPoly fp;
+        fp.poly = p;
+        p->getEnvelope(&fp.env);
+        out.push_back(fp);
+      }
       break;
+    }
     case wkbMultiPolygon:
     {
-      const auto* mp = dynamic_cast<const OGRMultiPolygon*>(geom);
+      const auto* mp = dynamic_cast<const OGRMultiPolygon*>(g);
       for (int i = 0, n = mp->getNumGeometries(); i < n; ++i)
-        extract_geometry(mp->getGeometryRef(i), maxLen, vertex_map, vertices, edges);
+        flatten(mp->getGeometryRef(i), out);
       break;
     }
     case wkbGeometryCollection:
     {
-      const auto* gc = dynamic_cast<const OGRGeometryCollection*>(geom);
+      const auto* gc = dynamic_cast<const OGRGeometryCollection*>(g);
       for (int i = 0, n = gc->getNumGeometries(); i < n; ++i)
-        extract_geometry(gc->getGeometryRef(i), maxLen, vertex_map, vertices, edges);
+        flatten(gc->getGeometryRef(i), out);
       break;
     }
     default:
@@ -172,6 +187,128 @@ void decompose(const OGRGeometry* geom, double area_limit, std::vector<OGRGeomet
   }
 }
 
+// Lightweight union-find with path compression and union by rank.
+class UnionFind
+{
+ public:
+  explicit UnionFind(std::size_t n) : m_parent(n), m_rank(n, 0)
+  {
+    for (std::size_t i = 0; i < n; ++i)
+      m_parent[i] = i;
+  }
+
+  std::size_t find(std::size_t x)
+  {
+    while (m_parent[x] != x)
+    {
+      m_parent[x] = m_parent[m_parent[x]];  // halving
+      x = m_parent[x];
+    }
+    return x;
+  }
+
+  void unite(std::size_t a, std::size_t b)
+  {
+    a = find(a);
+    b = find(b);
+    if (a == b)
+      return;
+    if (m_rank[a] < m_rank[b])
+      std::swap(a, b);
+    m_parent[b] = a;
+    if (m_rank[a] == m_rank[b])
+      ++m_rank[a];
+  }
+
+ private:
+  std::vector<std::size_t> m_parent;
+  std::vector<std::uint8_t> m_rank;
+};
+
+// Run the constrained-Delaunay amalgamation on a single connected cluster of polygons.
+// Polygons in `cluster` are assumed to be within `lengthLimit` of at least one other member
+// (or the cluster is a singleton, which the caller short-circuits before invoking us).
+void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
+                        double lengthLimit,
+                        double areaLimit,
+                        std::vector<OGRGeometryPtr>& result)
+{
+  // Step 1: extract vertices + constraint edges with edge densification
+  VertexMap vertex_map;
+  std::vector<CDT::V2d<double>> vertices;
+  std::vector<CDT::Edge> edges;
+  const double maxEdgeLen = lengthLimit / 2.0;
+  for (const auto* p : cluster)
+    extract_polygon(p, maxEdgeLen, vertex_map, vertices, edges);
+
+  if (vertices.size() < 3)
+    return;
+
+  // Step 2: constrained Delaunay triangulation
+  CDT::Triangulation<double> cdt;
+  cdt.insertVertices(vertices);
+  cdt.insertEdges(edges);
+  auto depths = cdt.calculateTriangleDepths();
+
+  // Step 3: classify triangles and build accepted-triangle polygons
+  auto* collection = new OGRGeometryCollection();
+
+  for (std::size_t i = 0; i < cdt.triangles.size(); i++)
+  {
+    const auto& tri = cdt.triangles[i];
+
+    // Skip super-triangle-adjacent triangles (super-tri vertices live at indices 0,1,2)
+    if (tri.vertices[0] < 3 || tri.vertices[1] < 3 || tri.vertices[2] < 3)
+      continue;
+
+    bool accept = false;
+    auto depth = depths[i];
+
+    if (depth % 2 == 1)
+    {
+      // Odd depth: inside a polygon
+      accept = true;
+    }
+    else if (depth == 0)
+    {
+      // Gap triangle: accept if all edges are short enough.
+      const auto& v0 = cdt.vertices[tri.vertices[0]];
+      const auto& v1 = cdt.vertices[tri.vertices[1]];
+      const auto& v2 = cdt.vertices[tri.vertices[2]];
+      accept = (edge_length(v0, v1) <= lengthLimit && edge_length(v1, v2) <= lengthLimit &&
+                edge_length(v2, v0) <= lengthLimit);
+    }
+    // depth even > 0: hole interior, reject
+
+    if (accept)
+    {
+      const auto& v0 = cdt.vertices[tri.vertices[0]];
+      const auto& v1 = cdt.vertices[tri.vertices[1]];
+      const auto& v2 = cdt.vertices[tri.vertices[2]];
+
+      auto* ring = new OGRLinearRing();
+      ring->addPoint(v0.x, v0.y);
+      ring->addPoint(v1.x, v1.y);
+      ring->addPoint(v2.x, v2.y);
+      ring->closeRings();
+
+      auto* poly = new OGRPolygon();
+      poly->addRingDirectly(ring);
+      collection->addGeometryDirectly(poly);
+    }
+  }
+
+  // Step 4: union all accepted triangles for this cluster
+  OGRGeometryPtr unified(collection->UnaryUnion());
+  delete collection;
+
+  if (!unified || unified->IsEmpty())
+    return;
+
+  // Step 5: decompose with the area filter
+  decompose(unified.get(), areaLimit, result);
+}
+
 }  // namespace
 
 void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
@@ -192,97 +329,80 @@ void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
       return;
     }
 
-    // Step 1: Extract all vertices and constraint edges
-    VertexMap vertex_map;
-    std::vector<CDT::V2d<double>> vertices;
-    std::vector<CDT::Edge> edges;
+    // Step 0: flatten the input down to individual polygons + their envelopes.
+    // Clustering happens at this granularity rather than at the input vector
+    // entry level because typical callers pass a single MultiPolygon containing
+    // every island as a member, not one OGRGeometryPtr per island.
+    std::vector<FlatPoly> polys;
+    for (const auto& gp : geoms)
+      if (gp && !gp->IsEmpty())
+        flatten(gp.get(), polys);
 
-    // Densify polygon edges to half the length limit so that the Delaunay triangulation
-    // produces small triangles. This ensures gap triangle edges (including diagonals across
-    // the gap) stay within the length limit check.
-    const double maxEdgeLen = m_lengthLimit / 2.0;
-    for (const auto& geom : geoms)
-      if (geom && !geom->IsEmpty())
-        extract_geometry(geom.get(), maxEdgeLen, vertex_map, vertices, edges);
-
-    if (vertices.size() < 3)
+    if (polys.empty())
     {
       geoms.clear();
       return;
     }
 
-    // Step 2: Constrained Delaunay triangulation
-    // CDT places super-triangle vertices at indices 0,1,2; user vertices start at index 3.
-    CDT::Triangulation<double> cdt;
-    cdt.insertVertices(vertices);
-    cdt.insertEdges(edges);
+    // Step 1: build an R-tree of polygon envelopes for fast neighbour lookup.
+    namespace bg = boost::geometry;
+    namespace bgi = boost::geometry::index;
+    using BPoint = bg::model::point<double, 2, bg::cs::cartesian>;
+    using BBox = bg::model::box<BPoint>;
+    using RtValue = std::pair<BBox, std::size_t>;
 
-    auto depths = cdt.calculateTriangleDepths();
-
-    // Step 3: Classify triangles and build accepted triangle polygons
-    auto* collection = new OGRGeometryCollection();
-
-    for (std::size_t i = 0; i < cdt.triangles.size(); i++)
+    bgi::rtree<RtValue, bgi::quadratic<16>> rtree;
+    for (std::size_t i = 0; i < polys.size(); ++i)
     {
-      const auto& tri = cdt.triangles[i];
-
-      // Skip super-triangle-adjacent triangles (super-tri vertices are at indices 0, 1, 2)
-      if (tri.vertices[0] < 3 || tri.vertices[1] < 3 || tri.vertices[2] < 3)
-        continue;
-
-      bool accept = false;
-      auto depth = depths[i];
-
-      if (depth % 2 == 1)
-      {
-        // Odd depth: inside a polygon
-        accept = true;
-      }
-      else if (depth == 0)
-      {
-        // Gap triangle: accept if all edges are short enough.
-        // Constraint edges are short due to densification, so checking all edges
-        // works the same way as in the shapetools amalgamate algorithm.
-        const auto& v0 = cdt.vertices[tri.vertices[0]];
-        const auto& v1 = cdt.vertices[tri.vertices[1]];
-        const auto& v2 = cdt.vertices[tri.vertices[2]];
-
-        accept = (edge_length(v0, v1) <= m_lengthLimit && edge_length(v1, v2) <= m_lengthLimit &&
-                  edge_length(v2, v0) <= m_lengthLimit);
-      }
-      // depth even > 0: hole interior, reject
-
-      if (accept)
-      {
-        const auto& v0 = cdt.vertices[tri.vertices[0]];
-        const auto& v1 = cdt.vertices[tri.vertices[1]];
-        const auto& v2 = cdt.vertices[tri.vertices[2]];
-
-        auto* ring = new OGRLinearRing();
-        ring->addPoint(v0.x, v0.y);
-        ring->addPoint(v1.x, v1.y);
-        ring->addPoint(v2.x, v2.y);
-        ring->closeRings();
-
-        auto* poly = new OGRPolygon();
-        poly->addRingDirectly(ring);
-        collection->addGeometryDirectly(poly);
-      }
+      const auto& e = polys[i].env;
+      rtree.insert({BBox{BPoint{e.MinX, e.MinY}, BPoint{e.MaxX, e.MaxY}}, i});
     }
 
-    // Step 4: Union all accepted triangles
-    OGRGeometryPtr unified(collection->UnaryUnion());
-    delete collection;
-
-    if (!unified || unified->IsEmpty())
+    // Step 2: union-find polygons whose envelopes are within lengthLimit of each other.
+    // Bbox-distance is conservative: polygons with overlapping expanded envelopes might
+    // actually be > lengthLimit apart by their geometries, but we'll then just process
+    // them in the same CDT (slower than optimal, still correct). False negatives —
+    // missing a real neighbour — are not possible.
+    UnionFind uf(polys.size());
+    for (std::size_t i = 0; i < polys.size(); ++i)
     {
-      geoms.clear();
-      return;
+      const auto& e = polys[i].env;
+      BBox query{BPoint{e.MinX - m_lengthLimit, e.MinY - m_lengthLimit},
+                 BPoint{e.MaxX + m_lengthLimit, e.MaxY + m_lengthLimit}};
+      for (auto it = rtree.qbegin(bgi::intersects(query)); it != rtree.qend(); ++it)
+        if (it->second != i)
+          uf.unite(i, it->second);
     }
 
-    // Step 5: Decompose into individual polygons and filter by area
+    // Step 3: group polygons by their connected component.
+    // std::map keyed by the component representative gives a stable iteration order so
+    // that the output ordering is deterministic across runs.
+    std::map<std::size_t, std::vector<std::size_t>> clusters;
+    for (std::size_t i = 0; i < polys.size(); ++i)
+      clusters[uf.find(i)].push_back(i);
+
+    // Step 4: process each cluster independently. Singletons short-circuit the CDT entirely
+    // (they cannot merge with anything). Multi-member clusters go through the existing
+    // extract → CDT → classify → UnaryUnion pipeline, but with a vastly smaller input than
+    // the global one — UnaryUnion is the dominant cost and it scales worse than linearly.
     std::vector<OGRGeometryPtr> result;
-    decompose(unified.get(), m_areaLimit, result);
+    for (const auto& [_, members] : clusters)
+    {
+      if (members.size() == 1)
+      {
+        const auto* p = polys[members[0]].poly;
+        if (m_areaLimit <= 0 || p->get_Area() >= m_areaLimit)
+          result.push_back(OGRGeometryPtr(p->clone()));
+      }
+      else
+      {
+        std::vector<const OGRPolygon*> cluster_polys;
+        cluster_polys.reserve(members.size());
+        for (auto i : members)
+          cluster_polys.push_back(polys[i].poly);
+        amalgamate_cluster(cluster_polys, m_lengthLimit, m_areaLimit, result);
+      }
+    }
     geoms = std::move(result);
   }
   catch (...)
