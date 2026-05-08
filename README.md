@@ -26,6 +26,7 @@ Detailed documentation is available in the [docs/](docs/) directory:
 - [Geographic interrupts and antimeridian](docs/gis-interrupts.md)
 - [Raster and DEM data](docs/gis-raster.md)
 - [PostGIS integration](docs/gis-postgis.md)
+- [Polygon amalgamation and simplification](docs/gis-amalgamator.md)
 
 ## Usage
 
