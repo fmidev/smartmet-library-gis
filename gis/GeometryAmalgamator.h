@@ -31,6 +31,17 @@ class GeometryAmalgamator
   // minarea filter (e.g. WMS Map.minarea). Default 0 disables the filter.
   void minTotalArea(double km2) { m_minTotalArea = km2; }
 
+  // Optional speedup: polygons whose individual geographic area (km^2) is
+  // at or above this threshold are excluded from the constrained Delaunay
+  // triangulation entirely and emitted unchanged to the output. The intent
+  // is "the mainland" — a few huge polygons that dominate the input vertex
+  // count but cannot benefit from amalgamation (their merged outline with a
+  // tiny neighbour is essentially identical to themselves). On a typical
+  // dense archipelago dataset just three or four polygons can hold the
+  // majority of all vertices, and removing them shrinks the CDT input
+  // dramatically. Default 0 disables this filter.
+  void mainlandArea(double km2) { m_mainlandArea = km2; }
+
   std::size_t hash_value() const;
   void apply(std::vector<OGRGeometryPtr>& geoms) const;
 
@@ -38,6 +49,7 @@ class GeometryAmalgamator
   double m_lengthLimit = 0;     // max gap triangle edge length (coordinate units)
   double m_areaLimit = 0;       // min polygon area to keep (coordinate units^2)
   double m_minTotalArea = 0;    // optional pre-CDT cluster total-area filter (km^2)
+  double m_mainlandArea = 0;    // optional pre-CDT mainland-bypass threshold (km^2)
 };
 
 }  // namespace Fmi

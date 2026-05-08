@@ -618,7 +618,23 @@ void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
       return;
     }
 
+    // Step 0b: mainland bypass. Polygons whose individual area meets or
+    // exceeds m_mainlandArea are emitted to the output unchanged and excluded
+    // from clustering and the CDT entirely. On dense archipelago datasets a
+    // handful of mainlands hold the bulk of the input vertex count and would
+    // otherwise dominate the triangulation cost; their merged outline with a
+    // tiny neighbour is virtually identical to the mainland itself, so
+    // skipping amalgamation for them costs almost nothing visually.
+    std::vector<bool> is_mainland(polys.size(), false);
+    if (m_mainlandArea > 0)
+    {
+      for (std::size_t i = 0; i < polys.size(); ++i)
+        if (polygon_area_km2(polys[i].poly) >= m_mainlandArea)
+          is_mainland[i] = true;
+    }
+
     // Step 1: build an R-tree of polygon envelopes for fast neighbour lookup.
+    // Only non-mainland polygons participate in clustering.
     namespace bg = boost::geometry;
     namespace bgi = boost::geometry::index;
     using BPoint = bg::model::point<double, 2, bg::cs::cartesian>;
@@ -628,6 +644,8 @@ void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
     bgi::rtree<RtValue, bgi::quadratic<16>> rtree;
     for (std::size_t i = 0; i < polys.size(); ++i)
     {
+      if (is_mainland[i])
+        continue;
       const auto& e = polys[i].env;
       rtree.insert({BBox{BPoint{e.MinX, e.MinY}, BPoint{e.MaxX, e.MaxY}}, i});
     }
@@ -640,6 +658,8 @@ void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
     UnionFind uf(polys.size());
     for (std::size_t i = 0; i < polys.size(); ++i)
     {
+      if (is_mainland[i])
+        continue;
       const auto& e = polys[i].env;
       BBox query{BPoint{e.MinX - m_lengthLimit, e.MinY - m_lengthLimit},
                  BPoint{e.MaxX + m_lengthLimit, e.MaxY + m_lengthLimit}};
@@ -648,12 +668,13 @@ void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
           uf.unite(i, it->second);
     }
 
-    // Step 3: group polygons by their connected component.
+    // Step 3: group non-mainland polygons by their connected component.
     // std::map keyed by the component representative gives a stable iteration order so
     // that the output ordering is deterministic across runs.
     std::map<std::size_t, std::vector<std::size_t>> clusters;
     for (std::size_t i = 0; i < polys.size(); ++i)
-      clusters[uf.find(i)].push_back(i);
+      if (!is_mainland[i])
+        clusters[uf.find(i)].push_back(i);
 
     // Step 4: process each cluster independently. Singletons short-circuit the CDT entirely
     // (they cannot merge with anything). Multi-member clusters go through the existing
@@ -693,6 +714,18 @@ void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
         amalgamate_cluster(cluster_polys, m_lengthLimit, m_areaLimit, result);
       }
     }
+
+    // Step 5: emit the mainland polygons unchanged. They bypassed clustering
+    // and the CDT entirely; they're still subject to the areaLimit filter.
+    for (std::size_t i = 0; i < polys.size(); ++i)
+    {
+      if (!is_mainland[i])
+        continue;
+      const auto* p = polys[i].poly;
+      if (m_areaLimit <= 0 || p->get_Area() >= m_areaLimit)
+        result.push_back(OGRGeometryPtr(p->clone()));
+    }
+
     geoms = std::move(result);
   }
   catch (...)
@@ -708,6 +741,7 @@ std::size_t GeometryAmalgamator::hash_value() const
     auto hash = Fmi::hash_value(m_lengthLimit);
     Fmi::hash_combine(hash, Fmi::hash_value(m_areaLimit));
     Fmi::hash_combine(hash, Fmi::hash_value(m_minTotalArea));
+    Fmi::hash_combine(hash, Fmi::hash_value(m_mainlandArea));
     return hash;
   }
   catch (...)
