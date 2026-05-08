@@ -2,6 +2,7 @@
 
 #include "PostGIS.h"
 #include "CoordinateTransformation.h"
+#include "GeometryProjector.h"
 #include "OGR.h"
 #include "SpatialReference.h"
 #include <gdal_version.h>
@@ -252,6 +253,15 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
                                              [](OGRSpatialReference* sr) { sr->Release(); });
     out->assignSpatialReference(tmp.get());
 
+    // Build the projector once. The default-segmentation overload of
+    // transformGeometry would otherwise construct a new GeometryProjector for
+    // every feature, which is dominated by PROJ's CRS-equivalence search
+    // (~44 % of total CPU on a 17k-feature read of gshhg.gshhs_h_l1).
+    GeometryProjector projector(source->get(), theSR->get());
+    const double global_bound = 30000 * 1e3;  // 30,000 km
+    projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
+    projector.setDensifyResolutionKm(default_segmentation_length);
+
     layer->ResetReading();
     while ((feature = next_feature()))
     {
@@ -266,18 +276,7 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       OGRGeometry* geometry = feature->GetGeometryRef();
       if (geometry != nullptr)
       {
-        auto* clone = transformation.transformGeometry(*geometry, default_segmentation_length);
-        if (clone != nullptr)
-        {
-#if 0
-          if (!clone->IsValid())
-          {
-            std::cerr << "'" << name << "' NOT valid\n";
-            // delete clone;
-            // clone = nullptr;
-          }
-#endif
-        }
+        auto* clone = transformation.transformGeometry(*geometry, projector);
         if (clone != nullptr)
         {
           forceClosePolygonRings(clone);
@@ -330,14 +329,25 @@ Features read(const Fmi::SpatialReference* theSR,
   // Establish coordinate transformation
 
   std::unique_ptr<CoordinateTransformation> transformation;
+  std::unique_ptr<SpatialReference> source;
 
   if (theSR != nullptr)
   {
     if (layer->GetSpatialRef() == nullptr)
-      transformation.reset(new CoordinateTransformation(SpatialReference("WGS84"), *theSR));
+      source.reset(new SpatialReference("WGS84"));
     else
-      transformation.reset(
-          new CoordinateTransformation(SpatialReference(*layer->GetSpatialRef()), *theSR));
+      source.reset(new SpatialReference(*layer->GetSpatialRef()));
+    transformation.reset(new CoordinateTransformation(*source, *theSR));
+  }
+
+  // Build the projector once outside the loop. See note in the other read() overload.
+  std::unique_ptr<GeometryProjector> projector;
+  if (transformation != nullptr)
+  {
+    projector.reset(new GeometryProjector(source->get(), theSR->get()));
+    const double global_bound = 30000 * 1e3;  // 30,000 km
+    projector->setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
+    projector->setDensifyResolutionKm(default_segmentation_length);
   }
 
   const auto next_feature = [layer]()
@@ -364,7 +374,7 @@ Features read(const Fmi::SpatialReference* theSR,
       }
       else
       {
-        auto* clone = transformation->transformGeometry(*geometry, default_segmentation_length);
+        auto* clone = transformation->transformGeometry(*geometry, *projector);
         forceClosePolygonRings(clone);
         ret_item->geom.reset(clone);
         // Note: We clone the input SR since we have no lifetime guarantees for it

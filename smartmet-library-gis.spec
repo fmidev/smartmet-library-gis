@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.5.8
-Release: 6%{?dist}.fmi
+Release: 7%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -120,6 +120,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-7.fmi
+- PostGIS::read: build the GeometryProjector once outside the per-feature loop instead of letting CoordinateTransformation::transformGeometry(geom, double) construct a fresh one per call. The projector constructor's PROJ-database CRS-equivalence search (osgeo::proj::metadata::Identifier::isEquivalentName + repeated SQLite hits in PROJ's database) was consuming ~44 % of total CPU on a 17k-feature gshhg.gshhs_h_l1 read. After the fix the same baseline test goes from 3.7 s to 0.34 s — about 11x faster — with output unchanged. Both PostGIS::read overloads (full-shape and per-feature with attributes) are fixed.
+
 * Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-6.fmi
 - GeometrySimplifier: drop Douglas-Peucker support entirely. The Type::DouglasPeucker enumerator, the simplify_dp helper and perpendicular_distance helper are removed; the closed-ring no-anchor branch and the per-segment branch in LineSimplifier are unconditional Visvalingam-Whyatt now. DP was unfit for production map rendering: its kept-furthest-from-chord rule produces visibly spiky output on natural coastlines, and the synthetic-anchor selection on closed rings without topology preservation is O(n^2) per ring (one ~10k-vertex coastline ring took 30+ seconds in our tests). VW is O(n log n), preserves shape character better, and works for the rare polygonal/man-made cases too. ABI-breaking: the enum value list changed and the enum's underlying type may shift; downstream callers MUST be recompiled and any stored DouglasPeucker references replaced with VisvalingamWhyatt or None.
 
