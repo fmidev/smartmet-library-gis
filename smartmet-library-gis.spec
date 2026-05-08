@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.5.8
-Release: 7%{?dist}.fmi
+Release: 8%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -120,6 +120,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-8.fmi
+- Vendor ankerl::unordered_dense (single-header MIT-licensed flat hash map / set) under include/ankerl and use it in the hot hash-table paths of GeometryAmalgamator (vertex-dedup VertexMap + boundary-walk next_v multimap) and the vendored CDT-cpp library (EdgeUSet, TriIndUSet, TriIndUMap — every internal hash container in CDTUtils.h, by aliasing CDT::unordered_map / CDT::unordered_set to ankerl). The bucket-based std::unordered_{map,set} containers were the dominant cost in CDT::peelLayer and the per-vertex dedup loop on dense archipelago data — perf-recorded at 10.97 % self-time for unordered_set<CDT::Edge>::find alone. After the swap that drops to 2.66 % (~4x); OGRPoint dedup goes from 5.91 % to 3.78 %. End-to-end on the gshhg.gshhs_h_l1 Northern-Baltic amalgamate test: 2.31 s -> 1.58 s (~30 %). Output is bit-different from the std-hash version (PSNR > 35 dB against the prior reference) because ankerl's ordering is implementation-defined and the boundary-walk emits polygons in cluster-traversal order; no semantic change.
+
 * Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-7.fmi
 - PostGIS::read: build the GeometryProjector once outside the per-feature loop instead of letting CoordinateTransformation::transformGeometry(geom, double) construct a fresh one per call. The projector constructor's PROJ-database CRS-equivalence search (osgeo::proj::metadata::Identifier::isEquivalentName + repeated SQLite hits in PROJ's database) was consuming ~44 % of total CPU on a 17k-feature gshhg.gshhs_h_l1 read. After the fix the same baseline test goes from 3.7 s to 0.34 s — about 11x faster — with output unchanged. Both PostGIS::read overloads (full-shape and per-feature with attributes) are fixed.
 

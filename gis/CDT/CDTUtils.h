@@ -60,6 +60,13 @@ typedef char couldnt_parse_cxx_standard[-1]; ///< Error: couldn't parse standard
 #include <unordered_map>
 #include <unordered_set>
 
+// Use ankerl::unordered_dense for the hash containers used inside CDT.
+// The standard std::unordered_{map,set} containers are bucket-based with
+// per-node allocations and were the dominant cost in CDT::peelLayer
+// (calculateTriangleDepths) and the boundary-walk depth peeling on dense
+// archipelago data — perf-recorded.
+#include <ankerl/unordered_dense.h>
+
 #ifdef CDT_DISABLE_EXCEPTIONS
 #include <exception>
 #endif
@@ -72,8 +79,12 @@ using std::make_tuple;
 using std::tie;
 using std::to_string;
 using std::tuple;
-using std::unordered_map;
-using std::unordered_set;
+// CDT-cpp uses these names internally for EdgeUSet, TriIndUSet, TriIndUMap,
+// etc. Aliasing them to ankerl swaps every interior hash-table use in one go.
+template <class K, class V, class H = ankerl::unordered_dense::hash<K>, class E = std::equal_to<K>>
+using unordered_map = ankerl::unordered_dense::map<K, V, H, E>;
+template <class K, class H = ankerl::unordered_dense::hash<K>, class E = std::equal_to<K>>
+using unordered_set = ankerl::unordered_dense::set<K, H, E>;
 } // namespace CDT
 
 #else

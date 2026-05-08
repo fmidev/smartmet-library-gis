@@ -1,5 +1,6 @@
 #include "GeometryAmalgamator.h"
 #include "VertexCounter.h"
+#include <ankerl/unordered_dense.h>
 #include <boost/geometry.hpp>
 #include <boost/geometry/index/rtree.hpp>
 #include <macgyver/Exception.h>
@@ -8,7 +9,6 @@
 #include <cmath>
 #include <map>
 #include <ogr_geometry.h>
-#include <unordered_map>
 #include <vector>
 
 // CDT is header-only; include only from the .cpp to avoid dependency leakage
@@ -20,8 +20,10 @@ namespace Fmi
 namespace
 {
 
-// Vertex deduplication map using the same hash/equality as VertexCounter
-using VertexMap = std::unordered_map<OGRPoint, CDT::VertInd, OGRPointHash, OGRPointEqual>;
+// Vertex deduplication map using the same hash/equality as VertexCounter.
+// ankerl::unordered_dense gave a measurable speedup over std::unordered_map in
+// the per-feature dedup path on dense polygon inputs (perf-recorded).
+using VertexMap = ankerl::unordered_dense::map<OGRPoint, CDT::VertInd, OGRPointHash, OGRPointEqual>;
 
 // Add a vertex to the deduplication map and CDT vertex list, returning its index
 CDT::VertInd add_vertex(const OGRPoint& pt,
@@ -422,7 +424,7 @@ void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
   // A vertex may have more than one outgoing boundary half-edge (a vertex shared by
   // several disjoint accepted regions, or by the inner and outer boundary of a thin
   // strip), so the map must allow multiple values per from-vertex.
-  std::unordered_map<CDT::VertInd, std::vector<CDT::VertInd>> next_v;
+  ankerl::unordered_dense::map<CDT::VertInd, std::vector<CDT::VertInd>> next_v;
   next_v.reserve(cdt.triangles.size());
   const std::size_t n_tri = cdt.triangles.size();
   for (std::size_t i = 0; i < n_tri; ++i)
