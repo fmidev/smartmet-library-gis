@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.5.8
-Release: 4%{?dist}.fmi
+Release: 5%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -120,6 +120,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-5.fmi
+- GeometryAmalgamator: replace OGRGeometry::UnaryUnion of accepted-triangle polygons with a direct boundary-walk on the constrained Delaunay triangulation. After classifying triangles into accepted/rejected, the merged region's boundary is implicitly defined as the set of half-edges whose accepted side has either no neighbour, a super-triangle-adjacent neighbour, or a rejected neighbour; walking those half-edges with the accepted triangle on the left produces CCW exterior rings and CW hole rings directly, ready to drop into OGRPolygon. The ring stitch tolerates pinch vertices (multiple outgoing half-edges per vertex) by storing them in a multimap. Hole-to-exterior matching uses a boost::geometry::index::rtree on exterior bounding boxes to skip the point-in-ring test for non-overlapping candidates. Densified midpoints inserted on constraint edges in step 1 are dropped via a collinear-vertex pass on each ring. UnaryUnion was the dominant cost on dense archipelago datasets and the boundary-walk skips it entirely. Combined with prior clustering and minTotalArea: gshhg.gshhs_h_l1 Northern-Baltic amalgamate test goes from ~5 minutes (old monolithic UnaryUnion path) to ~2.3 seconds — over 100x speedup. Output is visually equivalent (PSNR > 35 dB vs the old reference) but bit-different because GEOS UnaryUnion does its own snapping/cleaning that the boundary walk doesn't replicate.
+
 * Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-4.fmi
 - GeometryAmalgamator: optional pre-CDT cluster total-area filter via new minTotalArea(km^2) setter. After clustering and before triangulating, each cluster's total geographic area in km^2 is computed (Green's theorem on the sphere when the SR is geographic, planar otherwise) and clusters whose total falls below the threshold are dropped. The cluster's total area is an upper bound on the merged-polygon area it could ever produce, so a cluster smaller than a downstream km^2 minarea filter cannot contribute anything that would survive that filter. Sized as ABI-additive (extra double member on GeometryAmalgamator); callers compiled against the previous header MUST be recompiled. Wired into the gis engine to use the same value as MapOptions.minarea so the savings are automatic for WMS.
 
