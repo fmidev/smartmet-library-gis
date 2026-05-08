@@ -715,14 +715,23 @@ void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
       }
     }
 
-    // Step 5: emit the mainland polygons unchanged. They bypassed clustering
-    // and the CDT entirely; they're still subject to the areaLimit filter.
+    // Step 5: emit the mainland polygons. They bypassed the global cluster
+    // CDT but, when m_mainlandAmalgamate is set, are individually triangulated
+    // so the gap-triangle pass closes their own bays (depth-0 triangles inside
+    // a concavity whose three edges are all <= lengthLimit are accepted into
+    // the merged outline). Without the flag they're cloned unchanged. Both
+    // paths still respect m_areaLimit.
     for (std::size_t i = 0; i < polys.size(); ++i)
     {
       if (!is_mainland[i])
         continue;
       const auto* p = polys[i].poly;
-      if (m_areaLimit <= 0 || p->get_Area() >= m_areaLimit)
+      if (m_mainlandAmalgamate)
+      {
+        std::vector<const OGRPolygon*> single = {p};
+        amalgamate_cluster(single, m_lengthLimit, m_areaLimit, result);
+      }
+      else if (m_areaLimit <= 0 || p->get_Area() >= m_areaLimit)
         result.push_back(OGRGeometryPtr(p->clone()));
     }
 
@@ -742,6 +751,7 @@ std::size_t GeometryAmalgamator::hash_value() const
     Fmi::hash_combine(hash, Fmi::hash_value(m_areaLimit));
     Fmi::hash_combine(hash, Fmi::hash_value(m_minTotalArea));
     Fmi::hash_combine(hash, Fmi::hash_value(m_mainlandArea));
+    Fmi::hash_combine(hash, Fmi::hash_value(m_mainlandAmalgamate));
     return hash;
   }
   catch (...)

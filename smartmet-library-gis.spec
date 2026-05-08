@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.5.8
-Release: 9%{?dist}.fmi
+Release: 10%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -120,6 +120,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-10.fmi
+- GeometryAmalgamator: add an optional mainlandAmalgamate(bool) flag that, when set together with mainlandArea(), runs each above-threshold mainland polygon through the constrained Delaunay triangulation by itself instead of emitting it unchanged. The single-polygon CDT pass closes concavities — small bays / inlets whose gap triangles all have edges shorter than lengthLimit — producing a visibly more solid coastline that recognisably matches what residents would expect. Pays the per-mainland CDT cost (about 220 ms extra on the gshhg.gshhs_h_l1 Northern-Baltic test) but is still much cheaper than putting the mainland into the global cluster CDT, since there is no clustering or neighbour search. Default false preserves the prior bypass-unchanged behaviour. ABI-additive: new bool field at the end of GeometryAmalgamator, downstream rebuild required.
+
 * Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-9.fmi
 - GeometryAmalgamator: add an optional mainlandArea(km^2) bypass — polygons whose individual geographic area is at or above the threshold are excluded from the constrained Delaunay triangulation entirely and emitted unchanged (subject to the same areaLimit() test). On dense archipelago data a few huge polygons can hold the majority of all input vertices (3 polygons hold 62 % of vertices in our gshhg.gshhs_h_l1 Northern-Baltic test), and they cannot benefit from amalgamation since the merged outline with a tiny neighbour is essentially identical to themselves; dropping them shrinks the CDT input dramatically. End-to-end on the same test: 1.58 s -> 0.34 s (about 4.7x). Default 0 disables the filter, preserving prior behaviour. Caveat: amalgamated island outlines may slightly cross into the mainland near the coastline because they are no longer joined to the mainland in the triangulation; visually they abut at the coastline anyway. ABI-additive: new field at the end of GeometryAmalgamator, downstream rebuild required.
 

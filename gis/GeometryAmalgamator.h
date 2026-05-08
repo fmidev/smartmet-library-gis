@@ -42,6 +42,16 @@ class GeometryAmalgamator
   // dramatically. Default 0 disables this filter.
   void mainlandArea(double km2) { m_mainlandArea = km2; }
 
+  // Optional: instead of emitting bypassed mainland polygons unchanged, run
+  // each through the constrained Delaunay triangulation by itself. The
+  // single-polygon CDT pass closes concavities (small bays / inlets) whose
+  // gap triangles all have edges shorter than lengthLimit, producing a
+  // visibly more solid coastline. Pays the per-mainland CDT cost; cheaper
+  // than putting the mainland into the global cluster CDT because there's
+  // no clustering or neighbour search, but still much heavier than the
+  // unchanged-bypass path. Has no effect unless mainlandArea() is set.
+  void mainlandAmalgamate(bool flag) { m_mainlandAmalgamate = flag; }
+
   std::size_t hash_value() const;
   void apply(std::vector<OGRGeometryPtr>& geoms) const;
 
@@ -50,6 +60,7 @@ class GeometryAmalgamator
   double m_areaLimit = 0;       // min polygon area to keep (coordinate units^2)
   double m_minTotalArea = 0;    // optional pre-CDT cluster total-area filter (km^2)
   double m_mainlandArea = 0;    // optional pre-CDT mainland-bypass threshold (km^2)
+  bool m_mainlandAmalgamate = false;  // run isolated CDT on bypassed mainland
 };
 
 }  // namespace Fmi
