@@ -1,6 +1,13 @@
 // ======================================================================
 /*!
- * \brief Simplification filters for isolines/isobands (Douglas-Peucker, Visvalingam-Whyatt)
+ * \brief Visvalingam-Whyatt simplification filter for isolines/isobands and
+ *        polygon outlines, with optional cross-feature topology preservation.
+ *
+ * Douglas-Peucker support was removed in favour of Visvalingam-Whyatt
+ * exclusively. DP's "kept furthest-from-chord" rule produces visibly
+ * spiky/saw-toothed output on natural coastlines, and its O(n^2) synthetic-
+ * anchor selection on closed rings without topology preservation makes it
+ * unsuitable for production use on dense coastline data.
  */
 // ======================================================================
 
@@ -19,7 +26,6 @@ class GeometrySimplifier
   enum class Type
   {
     None,              // disabled
-    DouglasPeucker,    // distance-based vertex removal
     VisvalingamWhyatt  // area-based vertex removal
   };
 
@@ -35,7 +41,7 @@ class GeometrySimplifier
 
  private:
   Type m_type = Type::None;
-  double m_tolerance = 0;  // distance for D-P, area for V-W (in pixel units before bbox conversion)
+  double m_tolerance = 0;  // pixel-area threshold (in pixel units before bbox conversion)
 };
 
 }  // namespace Fmi

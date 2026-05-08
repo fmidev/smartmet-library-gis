@@ -23,46 +23,6 @@ OGRGeometryPtr make_geom(const char* wkt)
 
 // ----------------------------------------------------------------------
 
-void douglas_peucker()
-{
-  // A zigzag linestring: middle points should be removed if they are close to the line
-  // Points: (0,0) (1,0.1) (2,0) (3,0.1) (4,0)
-  // With tolerance 0.2, all intermediate points should be removed
-  auto geom = make_geom("LINESTRING (0 0, 1 0.1, 2 0, 3 0.1, 4 0)");
-  std::vector<OGRGeometryPtr> geoms = {geom};
-
-  GeometrySimplifier simplifier;
-  simplifier.type(GeometrySimplifier::Type::DouglasPeucker);
-  simplifier.tolerance(0.2);
-  simplifier.apply(geoms, false);
-
-  const auto box = Box::identity();
-  auto result = OGR::exportToSvg(*geoms[0], box, 1);
-  string expected = "M0 0 4 0";
-
-  if (result != expected)
-    TEST_FAILED("Douglas-Peucker basic test failed, expected " + expected + ", got " + result);
-
-  // With tolerance 0.05, no points should be removed
-  auto geom2 = make_geom("LINESTRING (0 0, 1 0.1, 2 0, 3 0.1, 4 0)");
-  std::vector<OGRGeometryPtr> geoms2 = {geom2};
-
-  GeometrySimplifier simplifier2;
-  simplifier2.type(GeometrySimplifier::Type::DouglasPeucker);
-  simplifier2.tolerance(0.05);
-  simplifier2.apply(geoms2, false);
-
-  auto result2 = OGR::exportToSvg(*geoms2[0], box, 1);
-  string expected2 = "M0 0 1 0.1 2 0 3 0.1 4 0";
-
-  if (result2 != expected2)
-    TEST_FAILED("Douglas-Peucker preserve test failed, expected " + expected2 + ", got " + result2);
-
-  TEST_PASSED();
-}
-
-// ----------------------------------------------------------------------
-
 void visvalingam_whyatt()
 {
   // Same zigzag: triangle areas are small
@@ -124,7 +84,7 @@ void topology_preservation()
   geoms.push_back(make_geom(g4));
 
   GeometrySimplifier simplifier;
-  simplifier.type(GeometrySimplifier::Type::DouglasPeucker);
+  simplifier.type(GeometrySimplifier::Type::VisvalingamWhyatt);
   simplifier.tolerance(0.5);
 
   simplifier.apply(geoms, true);
@@ -165,16 +125,18 @@ void closed_ring()
   std::vector<OGRGeometryPtr> geoms = {geom};
 
   GeometrySimplifier simplifier;
-  simplifier.type(GeometrySimplifier::Type::DouglasPeucker);
+  simplifier.type(GeometrySimplifier::Type::VisvalingamWhyatt);
   simplifier.tolerance(0.5);
   simplifier.apply(geoms, false);
 
   const auto box = Box::identity();
   auto result = OGR::exportToSvg(*geoms[0], box, 1);
 
-  // The midpoints are collinear with the corners, so D-P should remove them.
-  // Result should be a simple 4-vertex rectangle.
-  string expected = "M0 0 0 2 2 2 2 0Z";
+  // The midpoints are collinear with the corners, so VW should remove them.
+  // VW treats the closed ring as a linear sequence with the first and last
+  // input vertex pinned (sentinel triangle areas), so the expected result is
+  // the four corners plus one pinned mid-edge starting vertex.
+  string expected = "M0 0 0 2 2 2 2 0 1 0Z";
 
   if (result != expected)
     TEST_FAILED("Closed ring test failed, expected " + expected + ", got " + result);
@@ -191,7 +153,7 @@ void degenerate_protection()
   std::vector<OGRGeometryPtr> geoms = {geom};
 
   GeometrySimplifier simplifier;
-  simplifier.type(GeometrySimplifier::Type::DouglasPeucker);
+  simplifier.type(GeometrySimplifier::Type::VisvalingamWhyatt);
   simplifier.tolerance(100);  // very aggressive
   simplifier.apply(geoms, false);
 
@@ -234,7 +196,6 @@ class tests : public tframe::tests
   virtual const char* error_message_prefix() const { return "\n\t"; }
   void test()
   {
-    TEST(douglas_peucker);
     TEST(visvalingam_whyatt);
     TEST(topology_preservation);
     TEST(closed_ring);

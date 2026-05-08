@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.5.8
-Release: 5%{?dist}.fmi
+Release: 6%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -120,6 +120,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-6.fmi
+- GeometrySimplifier: drop Douglas-Peucker support entirely. The Type::DouglasPeucker enumerator, the simplify_dp helper and perpendicular_distance helper are removed; the closed-ring no-anchor branch and the per-segment branch in LineSimplifier are unconditional Visvalingam-Whyatt now. DP was unfit for production map rendering: its kept-furthest-from-chord rule produces visibly spiky output on natural coastlines, and the synthetic-anchor selection on closed rings without topology preservation is O(n^2) per ring (one ~10k-vertex coastline ring took 30+ seconds in our tests). VW is O(n log n), preserves shape character better, and works for the rare polygonal/man-made cases too. ABI-breaking: the enum value list changed and the enum's underlying type may shift; downstream callers MUST be recompiled and any stored DouglasPeucker references replaced with VisvalingamWhyatt or None.
+
 * Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-5.fmi
 - GeometryAmalgamator: replace OGRGeometry::UnaryUnion of accepted-triangle polygons with a direct boundary-walk on the constrained Delaunay triangulation. After classifying triangles into accepted/rejected, the merged region's boundary is implicitly defined as the set of half-edges whose accepted side has either no neighbour, a super-triangle-adjacent neighbour, or a rejected neighbour; walking those half-edges with the accepted triangle on the left produces CCW exterior rings and CW hole rings directly, ready to drop into OGRPolygon. The ring stitch tolerates pinch vertices (multiple outgoing half-edges per vertex) by storing them in a multimap. Hole-to-exterior matching uses a boost::geometry::index::rtree on exterior bounding boxes to skip the point-in-ring test for non-overlapping candidates. Densified midpoints inserted on constraint edges in step 1 are dropped via a collinear-vertex pass on each ring. UnaryUnion was the dominant cost on dense archipelago datasets and the boundary-walk skips it entirely. Combined with prior clustering and minTotalArea: gshhg.gshhs_h_l1 Northern-Baltic amalgamate test goes from ~5 minutes (old monolithic UnaryUnion path) to ~2.3 seconds — over 100x speedup. Output is visually equivalent (PSNR > 35 dB vs the old reference) but bit-different because GEOS UnaryUnion does its own snapping/cleaning that the boundary walk doesn't replicate.
 

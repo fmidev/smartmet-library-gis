@@ -250,11 +250,11 @@ This module may eventually move into `smartmet-library-gis` so that other plugin
 
 `#include <gis/GeometrySimplifier.h>`
 
-Reduces vertex count in isolines and isoband boundaries using either the Douglas-Peucker or Visvalingam-Whyatt algorithm. Designed for post-processing contour output before rendering.
+Reduces vertex count in isolines, isoband boundaries and polygon outlines using the Visvalingam-Whyatt algorithm with optional cross-feature topology preservation. Designed for post-processing contour output before rendering and for thinning PostGIS map layers.
 
 ```cpp
 Fmi::GeometrySimplifier simplifier;
-simplifier.type(Fmi::GeometrySimplifier::Type::DouglasPeucker);  // or VisvalingamWhyatt
+simplifier.type(Fmi::GeometrySimplifier::Type::VisvalingamWhyatt);
 simplifier.tolerance(2.0);   // pixels (converted to coordinate units via bbox)
 simplifier.bbox(box);        // converts pixel tolerance to coordinate tolerance
 
@@ -262,13 +262,14 @@ std::vector<OGRGeometryPtr> geoms = { ... };
 simplifier.apply(geoms, /*preserve_topology=*/true);
 ```
 
-### Algorithm Types
+### Algorithm
 
 | Type | Tolerance meaning | Method |
 |------|-------------------|--------|
 | `None` | — | No simplification |
-| `DouglasPeucker` | Maximum perpendicular distance | Recursively removes points closer than the tolerance to the line between retained points |
-| `VisvalingamWhyatt` | Maximum triangle area | Iteratively removes the vertex forming the smallest triangle with its neighbours |
+| `VisvalingamWhyatt` | Triangle area threshold (in pixel² before `bbox()` conversion) | Iteratively removes the vertex forming the smallest triangle with its neighbours, with a monotonicity rule that prevents cascade removal of dependent points. |
+
+Earlier versions also supported Douglas-Peucker (`Type::DouglasPeucker`); it was removed because its kept-furthest-from-chord rule produces visibly spiky/saw-toothed output on natural coastlines, and its synthetic-anchor selection on closed rings without topology preservation is O(n²) — both unacceptable for production map rendering. Visvalingam-Whyatt is preferred everywhere; it preserves the overall shape character of natural features and is O(n log n).
 
 ### Topology preservation
 
@@ -278,7 +279,7 @@ When `preserve_topology` is false, each geometry is simplified independently wit
 
 ### Tolerance and bbox
 
-The tolerance is initially specified in pixel units. Calling `bbox(box)` converts it to coordinate units using the box's inverse transform. For Douglas-Peucker this is a distance; for Visvalingam-Whyatt it is squared to produce an area threshold.
+The tolerance is initially specified in pixel units. Calling `bbox(box)` converts it to CRS coordinate units squared (Visvalingam-Whyatt uses an area threshold) using the box's inverse transform. Typical values are 1–3 pixels.
 
 ---
 

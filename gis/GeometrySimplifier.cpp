@@ -14,24 +14,6 @@ namespace Fmi
 namespace
 {
 
-// Perpendicular distance from point p to line segment a-b
-double perpendicular_distance(const OGRPoint& p, const OGRPoint& a, const OGRPoint& b)
-{
-  double dx = b.getX() - a.getX();
-  double dy = b.getY() - a.getY();
-  double len_sq = dx * dx + dy * dy;
-
-  if (len_sq == 0.0)
-    return std::hypot(p.getX() - a.getX(), p.getY() - a.getY());
-
-  double t = ((p.getX() - a.getX()) * dx + (p.getY() - a.getY()) * dy) / len_sq;
-  t = std::clamp(t, 0.0, 1.0);
-
-  double proj_x = a.getX() + t * dx;
-  double proj_y = a.getY() + t * dy;
-  return std::hypot(p.getX() - proj_x, p.getY() - proj_y);
-}
-
 // Triangle area using the shoelace formula
 double triangle_area(const OGRPoint& a, const OGRPoint& b, const OGRPoint& c)
 {
@@ -45,34 +27,6 @@ bool point_less(const OGRPoint& a, const OGRPoint& b)
   if (a.getX() != b.getX())
     return a.getX() < b.getX();
   return a.getY() < b.getY();
-}
-
-// Douglas-Peucker on a segment of points. Marks which points to keep.
-void simplify_dp(
-    const std::vector<OGRPoint>& pts, int start, int end, double tolerance, std::vector<bool>& keep)
-{
-  if (end - start < 2)
-    return;
-
-  double max_dist = 0;
-  int max_idx = start;
-
-  for (int i = start + 1; i < end; i++)
-  {
-    double d = perpendicular_distance(pts[i], pts[start], pts[end]);
-    if (d > max_dist)
-    {
-      max_dist = d;
-      max_idx = i;
-    }
-  }
-
-  if (max_dist > tolerance)
-  {
-    keep[max_idx] = true;
-    simplify_dp(pts, start, max_idx, tolerance, keep);
-    simplify_dp(pts, max_idx, end, tolerance, keep);
-  }
 }
 
 // Visvalingam-Whyatt on a segment of points. Returns indices to keep.
@@ -158,12 +112,11 @@ class LineSimplifier
 {
  private:
   VertexCounter m_counter;
-  GeometrySimplifier::Type m_type;
   double m_tolerance;
   std::vector<int> m_counts;
 
  public:
-  LineSimplifier(GeometrySimplifier::Type t, double tol) : m_type(t), m_tolerance(tol) {}
+  explicit LineSimplifier(double tol) : m_tolerance(tol) {}
 
   void count(const OGRGeometry* geom) { m_counter.add(geom); }
 
@@ -192,7 +145,7 @@ class LineSimplifier
     return (n != 0 && n != 2);
   }
 
-  // Simplify a segment of points between two anchors using the chosen algorithm.
+  // Simplify a segment of points between two anchors using Visvalingam-Whyatt.
   // First and last points are always kept.
   void simplify_segment(std::vector<OGRPoint>& pts, std::vector<bool>& keep) const
   {
@@ -204,27 +157,12 @@ class LineSimplifier
     if (reversed)
       std::reverse(pts.begin(), pts.end());
 
-    if (m_type == GeometrySimplifier::Type::DouglasPeucker)
-    {
-      std::vector<bool> seg_keep(pts.size(), false);
-      seg_keep.front() = true;
-      seg_keep.back() = true;
-      simplify_dp(pts, 0, static_cast<int>(pts.size()) - 1, m_tolerance, seg_keep);
+    auto seg_keep = simplify_vw(pts, m_tolerance);
 
-      if (reversed)
-        std::reverse(seg_keep.begin(), seg_keep.end());
+    if (reversed)
+      std::reverse(seg_keep.begin(), seg_keep.end());
 
-      keep.insert(keep.end(), seg_keep.begin(), seg_keep.end());
-    }
-    else
-    {
-      auto seg_keep = simplify_vw(pts, m_tolerance);
-
-      if (reversed)
-        std::reverse(seg_keep.begin(), seg_keep.end());
-
-      keep.insert(keep.end(), seg_keep.begin(), seg_keep.end());
-    }
+    keep.insert(keep.end(), seg_keep.begin(), seg_keep.end());
   }
 
   // Simplify a linestring, respecting anchor points
@@ -267,103 +205,21 @@ class LineSimplifier
       if (anchor[i])
         anchor_indices.push_back(i);
 
-    // If no anchors at all (e.g. standalone ring with no topology), simplify the whole thing
+    // If no anchors at all (e.g. standalone ring with no topology), simplify the whole ring.
     if (anchor_indices.empty())
     {
       std::vector<OGRPoint> pts(all_pts.begin(), all_pts.begin() + effective_n);
-      std::vector<bool> keep;
 
-      if (m_type == GeometrySimplifier::Type::DouglasPeucker)
-      {
-        // Find two most distant points as synthetic anchors
-        int best_i = 0;
-        int best_j = 0;
-        double best_dist = 0;
-        for (int i = 0; i < effective_n; i++)
-          for (int j = i + 1; j < effective_n; j++)
-          {
-            double d = std::hypot(pts[i].getX() - pts[j].getX(), pts[i].getY() - pts[j].getY());
-            if (d > best_dist)
-            {
-              best_dist = d;
-              best_i = i;
-              best_j = j;
-            }
-          }
+      // Visvalingam-Whyatt on a closed ring: process as linear sequence with wraparound.
+      auto keep = simplify_vw(pts, m_tolerance);
 
-        // Simplify two segments: best_i..best_j and best_j..best_i (wrapping)
-        keep.assign(effective_n, false);
-        keep[best_i] = true;
-        keep[best_j] = true;
-
-        // Segment best_i..best_j
-        if (best_j - best_i > 1)
-        {
-          std::vector<OGRPoint> seg(pts.begin() + best_i, pts.begin() + best_j + 1);
-          std::vector<bool> seg_keep;
-
-          // Canonicalize
-          bool reversed = point_less(seg.back(), seg.front());
-          if (reversed)
-            std::reverse(seg.begin(), seg.end());
-
-          std::vector<bool> sk(seg.size(), false);
-          sk.front() = true;
-          sk.back() = true;
-          simplify_dp(seg, 0, static_cast<int>(seg.size()) - 1, m_tolerance, sk);
-
-          if (reversed)
-            std::reverse(sk.begin(), sk.end());
-
-          for (int i = 0; i < static_cast<int>(sk.size()); i++)
-            if (sk[i])
-              keep[best_i + i] = true;
-        }
-
-        // Segment best_j..best_i (wrapping around)
-        std::vector<OGRPoint> seg2;
-        std::vector<int> seg2_idx;
-        for (int i = best_j; i != best_i; i = (i + 1) % effective_n)
-        {
-          seg2.push_back(pts[i]);
-          seg2_idx.push_back(i);
-        }
-        seg2.push_back(pts[best_i]);
-        seg2_idx.push_back(best_i);
-
-        if (seg2.size() > 2)
-        {
-          bool reversed = point_less(seg2.back(), seg2.front());
-          if (reversed)
-            std::reverse(seg2.begin(), seg2.end());
-
-          std::vector<bool> sk(seg2.size(), false);
-          sk.front() = true;
-          sk.back() = true;
-          simplify_dp(seg2, 0, static_cast<int>(seg2.size()) - 1, m_tolerance, sk);
-
-          if (reversed)
-            std::reverse(sk.begin(), sk.end());
-
-          for (int i = 0; i < static_cast<int>(sk.size()); i++)
-            if (sk[i])
-              keep[seg2_idx[reversed ? seg2.size() - 1 - i : i]] = true;
-        }
-      }
-      else
-      {
-        // Visvalingam-Whyatt on a closed ring: process as linear sequence with wraparound
-        // Duplicate some points for wraparound context, then trim results
-        keep = simplify_vw(pts, m_tolerance);
-
-        // Ensure at least 3 vertices survive
-        int kept = 0;
-        for (bool k : keep)
-          if (k)
-            kept++;
-        if (kept < 3)
-          keep.assign(effective_n, true);  // keep all
-      }
+      // Ensure at least 3 vertices survive
+      int kept = 0;
+      for (bool k : keep)
+        if (k)
+          kept++;
+      if (kept < 3)
+        keep.assign(effective_n, true);  // keep all
 
       // Build output
       auto* out = closed ? static_cast<OGRLineString*>(new OGRLinearRing) : new OGRLineString;
@@ -641,7 +497,7 @@ void GeometrySimplifier::apply(std::vector<OGRGeometryPtr>& geoms, bool preserve
     if (m_type == Type::None || m_tolerance <= 0)
       return;
 
-    LineSimplifier simplifier(m_type, m_tolerance);
+    LineSimplifier simplifier(m_tolerance);
 
     if (preserve_topology)
       for (const auto& geom_ptr : geoms)
@@ -668,10 +524,8 @@ void GeometrySimplifier::bbox(const Fmi::Box& box)
   box.itransform(x2, y2);
   double pixel_size = std::hypot(x2 - x1, y2 - y1);
 
-  if (m_type == Type::VisvalingamWhyatt)
-    m_tolerance = pixel_size * pixel_size;  // area tolerance
-  else
-    m_tolerance = pixel_size;  // distance tolerance
+  // VW tolerance is an area threshold in CRS coordinate units squared.
+  m_tolerance = pixel_size * pixel_size;
 }
 
 std::size_t GeometrySimplifier::hash_value() const
