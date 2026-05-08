@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.5.8
-Release: 3%{?dist}.fmi
+Release: 4%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -120,6 +120,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-4.fmi
+- GeometryAmalgamator: optional pre-CDT cluster total-area filter via new minTotalArea(km^2) setter. After clustering and before triangulating, each cluster's total geographic area in km^2 is computed (Green's theorem on the sphere when the SR is geographic, planar otherwise) and clusters whose total falls below the threshold are dropped. The cluster's total area is an upper bound on the merged-polygon area it could ever produce, so a cluster smaller than a downstream km^2 minarea filter cannot contribute anything that would survive that filter. Sized as ABI-additive (extra double member on GeometryAmalgamator); callers compiled against the previous header MUST be recompiled. Wired into the gis engine to use the same value as MapOptions.minarea so the savings are automatic for WMS.
+
 * Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-3.fmi
 - GeometryAmalgamator: cluster the input polygons into spatially-disjoint connected components before triangulating. The previous implementation built one global constrained Delaunay triangulation over every input polygon and then ran a single OGRGeometry::UnaryUnion across all accepted triangles, both of which scale super-linearly with the input size and got pathologically slow on dense archipelago datasets (gshhg.gshhs_h_l1 in the Northern Baltic at amalgamation_length<=0.015 — 17k input polygons — never completed in 10 minutes). Now flattens the input to individual OGRPolygon* with cached OGREnvelope, builds a boost::geometry::index::rtree of envelopes, runs union-find with the rtree for nearest-neighbour queries (envelopes expanded by lengthLimit), groups polygons by connected component, and runs the existing extract → CDT → classify → UnaryUnion → decompose pipeline once per cluster. Singletons short-circuit the CDT entirely. Same output as before; no API change; hash_value() unchanged so caches stay valid. Wins are largest when clusters are well-separated (every singleton skips the CDT) and present-but-modest when the archipelago is densely interconnected (one large cluster still takes most of the time).
 

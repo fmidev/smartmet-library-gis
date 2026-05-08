@@ -148,6 +148,58 @@ void flatten(const OGRGeometry* g, std::vector<FlatPoly>& out)
   }
 }
 
+// Geographic area of a closed ring in m^2 (Green's theorem on the sphere).
+// Mirrors the implementation in OGR-despeckle.cpp; returns absolute value so it
+// works for both CW and CCW rings.
+double geographic_ring_area_m2(const OGRLineString* ring)
+{
+  if (ring == nullptr)
+    return 0.0;
+  const int n = ring->getNumPoints();
+  if (n < 4)
+    return 0.0;
+
+  constexpr double deg_to_rad = M_PI / 180.0;
+  double area = 0.0;
+  for (int i = 0; i < n - 1; i++)
+  {
+    double x1 = ring->getX(i) * deg_to_rad;
+    double y1 = ring->getY(i) * deg_to_rad;
+    double x2 = ring->getX(i + 1) * deg_to_rad;
+    double y2 = ring->getY(i + 1) * deg_to_rad;
+    area += (x2 - x1) * (2 + std::sin(y1) + std::sin(y2));
+  }
+  area *= 6378137.0 * 6378137.0 / 2.0;
+  return std::abs(area);
+}
+
+// km^2 area of a polygon, geographic if the SR is geographic, otherwise planar.
+double polygon_area_km2(const OGRPolygon* poly)
+{
+  if (poly == nullptr)
+    return 0.0;
+  const auto* sr = poly->getSpatialReference();
+  const bool geographic = (sr != nullptr ? (sr->IsGeographic() != 0) : false);
+
+  const auto* exterior = poly->getExteriorRing();
+  double area_m2 = (geographic ? geographic_ring_area_m2(exterior) : exterior->get_Area());
+
+  // Subtract holes
+  for (int i = 0, h = poly->getNumInteriorRings(); i < h; ++i)
+  {
+    const auto* hole = poly->getInteriorRing(i);
+    double ha = (geographic ? geographic_ring_area_m2(hole) : hole->get_Area());
+    area_m2 -= ha;
+  }
+
+  if (area_m2 < 0)
+    area_m2 = 0;
+
+  // Convert to km^2. For geographic, area_m2 is already in m^2; for planar
+  // (assumed metric) the same conversion applies.
+  return area_m2 / 1e6;
+}
+
 // Euclidean distance between two CDT vertices
 double edge_length(const CDT::V2d<double>& a, const CDT::V2d<double>& b)
 {
@@ -385,9 +437,25 @@ void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
     // (they cannot merge with anything). Multi-member clusters go through the existing
     // extract → CDT → classify → UnaryUnion pipeline, but with a vastly smaller input than
     // the global one — UnaryUnion is the dominant cost and it scales worse than linearly.
+    //
+    // Optional total-area pre-filter: skip the cluster entirely when its total polygon
+    // area is below m_minTotalArea (km^2). The cluster's total area is an upper bound on
+    // the merged-polygon area it could ever produce, so a cluster smaller than the
+    // downstream km^2 minarea filter cannot contribute anything that will survive that
+    // filter — skipping avoids the per-cluster CDT and UnaryUnion. On dense archipelago
+    // data this drops thousands of small clusters that would otherwise dominate the cost.
     std::vector<OGRGeometryPtr> result;
     for (const auto& [_, members] : clusters)
     {
+      if (m_minTotalArea > 0)
+      {
+        double total_km2 = 0;
+        for (auto i : members)
+          total_km2 += polygon_area_km2(polys[i].poly);
+        if (total_km2 < m_minTotalArea)
+          continue;
+      }
+
       if (members.size() == 1)
       {
         const auto* p = polys[members[0]].poly;
@@ -417,6 +485,7 @@ std::size_t GeometryAmalgamator::hash_value() const
   {
     auto hash = Fmi::hash_value(m_lengthLimit);
     Fmi::hash_combine(hash, Fmi::hash_value(m_areaLimit));
+    Fmi::hash_combine(hash, Fmi::hash_value(m_minTotalArea));
     return hash;
   }
   catch (...)
