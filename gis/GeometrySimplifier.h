@@ -28,6 +28,8 @@ class GeometrySimplifier
   void tolerance(double t) { m_tolerance = t; }
   void type(Type t) { m_type = t; }
 
+  bool active() const { return m_type != Type::None && m_tolerance > 0; }
+
   void bbox(const Box& box);
   void apply(std::vector<OGRGeometryPtr>& geoms, bool preserve_topology) const;
 
