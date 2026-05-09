@@ -70,6 +70,33 @@ OGRGeometry* polycut(const OGRGeometry& theGeom, const Box& theBox, double theMa
 // Filter out small polygons
 OGRGeometry* despeckle(const OGRGeometry& theGeom, double theAreaLimit);
 
+// Isoperimetric compactness of a polygon: 4πA/L².
+//   - 1.0 for a circle, π/4 ≈ 0.785 for a square,
+//   - → 0 for thin or fractal shapes.
+// For polygons in a geographic CRS (lat/lon) area and length are computed
+// on the WGS84 sphere; for projected CRS GDAL's planar get_Area / get_Length
+// are used (assuming a metric CRS). The result is dimensionless either way.
+//
+// CompactnessMode::Exterior — exterior ring only (typical "shape" measure).
+// CompactnessMode::Net      — net area minus holes, perimeter sums all rings;
+//                             penalises Swiss-cheese polygons.
+enum class CompactnessMode
+{
+  Exterior,
+  Net
+};
+double compactness(const OGRPolygon& thePoly,
+                   CompactnessMode theMode = CompactnessMode::Exterior);
+
+// Drop polygons whose area (km²) is below theMinArea or whose compactness
+// is below theMinCompactness. Multipolygons / collections are walked
+// recursively; non-polygon parts pass through unchanged. Returns nullptr
+// if nothing survives. Caller takes ownership.
+OGRGeometry* filterByCompactness(const OGRGeometry& theGeom,
+                                  double theMinCompactness,
+                                  double theMinArea = 0,
+                                  CompactnessMode theMode = CompactnessMode::Exterior);
+
 // Normalize rings to lexicographic order, mostly to consistent test results
 void normalize(OGRPolygon& thePoly);
 void normalize(OGRLinearRing& theRing);

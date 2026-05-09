@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.5.9
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -120,6 +120,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Sat May  9 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.9-2.fmi
+- Add Fmi::OGR::compactness and Fmi::OGR::filterByCompactness — a generic isoperimetric-compactness (4πA/L²) helper and polygon-collection filter that drops "ragged" shapes from any OGRGeometry. Sits next to Fmi::OGR::despeckle: despeckle is the area filter, the new function is the shape filter sibling. CompactnessMode::Exterior measures the outer ring only (typical lake / island shape intuition); CompactnessMode::Net penalises Swiss-cheese polygons by subtracting hole area and adding hole perimeter. For polygons in a geographic CRS (lat/lon) area is computed on the WGS84 sphere and perimeter via great-circle arcs, so a roughly-circular lake at 70°N scores the same as one at the equator instead of being squashed by the lon = 1°·cos(lat) anisotropy of raw lat/lon space; for projected CRS GDAL's planar get_Area / get_Length are used (assumes a metric CRS, matching the existing despeckle convention). Multipolygons / geometry collections are walked recursively and non-polygon parts pass through unchanged. Designed so the isoperimetric filter is no longer GSHHS-specific — any OGR pipeline (PostGIS reads, contouring output, GeometryAmalgamator results, projected GeoJSON) can drop ragged polygons in a single call. Adds gis/OGR-compactness.cpp and a regression test covering π/4 for unit squares, ~1.0 for 64-gon circles, near-zero for thin rectangles, latitude-invariance at 60°N, Exterior-vs-Net modes with a hole, multipolygon filtering, null-on-empty results, spatial-reference preservation, non-polygon pass-through and minArea in km².
+
 * Sat May  9 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.9-1.fmi
 - Add Fmi::Gshhs::read for the legacy binary GSHHS shoreline format (gshhs*.b), a modern-C++ replacement for the deprecated NFmiGshhsTools in libsmartmet-imagine. Returns OGRMultiPolygon in WGS84 (EPSG:4326) so callers can project / clip with the existing Fmi::OGR utilities. RAII file handle, runtime endian detection from the level field, antimeridian-aware bbox prefilter, header-driven hierarchy filter (maxLevel). Filter Options mirror the qdless lake-roundness vocabulary: minIslandAreaKm2 applies to top-level polygons (continents and islands, level == 1); minLakeAreaKm2 and minLakeRoundness apply to nested polygons (lakes, islands-in-lakes, ponds, level >= 2). Roundness is the isoperimetric compactness 4πA/L² (1.0 for a circle, ~0.785 for a square, near 0 for fractal shorelines like Lake Saimaa) and is intentionally exempted for top-level polygons because real continents are also fractal. The perimeter is computed inline as points are decoded using the same flat-earth formula qdless uses (cos(avgLat) lon scaling, 1° = 111.32 km), so compactness values from the binary reader and any future binned-NetCDF consumer agree. Adds gis/Gshhs.{h,cpp} and a regression test covering empty / corrupt / missing files, bbox / area / level / roundness filters and the islands-exemption invariant.
 
