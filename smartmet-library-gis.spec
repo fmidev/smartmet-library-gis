@@ -4,8 +4,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.5.8
-Release: 10%{?dist}.fmi
+Version: 26.5.9
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -120,6 +120,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Sat May  9 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.9-1.fmi
+- Add Fmi::Gshhs::read for the legacy binary GSHHS shoreline format (gshhs*.b), a modern-C++ replacement for the deprecated NFmiGshhsTools in libsmartmet-imagine. Returns OGRMultiPolygon in WGS84 (EPSG:4326) so callers can project / clip with the existing Fmi::OGR utilities. RAII file handle, runtime endian detection from the level field, antimeridian-aware bbox prefilter, header-driven hierarchy filter (maxLevel). Filter Options mirror the qdless lake-roundness vocabulary: minIslandAreaKm2 applies to top-level polygons (continents and islands, level == 1); minLakeAreaKm2 and minLakeRoundness apply to nested polygons (lakes, islands-in-lakes, ponds, level >= 2). Roundness is the isoperimetric compactness 4πA/L² (1.0 for a circle, ~0.785 for a square, near 0 for fractal shorelines like Lake Saimaa) and is intentionally exempted for top-level polygons because real continents are also fractal. The perimeter is computed inline as points are decoded using the same flat-earth formula qdless uses (cos(avgLat) lon scaling, 1° = 111.32 km), so compactness values from the binary reader and any future binned-NetCDF consumer agree. Adds gis/Gshhs.{h,cpp} and a regression test covering empty / corrupt / missing files, bbox / area / level / roundness filters and the islands-exemption invariant.
+
 * Fri May  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.8-10.fmi
 - GeometryAmalgamator: add an optional mainlandAmalgamate(bool) flag that, when set together with mainlandArea(), runs each above-threshold mainland polygon through the constrained Delaunay triangulation by itself instead of emitting it unchanged. The single-polygon CDT pass closes concavities — small bays / inlets whose gap triangles all have edges shorter than lengthLimit — producing a visibly more solid coastline that recognisably matches what residents would expect. Pays the per-mainland CDT cost (about 220 ms extra on the gshhg.gshhs_h_l1 Northern-Baltic test) but is still much cheaper than putting the mainland into the global cluster CDT, since there is no clustering or neighbour search. Default false preserves the prior bypass-unchanged behaviour. ABI-additive: new bool field at the end of GeometryAmalgamator, downstream rebuild required.
 
