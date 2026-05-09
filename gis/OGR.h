@@ -88,6 +88,14 @@ enum class CompactnessMode
 double compactness(const OGRPolygon& thePoly,
                    CompactnessMode theMode = CompactnessMode::Exterior);
 
+// Scalar form: 4πA/L² from raw area / perimeter values. Useful for callers
+// that have these as plain numbers — typically because the source format
+// stores polygons as bin-local segments and the per-polygon perimeter is
+// aggregated outside any OGR object (e.g. the gshhg-gmt-nc4 binned NetCDF
+// reader in qdless). Returns 0 for non-positive inputs. Both arguments
+// must be in matching units; the ratio is dimensionless.
+double compactness(double theArea, double thePerimeter);
+
 // Drop polygons whose area (km²) is below theMinArea or whose compactness
 // is below theMinCompactness. Multipolygons / collections are walked
 // recursively; non-polygon parts pass through unchanged. Returns nullptr

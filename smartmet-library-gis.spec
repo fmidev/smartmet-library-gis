@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.5.9
-Release: 2%{?dist}.fmi
+Release: 3%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -120,6 +120,9 @@ FMI GIS library development files
 %{_includedir}/smartmet/%{DIRNAME}
 
 %changelog
+* Sat May  9 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.9-3.fmi
+- Fmi::OGR::compactness: add a scalar (area, perimeter) overload alongside the OGRPolygon one. Useful for callers that aggregate per-polygon area / perimeter outside any OGR object — typically because the source format stores polygons as bin-local segments and the perimeter has to be summed across bins (e.g. the gshhg-gmt-nc4 binned NetCDF reader in qdless). Returns 0 for non-positive inputs; both arguments must be in matching units, the result is dimensionless. Lets the qdless lake-roundness filter call into one canonical 4πA/L² implementation instead of inlining the formula.
+
 * Sat May  9 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.9-2.fmi
 - Add Fmi::OGR::compactness and Fmi::OGR::filterByCompactness — a generic isoperimetric-compactness (4πA/L²) helper and polygon-collection filter that drops "ragged" shapes from any OGRGeometry. Sits next to Fmi::OGR::despeckle: despeckle is the area filter, the new function is the shape filter sibling. CompactnessMode::Exterior measures the outer ring only (typical lake / island shape intuition); CompactnessMode::Net penalises Swiss-cheese polygons by subtracting hole area and adding hole perimeter. For polygons in a geographic CRS (lat/lon) area is computed on the WGS84 sphere and perimeter via great-circle arcs, so a roughly-circular lake at 70°N scores the same as one at the equator instead of being squashed by the lon = 1°·cos(lat) anisotropy of raw lat/lon space; for projected CRS GDAL's planar get_Area / get_Length are used (assumes a metric CRS, matching the existing despeckle convention). Multipolygons / geometry collections are walked recursively and non-polygon parts pass through unchanged. Designed so the isoperimetric filter is no longer GSHHS-specific — any OGR pipeline (PostGIS reads, contouring output, GeometryAmalgamator results, projected GeoJSON) can drop ragged polygons in a single call. Adds gis/OGR-compactness.cpp and a regression test covering π/4 for unit squares, ~1.0 for 64-gon circles, near-zero for thin rectangles, latitude-invariance at 60°N, Exterior-vs-Net modes with a hole, multipolygon filtering, null-on-empty results, spatial-reference preservation, non-polygon pass-through and minArea in km².
 

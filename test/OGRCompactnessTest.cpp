@@ -38,6 +38,29 @@ namespace Tests
 {
 // ----------------------------------------------------------------------
 
+void compactness_scalar()
+{
+  // Square: area = 1, perimeter = 4 → 4π/16 = π/4
+  if (!nearly_equal(Fmi::OGR::compactness(1.0, 4.0), kPi / 4.0, 1e-12))
+    TEST_FAILED("Scalar compactness(1, 4) should be π/4");
+
+  // Circle of radius 1: area = π, perimeter = 2π → 4π·π/(2π)² = 1.0
+  if (!nearly_equal(Fmi::OGR::compactness(kPi, 2.0 * kPi), 1.0, 1e-12))
+    TEST_FAILED("Scalar compactness(π, 2π) should be 1.0");
+
+  // Non-positive inputs return 0 — degenerate / missing data.
+  if (Fmi::OGR::compactness(0.0, 4.0) != 0.0)
+    TEST_FAILED("Zero area should produce 0 compactness");
+  if (Fmi::OGR::compactness(1.0, 0.0) != 0.0)
+    TEST_FAILED("Zero perimeter should produce 0 compactness");
+  if (Fmi::OGR::compactness(-1.0, 4.0) != 0.0)
+    TEST_FAILED("Negative area should produce 0 compactness");
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
 void compactness_square_planar()
 {
   // 1×1 square in planar coords. Theoretical 4πA/L² = π/4 ≈ 0.7854.
@@ -241,6 +264,7 @@ class tests : public tframe::tests
   virtual const char* error_message_prefix() const { return "\n\t"; }
   void test()
   {
+    TEST(compactness_scalar);
     TEST(compactness_square_planar);
     TEST(compactness_circle_approximation);
     TEST(compactness_thin_rectangle);

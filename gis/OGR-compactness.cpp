@@ -265,6 +265,13 @@ double Fmi::OGR::compactness(const OGRPolygon& thePoly, CompactnessMode theMode)
   }
 }
 
+double Fmi::OGR::compactness(double theArea, double thePerimeter)
+{
+  if (theArea <= 0.0 || thePerimeter <= 0.0)
+    return 0.0;
+  return 4.0 * boost::math::double_constants::pi * theArea / (thePerimeter * thePerimeter);
+}
+
 OGRGeometry* Fmi::OGR::filterByCompactness(const OGRGeometry& theGeom,
                                             double theMinCompactness,
                                             double theMinArea,
