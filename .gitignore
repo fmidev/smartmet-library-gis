@@ -1,7 +1,8 @@
 *~
 doc/
 obj/
-libsmartmet-gis.so
+/libsmartmet-gis.so
+/libsmartmet-gis.a
 *Test
 compile_commands.json
 dist/
