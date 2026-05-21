@@ -4,8 +4,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.5.9
-Release: 3%{?dist}.fmi
+Version: 26.5.21
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -137,6 +137,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Thu May 21 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.5.21-1.fmi
+- Build also static library
+
 * Sat May  9 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.9-3.fmi
 - Fmi::OGR::compactness: add a scalar (area, perimeter) overload alongside the OGRPolygon one. Useful for callers that aggregate per-polygon area / perimeter outside any OGR object — typically because the source format stores polygons as bin-local segments and the perimeter has to be summed across bins (e.g. the gshhg-gmt-nc4 binned NetCDF reader in qdless). Returns 0 for non-positive inputs; both arguments must be in matching units, the result is dimensionless. Lets the qdless lake-roundness filter call into one canonical 4πA/L² implementation instead of inlining the formula.
 
