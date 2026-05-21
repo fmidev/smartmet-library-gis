@@ -23,6 +23,7 @@ LIBS += \
 # What to install
 
 LIBFILE = libsmartmet-$(SUBNAME).so
+ALIBFILE = libsmartmet-$(SUBNAME).a
 
 # Compilation directories
 
@@ -41,7 +42,7 @@ INCLUDES := -Iinclude $(INCLUDES)
 
 # The rules
 
-all: objdir $(LIBFILE)
+all: objdir $(LIBFILE) $(ALIBFILE)
 debug: all
 release: all
 profile: all
@@ -54,6 +55,9 @@ $(LIBFILE): $(OBJS)
 		then rm -v $(LIBFILE); \
 		exit 1; \
 	fi
+
+$(ALIBFILE): $(OBJS)
+	$(AR) rcs $(ALIBFILE) $(OBJS)
 
 clean:
 	rm -f $(LIBFILE) *~ $(SUBNAME)/*~
@@ -73,6 +77,7 @@ install:
 	done
 	@mkdir -p $(libdir)
 	$(INSTALL_PROG) $(LIBFILE) $(libdir)/$(LIBFILE)
+	$(INSTALL_PROG) $(ALIBFILE) $(libdir)/$(ALIBFILE)
 
 test:
 	+cd test && make test

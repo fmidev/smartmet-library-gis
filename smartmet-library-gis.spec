@@ -98,6 +98,8 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(0775,root,root,0775)
 %{_libdir}/libsmartmet-%{DIRNAME}.so
 
+# Development files
+
 %package -n %{SPECNAME}-devel
 Summary: FMI GIS library development files
 Provides: %{SPECNAME}-devel
@@ -118,6 +120,21 @@ FMI GIS library development files
 %files -n %{SPECNAME}-devel
 %defattr(0664,root,root,0775)
 %{_includedir}/smartmet/%{DIRNAME}
+
+# Static library for development
+
+%package -n %{SPECNAME}-static
+Summary: FMI GIS library static library
+Provides: %{SPECNAME}-static
+Requires: %{SPECNAME} = %{version}-%{release}
+Requires: %{SPECNAME}-devel = %{version}-%{release}
+
+%description -n %{SPECNAME}-static
+FMI GIS library static library
+
+%files -n %{SPECNAME}-static
+%defattr(0664,root,root,0775)
+%{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
 * Sat May  9 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.9-3.fmi
