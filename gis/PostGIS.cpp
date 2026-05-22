@@ -10,6 +10,17 @@
 #include <ogrsf_frmts.h>
 #include <stdexcept>
 
+#if GDAL_VERSION_MAJOR > 3 || (GDAL_VERSION_MAJOR == 3 && GDAL_VERSION_MINOR >= 13)
+struct OGRSpatialReferenceReleaser
+{
+  void operator()(OGRSpatialReference* p) const
+  {
+    if (p)
+      p->Release();
+  }
+};
+#endif
+
 #include "Box.h"
 #include <geos_c.h>
 
