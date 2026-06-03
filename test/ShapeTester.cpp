@@ -6,6 +6,7 @@
 #include "Shape_sphere.h"
 #include "SpatialReference.h"
 #include "TestDefs.h"
+#include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
 #include <memory>
 #include <ogr_geometry.h>
@@ -406,6 +407,10 @@ class tests : public tframe::tests
 
 int main(int argc, char *argv[])
 {
+  // Clear the SpatialReference/PROJ-backed caches before unordered static
+  // destruction at exit (otherwise double-frees with some GDAL/PROJ versions).
+  Fmi::StaticCleanup::AtExit cleanup;
+
   if (argc == 1)
   {
     std::cout << "USAGE: ShapeTester <testFile1> [ <testFile2> ... <testFileN>]\n";

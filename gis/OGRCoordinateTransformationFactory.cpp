@@ -4,6 +4,7 @@
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
+#include <macgyver/StaticCleanup.h>
 #include <list>
 #include <ogr_spatialref.h>
 #include <proj.h>
@@ -27,8 +28,17 @@ class OGRCoordinateTransformationPool
   OGRCoordinateTransformationPool(OGRCoordinateTransformationPool &&other) = delete;
   OGRCoordinateTransformationPool &operator=(OGRCoordinateTransformationPool &&other) = delete;
 
-  virtual ~OGRCoordinateTransformationPool()
+  virtual ~OGRCoordinateTransformationPool() { Clear(); }
+
+  // Delete the cached transformations. Intended to be called via
+  // StaticCleanup::AtExit (from main()) while PROJ is still alive, before the
+  // unordered static destruction at exit. Calling delete on the cached
+  // OGRCoordinateTransformation objects after PROJ has torn down its own global
+  // state double-frees with some PROJ versions (originally observed with
+  // proj-7.2). It is idempotent, so the destructor may safely call it again.
+  void Clear()
   {
+    WriteLock lock(m_mutex);
 // Causes double free with proj-7.2, but not proj-9.0 (I do not know about proj 8.X)
 // By enabling this code we avoid memory leaks in case proj-9+
 //
@@ -38,6 +48,7 @@ class OGRCoordinateTransformationPool
     for (auto &item : m_cache)
       delete item.second;
 #endif
+    m_cache.clear();
   }
 
   void SetMaxSize(std::size_t theMaxSize)
@@ -89,6 +100,11 @@ class OGRCoordinateTransformationPool
 
 // Actual objet pool
 OGRCoordinateTransformationPool gPool;
+
+// Clear the pool (deleting PROJ-backed transformations) via AtExit before the
+// unordered static destruction at exit. Declared after gPool so it is destroyed
+// first; the lambda only clears, the pool itself is destroyed normally later.
+StaticCleanup gPoolCleanup([]() { gPool.Clear(); });
 
 }  // namespace
 

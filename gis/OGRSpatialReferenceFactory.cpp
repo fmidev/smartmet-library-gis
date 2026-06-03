@@ -3,6 +3,7 @@
 #include "ProjInfo.h"
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
+#include <macgyver/StaticCleanup.h>
 #include <gdal_version.h>
 #include <ogr_geometry.h>
 
@@ -15,6 +16,11 @@ using SpatialReferenceCache = Cache::Cache<std::string, std::shared_ptr<OGRSpati
 SpatialReferenceCache& spatialReferenceCache()
 {
   static SpatialReferenceCache g_spatialReferenceCache;
+  // The cached objects hold OGRSpatialReference instances backed by GDAL/PROJ
+  // global state. Clear them via StaticCleanup::AtExit (from main()) before the
+  // unordered static destruction at exit, which otherwise releases them after
+  // PROJ teardown and double-frees with some GDAL/PROJ versions.
+  static StaticCleanup cleanup([]() { g_spatialReferenceCache.clear(); });
   return g_spatialReferenceCache;
 }
 
