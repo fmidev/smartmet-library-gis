@@ -2,6 +2,7 @@
 #include "TestDefs.h"
 
 #include <fmt/format.h>
+#include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
 
 #include <gdal_version.h>
@@ -717,6 +718,9 @@ class tests : public tframe::tests
 
 int main(void)
 {
+  // Clear the SpatialReference/PROJ-backed caches before unordered static
+  // destruction at exit (otherwise double-frees with some GDAL/PROJ versions).
+  Fmi::StaticCleanup::AtExit cleanup;
   cout << endl << "Box tester" << endl << "==========" << endl;
   Tests::tests t;
   return t.run();

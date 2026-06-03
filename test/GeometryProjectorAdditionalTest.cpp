@@ -3,6 +3,8 @@
 
 #include <gtest/gtest.h>
 
+#include <macgyver/StaticCleanup.h>
+
 #include <cmath>
 #include <gdal.h>
 #include <limits>
@@ -1244,4 +1246,14 @@ TEST(AdditionalTests, JumpThreshold_ZeroThreshold_DisablesJumpDetection)
   // setJumpThreshold(0) is protected by max(..., 1000 km) for undensified linestrings;
   // the 20-degree line (~1113 km) still triggers jump detection → nullptr is acceptable.
   (void)out;
+}
+
+int main(int argc, char** argv)
+{
+  // Clear the SpatialReference/PROJ-backed caches before unordered static
+  // destruction at exit (otherwise double-frees with some GDAL/PROJ versions).
+  // This replaces the gtest_main entry point so the cleanup brackets the tests.
+  Fmi::StaticCleanup::AtExit cleanup;
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

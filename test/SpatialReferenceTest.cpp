@@ -1,6 +1,7 @@
 #include "SpatialReference.h"
 #include "TestDefs.h"
 
+#include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
 #include <atomic>
 #include <memory>
@@ -122,6 +123,11 @@ class tests : public tframe::tests
 
 int main(void)
 {
+  // Clear the SpatialReference cache (holding OGRSpatialReference objects backed
+  // by GDAL/PROJ global state) before unordered static destruction at exit,
+  // which otherwise double-frees with some GDAL/PROJ versions.
+  Fmi::StaticCleanup::AtExit cleanup;
+
   cout << endl
        << "SpatialReference tester\n"
           "=======================\n";

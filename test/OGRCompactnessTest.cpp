@@ -1,5 +1,6 @@
 #include "OGR.h"
 
+#include <macgyver/StaticCleanup.h>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 #include <regression/tframe.h>
@@ -282,6 +283,9 @@ class tests : public tframe::tests
 
 int main()
 {
+  // Clear the SpatialReference/PROJ-backed caches before unordered static
+  // destruction at exit (otherwise double-frees with some GDAL/PROJ versions).
+  Fmi::StaticCleanup::AtExit cleanup;
   cout << endl
        << "OGR compactness tester\n"
           "======================\n";

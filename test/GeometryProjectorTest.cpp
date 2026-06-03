@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <macgyver/StaticCleanup.h>
+
 #include <cmath>
 #include <gdal.h>
 #include <limits>
@@ -2545,4 +2547,14 @@ TEST(GeometryProjectorTests, WorldPolygon_CylindricalProjections_SmallerBboxIsNo
         << tc.name << ": area " << area << " is less than " << (tc.minFraction * 100)
         << "% of bbox area " << boxArea;
   }
+}
+
+int main(int argc, char** argv)
+{
+  // Clear the SpatialReference/PROJ-backed caches before unordered static
+  // destruction at exit (otherwise double-frees with some GDAL/PROJ versions).
+  // This replaces the gtest_main entry point so the cleanup brackets the tests.
+  Fmi::StaticCleanup::AtExit cleanup;
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

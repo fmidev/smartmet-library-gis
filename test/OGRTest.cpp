@@ -4,6 +4,7 @@
 #include "Shape_rect.h"
 #include "SpatialReference.h"
 #include "TestDefs.h"
+#include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
 #include <memory>
 #include <set>
@@ -2178,6 +2179,9 @@ class tests : public tframe::tests
 
 int main(void)
 {
+  // Clear the SpatialReference/PROJ-backed caches before unordered static
+  // destruction at exit (otherwise double-frees with some GDAL/PROJ versions).
+  Fmi::StaticCleanup::AtExit cleanup;
   cout << endl << "OGR tester" << endl << "==========" << endl;
   Tests::tests t;
   return t.run();
