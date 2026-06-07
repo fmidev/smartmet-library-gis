@@ -47,6 +47,7 @@ Weight create_weight_lambda(GeometrySmoother::Type type, double radius)
       };
 
     case GeometrySmoother::Type::Gaussian:
+    case GeometrySmoother::Type::Taubin:  // Taubin uses a Gaussian kernel for each pass
     default:
       return [radius](double dist)
       {
@@ -75,11 +76,20 @@ class LineFilter
   double m_sum_x = 0;
   double m_sum_y = 0;
   double m_total_weight = 0;
+  double m_relax = 1.0;  // relaxation factor: new = orig + relax*(avg - orig)
+  bool m_from_cache = false;
   bool m_closed = false;
   bool m_debug = false;
 
  public:
-  LineFilter(GeometrySmoother::Type t, double r) : m_filter(create_weight_lambda(t, r)) {}
+  // relax = 1 moves each vertex all the way to the weighted average (the plain
+  // moving-average smoother). A smaller positive relax is a partial (shrinking)
+  // move; a negative relax inflates. Taubin smoothing alternates a positive and
+  // a negative relax pass to smooth without shrinking.
+  LineFilter(GeometrySmoother::Type t, double r, double relax = 1.0)
+      : m_filter(create_weight_lambda(t, r)), m_relax(relax)
+  {
+  }
 
   void init(const OGRLineString* geom)
   {
@@ -93,6 +103,7 @@ class LineFilter
   {
     // Indicate filtering not accepted atleast yet for append()
     m_total_weight = 0;
+    m_from_cache = false;
     m_debug = false;
     m_first_pos = i;
     m_first_point = *point;
@@ -123,9 +134,10 @@ class LineFilter
     auto pos = m_cache.find(*point);
     if (pos != m_cache.end())
     {
-      m_sum_x = pos->second.getX();  // Set result to be the cached value
+      m_sum_x = pos->second.getX();  // Set result to be the cached (already relaxed) value
       m_sum_y = pos->second.getY();
       m_total_weight = 1;
+      m_from_cache = true;
       return false;
     }
 
@@ -141,10 +153,16 @@ class LineFilter
   {
     if (m_total_weight == 0)
       geom->addPoint(m_first_point.getX(), m_first_point.getY());  // filtering was not allowed
+    else if (m_from_cache)
+      geom->addPoint(m_sum_x, m_sum_y);  // already relaxed and cached, do not relax again
     else
     {
-      auto x = m_sum_x / m_total_weight;
-      auto y = m_sum_y / m_total_weight;
+      // Weighted average position, then a relaxed move towards it from the
+      // original vertex. relax==1 reproduces the plain moving average.
+      const auto avg_x = m_sum_x / m_total_weight;
+      const auto avg_y = m_sum_y / m_total_weight;
+      const auto x = m_first_point.getX() + m_relax * (avg_x - m_first_point.getX());
+      const auto y = m_first_point.getY() + m_relax * (avg_y - m_first_point.getY());
       geom->addPoint(x, y);
 
       m_cache.insert(std::make_pair(m_first_point, OGRPoint(x, y)));
@@ -534,6 +552,35 @@ void apply_filter(OGRGeometryPtr& geom_ptr, LineFilter& filter, uint iterations)
   }
 }
 
+// One smoothing pass over the whole set with a single relaxation factor. The
+// vertex counts are recomputed from the current (possibly already smoothed)
+// geometries so that shared isoband edges are detected by coordinate and stay
+// frozen together; the per-pass cache keeps shared edges bit-identical.
+void apply_pass(std::vector<OGRGeometryPtr>& geoms,
+                GeometrySmoother::Type kernel,
+                double radius,
+                double relax,
+                bool preserve_topology)
+{
+  try
+  {
+    LineFilter filter(kernel, radius, relax);
+
+    if (preserve_topology)
+      for (const auto& geom_ptr : geoms)
+        if (geom_ptr && !geom_ptr->IsEmpty())
+          filter.count(geom_ptr.get());
+
+    for (auto& geom_ptr : geoms)
+      if (geom_ptr && !geom_ptr->IsEmpty())
+        apply_filter(geom_ptr, filter, 1);
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
 }  // namespace
 
 // Apply the filter
@@ -543,6 +590,19 @@ void GeometrySmoother::apply(std::vector<OGRGeometryPtr>& geoms, bool preserve_t
   {
     if (m_type == GeometrySmoother::Type::None || m_iterations == 0 || m_radius <= 0)
       return;
+
+    if (m_type == GeometrySmoother::Type::Taubin)
+    {
+      // Each Taubin iteration is a shrinking (lambda) pass followed by an
+      // inflating (mu) pass, so low-frequency shape and feature sizes are
+      // preserved instead of collapsing.
+      for (uint iter = 0; iter < m_iterations; ++iter)
+      {
+        apply_pass(geoms, GeometrySmoother::Type::Taubin, m_radius, m_lambda, preserve_topology);
+        apply_pass(geoms, GeometrySmoother::Type::Taubin, m_radius, m_mu, preserve_topology);
+      }
+      return;
+    }
 
     LineFilter filter(m_type, m_radius);
 
@@ -581,6 +641,11 @@ std::size_t GeometrySmoother::hash_value() const
     auto hash = Fmi::hash_value(static_cast<unsigned int>(m_type));
     Fmi::hash_combine(hash, Fmi::hash_value(m_radius));
     Fmi::hash_combine(hash, Fmi::hash_value(m_iterations));
+    if (m_type == GeometrySmoother::Type::Taubin)
+    {
+      Fmi::hash_combine(hash, Fmi::hash_value(m_lambda));
+      Fmi::hash_combine(hash, Fmi::hash_value(m_mu));
+    }
     return hash;
   }
   catch (...)

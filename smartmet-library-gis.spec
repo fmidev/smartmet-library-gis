@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.5.21
+Version: 26.6.8
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -137,6 +137,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Mon Jun  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.6.8-1.fmi
+- GeometrySmoother: added Taubin lambda|mu smoothing, which alternates a shrinking and an inflating pass so feature sizes (areas) are preserved instead of collapsing, reducing self-intersections from thin features shrinking onto themselves
+
 * Thu May 21 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.5.21-1.fmi
 - Build also static library
 

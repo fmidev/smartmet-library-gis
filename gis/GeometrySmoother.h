@@ -22,7 +22,11 @@ class GeometrySmoother
     Average,   // moving average, weight = 1
     Linear,    // moving average, weight = 1/(1+distance)
     Gaussian,  // moving average, weight = Gaussian where stdev is selected based on radius
-    Tukey      // moving average, weight = Tukey's biweight = (1-(distance/radius)^2)^2
+    Tukey,     // moving average, weight = Tukey's biweight = (1-(distance/radius)^2)^2
+    Taubin     // Taubin lambda|mu smoothing (Gaussian kernel): a shrinking pass
+               // followed by an inflating pass, so feature sizes are preserved
+               // instead of collapsing. This reduces (but does not eliminate)
+               // self-intersections from thin features shrinking onto themselves.
   };
 
   std::size_t hash_value() const;
@@ -30,6 +34,8 @@ class GeometrySmoother
   void radius(double r) { m_radius = r; }
   void iterations(uint n) { m_iterations = n; }
   void type(Type t) { m_type = t; }
+  void lambda(double l) { m_lambda = l; }  // Taubin shrinking factor (0<lambda<1)
+  void mu(double m) { m_mu = m; }          // Taubin inflating factor (mu < -lambda)
 
   void bbox(const Box& box);
   void apply(std::vector<OGRGeometryPtr>& geoms, bool preserve_topology) const;
@@ -39,6 +45,12 @@ class GeometrySmoother
 
   double m_radius = 0;    // in pixels
   uint m_iterations = 1;  // one pass only by default
+
+  // Taubin lambda|mu parameters (only used when m_type == Taubin). The defaults
+  // give a small net low-pass with |mu| slightly larger than lambda so that the
+  // inflating pass compensates for the shrinkage of the smoothing pass.
+  double m_lambda = 0.5;
+  double m_mu = -0.53;
 };
 
 }  // namespace Fmi
