@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.6.15
+Version: 26.6.22
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -137,6 +137,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Mon Jun 22 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.6.22-1.fmi
+- RectClipper: added a structural alternation guard to polyclip/polycut. Self-intersecting input could make the box reconnection wrap the whole box boundary and fill the entire output tile. The guard cheaply checks (O(k log k) in the number of boundary crossings) that the clipped arcs' entry/exit points strictly alternate around the box — an invariant that holds for any valid polygon clipped to a convex box but is broken by self-intersecting input. On a violation it reconnects without ever walking more than half the box perimeter, so the result stays bounded and never fills the tile. Valid input always alternates, so normal behaviour is unchanged. This catches the failure even when an output-area check cannot, since a single wrap fills ~100% of the box while staying under the box area.
+
 * Mon Jun 15 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.6.15-1.fmi
 - Repackaged to resolve ABI issues
 

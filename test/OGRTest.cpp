@@ -871,6 +871,63 @@ void polyclip_spike()
 }
 
 // ----------------------------------------------------------------------
+// Structural alternation guard: a self-intersecting polygon whose boundary
+// crossings do not alternate around the box used to make the reconnection
+// wrap the whole box boundary, filling the entire tile. The polygon below
+// has two prongs through the top edge with crossed connectivity; its true
+// clip is just the two small prong interiors (area 5 of the 100-unit box),
+// but the unguarded clipper produced a box-filling polygon (area ~97). The
+// guard must keep the result bounded (and here it recovers the exact area).
+
+void polyclip_wrap_guard()
+{
+  using namespace Fmi;
+  using Fmi::Box;
+
+  Box box(0, 0, 10, 10, 10, 10);
+  const double box_area = 100.0;
+
+  std::string wkt = "POLYGON ((8 11,8 9,7 9,7 12,2 12,2 9,6 9,6 11,8 11))";
+
+  OGRGeometry* input = nullptr;
+  if (OGRGeometryFactory::createFromWkt(wkt.c_str(), nullptr, &input) != OGRERR_NONE)
+    TEST_FAILED("Failed to parse input " + wkt);
+  Fmi::OGR::normalizeWindingOrder(input);
+
+  OGRGeometry* output = OGR::polyclip(*input, box);
+  OGRGeometryFactory::destroyGeometry(input);
+
+  if (output == nullptr)
+    TEST_FAILED("polyclip returned nullptr");
+
+  double area = 0;
+  switch (wkbFlatten(output->getGeometryType()))
+  {
+    case wkbPolygon:
+      area = output->toPolygon()->get_Area();
+      break;
+    case wkbMultiPolygon:
+      area = output->toMultiPolygon()->get_Area();
+      break;
+    case wkbGeometryCollection:
+      area = output->toGeometryCollection()->get_Area();
+      break;
+    default:
+      break;
+  }
+  std::string ret = OGR::exportToWkt(*output);
+  OGRGeometryFactory::destroyGeometry(output);
+
+  // Must never wrap the box (the visible catastrophe). The true clipped area
+  // is 5; allow generous slack but stay far below the box-filling failure.
+  if (area > box_area / 2.0)
+    TEST_FAILED("Clip wrapped the box: area " + std::to_string(area) + " for input " + wkt +
+                "\n\tGot: " + ret);
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
 
 void polyclip_case_hirlam()
 {
@@ -2151,6 +2208,7 @@ class tests : public tframe::tests
     TEST(polyclip_segmentation);
     TEST(polyclip_case_hirlam);
     TEST(polyclip_spike);
+    TEST(polyclip_wrap_guard);
     TEST(linecut);
     TEST(polycut);
     TEST(linecut_shape_rect);
