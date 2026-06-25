@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.6.15
+Version: 26.6.25
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -137,6 +137,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Thu Jun 25 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.6.25-1.fmi
+- Reverted the polyclip/polycut box-wrap guard (26.6.22). Its alternation pre-check classified clipped arc endpoints as entry/exit by array position and treated any non-alternation as a box-wrap, falling back to a lossy reconnection. That mis-fired on valid clipped geometry (boundary-tangent cap arcs, single-point tangencies at limited-area data edges, and polygons with holes), dropping/leaking regions in WMS isoband and map output. Box-wrap protection for self-intersecting input will be redesigned separately.
+
 * Mon Jun 15 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.6.15-1.fmi
 - Repackaged to resolve ABI issues
 
