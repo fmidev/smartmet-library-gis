@@ -6,16 +6,23 @@
 #include <macgyver/StaticCleanup.h>
 #include <gdal_version.h>
 #include <ogr_geometry.h>
+#include <mutex>
 
 namespace Fmi
 {
 namespace
 {
 // Cache for spatial-reference objects created from defining string.
+// A default-constructed Cache has size 0 and stores nothing, which left every
+// Create() call re-parsing the definition (proj_create_from_wkt -> proj.db).
+// Give it a real default size so the intended caching actually works; the number
+// of distinct CRSes a server sees is bounded (dozens to low hundreds), so 1000
+// is ample. SetCacheSize() remains available to override this.
+const std::size_t default_cache_size = 1000;
 using SpatialReferenceCache = Cache::Cache<std::string, std::shared_ptr<OGRSpatialReference>>;
 SpatialReferenceCache& spatialReferenceCache()
 {
-  static SpatialReferenceCache g_spatialReferenceCache;
+  static SpatialReferenceCache g_spatialReferenceCache{default_cache_size};
   // The cached objects hold OGRSpatialReference instances backed by GDAL/PROJ
   // global state. Clear them via StaticCleanup::AtExit (from main()) before the
   // unordered static destruction at exit, which otherwise releases them after
@@ -101,7 +108,26 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
     if (theDesc == "WGS84")
       theDesc = "EPSG:4326";
 
+    // Fast path: warm cache hit, no serialization
     auto cacheObject = spatialReferenceCache().find(theDesc);
+    if (cacheObject)
+      return *cacheObject;
+
+    // Cold miss. Parsing a definition string calls proj_create_from_wkt /
+    // SetFromUserInput, which for named datums/ellipsoids queries proj.db through
+    // SQLite. Running many such parses concurrently serialized worker threads on
+    // PROJ's SQLite mutex and could deadlock them. Serialize all parses behind a
+    // single mutex so no two SetFromUserInput calls ever run at the same time.
+    // This is a strict one-way lock order (this mutex, then PROJ's internal locks),
+    // so it cannot deadlock, and it only affects one-time cold misses: the warm
+    // path above never reaches here. Distinct keys parsing one-at-a-time is a
+    // negligible startup cost compared to the safety it buys.
+    static std::mutex g_parseMutex;
+    std::lock_guard<std::mutex> parseLock(g_parseMutex);
+
+    // Re-check under the lock: another thread may have parsed the same key while
+    // we waited, in which case we reuse its result instead of parsing again.
+    cacheObject = spatialReferenceCache().find(theDesc);
     if (cacheObject)
       return *cacheObject;
 
