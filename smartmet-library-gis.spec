@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.7.14
+Version: 26.7.16
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -137,6 +137,8 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Wed Jul 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.7.16-1.fmi
+- Replaced std::exp in the Gaussian/Taubin smoothing weight with a constexpr lookup table. The kernel depends only on the normalized distance t=dist/radius in [0,1), so exp(-t*t/4.5) can be tabulated once; this removes a per-vertex std::exp from the hot smoothing loop, which is markedly slower on RHEL8 (glibc 2.28). Table error is <1e-6, immaterial for a smoothing approximation.
 * Tue Jul 14 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.7.14-1.fmi
 - Fixed a PROJ/SQLite deadlock caused by repeated coordinate-system parsing. The OGRSpatialReferenceFactory cache was default-constructed with size 0 and thus stored nothing, so every Create() re-parsed the definition (proj_create_from_wkt -> proj.db) and worker threads could deadlock on PROJ's SQLite mutex. Enabled the cache with a default size of 1000, and serialized cold-miss parses behind a single mutex so no two SetFromUserInput calls run concurrently.
 
