@@ -11,6 +11,7 @@ All public API lives under the `Fmi` namespace.
 - [Geographic Interrupts](gis-interrupts.md) — `Interrupt`, map projection discontinuities, antimeridian handling
 - [Elevation and Land Cover](gis-raster.md) — `DEM`, `SrtmTile`, `SrtmMatrix`, `LandCover`
 - [PostGIS Integration](gis-postgis.md) — `PostGIS`, `Host`
+- [PROJ/GDAL Thread Safety](proj-gdal-thread-safety.md) — what is unsafe upstream, what to fix there, and what `gis` must do about shared `OGRSpatialReference` objects
 
 ## Quick Start
 
