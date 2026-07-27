@@ -2,6 +2,7 @@
 
 #include <macgyver/Cache.h>
 #include <memory>
+#include <optional>
 #include <string>
 
 class OGRSpatialReference;

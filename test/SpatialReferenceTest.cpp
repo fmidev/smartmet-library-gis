@@ -5,7 +5,9 @@
 #include <regression/tframe.h>
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <thread>
+#include <vector>
 
 using namespace std;
 
@@ -105,6 +107,84 @@ void getepsg_parallel()
   TEST_PASSED();
 }
 
+// The test above reuses four CRS definitions, so after the first iteration every
+// lookup is a warm cache hit. The interesting path is the cold miss, where the
+// properties are derived from the OGRSpatialReference shared by all threads with
+// GDAL calls that are not safe to run on it concurrently: GetRoot() builds the
+// node tree on demand, and EPSGTreatsAsLatLong() demotes and restores the
+// underlying PJ* on every call for a BoundCRS. Rendezvous all threads on each
+// definition in turn so their cold misses actually collide.
+void getepsg_parallel_cold()
+{
+  struct Case
+  {
+    std::string desc;
+    std::optional<int> epsg;
+  };
+
+  std::vector<Case> cases;
+
+  // WGS 84 / UTM zone NN N, all with an EPSG authority node
+  for (int zone = 1; zone <= 60; zone++)
+    cases.push_back({"EPSG:" + std::to_string(32600 + zone), 32600 + zone});
+
+  // Named datums from OGRSpatialReferenceFactory's known_datums table. These
+  // expand to +towgs84 definitions, which PROJ represents as a BoundCRS, and
+  // they carry no EPSG authority. (The +nadgrids entries are left out: they
+  // need grid files that need not be installed.)
+  for (const auto* datum : {"FMI", "GGRS87", "NAD83", "carthage", "ire65", "nzgd49", "OSGB36"})
+    cases.push_back({datum, std::nullopt});
+
+  const std::size_t num_threads = 10;
+
+  std::atomic<int> num_errors(0);
+  std::atomic<std::size_t> arrived(0);
+
+  const auto thread_proc = [&]() -> void
+  {
+    for (std::size_t i = 0; i < cases.size(); i++)
+    {
+      // Wait until every thread is about to construct the same definition
+      const std::size_t target = num_threads * (i + 1);
+      arrived++;
+      while (arrived < target)
+        std::this_thread::yield();
+
+      try
+      {
+        Fmi::SpatialReference crs(cases[i].desc);
+        if (crs.getEPSG() != cases[i].epsg)
+          num_errors++;
+        if (crs.WKT().empty())
+          num_errors++;
+      }
+      catch (...)
+      {
+        num_errors++;
+      }
+    }
+  };
+
+  std::vector<std::shared_ptr<std::thread> > test_threads;
+  for (std::size_t i = 0; i < num_threads; i++)
+  {
+    test_threads.emplace_back(new std::thread(thread_proc),
+                              [](std::thread* t)
+                              {
+                                t->join();
+                                delete t;
+                              });
+  }
+
+  test_threads.clear();
+
+  if (num_errors > 0)
+    TEST_FAILED("Got " + std::to_string(num_errors.load()) +
+                " errors when deriving CRS properties concurrently");
+
+  TEST_PASSED();
+}
+
 // Test driver
 class tests : public tframe::tests
 {
@@ -115,6 +195,7 @@ class tests : public tframe::tests
   {
     TEST(getepsg);
     TEST(getepsg_parallel);
+    TEST(getepsg_parallel_cold);
   }
 
 };  // class tests

@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.7.16
+Version: 26.7.27
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -137,6 +137,8 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Mon Jul 27 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.7.27-1.fmi
+- Fixed a data race when several threads first use the same coordinate system. SpatialReference derives its cached properties from the OGRSpatialReference shared by all threads via OGRSpatialReferenceFactory, but several of the GDAL accessors used are not the pure reads their const signatures suggest: GetRoot() builds the WKT node tree on demand, and EPSGTreatsAsLatLong() swaps the underlying PJ* out and back on every call for a BoundCRS (any +towgs84 or +nadgrids definition, which covers most of the known_datums table). Concurrent cold misses therefore corrupted the heap and could emit bogus 'proj_as_wkt: missing required input' errors. The derivation is now serialized behind a mutex, on the cold-miss path only. getEPSG() additionally no longer walks the shared node tree on every call: the code is resolved once during initialization and cached alongside the other properties.
 * Wed Jul 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.7.16-1.fmi
 - Replaced std::exp in the Gaussian/Taubin smoothing weight with a constexpr lookup table. The kernel depends only on the normalized distance t=dist/radius in [0,1), so exp(-t*t/4.5) can be tabulated once; this removes a per-vertex std::exp from the hot smoothing loop, which is markedly slower on RHEL8 (glibc 2.28). Table error is <1e-6, immaterial for a smoothing approximation.
 * Tue Jul 14 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.7.14-1.fmi
