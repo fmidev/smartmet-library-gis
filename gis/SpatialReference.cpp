@@ -111,7 +111,7 @@ std::optional<int> get_epsg(const OGRSpatialReference &crs)
   }
 }
 
-// Serializes deriving the cached properties of a CRS.
+// Deriving the cached properties of a CRS must be serialized.
 //
 // Everything Impl::init() reads from the OGRSpatialReference is derived exactly
 // once per CRS and then served from ImplData, but the object it reads from is the
@@ -127,15 +127,16 @@ std::optional<int> get_epsg(const OGRSpatialReference &crs)
 //     the entries in OGRSpatialReferenceFactory's known_datums table.
 //
 // GDAL only guards those paths when the OGRSpatialReference was created with
-// AssignAndSetThreadSafe(), which these are not. So serialize the derivation
-// here. Same reasoning and same cost as the parse mutex in
-// OGRSpatialReferenceFactory: this is a cold-miss-only path, warm lookups return
-// from the cache above without reaching it.
-std::mutex &derive_mutex()
-{
-  static std::mutex g_deriveMutex;
-  return g_deriveMutex;
-}
+// AssignAndSetThreadSafe(), which these are not.
+//
+// The serialization uses OGRSpatialReferenceFactory::mutex() rather than a mutex
+// private to this file, because the derivation here is not independent of the
+// other GDAL/PROJ operations on the same shared objects: creation in make_crs()
+// and OGRCreateCoordinateTransformation() in OGRCoordinateTransformationFactory
+// touch the same OGRSpatialReference and the same PROJ globals. A private mutex
+// would serialize this file against itself while still racing those. It is a
+// cold-miss-only path either way; warm lookups return from the cache above
+// without reaching it.
 
 }  // namespace
 
@@ -207,9 +208,17 @@ class SpatialReference::Impl
         m_data = *obj;
       else
       {
+        auto data = std::make_shared<ImplData>();
+
+        // Create (or fetch from its own cache) the shared CRS object BEFORE taking
+        // the lock below. Create() takes the very same mutex on a cold miss, and it
+        // is a plain non-recursive std::mutex, so calling it while holding the lock
+        // would self-deadlock.
+        data->crs = OGRSpatialReferenceFactory::Create(theCRS);
+
         // Cold miss. The properties below are derived from the shared CRS object
         // with GDAL calls that are not safe to run concurrently on it.
-        std::lock_guard<std::mutex> deriveLock(derive_mutex());
+        std::lock_guard<std::mutex> deriveLock(OGRSpatialReferenceFactory::mutex());
 
         // Re-check under the lock: another thread may have derived the same key
         // while we waited, in which case we reuse its result.
@@ -220,28 +229,26 @@ class SpatialReference::Impl
           return;
         }
 
-        m_data = std::make_shared<ImplData>();
-        m_data->crs = OGRSpatialReferenceFactory::Create(theCRS);
-
         // Generate WKT only once, and cache spatial references for better speed
-        m_data->wkt = OGR::exportToWkt(*m_data->crs);
+        data->wkt = OGR::exportToWkt(*data->crs);
 
         try
         {
           // exportToProj may lose the original +type=crs setting, hence we try direct parsing first
-          m_data->projinfo = ProjInfo(theCRS);
+          data->projinfo = ProjInfo(theCRS);
         }
         catch (...)
         {
-          m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
+          data->projinfo = ProjInfo(OGR::exportToProj(*data->crs));
         }
-        m_data->hashvalue = Fmi::hash_value(m_data->wkt);  // WKT is more reliable than PROJ strings
+        data->hashvalue = Fmi::hash_value(data->wkt);  // WKT is more reliable than PROJ strings
 
-        m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
-        m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
-        m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
-        m_data->epsg = get_epsg(*m_data->crs);
+        data->is_geographic = (data->crs->IsGeographic() != 0);
+        data->is_axis_swapped = is_axis_swapped(*data->crs);
+        data->epsg_treats_as_lat_long = (data->crs->EPSGTreatsAsLatLong() != 0);
+        data->epsg = get_epsg(*data->crs);
 
+        m_data = data;
         get_cache().insert(theCRS, m_data);
       }
     }

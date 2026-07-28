@@ -116,14 +116,20 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
     // Cold miss. Parsing a definition string calls proj_create_from_wkt /
     // SetFromUserInput, which for named datums/ellipsoids queries proj.db through
     // SQLite. Running many such parses concurrently serialized worker threads on
-    // PROJ's SQLite mutex and could deadlock them. Serialize all parses behind a
-    // single mutex so no two SetFromUserInput calls ever run at the same time.
-    // This is a strict one-way lock order (this mutex, then PROJ's internal locks),
-    // so it cannot deadlock, and it only affects one-time cold misses: the warm
-    // path above never reaches here. Distinct keys parsing one-at-a-time is a
+    // PROJ's SQLite mutex and could deadlock them. Serialize all parses so no two
+    // SetFromUserInput calls ever run at the same time.
+    //
+    // This uses the same mutex as every other GDAL/PROJ operation on the shared
+    // cached objects (SpatialReference::init(), OGRCreateCoordinateTransformation()),
+    // because creating an object and later lazily rebuilding its internal state are
+    // not independent: they touch the same OGRSpatialReference and the same PROJ
+    // globals. Two separate mutexes would not exclude each other.
+    //
+    // Strict one-way lock order (this mutex, then PROJ's internal locks), so it
+    // cannot deadlock, and it only affects one-time cold misses: the warm path
+    // above never reaches here. Distinct keys parsing one-at-a-time is a
     // negligible startup cost compared to the safety it buys.
-    static std::mutex g_parseMutex;
-    std::lock_guard<std::mutex> parseLock(g_parseMutex);
+    std::lock_guard<std::mutex> parseLock(OGRSpatialReferenceFactory::mutex());
 
     // Re-check under the lock: another thread may have parsed the same key while
     // we waited, in which case we reuse its result instead of parsing again.
@@ -178,6 +184,12 @@ std::shared_ptr<OGRSpatialReference> make_crs(std::string theDesc)
 
 namespace OGRSpatialReferenceFactory
 {
+std::mutex& mutex()
+{
+  static std::mutex g_mutex;
+  return g_mutex;
+}
+
 std::shared_ptr<OGRSpatialReference> Create(const std::string& theDesc)
 {
   try

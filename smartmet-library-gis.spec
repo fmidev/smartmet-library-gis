@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.7.27
+Version: 26.7.28
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -137,6 +137,8 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Tue Jul 28 2026 Andris Pavēnis <andris.pavenis@fmi.fi> - 26.7.28-1.fmi
+- Extended the 26.7.27 coordinate-system data race fix to cover the remaining unguarded path. That release serialized only the property derivation in SpatialReference::init(), behind a mutex private to that file. Two gaps remained: OGRCreateCoordinateTransformation() ran on the shared cached OGRSpatialReference objects with no lock at all, and the parse mutex in OGRSpatialReferenceFactory was a different mutex, so the guarded paths did not exclude each other either. A thread deriving properties for a CRS could therefore run concurrently with another thread rebuilding that same object's internal PROJ/WKT state via transformation creation, which corrupted the heap and crashed the server later in unrelated allocations. All three GDAL/PROJ entry points touching these shared objects (make_crs, SpatialReference::init, OGRCreateCoordinateTransformation) now share one OGRSpatialReferenceFactory::mutex(). Cold-cache paths only; warm lookups stay lock-free. Added OGRCoordinateTransformationFactoryTest::concurrent_create_is_threadsafe, which aborts within a second against the unfixed library.
 * Mon Jul 27 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.7.27-1.fmi
 - Fixed a data race when several threads first use the same coordinate system. SpatialReference derives its cached properties from the OGRSpatialReference shared by all threads via OGRSpatialReferenceFactory, but several of the GDAL accessors used are not the pure reads their const signatures suggest: GetRoot() builds the WKT node tree on demand, and EPSGTreatsAsLatLong() swaps the underlying PJ* out and back on every call for a BoundCRS (any +towgs84 or +nadgrids definition, which covers most of the known_datums table). Concurrent cold misses therefore corrupted the heap and could emit bogus 'proj_as_wkt: missing required input' errors. The derivation is now serialized behind a mutex, on the cold-miss path only. getEPSG() additionally no longer walks the shared node tree on every call: the code is resolved once during initialization and cached alongside the other properties.
 * Wed Jul 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.7.16-1.fmi
