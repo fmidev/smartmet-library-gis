@@ -5,6 +5,8 @@
 #include "GeometryProjector.h"
 #include "OGR.h"
 #include "SpatialReference.h"
+#include <cpl_error.h>
+#include <fmt/format.h>
 #include <gdal_version.h>
 #include <iostream>
 #include <ogrsf_frmts.h>
@@ -64,6 +66,46 @@ void forceCloseRingIfNeeded(OGRLinearRing* ring)
       std::max({std::abs(x0), std::abs(y0), std::abs(xn), std::abs(yn), 1.0});
   if (gap < mag * 1e-6)
     ring->setPoint(n - 1, x0, y0);
+}
+
+// OGR reports read failures through the CPL error stack rather than through the
+// return value: a cursor that dies mid-FETCH makes GetNextFeature() return
+// nullptr, which is indistinguishable from a clean end of data. Silently
+// returning nothing turns a lost connection or a cancelled query into an empty
+// result set that the caller cannot tell from a genuinely empty table -- and may
+// then cache for the lifetime of the process.
+//
+// next_feature() resets the error state immediately before each fetch, so after
+// the loop the state describes only the fetch that ended it. Errors raised by
+// anything done between two fetches -- a failed reprojection, for example -- are
+// cleared by the next fetch and are accounted for separately below.
+//
+// Note that SetAttributeFilter() reports success for a WHERE clause that the
+// server will go on to reject, because OGR parses the expression itself. Such a
+// query fails at FETCH time, and this is what catches it.
+void checkReadErrors(const std::string& theName)
+{
+  if (CPLGetLastErrorType() < CE_Failure)
+    return;
+
+  throw std::runtime_error(
+      fmt::format("Failed to read '{}' from the database: {}", theName, CPLGetLastErrorMsg()));
+}
+
+// A reprojection failure yields nullptr for one feature, and dropping a single
+// feature that falls outside the target projection is normal. Dropping every
+// feature is not: it means the transformation itself is unusable (a transient
+// PROJ failure, an unavailable datum shift), which must not be reported as an
+// empty table for the same reason as above.
+void checkDroppedGeometries(const std::string& theName,
+                            std::size_t theGeometries,
+                            std::size_t theDropped)
+{
+  if (theDropped == 0 || theGeometries > 0)
+    return;
+
+  throw std::runtime_error(fmt::format(
+      "Failed to reproject any of the {} geometries read from '{}'", theDropped, theName));
 }
 
 void forceClosePolygonRings(OGRGeometry* geom)
@@ -212,11 +254,14 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
 
   const auto next_feature = [layer]()
   {
+    CPLErrorReset();  // see checkReadErrors()
     return std::shared_ptr<OGRFeature>(
         layer->GetNextFeature(), [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
   };
 
   std::shared_ptr<OGRFeature> feature;
+  std::size_t geometries = 0;
+  std::size_t dropped = 0;
 
   if (theSR == nullptr)
   {
@@ -247,7 +292,10 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
         {
           forceClosePolygonRings(clone);
           out->addGeometryDirectly(clone);  // takes ownership
+          ++geometries;
         }
+        else
+          ++dropped;
       }
     }
   }
@@ -292,12 +340,21 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
         {
           forceClosePolygonRings(clone);
           out->addGeometryDirectly(clone);  // takes ownership
+          ++geometries;
         }
+        else
+          ++dropped;
       }
     }
   }
 
-  return {out, [](OGRGeometry* g) { OGRGeometryFactory::destroyGeometry(g); }};
+  // The checks below throw, so ownership of 'out' must be settled first
+  OGRGeometryPtr ret(out, [](OGRGeometry* g) { OGRGeometryFactory::destroyGeometry(g); });
+
+  checkReadErrors(theName);
+  checkDroppedGeometries(theName, geometries, dropped);
+
+  return ret;
 }
 
 // ----------------------------------------------------------------------
@@ -363,11 +420,14 @@ Features read(const Fmi::SpatialReference* theSR,
 
   const auto next_feature = [layer]()
   {
+    CPLErrorReset();  // see checkReadErrors()
     return std::shared_ptr<OGRFeature>(
         layer->GetNextFeature(), [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
   };
 
   std::shared_ptr<OGRFeature> feature;
+  std::size_t geometries = 0;
+  std::size_t dropped = 0;
 
   layer->ResetReading();
   while ((feature = next_feature()))
@@ -388,11 +448,19 @@ Features read(const Fmi::SpatialReference* theSR,
         auto* clone = transformation->transformGeometry(*geometry, *projector);
         forceClosePolygonRings(clone);
         ret_item->geom.reset(clone);
-        // Note: We clone the input SR since we have no lifetime guarantees for it
-        std::shared_ptr<OGRSpatialReference> tmp(theSR->get()->Clone(),
-                                                 [](OGRSpatialReference* sr) { sr->Release(); });
-        ret_item->geom->assignSpatialReference(tmp.get());
+        if (clone != nullptr)
+        {
+          // Note: We clone the input SR since we have no lifetime guarantees for it
+          std::shared_ptr<OGRSpatialReference> tmp(theSR->get()->Clone(),
+                                                   [](OGRSpatialReference* sr) { sr->Release(); });
+          ret_item->geom->assignSpatialReference(tmp.get());
+        }
       }
+
+      if (ret_item->geom)
+        ++geometries;
+      else
+        ++dropped;
     }
     else
     {
@@ -455,6 +523,9 @@ Features read(const Fmi::SpatialReference* theSR,
     }
     ret.push_back(ret_item);
   }
+
+  checkReadErrors(theName);
+  checkDroppedGeometries(theName, geometries, dropped);
 
   return ret;
 }

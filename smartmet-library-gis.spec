@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.7.28
+Version: 26.8.10
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -137,6 +137,8 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Mon Aug 10 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.10-1.fmi
+- PostGIS::read() no longer reports a failed read as an empty result set. OGR signals read failures through the CPL error stack rather than the return value, so a cursor that dies mid-FETCH -- a lost connection, a cancelled query, or a WHERE clause the server rejects, which SetAttributeFilter() accepts because OGR parses the expression itself -- simply made GetNextFeature() return nullptr, indistinguishable from a clean end of data. Both read() overloads now check the error state after the fetch loop and throw. Per-feature reprojection failures are excluded from that check (the state is reset before each fetch) and counted instead, so dropping a feature that falls outside the target projection stays normal while losing every feature, which means the transformation itself is unusable, throws. Also fixed a null dereference in the Features overload, where a feature whose reprojection failed was passed to assignSpatialReference().
 * Tue Jul 28 2026 Andris Pavēnis <andris.pavenis@fmi.fi> - 26.7.28-1.fmi
 - Extended the 26.7.27 coordinate-system data race fix to cover the remaining unguarded path. That release serialized only the property derivation in SpatialReference::init(), behind a mutex private to that file. Two gaps remained: OGRCreateCoordinateTransformation() ran on the shared cached OGRSpatialReference objects with no lock at all, and the parse mutex in OGRSpatialReferenceFactory was a different mutex, so the guarded paths did not exclude each other either. A thread deriving properties for a CRS could therefore run concurrently with another thread rebuilding that same object's internal PROJ/WKT state via transformation creation, which corrupted the heap and crashed the server later in unrelated allocations. All three GDAL/PROJ entry points touching these shared objects (make_crs, SpatialReference::init, OGRCreateCoordinateTransformation) now share one OGRSpatialReferenceFactory::mutex(). Cold-cache paths only; warm lookups stay lock-free. Added OGRCoordinateTransformationFactoryTest::concurrent_create_is_threadsafe, which aborts within a second against the unfixed library.
 * Mon Jul 27 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.7.27-1.fmi
