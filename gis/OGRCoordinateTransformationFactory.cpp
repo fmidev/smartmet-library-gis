@@ -140,18 +140,15 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
     auto src = OGRSpatialReferenceFactory::Create(theSource);
     auto tgt = OGRSpatialReferenceFactory::Create(theTarget);
 
-    // OGRCreateCoordinateTransformation() performs GDAL/PROJ operations on these
-    // shared, cached OGRSpatialReference objects and lazily (re)builds their
-    // internal PROJ/WKT state (refreshProjObj / refreshRootFromProjObj). Those
-    // objects are not thread-safe, so this must be serialised against all other
-    // access to them (see OGRSpatialReferenceFactory::mutex()). The Create() calls
-    // above are deliberately outside the lock: they take it themselves on a cold
-    // miss, and it is not recursive.
-    OGRCoordinateTransformation *ptr = nullptr;
-    {
-      std::lock_guard<std::mutex> lock(OGRSpatialReferenceFactory::mutex());
-      ptr = OGRCreateCoordinateTransformation(src.get(), tgt.get());
-    }
+    // OGRCreateCoordinateTransformation() performs GDAL/PROJ operations on both
+    // spatial references and lazily (re)builds their internal PROJ/WKT state
+    // (refreshProjObj / refreshRootFromProjObj), which is not thread-safe. That
+    // is fine here without any lock: OGRSpatialReferenceFactory::Create() hands
+    // out a PRIVATE object checked out of its pool, so src and tgt are owned by
+    // this thread for the duration of this call and no other thread can be
+    // touching them. They are checked back in when the shared_ptrs go out of
+    // scope at the end of this function.
+    OGRCoordinateTransformation *ptr = OGRCreateCoordinateTransformation(src.get(), tgt.get());
 
     if (ptr != nullptr)
       return {ptr, Deleter(hash)};

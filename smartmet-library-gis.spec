@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.8.10
+Version: 26.8.28
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -137,6 +137,13 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Fri Aug 28 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.28-1.fmi
+- OGRSpatialReferenceFactory::Create() now hands the caller its own spatial reference instead of a pointer to one process-wide cached object. The returned clone may be read, modified, attached to a geometry or kept for as long as the caller likes with no effect on anybody else, which is what GDAL and PROJ actually require: a PJ is used by one thread at a time, and OGRSpatialReference rebuilds internal PROJ/WKT state even from logically-const methods. The signature is unchanged, so no caller needed editing. The previous releases serialized access to the shared objects behind a mutex; that covered concurrent reads, but concurrent modification of a shared spatial reference corrupts the heap outright, and the API invited exactly that by returning a mutable pointer. SpatialReferenceOwnershipTest reproduces it: against the previous library ten of its fifteen cases fail and the process then dies with 'double free or corruption'.
+- Clones come from a per-thread sample, cloned once from a master object that is parsed once and never handed out, so the steady-state path takes no lock at all. Cloning one shared sample instead would need a lock on every call and measurably regresses with threads (220k acquisitions/s on one thread falling to 136k on eight, against 206k rising to 1.97M for the per-thread sample). SetSampleStoreSize() bounds the per-thread sample count, default 64; exceeding it costs one extra clone, never an error.
+- Merged the two caches that were keyed by the same definition string -- the factory's parsed object and SpatialReference's derived values -- into one store, CrsRegistry, with the derived values computed lazily. They previously had different size limits (1000 and 10000) and evicted independently, so a SpatialReference that still held its derived values could be forced to re-parse the CRS just to produce an object. A caller that only wants an object now never pays for the derivation, which is the expensive half: deriving from a raw OGRSpatialReference costs about 1.7 ms against 0.2 us for the cached path, because it re-runs exportToWkt, exportToProj, a ProjInfo parse and a GetRoot() walk. Both getCacheStats() functions now describe that single store.
+- OGRSpatialReferenceFactory keeps its name but is documented as the raw-object door, for code that must hand a mutable OGRSpatialReference to GDAL itself; everything else should construct an Fmi::SpatialReference from the definition string, whose derived values are shared so that copying is free and the accessors never enter GDAL.
+- OGRCoordinateTransformationFactory::Create() no longer locks around OGRCreateCoordinateTransformation(): both spatial references it passes are now private clones.
+- Purely additive at the ABI level: SpatialReference's declarations are unchanged, the factory header only gained three functions, and the only symbols dropped are weak template instantiations of the old cache's value type, which nothing outside the library used. Dependent packages do not need rebuilding.
 * Mon Aug 10 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.10-1.fmi
 - PostGIS::read() no longer reports a failed read as an empty result set. OGR signals read failures through the CPL error stack rather than the return value, so a cursor that dies mid-FETCH -- a lost connection, a cancelled query, or a WHERE clause the server rejects, which SetAttributeFilter() accepts because OGR parses the expression itself -- simply made GetNextFeature() return nullptr, indistinguishable from a clean end of data. Both read() overloads now check the error state after the fetch loop and throw. Per-feature reprojection failures are excluded from that check (the state is reset before each fetch) and counted instead, so dropping a feature that falls outside the target projection stays normal while losing every feature, which means the transformation itself is unusable, throws. Also fixed a null dereference in the Features overload, where a feature whose reprojection failed was passed to assignSpatialReference().
 * Tue Jul 28 2026 Andris Pavēnis <andris.pavenis@fmi.fi> - 26.7.28-1.fmi

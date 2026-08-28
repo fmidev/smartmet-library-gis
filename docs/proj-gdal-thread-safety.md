@@ -569,6 +569,164 @@ Worth keeping deliberately: if PROJ ever has to be called directly, the rules
 are one `PJ_CONTEXT` per thread, never a null context, and never a shared `PJ*`.
 
 
+### 4.4 Implemented: give every caller its own spatial reference
+
+Option 3 of §4.2 was taken further than "narrow the interface": as of this change
+`OGRSpatialReferenceFactory` has no shared object left to narrow access to.
+`Create()` returns a **fresh clone that the caller owns outright** and may read,
+mutate, hand to a geometry, or keep for as long as it likes. Nothing is shared,
+nothing is handed back, and nothing has to be trusted not to modify what it
+borrowed. The signature is unchanged, so no caller in any repo needed editing.
+
+Cloning is what makes this affordable, but `Clone()` *reads* (and lazily rebuilds)
+the object it copies, so the source has to be private to the cloning thread too.
+Hence two levels:
+
+* a **master** object per definition string, parsed once and never handed out.
+  Cloned only under `OGRSpatialReferenceFactory::mutex()`, and only to seed a
+  thread's sample.
+* a **thread-local sample** per definition string, cloned once from the master.
+  Every later `Create()` clones that, with no lock at all, because no other
+  thread can reach it. Bounded by a small per-thread LRU
+  (`SetSampleStoreSize()`, default 64); overflowing it costs one extra
+  clone-under-lock, never an error.
+
+Why per-thread rather than one shared sample: cloning a single shared sample
+needs a lock on every call, and that measurably *regresses* with threads.
+
+Measured on a 24-core host, GDAL 3.12.1 / PROJ 9.7.1
+(`test/SpatialReferenceCloneBench`), acquisitions/s:
+
+| design | 1 | 2 | 4 | 8 | 16 |
+|---:|---:|---:|---:|---:|---:|
+| shared cached object (before) | see below | | | | |
+| check-out pool (intermediate) | 2 372 881 | 782 568 | 1 241 595 | 919 029 | 130 272 |
+| Clone from one shared sample + lock | 220 180 | 177 944 | 166 648 | 135 981 | 108 949 |
+| **Clone from thread-local sample (implemented)** | 205 712 | 385 779 | 1 192 712 | **1 972 234** | **1 198 640** |
+
+The implemented path is within ~1% of a hand-written thread-local clone at eight
+threads, 2.1x the check-out pool there, and 9.2x the pool at sixteen threads,
+where the pool's single mutex convoys. The pool is ~11x faster on *one* thread
+(0.42 us versus 4.8 us per acquisition) and that is the trade accepted: 4.8 us is
+nothing next to the work any real request does, and it buys away all of the
+pool's machinery.
+
+The far bigger cost sits elsewhere, and it is why `Fmi::SpatialReference` and not
+`OGRSpatialReference` is the thing worth copying:
+
+| operation | rate | per call |
+|---|---:|---:|
+| `Fmi::SpatialReference(definition string)` - derived values cached | 5 039 480/s | 0.2 us |
+| `Fmi::SpatialReference(const OGRSpatialReference&)` - re-derives everything | **581/s** | **1.7 ms** |
+
+The second re-runs `exportToWkt`, `exportToProj`, a `ProjInfo` parse and the
+`GetRoot()` walk: roughly 4000x a clone. So `ImplData` holds only immutable
+derived values (WKT, PROJ string, EPSG code, axis flags) and is shared by copies,
+while each instance clones its own `OGRSpatialReference` lazily - and only if
+someone actually calls `get()`/`operator*`. Copying a `Fmi::SpatialReference` is
+therefore free, its accessors never touch GDAL, and the 1.7 ms path is reached
+only by callers that hand in a raw `OGRSpatialReference`. Those are worth
+converting: `newbase/NFmiGdalArea.cpp:217-219` is one, and it runs per area.
+
+Consequences elsewhere in `gis`:
+
+* `SpatialReference::Impl::init()` derives from a private clone, so it no longer
+  needs the factory mutex - including `get_epsg()`, whose `GetRoot()` builds a
+  node tree inside the object (§4.1).
+* `OGRCoordinateTransformationFactory::Create()` no longer locks around
+  `OGRCreateCoordinateTransformation()`: both inputs are private clones.
+
+#### A destruction-order trap worth knowing about
+
+Handing out clones means a thread keeps GDAL objects in thread-local storage
+until it exits, and that leaks one `PJ_CONTEXT` per thread unless the ordering is
+forced. `thread_local` objects are destroyed in reverse order of the completion
+of their construction; GDAL keeps each thread's context in a `thread_local` of
+its own; and `~OGRSpatialReference` reassigns a context to the object before
+destroying it (§3.6). If GDAL's goes first, every sample destroyed afterwards
+makes GDAL create a replacement context that nothing ever frees.
+
+Measured with a 48-thread probe: 48 leaked contexts, one per thread. It was
+invisible before this change only because a warm `Create()` used to be a pure
+cache lookup that never touched PROJ at all - the worker threads never acquired a
+context to leak.
+
+The fix is to touch GDAL once in the sample store's constructor, which puts
+GDAL's `thread_local` *ahead* of ours in construction order and therefore behind
+it in destruction order. Costs one `proj.db` lookup per thread and shows up
+nowhere in the throughput table above. `ReleaseThreadSamples()` is also exposed
+for applications that have an explicit worker-thread teardown hook, but is no
+longer required.
+
+#### One store, and which door to use
+
+`OGRSpatialReferenceFactory` and `SpatialReference` used to keep two caches keyed
+by the same definition string - a parsed object in one (limit 1000), the values
+derived from it in the other (limit 10000) - evicting independently and reported
+as two separate statistics lines. One could evict while the other retained, so a
+`SpatialReference` that still had its derived values could be forced to re-parse
+the CRS just to produce an object.
+
+They are now a single store, `CrsRegistry` (`gis/CrsRegistry.h`, implemented in
+the factory translation unit, which is where the parsing already lived). One
+entry per definition string holds the master object and, behind a
+`std::once_flag`, the derived values - so a caller that only wants an object
+never pays for the derivation, which is the expensive half. `is_axis_swapped()`
+and `get_epsg()` moved there with it, and `SpatialReference.cpp` is now a facade.
+Both `getCacheStats()` functions report that one store.
+
+With that in place the two entry points have distinct, documented jobs:
+
+* **`Fmi::SpatialReference(definition string)`** - the normal door. Derived values
+  are shared, copying is free, accessors never enter GDAL.
+* **`OGRSpatialReferenceFactory::Create()`** - the raw-object door, for code that
+  must hand a mutable `OGRSpatialReference` to GDAL itself
+  (`OGRCreateCoordinateTransformation`, `assignSpatialReference`, a dataset).
+  Narrowed to that role the name is accurate, so it keeps it.
+
+The cost of using the wrong door is not small. `newbase/NFmiGdalArea.cpp` held its
+datum as a `std::shared_ptr<OGRSpatialReference>` and passed `*datum` into
+`CoordinateTransformation`, which takes `const SpatialReference&`: that implicit
+conversion re-derived everything, once per direction, twice per area
+construction. Holding a `Fmi::SpatialReference` instead:
+
+| NFmiGdalArea("FMI", "EPSG:2393", ...) | per construction | rate |
+|---|---:|---:|
+| datum as raw `OGRSpatialReference` | 1.754 ms | 570/s |
+| datum as `Fmi::SpatialReference` | **0.015 ms** | **65 901/s** |
+
+117x, measured over 300 constructions against the installed gis, so the gain is
+independent of the factory rework above. Areas are constructed per querydata file
+and on every `Clone()`. The comment at that call site had chosen the factory
+specifically to avoid a per-construction `proj.db` parse - it avoided the parse
+and then paid more for the derivation.
+
+#### Verification
+
+`test/SpatialReferenceOwnershipTest.cpp`, 15 tests. Against the pre-change
+implementation **10 of them fail, and the process then dies with
+`double free or corruption (out)` and SIGSEGV** in
+`ConcurrentMutatorsDoNotDisturbEachOther` - eight threads each modifying the CRS
+the factory handed them. That is worth recording plainly: §2.3 concluded the
+shared-object defects were latent because concurrent *reads* did not misbehave,
+and that still holds, but concurrent *mutation* of the shared object corrupts the
+heap outright, and the old API invited exactly that by returning a mutable
+pointer to a process-wide object.
+
+Sanitisers, with `libsmartmet-gis.so` itself built `ASAN=yes` / `TSAN=yes` so the
+factory code is instrumented and not just the test translation unit:
+
+| build | result |
+|---|---|
+| ASan + UBSan, full suite (90 tests) | 0 errors, 0 `runtime error:`, 0 leaks |
+| TSan, ownership tests + 8-thread stress | 0 data races |
+
+Neither TSan nor Helgrind reports anything on the **pre-change** code either -
+GDAL and PROJ are linked uninstrumented from `/usr/gdal312` and `/usr/proj97`,
+and a sanitiser cannot see accesses inside them. Do not expect a sanitiser to
+demonstrate this class of defect; the crash above and the deterministic ownership
+assertions are the evidence.
+
 ## 5. PROJ: the deeper problems
 
 Listed roughly in order of how much they block sharing.
