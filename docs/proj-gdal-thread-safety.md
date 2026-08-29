@@ -1010,3 +1010,132 @@ Override `PROJ_PREFIX` / `GDAL_PREFIX` to test other versions.
 
 `proj_race` is expected to abort. The others exit 0 on the versions tested
 here; keep them as regression canaries for future PROJ/GDAL upgrades.
+
+
+## 8. Re-audit of PROJ master, 2026-08-29
+
+Checked against PROJ 9.9.0-dev, commit `3641df4d02b1d7cea174282666bea15deda00466`
+(master, 2026-08-28).
+
+**Nothing has changed.** 41 commits landed since the baseline commit this
+document analysed (`620ac36`, 2026-07-23); all of them are new projections
+(Hourglass, IVEA, Snyder polyhedral, interrupted variants, TM zoned grid),
+EPSG database updates (12.059a → 13.102) and CI work. None touches
+synchronisation, `mutable` state, or the context machinery. Every defect above
+re-verified present at the same locations:
+
+| Defect | Status on master |
+|---|---|
+| §2.1/§5.2 `mutable lastWKT/lastPROJString/lastJSONString`, interior-pointer returns | unchanged (`src/proj_internal.h:672-674`, `c_api.cpp:1708-1709`) |
+| §5.2 `mutable PJ_TYPE type`, `gridsNeeded*` | unchanged (`proj_internal.h:675-679`) |
+| §2.2/§5.3 ten `NullLock` LRU caches + `mapSqlToStatement_` in `DatabaseContext` | unchanged (`factory.cpp:847,858-877`) |
+| §5.3 process-wide unsynchronised default context | unchanged (`ctx.cpp:188-194`) |
+| §5.4 five classes documented single-thread-at-a-time | unchanged (`io.hpp:186,405,536,874,1009`) |
+| §5.5 mutable grid decode buffers | unchanged (`grids.cpp:207,456-457,2091,2853-2854`) |
+
+Three items this document had not listed, found on this pass. All are minor or
+transformation-side, none changes the conclusions:
+
+* `PJCoordOperation::isInstantiableCached` (`proj_internal.h:446`, written
+  lazily at `coord_operation.cpp:51-52`) — one more lazy `mutable` inside
+  transformation objects; same category as §5.5, covered by the
+  one-`PJ`-per-thread rule.
+* `proj_info()` (`src/info.cpp:88-130`) fills a file-scope `static PJ_INFO`
+  under `core_lock`, `free()`s the previous `searchpath` and returns pointers
+  to that static storage — the §5.2 interior-pointer shape one level up, in a
+  cold path.
+* `src/rtodms.cpp:16-18` — `static double RES, RES60, CONV; static int dolong;`
+  written by `set_rtodms()` and read by the public `proj_rtodms()` /
+  `proj_rtodms2()` with no synchronisation. Cold, CLI-oriented, but public API.
+
+**Upstream status.** GitHub has no open issue or PR mentioning thread safety
+(the last thread-related fix was #4692, a `localtime()` fix, March 2026).
+Neither reproduced crash in §2 has been reported by anyone. The field is clear:
+nothing here is being worked on, and nothing will change until someone files it.
+
+**The deprecate-and-replace path is viable with machinery PROJ already has.**
+The three formatting functions cannot be fixed in place — their signature
+*returns* the interior pointer, so no implementation can make them safe on a
+shared object. But PROJ already has the two ingredients the additive plan in
+§5.2/§6 needs:
+
+* `PROJ_DEPRECATED(decl, msg)` (`src/proj.h:158-172`), already applied to
+  `proj_list_units()` (`:795`) — attribute-based, per-compiler, warning-only.
+* The caller-owned-result-plus-destructor convention:
+  `proj_string_list_destroy()` (`:1187`), `proj_unit_list_destroy()` (`:1334`).
+
+So the migration is: add the `_alloc` variants (P2), reimplement the old
+functions on top of them, mark the old ones `PROJ_DEPRECATED` with a message
+naming the replacement, and drop the `mutable` members once a major release has
+passed. No ABI break at any point, and GDAL is a motivated first adopter — it
+pays two unconditional mutexes today (`ogrspatialreference.cpp:1755-1758`,
+`:11755-11761`) purely to work around `proj_as_wkt()`.
+
+
+## 9. Provenance: why the `mutable` members exist at all
+
+A fair question is whether the mutable caches are pre-C++11 legacy that predates
+the "const implies thread-safe" convention. Git archaeology says no — they are
+deliberate, modern, and *licensed by a documented contract*. That matters for
+the upstream pitch, because it means the fix is an API-contract change, not a
+cleanup of forgotten code.
+
+**Three strata with three different explanations:**
+
+*The genuinely pre-C++11 layer.* `pj_ctx` with `last_errno` (the C `errno`
+idiom), the static `PJ_INFO` in `info.cpp`, the `rtodms.cpp` statics — proj.4
+heritage. Notably, the context itself was Frank Warmerdam's 2010 **fix** for
+the previous generation of thread bugs (`ec678c07`, "preliminary implementation
+of projCtx API"): one-context-per-thread was the thread-safety *solution* of
+2010, and it is still the load-bearing contract today.
+
+*The ISO19111 C++ object model (2018).* RFC 2 (`docs/source/community/rfc/rfc-2.rst:163-168`)
+states the intent explicitly: *"all ISO19111 objects are immutable after
+creation … Consequently they could possibly [be] used in a thread-safe way.
+There are however classes like PROJStringFormatter, WKTFormatter,
+DatabaseContext, AuthorityFactory and CoordinateOperationContext whose
+instances are mutable and thus can not be used by multiple threads at once."*
+And the implementation honours it: `src/iso19111/*.cpp` contains **zero**
+`mutable` members (only the vendored nlohmann/json has any). The author knew
+the convention and designed for it. One caveat: `DatabaseContext` /
+`AuthorityFactory` mutate their caches from `const` methods *without* the
+`mutable` keyword, through the pimpl loophole — `d` is a
+`std::unique_ptr<Private>`, whose constness is shallow, so
+`createUnitOfMeasure(...) const` inserts into `cacheUOM_` with no `mutable`
+anywhere (`factory.cpp:1064-1067`). Counting `mutable` therefore *undercounts*
+const-mutation; RFC 2's honest class list is the real inventory.
+
+*The C API bridge (where our crashes live).* The caches arrived with RFC 2's
+original `PJ_OBJ` struct (`d928db15`, 2018-11-14), which carried its own
+explicit contract — *"Should be used by at most one thread at a time"* — and
+held `lastWKT` / `lastPROJString` / `gridsNeeded` as **plain members**, since
+`proj_obj_as_wkt()` took a non-const pointer. The design serves the GDAL-style
+C convention of returning a borrowed `const char*` (no caller `free()`, easy
+language bindings): the storage must outlive the call, so it was hung on the
+object, with the documented lifetime *"valid … until a next call to
+proj_as_wkt() with the same input object"* (`c_api.cpp:1611-1613`) — phrasing
+that is single-threaded by construction. The `mutable` keyword appeared two
+weeks later (`cf855b24`, 2018-11-28, "C API extensions and renaming") when the
+signatures were const-ified to `const PJ*` — i.e. the `const` in today's
+signature documents "logically non-modifying", not shareability, and the
+`mutable` is what reconciles the cosmetic constness with the cache. The merge
+of `PJ_OBJ` into `PJconsts` (`53a81c44`, 2018-12-26) is what wired CRS
+descriptions into the context-carrying transformation struct (§5.1). The later
+additions are performance memoizations under the same contract:
+`mutable PJ_TYPE type` (`6a43bee9`, 2021, for `proj_factors()`, #2965) and
+`PJCoordOperation::isInstantiableCached` (`d9503987`, 2023, `proj_trans()`
+regression fix).
+
+**Two consequences for the plan in §6.** First, the underlying C++
+`exportToWKT()` is already const and pure — the mutation exists *only* in the
+wrapper — so the `_alloc` variants (P2) are trivial to implement and the value
+classes need no work at all. Second, because the caches are contract-licensed
+rather than accidental, upstream is entitled to keep the old functions'
+behaviour; the deprecation cycle is the honest route, not a courtesy. On the
+"const implies thread safety" premise itself: C++11 requires it only of the
+standard library (`[res.on.data.races]`); for user types it is convention
+(Sutter's "const means thread-safe", Meyers EMC++ Item 16: mutable members
+used in const functions must be internally synchronised). RFC 2 shows PROJ
+followed the convention where it designed for it and documented its way out
+where it did not — the trap is that a `const PJ*` parameter reads as the
+convention while the contract says otherwise.
