@@ -1139,3 +1139,72 @@ used in const functions must be internally synchronised). RFC 2 shows PROJ
 followed the convention where it designed for it and documented its way out
 where it did not — the trap is that a `const PJ*` parameter reads as the
 convention while the contract says otherwise.
+
+
+## 10. Implemented: the full fix, on a local branch (2026-08-30)
+
+Everything §6 asked of PROJ — and considerably more — is now implemented in
+`~/hub/PROJ`, branch `thread-safety` (nine commits on master `3641df4`,
+2026-08-28). **Local only: not pushed, no pull requests**, per explicit
+decision; the branch is the reference implementation for an eventual upstream
+conversation.
+
+What the branch changes, in commit order:
+
+1. **Per-thread default context** (P4). `pj_get_default_ctx()` returns a
+   thread-local clone of a process-wide template; configuration setters on
+   the default context mirror into the template so threads started later
+   inherit it. Fixes §2.2 structurally, makes `proj_context_errno(NULL)`
+   per-thread, keeps `proj_context_create()` semantics.
+2. **`proj_as_wkt_alloc()` / `proj_as_proj_string_alloc()` /
+   `proj_as_projjson_alloc()`** (P2) returning caller-owned strings
+   (`proj_string_destroy()` already existed upstream, added in 8.1). The old
+   three are reimplemented over shared helpers with the per-`PJ` cache behind
+   a new mutex — identical-argument concurrent calls now return stable
+   pointers — and carry `PROJ_DEPRECATED`. `PJ::type` became
+   `std::atomic<PJ_TYPE>` (P3); `gridsNeeded` fills under the same mutex.
+3. **Shareable contexts for coordinate-operation paths.** `last_errno`,
+   `debug_level`, `forceOver`, `defer_grid_opening`, `epsg_file_exists`,
+   `networking.enabled` became atomic; a recursive `lazyMutex` guards
+   `lookupedFiles`, proj.ini loading, `cpp_context` creation and
+   `lastFullErrorMessage`; the ten `DatabaseContext` LRU caches got the
+   `std::mutex` lock policy (P1) and `run()` serializes the whole prepared
+   statement lifecycle.
+4. **`proj_trans()` on a shared transformation** is bit-identical to
+   single-threaded execution: `iCurCoordOp` and the one-shot warning flag are
+   atomic, `cached_op_for_proj_factors` publishes by compare-and-exchange,
+   `isInstantiableCached` is atomic.
+5. **Grid readers** (§5.5, which §6 had written off as thread-affine
+   forever): per-grid / per-dataset I/O mutexes for GTX, NTv1, CTable2, NTv2
+   and GTiff; `reopen()` *retires* replaced grids and datasets instead of
+   destroying them — which also fixed a pre-existing, single-threaded
+   use-after-free (`HorizontalShiftGridSet::reopen()` destroyed the freshly
+   opened set whose file handle and line cache the stolen NTv2 grids still
+   referenced). Deformation-model and TIN-shift evaluators serialize per
+   object.
+6. **`proj_info()` and `proj_rtodms2()`** moved to thread-local state (the
+   new finds from §8).
+7. **`docs/source/development/threads.rst`** states the new contract (P5/P6).
+
+Verification, which is where the honest work was:
+
+* `test/unit/test_thread_safety.cpp` — 24 tests, every documented concurrent
+  pattern, results compared bit-exactly against single-threaded references;
+  covers all five grid formats plus defmodel and tinshift using PROJ's own
+  test grids.
+* Full suite green in the normal build (71/72 — the one failure is a
+  projinfo message text that expects a curl-enabled build).
+* **10× repeats clean under both ThreadSanitizer and ASan+UBSan**, run from
+  out-of-tree build directories with injected flags — deliberately zero
+  build-system changes, since PROJ's CI has only one ASan job and no TSan,
+  and a build change would be a separate, contentious conversation.
+
+The sanitizers earned their keep twice. TSan found `forceOver` being flipped
+transiently around `pj_obj_create()` — a race class the July analysis had
+missed entirely. And ASan caught the one real bug *introduced by the branch*:
+the PROJ-string parser installs a transient, stack-capturing error logger via
+`proj_log_func()`, which under the new template-mirroring left the template
+pointing at a dead stack frame for every later-created thread to inherit —
+stack-use-after-return, and the same corruption crashed TSan's own runtime.
+The parser now installs and restores the handler by direct assignment. Both
+finds are regression-tested.
