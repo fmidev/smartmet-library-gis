@@ -619,6 +619,10 @@ The far bigger cost sits elsewhere, and it is why `Fmi::SpatialReference` and no
 | `Fmi::SpatialReference(definition string)` - derived values cached | 5 039 480/s | 0.2 us |
 | `Fmi::SpatialReference(const OGRSpatialReference&)` - re-derives everything | **581/s** | **1.7 ms** |
 
+Both are single-threaded. The first figure does not survive concurrency, for a
+reason that has nothing to do with GDAL; see *The normal door's remaining cost is
+the cache lock* below.
+
 The second re-runs `exportToWkt`, `exportToProj`, a `ProjInfo` parse and the
 `GetRoot()` walk: roughly 4000x a clone. So `ImplData` holds only immutable
 derived values (WKT, PROJ string, EPSG code, axis flags) and is shared by copies,
@@ -700,6 +704,56 @@ independent of the factory rework above. Areas are constructed per querydata fil
 and on every `Clone()`. The comment at that call site had chosen the factory
 specifically to avoid a per-construction `proj.db` parse - it avoided the parse
 and then paid more for the derivation.
+
+#### The normal door's remaining cost is the cache lock
+
+Once the store is warm, `Fmi::SpatialReference(definition string)` does almost no
+work of its own: it performs one `Fmi::Cache::Cache::find()` on the master store
+and copies a `shared_ptr` to the derived values. That lookup is therefore the
+whole steady-state cost of the recommended entry point - and until macgyver
+26.8.29 it did not scale.
+
+`Cache::find()` held a `boost::upgrade_lock` for the duration of the lookup. A
+`shared_mutex` permits only one upgrade owner at a time, so every lookup in a
+shard excluded every other lookup in that shard: a plain hit on an entry already
+at the MRU end, where the splice is skipped and nothing is mutated, and a miss,
+which touches only a relaxed atomic, both serialised exactly like a write.
+Striping across shards spreads that cost only to the extent that the keys spread,
+and CRS lookups are the opposite of spread - a handful of definition strings
+dominate, so they land on a handful of shards and queue there.
+
+Measured with `test/SpatialReferenceCloneBench` on the same 24-core host, two gis
+builds from identical sources differing only in `macgyver/Cache.h`, medians of
+three alternating rounds. `Fmi::SpatialReference(string)`, acquisitions/s:
+
+| `Cache::find()` | 1 | 2 | 4 | 8 | 16 |
+|---|---:|---:|---:|---:|---:|
+| `upgrade_lock` (before) | 4 398 838 | 3 020 907 | 1 327 338 | 519 512 | 73 004 |
+| **`shared_lock` (after)** | 4 537 283 | 2 460 893 | 1 522 865 | **774 236** | **221 714** |
+| ratio | 1.03x | 0.81x | 1.15x | 1.49x | **3.04x** |
+
+At sixteen threads that is 219 us per construction before and 72 us after,
+against 0.23 us uncontended. The fix, in `macgyver` on branch `proj-safety`
+alongside this one, is to take a plain shared lock and re-lock the shard
+exclusively only to promote an entry that is not already at the MRU end, looking
+the key up again after re-locking because it may have been evicted or promoted in
+between.
+
+Two caveats worth recording. The 19% loss at two threads reproduced in every
+round: it is the price of letting readers genuinely overlap, since they then
+contend for the hit-counter cache lines instead of taking turns behind the lock.
+And the fix reduces the convoy without removing it - the path still degrades
+about 20x from one thread to sixteen, because a shared lock is still an atomic
+write to one word per shard. Only per-thread state avoids that entirely.
+
+Which is precisely what the raw-object door already does, and it is the reason
+the two doors behave so differently under load. `OGRSpatialReferenceFactory::Create()`
+consults the cache only to seed a thread's sample; every later call is answered
+from thread-local storage without touching the shared store at all, which is why
+its row in the throughput table above rises with threads while this one falls.
+If `Fmi::SpatialReference(string)` ever becomes hot enough to matter, giving the
+derived values the same per-thread treatment is the remedy - though at 222k
+constructions/s across sixteen threads it is far from that today.
 
 #### Verification
 
