@@ -1208,3 +1208,88 @@ pointing at a dead stack frame for every later-created thread to inherit —
 stack-use-after-return, and the same corruption crashed TSan's own runtime.
 The parser now installs and restores the handler by direct assignment. Both
 finds are regression-tested.
+
+
+## 11. The GDAL side, given the PROJ branch (audited 2026-08-30)
+
+Audited against GDAL master `c70081f` (2026-08-28, 3.14.0dev). Every §3
+finding is unchanged: the mutating `GetAttrNode` is still unlocked
+(`ogrspatialreference.cpp:1250`), the optional lock still covers one file out
+of 23 (138 sites in `ogrspatialreference.cpp`, zero elsewhere), `Clone()`
+still drops the thread-safe flag (`:1519`), the two unconditional mutexes
+still stand (`:1758`, `:11761`), `g_bForkOccurred` is still a plain bool, and
+`multithreading.rst` still says nothing about `OGRSpatialReference`.
+
+What changes with the PROJ `thread-safety` branch is the *shape* of the fix,
+not the list. Scope below is "projection issues only": the OSR layer, not
+GDAL's driver zoo.
+
+**What GDAL gets for free, with no change.** The §2.2 default-context
+corruption class is gone even for code that passes null contexts; a
+`proj_context_create()` in GDAL's TLS machinery now inherits configuration
+applied to the default context before threads started; and the description
+`PJ` inside `OGRSpatialReference::Private` is safe to *read* concurrently at
+the PROJ level. Every remaining hazard in OSR is GDAL's own lazy state.
+
+**The fix list, reprioritised:**
+
+* **G0 (new, unlocked by the PROJ branch, do first).** Migrate the eleven
+  call sites of `proj_as_wkt` / `proj_as_proj_string` / `proj_as_projjson`
+  (7 in `ogrspatialreference.cpp`, 2 in `ogrct.cpp`, 1 each in
+  `frmts/gtiff/gt_wkt_srs.cpp` and `frmts/hdf5/s100.cpp`) to the `_alloc`
+  variants under `#if PROJ_AT_LEAST_VERSION(9,9,0)` — the version-gating
+  idiom already used throughout `ogrct.cpp`. Then downgrade the two
+  unconditional `std::lock_guard(d->m_mutex)` in `exportToWkt()` and
+  `exportToProj4()` to `TAKE_OPTIONAL_LOCK()`: their comments say explicitly
+  they exist only because "proj_as_wkt() will cache the result internally".
+  This removes permanent serialisation from the two hottest export paths for
+  every GDAL user, thread-safe mode or not — and it is also what keeps a
+  `-Werror` GDAL building against a PROJ that carries the deprecation
+  attributes. Small.
+* **G1.** The one-line missing lock in the mutating `GetAttrNode`. Trivial.
+* **G2.** Move `Private`, `OptionalLockGuard` and `TAKE_OPTIONAL_LOCK` into
+  an internal header and take the guard at the top of each public method in
+  the other 22 files (`ogr_srs_esri/pci/usgs/erm/panorama/ozi/isis/dict/xml`,
+  `ogr_fromepsg`, ...), giving them the whole-operation envelope the
+  recursive mutex was designed for. Mechanical, small-medium.
+* **G3.** Propagate the thread-safe flag in `Clone()`; add `SetThreadSafe()`,
+  `IsThreadSafe()`, `OSRSetThreadSafe()`. Small.
+* **G4.** Value-returning accessors (`GetAttrValueAsString()`,
+  `GetAngularUnitsName()`, `GetEPSGCode()` returning `std::optional<int>`,
+  ...) so callers stop holding interior pointers into the node tree;
+  precedent since 3.9's `std::string exportToWkt()`. Medium.
+* **G5 — still the centrepiece.** `Freeze()` / `IsFrozen()`: materialise
+  `refreshProjObj()`, the node tree, axis mapping and units eagerly, after
+  which const reads need no lock at all and scale linearly instead of the
+  measured 12x regression at 8 threads. The PROJ branch removes its last
+  obstacle: the materialisation can use the `_alloc` exports, and the frozen
+  object's inner `PJ` is genuinely shareable. Medium.
+* **G6.** An OSR section in `multithreading.rst`. Small.
+* **G7 (later, optional).** Opt-in process-wide frozen-CRS cache to stop N
+  threads parsing the same CRS from proj.db independently.
+* **G8.** Minors: `g_bForkOccurred` to `std::atomic<bool>`; `std::unique_lock`
+  in `OSRGetPROJEnableNetwork()`.
+
+**What should deliberately not change.** `OGRCoordinateTransformation`
+remains clone-per-thread: `OGRProjCT` mutates per-object state on the
+`Transform()` hot path (`nErrorCount`, `m_differentOperationsUsed`, the
+selected-operation bookkeeping), and even at the PROJ level a shared
+transformation is serialised, not parallel. The per-thread `PJ_CONTEXT` and
+`OSRProjTLSCache` likewise stay — they are the scalable design. The twelve
+`proj_assign_context()` sites (§3.6) also stay until PROJ some day decouples
+a description `PJ` from its context; they are lifetime management, not a
+race.
+
+**Testing, mirroring the PROJ branch:** an OSR concurrency battery
+(concurrent const reads on a frozen and on a thread-safe SRS, mixed
+readers/writer on a thread-safe SRS exercising the `ogr_srs_*` methods,
+concurrent `exportToWkt`/`exportToProj4` with pointer-stability checks,
+`Clone()`-propagation, plus concurrent
+`OGRCreateCoordinateTransformation()` construction from shared SRS objects),
+run under TSan and ASan from out-of-tree builds. GDAL's CI has ASan but no
+TSan, same as PROJ had.
+
+Altogether this is a far smaller job than the PROJ branch was — roughly a
+tenth of the surface — because GDAL's object model needs no redesign: the
+work is one missing lock, one lock-scope move, additive accessors, `Freeze()`
+and the `_alloc` migration.
