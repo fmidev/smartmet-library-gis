@@ -1005,7 +1005,8 @@ Override `PROJ_PREFIX` / `GDAL_PREFIX` to test other versions.
 | `proj_race.cpp 2` | §2.2 `proj_create(nullptr,…)` from N threads → wrong results, then abort in the LRU cache |
 | `srs_race.cpp` | §2.3 shared `OGRSpatialReference`, getter mix, both GDAL modes |
 | `srs_share.cpp` | §2.3 shared SRS passed to `OGRCreateCoordinateTransformation()`, as `gis` does |
-| `srs_scale.cpp` | §3.5 read scaling, private clones vs one shared object |
+| `srs_scale.cpp` | §3.5 read scaling: private clones vs shared object, plain / thread-safe / frozen (§12) |
+| `srs_mixed.cpp` | §3.1 readers + writer on a *thread-safe* SRS: segfaults on unpatched GDAL, clean on the §12 branch |
 | `ctx_cost.cpp` | §3.7 resident cost per `PJ_CONTEXT` |
 
 `proj_race` is expected to abort. The others exit 0 on the versions tested
@@ -1293,3 +1294,132 @@ Altogether this is a far smaller job than the PROJ branch was — roughly a
 tenth of the surface — because GDAL's object model needs no redesign: the
 work is one missing lock, one lock-scope move, additive accessors, `Freeze()`
 and the `_alloc` migration.
+
+
+## 12. Implemented: the GDAL fixes, on a local branch (2026-08-30)
+
+Everything §11 asked for except G7 is now implemented in `~/hub/GDAL`,
+branch `thread-safety` (ten commits on master `c70081f`, 2026-08-28,
+3.14.0dev). **Local only: not pushed, no pull requests**, same standing as
+the PROJ branch in §10, and built and verified against that branch
+(PROJ 9.9.0-dev, `install/`, `install-asan/`, `install-tsan/` prefixes under
+`~/hub/PROJ`). 23 files, +1848/-170 including tests.
+
+What the branch changes, in commit order:
+
+1. **The `_alloc` migration** (G0). All eleven call sites of
+   `proj_as_wkt` / `proj_as_proj_string` / `proj_as_projjson` go through
+   three new helpers in `ogr_proj_p.h` (`OSRProjAsWkt()` & co) returning a
+   caller-owned `OSRProjString`; under `PROJ_AT_LEAST_VERSION(9,9,0)` they
+   use the `_alloc` exports, otherwise they copy the historical functions'
+   results. The two unconditional mutexes in `exportToWkt()` and
+   `exportToProj4()` become `TAKE_OPTIONAL_LOCK()` under the same gate —
+   removing permanent serialisation from the two hottest export paths —
+   and `exportToPROJJSON()`, which had the same defect and *no* lock,
+   is fixed for free.
+2. **G1**: the mutating `GetAttrNode()` takes the optional lock.
+3. **G2**: `Private`, `OptionalLockGuard` and `TAKE_OPTIONAL_LOCK` moved
+   to a new internal header `ogrspatialreference_private.h`; the guard is
+   taken once at the top of the 22 methods implemented in the eleven
+   other files (ESRI, XML, PCI, USGS, ERM, Panorama, Ozi, dict, ISIS,
+   CF-1, `ogr_fromepsg`), giving them the whole-operation envelope.
+4. **G3**: `SetThreadSafe()`, `IsThreadSafe()`, `OSRSetThreadSafe()`,
+   `OSRIsThreadSafe()`; `Clone()` propagates the flag.
+5. **G4**: `GetAttrValueAsString()`, `GetAngularUnitsName()`,
+   `GetLinearUnitsName()`, `GetEPSGCode()` returning `std::optional<int>`.
+6. **G5 — `Freeze()` / `IsFrozen()`** (+ C API). Materialises the node
+   tree, norm info, units, prime meridian, axis names, area and celestial
+   body names while the object is still thread-private, then forbids
+   modification: all ~120 public mutators check the flag at entry (the
+   `OGRErr`-returning ones fail with `OGRERR_FAILURE`), and the mutation
+   funnels in `Private` (`clear`, `setPjCRS`, `setRoot`, `nodesChanged`)
+   carry safety-net checks. Design decisions worth recording: a frozen
+   **BoundCRS** falls back on the thread-safe mode, because reading one
+   demotes it to its base CRS and back; `Clone()` of a frozen SRS is
+   deliberately *not* frozen (a writable private copy); and on a frozen
+   SRS the `GetAttrNode("...CONVERSION...")` paths that would swap the
+   node tree for its WKT2 form return nullptr instead.
+7. **G6/G8**: an OSR section in `multithreading.rst` stating the per-type
+   rules; `g_bForkOccurred` becomes `std::atomic<bool>`; the manual
+   `unlock()`/`lock()` of a guard-held mutex in
+   `OSRGetPROJEnableNetwork()` becomes a `std::unique_lock`.
+8. **The test battery**: `autotest/cpp/test_osr_threadsafety.cpp`, ten
+   tests mirroring the PROJ approach — eight threads, results compared
+   bit-exactly against single-threaded references — covering concurrent
+   exports on a shared plain SRS, concurrent reads on a thread-safe SRS
+   including the `ogr_srs_*` methods, readers against a writer
+   alternating full definitions, the lazy node-tree first build, frozen
+   lock-free reads, mutation refusal, `Clone()` propagation, the BoundCRS
+   fallback, and concurrent `OGRCreateCoordinateTransformation()` from
+   shared frozen objects.
+
+G7 (the opt-in process-wide frozen-CRS cache) remains future work, as
+planned. Everything §11 said should *not* change — clone-per-thread
+transformations, per-thread contexts, the `proj_assign_context()`
+lifetime sites — is unchanged.
+
+TSan earned its keep here exactly as it did on the PROJ branch, catching
+two real bugs in the branch's own first draft (both fixed in the
+ninth commit):
+
+* `demoteFromBoundCRS()` / `undoDemoteFromBoundCRS()` wrote their
+  bookkeeping flags even when there was nothing to demote — a write on
+  every const read path. Invisible while the export paths serialised
+  unconditionally, it became a genuine data race the moment G0 removed
+  that lock. The fix — move the writes inside the BoundCRS branch — is
+  what §3.5's "freeze" analysis should have demanded outright: the no-op
+  demote path is now write-free for *every* caller, not just frozen ones.
+* `OptionalLockGuard` decided whether to unlock by re-reading
+  `m_bIsThreadSafe` at destruction, so `Freeze()` flipping the flag
+  mid-guard (the BoundCRS fallback) unlocked a never-locked mutex. The
+  guard now remembers its construction-time decision.
+
+Verification, all against the PROJ `thread-safety` branch:
+
+| check | result |
+|---|---|
+| full `gdal_unit_test`, normal build | 1004/1004 pass |
+| `ctest` (34 targets) | 34/34 pass |
+| battery + all OSR suites under TSan, 10× | 0 warnings |
+| battery under ASan+UBSan, 10× | 0 errors |
+| full `gdal_unit_test` under ASan+UBSan | 1003/1003 pass, 0 errors¹ |
+
+¹ Two pre-existing, branch-unrelated exclusions: `gdal_unit_test`'s own
+`main()` leaks the `GDALGeneralCmdLineProcessor` argument copy (39 bytes,
+reproducible with untouched tests only), and `test_cpl.CPLSpawn` trips
+ASan's `posix_spawn` interceptor inside unmodified CPL code.
+
+Two reproducers were added to [`thread-safety/`](thread-safety/) for the
+before/after evidence:
+
+**`srs_mixed.cpp`** — five readers running `exportToPCI()` and
+`exportToWkt()` against one writer alternating `importFromEPSG()` on a
+shared **thread-safe** SRS, i.e. entirely within the documented contract
+of the existing opt-in mode. On unpatched GDAL 3.12.1 it segfaults in
+seconds — `exportToPCI() → GetAttrValue() → OGR_SRSNode::GetNode()`
+dereferencing the tree the writer freed, the exact §3.1 failure — which
+upgrades that finding from "established by inspection" (§2.3) to
+reproduced. On the branch: 40k reads against 55k writes, zero torn
+results, clean exit.
+
+**`srs_scale.cpp`** grew `tsafe` and `frozen` modes. `exportToWkt()`/s on
+the same 24-core host, 3-second runs, branch GDAL + branch PROJ:
+
+| mode | 1 | 2 | 4 | 8 | 16 |
+|---|---:|---:|---:|---:|---:|
+| `tsafe` (shared, mutex) | 90 485 | 83 079 | 108 609 | 100 396 | 83 549 |
+| **`frozen` (shared, lock-free)** | 91 657 | 177 678 | 691 250 | 1 246 593 | **1 573 875** |
+| `percpu` (private clones) | 91 925 | 179 261 | 677 121 | 1 215 294 | 1 530 694 |
+| `shared` (plain, post-G0 exports) | 91 278 | 178 315 | 665 647 | 1 242 851 | 1 599 240 |
+
+A frozen shared object now scales indistinguishably from private clones —
+18.8× the mutex mode at sixteen threads — with none of the per-thread
+memory. The `shared` row shows G0 alone already de-serialised the export
+paths; `Freeze()` is what extends that guarantee to every const method
+and turns accidental safety into a contract. (The single-thread rate is
+lower than §3.5's 124k because these runs use the debug-heavy dev builds.)
+
+For SmartMet this closes the loop opened in §4.2: once this GDAL is
+deployed, `OGRSpatialReferenceFactory::make_crs()` can call `Freeze()`
+on the master objects, and the per-thread sample stores keep working
+unchanged — clones of a frozen master are writable by design.

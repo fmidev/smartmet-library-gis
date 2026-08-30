@@ -23,7 +23,7 @@ CXX      ?= g++
 CXXFLAGS ?= -std=c++17 -g -O1 -fno-omit-frame-pointer -Wall
 
 PROJ_ONLY := proj_race ctx_cost
-WITH_GDAL := srs_race srs_share srs_scale
+WITH_GDAL := srs_race srs_share srs_scale srs_mixed
 PROGS     := $(PROJ_ONLY) $(WITH_GDAL)
 
 all: $(PROGS)
@@ -43,6 +43,8 @@ run: all
 	@echo "=== G2  shared OGRSpatialReference, getter mix ================"
 	-./srs_race 0 5
 	-./srs_race 1 5
+	@echo "=== G2  thread-safe OGRSpatialReference, readers + writer ====="
+	-./srs_mixed 6 5
 	@echo "=== G2  shared OGRSpatialReference + CT creation =============="
 	-./srs_share 0 5 4
 	-./srs_share 1 5 4
