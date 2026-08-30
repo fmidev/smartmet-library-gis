@@ -781,6 +781,70 @@ and a sanitiser cannot see accesses inside them. Do not expect a sanitiser to
 demonstrate this class of defect; the crash above and the deterministic ownership
 assertions are the evidence.
 
+#### The adversarial battery (2026-08-30)
+
+`test/SpatialReferenceConcurrencyTest.cpp`, 29 tests, attacks every concurrency
+surface of the design rather than just the contract, and verifies *values*
+bit-exactly against single-threaded baselines computed in the same process -
+because the historical failure mode here was silently wrong coordinates, not
+crashes. Its sections: sustained correctness under contention (derived values,
+forward+inverse transforms, whole-geometry transforms); cold-start races (16
+threads hitting the first-ever use of a key at a barrier: the master parse, the
+`call_once` derivation, sample seeding, transformation construction - repeated
+with synthetic never-seen CRS strings); facade semantics (a shared const
+instance read from 16 threads, the lazy-clone `call_once` race, copies getting
+private objects, the pinned raw-object exception); mutation storms (eight
+mutators using four different mutation paths against eight bit-exact
+verifiers); the transformation pool (exclusivity tracking, recycling exactness,
+one-slot-pool churn); cache pressure (a two-entry master store under a
+sixteen-thread storm, one-entry sample stores, `SetCacheSize`/`SetSampleStoreSize`
+oscillating live while verifiers run and a thread polls statistics, held values
+surviving eviction); lifecycle (waves of 48 short-lived threads, objects and
+pooled transformations created in one thread, used in a second and destroyed in
+a third, geometries carrying a CRS across threads, `ReleaseThreadSamples()`
+while clones are live); and error paths (three kinds of invalid definition
+racing valid work, with failure-residue checks). Every multi-thread test starts
+its threads on a barrier, thread counts oversubscribe CI cores on purpose, and
+`GIS_THREAD_STRESS=<n>` multiplies iteration counts for soak runs.
+
+`test/SpatialReferenceApiStabilityTest.cpp` pins the public API at compile
+time: function pointers and static_asserts with the exact pre-rework signatures
+of `OGRSpatialReferenceFactory`, `SpatialReference`, `CoordinateTransformation`
+and `OGRCoordinateTransformationFactory` (including the implicit conversions
+and the `Ptr` handle type), plus runtime smoke calls. The rule it enforces: the
+old API is never changed - if a signature must evolve, a new method is added
+and the old one is kept and deprecated. The rework itself complied: the header
+diff against master is purely additive (`SetSampleStoreSize`,
+`getSampleStoreSize`, `ReleaseThreadSamples`) and nothing was removed or
+re-typed, so nothing needed a deprecation mark.
+
+Results on the 24-core host, GDAL 3.12.1 / PROJ 9.7.1:
+
+| run | result |
+|---|---|
+| battery, default stress | 29/29 in ~4 s |
+| battery, `GIS_THREAD_STRESS=20` soak | 29/29 in ~48 s |
+| battery, 5 repeats with `--gtest_shuffle` | clean |
+| full suite (all test binaries incl. battery + API pins) | green |
+| TSan (library instrumented), ownership + battery ×3 at stress 5 | 0 races in gis code |
+| ASan + UBSan (library instrumented), ownership + battery + stress-5 battery | 0 errors, 0 leaks, 0 `runtime error:` |
+
+**The battery found one real race, in macgyver, not gis.**
+`ResizingCachesMidFlightIsSafe` makes TSan report a data race in the sharded
+`Fmi::Cache::Cache`: `resize()` writes `itsMaxSizePerShard` *before* taking any
+shard lock (`macgyver/Cache.h:283`, and `:296` in the eviction-reporting
+overload), while `statistics()` (`:122`) and `insert()` (`:140`) read it with
+no synchronisation - reachable from gis whenever `SetCacheSize()` runs
+concurrently with any cache use. On x86 a torn `std::size_t` will not occur in
+practice, which is why the test still *passes functionally*; it is still
+undefined behaviour and trivially fixable in macgyver by making
+`itsMaxSizePerShard` a `std::atomic<std::size_t>` (relaxed) or by hoisting the
+member write under the shard locks. Fix belongs on macgyver's `proj-safety`
+branch next to the `Cache::find()` shared-lock change; until it lands, TSan
+runs of the battery need `race:macgyver/Cache.h` in a suppressions file, and
+the four reports it silences are all this one location. The TSan row above was
+measured with exactly that suppression and nothing else suppressed.
+
 ## 5. PROJ: the deeper problems
 
 Listed roughly in order of how much they block sharing.
