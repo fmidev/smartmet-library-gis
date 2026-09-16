@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.8.10
+Version: 26.9.16
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -41,7 +41,7 @@ BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
 BuildRequires: libcurl-devel >= 7.61.0
-BuildRequires: smartmet-library-macgyver-devel >= 26.7.9
+BuildRequires: smartmet-library-macgyver-devel >= 26.9.16
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -61,7 +61,7 @@ Requires: geos313
 Requires: proj97
 Requires: libtiff >= 4.1
 Requires: libcurl >= 7.61.0
-Requires: smartmet-library-macgyver >= 26.7.9
+Requires: smartmet-library-macgyver >= 26.9.16
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: %{smartmet_fmt_devel}
 #TestRequires: gcc-c++
@@ -111,7 +111,7 @@ Requires: gcc-c++
 Requires: gdal312-devel
 Requires: proj97-devel
 Requires: libtiff-devel >= 4.1
-Requires: smartmet-library-macgyver-devel >= 26.7.9
+Requires: smartmet-library-macgyver-devel >= 26.9.16
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -137,6 +137,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Wed Sep 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.16-1.fmi
+- Repackaged due to Fmi::Cache::Cache locking changes
+
 * Mon Aug 10 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.10-1.fmi
 - PostGIS::read() no longer reports a failed read as an empty result set. OGR signals read failures through the CPL error stack rather than the return value, so a cursor that dies mid-FETCH -- a lost connection, a cancelled query, or a WHERE clause the server rejects, which SetAttributeFilter() accepts because OGR parses the expression itself -- simply made GetNextFeature() return nullptr, indistinguishable from a clean end of data. Both read() overloads now check the error state after the fetch loop and throw. Per-feature reprojection failures are excluded from that check (the state is reset before each fetch) and counted instead, so dropping a feature that falls outside the target projection stays normal while losing every feature, which means the transformation itself is unusable, throws. Also fixed a null dereference in the Features overload, where a feature whose reprojection failed was passed to assignSpatialReference().
 * Tue Jul 28 2026 Andris Pavēnis <andris.pavenis@fmi.fi> - 26.7.28-1.fmi
