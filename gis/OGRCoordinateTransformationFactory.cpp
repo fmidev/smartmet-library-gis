@@ -8,6 +8,7 @@
 #include <list>
 #include <ogr_spatialref.h>
 #include <proj.h>
+#include <shared_mutex>
 
 namespace Fmi
 {
@@ -19,14 +20,14 @@ class OGRCoordinateTransformationPool
 {
  public:
   // The object is stored along with its hash value
-  using CacheElement = std::pair<std::size_t, OGRCoordinateTransformation *>;
+  using CacheElement = std::pair<std::size_t, OGRCoordinateTransformation*>;
 
   OGRCoordinateTransformationPool() = default;
 
-  OGRCoordinateTransformationPool(const OGRCoordinateTransformationPool &other) = delete;
-  OGRCoordinateTransformationPool &operator=(const OGRCoordinateTransformationPool &other) = delete;
-  OGRCoordinateTransformationPool(OGRCoordinateTransformationPool &&other) = delete;
-  OGRCoordinateTransformationPool &operator=(OGRCoordinateTransformationPool &&other) = delete;
+  OGRCoordinateTransformationPool(const OGRCoordinateTransformationPool& other) = delete;
+  OGRCoordinateTransformationPool& operator=(const OGRCoordinateTransformationPool& other) = delete;
+  OGRCoordinateTransformationPool(OGRCoordinateTransformationPool&& other) = delete;
+  OGRCoordinateTransformationPool& operator=(OGRCoordinateTransformationPool&& other) = delete;
 
   virtual ~OGRCoordinateTransformationPool() { Clear(); }
 
@@ -45,7 +46,7 @@ class OGRCoordinateTransformationPool
 // NOTE (2023-08-02): tempoarily disabled as requires at first bugfix for smartmet-utils-devel
 //                    (proj detection not OK in makefile.inc)
 #if PROJ_VERSION_MAJOR >= 9
-    for (auto &item : m_cache)
+    for (auto& item : m_cache)
       delete item.second;
 #endif
     m_cache.clear();
@@ -57,7 +58,7 @@ class OGRCoordinateTransformationPool
     m_maxsize = theMaxSize;
   }
 
-  void Add(std::size_t theHash, std::unique_ptr<OGRCoordinateTransformation> &theTransformation)
+  void Add(std::size_t theHash, std::unique_ptr<OGRCoordinateTransformation>& theTransformation)
   {
     WriteLock lock(m_mutex);
 
@@ -77,7 +78,7 @@ class OGRCoordinateTransformationPool
     WriteLock lock(m_mutex);
     auto pos = std::find_if(m_cache.begin(),
                             m_cache.end(),
-                            [hash](const CacheElement &element) { return hash == element.first; });
+                            [hash](const CacheElement& element) { return hash == element.first; });
 
     if (pos == m_cache.end())
       return {nullptr, Deleter(0)};
@@ -89,9 +90,9 @@ class OGRCoordinateTransformationPool
   }
 
  private:
-  using MutexType = boost::shared_mutex;
-  using ReadLock = boost::shared_lock<MutexType>;
-  using WriteLock = boost::unique_lock<MutexType>;
+  using MutexType = std::shared_mutex;
+  using ReadLock = std::shared_lock<MutexType>;
+  using WriteLock = std::unique_lock<MutexType>;
 
   MutexType m_mutex;
   std::list<CacheElement> m_cache;
@@ -111,7 +112,7 @@ StaticCleanup gPoolCleanup([]() { gPool.Clear(); });
 // Deleter stores the hash
 Deleter::Deleter(std::size_t hash) : m_hash(hash) {}
 
-void Deleter::operator()(OGRCoordinateTransformation *ptr) const
+void Deleter::operator()(OGRCoordinateTransformation* ptr) const
 {
   Delete(m_hash, std::unique_ptr<OGRCoordinateTransformation>{ptr});
 }
@@ -126,7 +127,7 @@ void Delete(std::size_t theHash, std::unique_ptr<OGRCoordinateTransformation> th
   gPool.Add(theHash, theTransformation);
 }
 
-Ptr Create(const std::string &theSource, const std::string &theTarget)
+Ptr Create(const std::string& theSource, const std::string& theTarget)
 {
   try
   {
@@ -147,7 +148,7 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
     // access to them (see OGRSpatialReferenceFactory::mutex()). The Create() calls
     // above are deliberately outside the lock: they take it themselves on a cold
     // miss, and it is not recursive.
-    OGRCoordinateTransformation *ptr = nullptr;
+    OGRCoordinateTransformation* ptr = nullptr;
     {
       std::lock_guard<std::mutex> lock(OGRSpatialReferenceFactory::mutex());
       ptr = OGRCreateCoordinateTransformation(src.get(), tgt.get());
@@ -166,7 +167,7 @@ Ptr Create(const std::string &theSource, const std::string &theTarget)
   }
 }
 
-Ptr Create(int theSource, const std::string &theTarget)
+Ptr Create(int theSource, const std::string& theTarget)
 {
   try
   {
@@ -178,7 +179,7 @@ Ptr Create(int theSource, const std::string &theTarget)
   }
 }
 
-Ptr Create(const std::string &theSource, int theTarget)
+Ptr Create(const std::string& theSource, int theTarget)
 {
   try
   {
