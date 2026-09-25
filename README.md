@@ -20,6 +20,7 @@ The gis library provides GIS (Geographic Information System) operations for Smar
 
 Detailed documentation is available in the [docs/](docs/) directory:
 
+- [Developer guide](docs/developer-guide.md)
 - [Overview and quick start](docs/gis.md)
 - [Coordinate projections](docs/gis-projection.md)
 - [Geometry clipping](docs/gis-clipping.md)

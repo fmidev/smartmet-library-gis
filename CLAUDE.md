@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
+Full developer documentation: `docs/developer-guide.md` (and the topic documents it lists).
+
 `smartmet-library-gis` — a C++ GIS library for the SmartMet Server ecosystem. Wraps GDAL/OGR, GEOS, and PROJ with algorithms for coordinate projection, geometry clipping/cutting, DEM/land-cover raster access, and PostGIS integration. Produces `libsmartmet-gis.so`. All public API is in the `Fmi` namespace.
 
 ## Build commands
