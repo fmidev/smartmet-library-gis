@@ -18,7 +18,8 @@ LIBS += \
 	-lsmartmet-macgyver \
 	-ldouble-conversion \
 	-lboost_thread \
-	$(REQUIRED_LIBS)
+	$(REQUIRED_LIBS) \
+	-lgeos_c
 
 # What to install
 

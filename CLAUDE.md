@@ -80,6 +80,9 @@ make -C test ASAN=yes test   # Address + UB sanitizer
 - `PostGIS` — reads features from PostGIS with optional spatial/time filters
 - `Host` — PostGIS connection parameters
 
+**Timezones:**
+- `TimeZoneFinder` — exact coordinate to IANA timezone from timezone-boundary-builder polygons (default source `/usr/share/smartmet/timezones/timezones-with-oceans.shp` from smartmet-timezones). Pimpl, all data hidden in the `.cpp`; uses the GEOS C API (`-lgeos_c`). Test data in `test/data/timezones.geojson`. See `docs/gis-timezones.md`.
+
 **Utilities:**
 - `GEOS` — GEOS geometry helpers and SVG export
 - `Interrupt` — antimeridian/map-projection discontinuity handling

@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.9.23
+Version: 26.9.26
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -67,6 +67,7 @@ Requires: smartmet-library-macgyver >= 26.9.23
 #TestRequires: gcc-c++
 #TestRequires: gdal312-devel
 #TestRequires: geos313-devel
+#TestRequires: smartmet-timezones >= 26.9.26
 #TestRequires: make
 #TestRequires: smartmet-library-macgyver-devel
 #TestRequires: smartmet-library-macgyver
@@ -137,6 +138,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Sat Sep 26 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.26-1.fmi
+- Added Fmi::TimeZoneFinder for exact coordinate to timezone resolution from timezone-boundary-builder polygons
+
 * Wed Sep 23 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.23-1.fmi
 - Use std::shared_lock instead of boost::shared_lock for speed
 
