@@ -16,6 +16,11 @@
 #include <limits>
 #include <stdexcept>
 
+#ifndef GTEST_SKIP
+// RHEL8 ships gtest 1.8.0, GTEST_SKIP is available only since 1.10.0
+#define GTEST_SKIP() return GTEST_SUCCESS_("Skipped")
+#endif
+
 namespace
 {
 const char* testdata = "data/timezones.geojson";
