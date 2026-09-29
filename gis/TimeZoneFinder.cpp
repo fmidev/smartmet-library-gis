@@ -17,6 +17,7 @@
 #include <ogrsf_frmts.h>
 #include <thread>
 #include <utility>
+#include <algorithm>
 
 namespace Fmi
 {
