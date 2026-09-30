@@ -33,6 +33,25 @@ bool isEmpty(const OGREnvelope& env)
   }
 }
 
+// Create the transformation from the WKT of the spatial references. PROJ strings
+// cannot express all datum shifts (EPSG:4326 -> EPSG:27700 differs from the
+// proper transformation by over 100 m when created from them), but the WKT
+// keeps the authority codes so that PROJ can choose the best operation. The
+// PROJ strings remain as a fallback for definitions whose WKT cannot be used.
+OGRCoordinateTransformationFactory::Ptr create_transformation(const SpatialReference& theSource,
+                                                              const SpatialReference& theTarget)
+{
+  try
+  {
+    return OGRCoordinateTransformationFactory::Create(theSource.WKT(), theTarget.WKT());
+  }
+  catch (...)
+  {
+    return OGRCoordinateTransformationFactory::Create(theSource.projInfo().projStr(),
+                                                      theTarget.projInfo().projStr());
+  }
+}
+
 bool contains_longitudes(const OGREnvelope& env1, const OGREnvelope& env2)
 {
   try
@@ -55,8 +74,7 @@ class CoordinateTransformation::Impl
   Impl(const Impl& other)
       : m_source(other.m_source),
         m_target(other.m_target),
-        m_transformation(OGRCoordinateTransformationFactory::Create(
-            other.m_source.projInfo().projStr(), other.m_target.projInfo().projStr())),
+        m_transformation(create_transformation(other.m_source, other.m_target)),
         m_hash(other.m_hash)
   {
   }
@@ -64,8 +82,7 @@ class CoordinateTransformation::Impl
   Impl(const SpatialReference& theSource, const SpatialReference& theTarget)
       : m_source(theSource),
         m_target(theTarget),
-        m_transformation(OGRCoordinateTransformationFactory::Create(theSource.projInfo().projStr(),
-                                                                    theTarget.projInfo().projStr()))
+        m_transformation(create_transformation(theSource, theTarget))
   {
     try
     {
