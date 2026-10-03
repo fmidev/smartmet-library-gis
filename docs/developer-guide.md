@@ -84,14 +84,12 @@ made from a PROJ string has none. `hashValue()` is the hash of the WKT.
 `OGRCoordinateTransformationFactory`:
 
 * The factory keeps a **pool** of idle transformations, keyed by the hash of the source
-  and target PROJ strings (at most 1600). `Create()` takes one out of the pool or creates a
+  and target definitions (at most 1600). `Create()` takes one out of the pool or creates a
   new one; the `Ptr` deleter puts it back when the owner is destroyed. A transformation is
   therefore used by one owner at a time.
-* The transformation is created from the **PROJ strings** of the two systems
-  (`projInfo().projStr()`), not from their WKT. A datum shift that the PROJ string cannot
-  express is lost: EPSG:4326 → EPSG:27700 (British National Grid) differs from GDAL's own
-  transformation by about 115 m, while systems with a `+towgs84` (EPSG:2393) or no shift
-  (EPSG:3067) agree exactly.
+* The transformation is created from the **WKT** of the two systems, which keeps the
+  authority codes, so PROJ chooses the same operation as GDAL (EPSG:4326 → EPSG:27700
+  matches GDAL exactly). The PROJ strings are used only if the WKT cannot be used.
 * Copying a `CoordinateTransformation` gets another transformation from the factory.
 * `transformGeometry()` handles the antimeridian and projection interrupts, and can
   densify segments; `GeometryProjector` adds clipping to projected bounds. See
@@ -136,11 +134,10 @@ with `GDAL_VERSION_MAJOR` and `PROJ_VERSION_MAJOR` checks.
 ## 7. Known pitfalls
 
 * **Axis order is always lon/lat (east/north)** in gis, even for EPSG:4326 (§2).
-* **Transformations lose datum shifts that PROJ strings cannot express** (§3).
 * **Do not modify a shared `OGRSpatialReference`** (§5).
 * **One `CoordinateTransformation` per thread** (§5).
 * **`getEPSG()` is empty for systems built from PROJ strings**, even when an EPSG code
   exists for the same definition.
-* **The `FMI` datum is a sphere of radius 6 371 229 m.** newbase's legacy projections
-  use 6 371 220 m (`kRearth`); the difference is small but not zero.
+* **The `FMI` datum is a sphere of radius 6 371 220 m**, the same as newbase's legacy
+  projections (`kRearth`). Model data on the 6 371 229 m sphere must name it with `+R`.
 * **Raw `OGRGeometry*` results must be deleted** by the caller (§4).
