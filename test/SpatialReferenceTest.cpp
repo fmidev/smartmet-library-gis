@@ -1,6 +1,8 @@
 #include "SpatialReference.h"
 #include "TestDefs.h"
 
+#include <ogr_spatialref.h>
+
 #include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
 #include <atomic>
@@ -185,6 +187,16 @@ void getepsg_parallel_cold()
   TEST_PASSED();
 }
 
+// The FMI datum must be the same sphere as newbase's FMI_2007 datum (kRearth)
+void fmi_datum()
+{
+  Fmi::SpatialReference crs("FMI");
+  const double radius = crs.get()->GetSemiMajor();
+  if (radius != 6371220)
+    TEST_FAILED("FMI datum radius should be 6371220, not " + std::to_string(radius));
+  TEST_PASSED();
+}
+
 // Test driver
 class tests : public tframe::tests
 {
@@ -196,6 +208,7 @@ class tests : public tframe::tests
     TEST(getepsg);
     TEST(getepsg_parallel);
     TEST(getepsg_parallel_cold);
+    TEST(fmi_datum);
   }
 
 };  // class tests
