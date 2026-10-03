@@ -6,6 +6,7 @@ All public API lives under the `Fmi` namespace.
 
 ## Contents
 
+- [Developer guide](developer-guide.md) — maintainer's view: caches, pools, threads, compatibility, pitfalls
 - [Coordinate Systems and Transformations](gis-projection.md) — `SpatialReference`, `CoordinateTransformation`, `GeometryProjector`, `CoordinateMatrix`, `ProjInfo`, `EPSGInfo`
 - [Clipping and Cutting](gis-clipping.md) — `OGR` namespace functions, `Box`, `Shape` hierarchy, `GeometryBuilder`, `GeometrySmoother`, `GeometrySimplifier`, `GeometryAmalgamator`
 - [Geographic Interrupts](gis-interrupts.md) — `Interrupt`, map projection discontinuities, antimeridian handling
