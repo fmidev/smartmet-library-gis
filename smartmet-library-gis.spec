@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.10.3
+Version: 26.10.4
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -138,6 +138,13 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Sun Oct 04 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.4-1.fmi
+- OGRSpatialReferenceFactory::Create() hands every caller its own spatial reference instead of a pointer to one process-wide cached object. Concurrent modification of a shared spatial reference corrupted the heap, and the API invited it by returning a mutable pointer. SpatialReferenceOwnershipTest reproduces the old failure.
+- Clones come from a per-thread sample cloned once from a master object, so the steady-state path takes no lock. SetSampleStoreSize() bounds the per-thread sample count (default 64).
+- Merged the factory's parsed-object cache and SpatialReference's derived-value cache into one store, CrsRegistry, with the derived values computed lazily
+- OGRCoordinateTransformationFactory::Create() no longer locks around OGRCreateCoordinateTransformation(), since both spatial references are private clones
+- ABI is additive: SpatialReference's declarations are unchanged and the factory header only gained functions
+
 * Sat Oct 03 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.3-1.fmi
 - Use the newbase FMI sphere radius for the FMI datum
 - Create coordinate transformations from WKT, not PROJ strings

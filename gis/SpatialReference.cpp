@@ -1,156 +1,56 @@
 #include "SpatialReference.h"
-#include "OGR.h"
+#include "CrsRegistry.h"
 #include "OGRSpatialReferenceFactory.h"
 #include "ProjInfo.h"
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
-#include <macgyver/Hash.h>
-#include <macgyver/StaticCleanup.h>
-#include <macgyver/StringConversion.h>
-#include <ogr_geometry.h>
+#include <ogr_spatialref.h>
 #include <mutex>
 
 namespace Fmi
 {
-// Cache variables
-namespace
-{
-// Data members separated to a separate structure for caching purposes.
-struct ImplData
-{
-  std::size_t hashvalue = 0;
-  std::shared_ptr<OGRSpatialReference> crs;
-  bool is_geographic = false;
-  bool is_axis_swapped = false;
-  bool epsg_treats_as_lat_long = false;
-  std::optional<int> epsg;
-  std::string wkt;
-  ProjInfo projinfo;
-};
-
-const std::size_t default_cache_size = 10000;
-using ImplDataCache = Cache::Cache<std::string, std::shared_ptr<ImplData>>;
-
-ImplDataCache &get_cache()
-{
-  static ImplDataCache g_ImplDataCache{default_cache_size};
-  static StaticCleanup cleanup([]() { g_ImplDataCache.clear(); });
-  return g_ImplDataCache;
-}
-
-bool is_axis_swapped(const OGRSpatialReference &crs)
-{
-  try
-  {
-#if GDAL_VERSION_MAJOR > 1
-    auto strategy = crs.GetAxisMappingStrategy();
-    if (strategy == OAMS_TRADITIONAL_GIS_ORDER)
-      return false;
-    if (strategy == OAMS_CUSTOM)
-      return false;  // Don't really know what to do in this case
-    if (strategy != OAMS_AUTHORITY_COMPLIANT)
-      return false;  // Unknown case
-
-    return (crs.EPSGTreatsAsLatLong() || crs.EPSGTreatsAsNorthingEasting());
-#else
-    // GDAL1 does not seem to obey EPSGA flags at all
-    return false;
-#endif
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// Extract the EPSG code from the WKT node tree of the CRS.
-//
-// This must only be called while the CRS is still private to the calling thread
-// (see derive_mutex() below), never on the shared object returned by
-// OGRSpatialReferenceFactory. GetRoot() builds GDAL's OGR_SRSNode tree lazily on
-// first use and stores it in the OGRSpatialReference, and the raw node pointers
-// we walk here remain owned by it. Two threads doing this at the same time
-// therefore both build a tree and both assign it, and a third can be walking the
-// one that was replaced.
-std::optional<int> get_epsg(const OGRSpatialReference &crs)
-{
-  try
-  {
-    const auto *root = crs.GetRoot();
-    if (root == nullptr)
-      return {};
-
-    const std::string prefix = root->GetValue();
-    if (prefix != "PROJCS" && prefix != "GEOGCS")
-      return {};
-
-    const std::string authority = "AUTHORITY";
-
-    for (int i = 0; i < root->GetChildCount(); i++)
-    {
-      const auto *node = root->GetChild(i);
-      if (node != nullptr)
-      {
-        const auto *name = node->GetValue();
-        if (name != nullptr && authority == name)
-        {
-          if (node->GetChildCount() != 2)
-            return {};
-          const auto *value = node->GetChild(1);
-          if (value == nullptr)
-            return {};
-          return Fmi::stoi(value->GetValue());
-        }
-      }
-    }
-    return {};
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// Deriving the cached properties of a CRS must be serialized.
-//
-// Everything Impl::init() reads from the OGRSpatialReference is derived exactly
-// once per CRS and then served from ImplData, but the object it reads from is the
-// process-wide shared one owned by OGRSpatialReferenceFactory. Concurrent first
-// uses of the same CRS would run those GDAL calls on it in parallel, and several
-// of them are not the pure reads their const signatures suggest:
-//
-//   - GetRoot() builds the OGR_SRSNode tree on demand (see get_epsg above).
-//   - EPSGTreatsAsLatLong() and EPSGTreatsAsNorthingEasting() call
-//     demoteFromBoundCRS()/undoDemoteFromBoundCRS() on every call, which swap
-//     the underlying PJ* out and temporarily set the node tree pointer to null.
-//     Any CRS with +towgs84 or +nadgrids is a BoundCRS, which includes most of
-//     the entries in OGRSpatialReferenceFactory's known_datums table.
-//
-// GDAL only guards those paths when the OGRSpatialReference was created with
-// AssignAndSetThreadSafe(), which these are not.
-//
-// The serialization uses OGRSpatialReferenceFactory::mutex() rather than a mutex
-// private to this file, because the derivation here is not independent of the
-// other GDAL/PROJ operations on the same shared objects: creation in make_crs()
-// and OGRCreateCoordinateTransformation() in OGRCoordinateTransformationFactory
-// touch the same OGRSpatialReference and the same PROJ globals. A private mutex
-// would serialize this file against itself while still racing those. It is a
-// cold-miss-only path either way; warm lookups return from the cache above
-// without reaching it.
-
-}  // namespace
-
 // Implementation details
 class SpatialReference::Impl
 {
  public:
-  std::shared_ptr<ImplData> m_data;
+  // Shared, immutable, derived once per definition string.
+  std::shared_ptr<const CrsRegistry::Derived> m_data;
+
+  // The definition string, when there is one. It is what an instance clones its
+  // own private OGRSpatialReference from, on demand.
+  std::string m_desc;
+
+  // Set instead of m_desc when the CRS came from a caller-supplied
+  // OGRSpatialReference: there is no key to clone a fresh copy from, so the
+  // private clone made at construction is kept and shared by copies.
+  std::shared_ptr<OGRSpatialReference> m_owned;
 
   ~Impl() = default;
 
-  Impl(const Impl &other) = default;
+  // Copies share the derived values but NOT the object: each instance clones its
+  // own the first time one is actually asked for. This is what makes copying a
+  // SpatialReference cheap while keeping every instance's object private.
+  Impl(const Impl &other)
+      : m_data(other.m_data), m_desc(other.m_desc), m_owned(other.m_owned)
+  {
+  }
 
-  explicit Impl(const SpatialReference &other) : m_data(other.impl->m_data) {}
+  explicit Impl(const SpatialReference &other)
+      : m_data(other.impl->m_data), m_desc(other.impl->m_desc), m_owned(other.impl->m_owned)
+  {
+  }
+
+  // The private OGRSpatialReference belonging to this instance. Cloned lazily:
+  // most callers only ever read the derived values (WKT, PROJ string, EPSG code,
+  // axis flags), which are precomputed, and never need an object at all.
+  OGRSpatialReference *object() const
+  {
+    if (m_owned)
+      return m_owned.get();
+
+    std::call_once(m_once, [this]() { m_own = OGRSpatialReferenceFactory::Create(m_desc); });
+    return m_own.get();
+  }
 
   explicit Impl(const OGRSpatialReference &other) { init(other); }
 
@@ -202,55 +102,10 @@ class SpatialReference::Impl
   {
     try
     {
-      // Fast path: warm cache hit, no serialization
-      auto obj = get_cache().find(theCRS);
-      if (obj)
-        m_data = *obj;
-      else
-      {
-        auto data = std::make_shared<ImplData>();
-
-        // Create (or fetch from its own cache) the shared CRS object BEFORE taking
-        // the lock below. Create() takes the very same mutex on a cold miss, and it
-        // is a plain non-recursive std::mutex, so calling it while holding the lock
-        // would self-deadlock.
-        data->crs = OGRSpatialReferenceFactory::Create(theCRS);
-
-        // Cold miss. The properties below are derived from the shared CRS object
-        // with GDAL calls that are not safe to run concurrently on it.
-        std::lock_guard<std::mutex> deriveLock(OGRSpatialReferenceFactory::mutex());
-
-        // Re-check under the lock: another thread may have derived the same key
-        // while we waited, in which case we reuse its result.
-        obj = get_cache().find(theCRS);
-        if (obj)
-        {
-          m_data = *obj;
-          return;
-        }
-
-        // Generate WKT only once, and cache spatial references for better speed
-        data->wkt = OGR::exportToWkt(*data->crs);
-
-        try
-        {
-          // exportToProj may lose the original +type=crs setting, hence we try direct parsing first
-          data->projinfo = ProjInfo(theCRS);
-        }
-        catch (...)
-        {
-          data->projinfo = ProjInfo(OGR::exportToProj(*data->crs));
-        }
-        data->hashvalue = Fmi::hash_value(data->wkt);  // WKT is more reliable than PROJ strings
-
-        data->is_geographic = (data->crs->IsGeographic() != 0);
-        data->is_axis_swapped = is_axis_swapped(*data->crs);
-        data->epsg_treats_as_lat_long = (data->crs->EPSGTreatsAsLatLong() != 0);
-        data->epsg = get_epsg(*data->crs);
-
-        m_data = data;
-        get_cache().insert(theCRS, m_data);
-      }
+      // One lookup, one store: CrsRegistry keeps the master object and these
+      // derived values under the same key, and derives them only when asked.
+      m_desc = theCRS;
+      m_data = CrsRegistry::derived(theCRS);
     }
     catch (...)
     {
@@ -262,18 +117,17 @@ class SpatialReference::Impl
   {
     try
     {
+      // No definition string, so nothing can be shared or cached: this is the
+      // expensive path (see CrsRegistry::derive). Derive from our own clone
+      // rather than from the caller's object, which may be shared and which
+      // exportToWkt() would mutate PROJ-side caches inside.
       std::shared_ptr<OGRSpatialReference> tmp(other.Clone(),
                                                [](OGRSpatialReference *ref) { ref->Release(); });
+      if (!tmp)
+        throw Fmi::Exception(BCP, "Failed to clone spatial reference");
 
-      m_data = std::make_shared<ImplData>();
-      m_data->crs = tmp;
-      m_data->wkt = OGR::exportToWkt(other);
-      m_data->projinfo = ProjInfo(OGR::exportToProj(*m_data->crs));
-      m_data->hashvalue = Fmi::hash_value(m_data->wkt);
-      m_data->is_geographic = (m_data->crs->IsGeographic() != 0);
-      m_data->is_axis_swapped = is_axis_swapped(*m_data->crs);
-      m_data->epsg_treats_as_lat_long = (m_data->crs->EPSGTreatsAsLatLong() != 0);
-      m_data->epsg = get_epsg(*m_data->crs);
+      m_owned = tmp;
+      m_data = CrsRegistry::derive(*tmp);
     }
     catch (...)
     {
@@ -281,6 +135,8 @@ class SpatialReference::Impl
     }
   }
 
+  mutable std::once_flag m_once;
+  mutable std::shared_ptr<OGRSpatialReference> m_own;
 };  // class Impl
 
 SpatialReference::~SpatialReference() = default;
@@ -358,7 +214,7 @@ const OGRSpatialReference &SpatialReference::operator*() const
 {
   try
   {
-    return *impl->m_data->crs;
+    return *impl->object();
   }
   catch (...)
   {
@@ -370,7 +226,7 @@ OGRSpatialReference *SpatialReference::get() const
 {
   try
   {
-    return impl->m_data->crs.get();
+    return impl->object();
   }
   catch (...)
   {
@@ -382,7 +238,7 @@ SpatialReference::operator OGRSpatialReference &() const
 {
   try
   {
-    return *impl->m_data->crs;
+    return *impl->object();
   }
   catch (...)
   {
@@ -394,7 +250,7 @@ SpatialReference::operator OGRSpatialReference *() const
 {
   try
   {
-    return impl->m_data->crs.get();
+    return impl->object();
   }
   catch (...)
   {
@@ -454,7 +310,7 @@ void SpatialReference::setCacheSize(std::size_t newMaxSize)
 {
   try
   {
-    get_cache().resize(newMaxSize);
+    CrsRegistry::SetCacheSize(newMaxSize);
   }
   catch (...)
   {
@@ -466,7 +322,7 @@ Cache::CacheStats SpatialReference::getCacheStats()
 {
   try
   {
-    return get_cache().statistics();
+    return CrsRegistry::getCacheStats();
   }
 
   catch (...)

@@ -569,6 +569,218 @@ Worth keeping deliberately: if PROJ ever has to be called directly, the rules
 are one `PJ_CONTEXT` per thread, never a null context, and never a shared `PJ*`.
 
 
+### 4.4 Implemented: give every caller its own spatial reference
+
+Option 3 of §4.2 was taken further than "narrow the interface": as of this change
+`OGRSpatialReferenceFactory` has no shared object left to narrow access to.
+`Create()` returns a **fresh clone that the caller owns outright** and may read,
+mutate, hand to a geometry, or keep for as long as it likes. Nothing is shared,
+nothing is handed back, and nothing has to be trusted not to modify what it
+borrowed. The signature is unchanged, so no caller in any repo needed editing.
+
+Cloning is what makes this affordable, but `Clone()` *reads* (and lazily rebuilds)
+the object it copies, so the source has to be private to the cloning thread too.
+Hence two levels:
+
+* a **master** object per definition string, parsed once and never handed out.
+  Cloned only under `OGRSpatialReferenceFactory::mutex()`, and only to seed a
+  thread's sample.
+* a **thread-local sample** per definition string, cloned once from the master.
+  Every later `Create()` clones that, with no lock at all, because no other
+  thread can reach it. Bounded by a small per-thread LRU
+  (`SetSampleStoreSize()`, default 64); overflowing it costs one extra
+  clone-under-lock, never an error.
+
+Why per-thread rather than one shared sample: cloning a single shared sample
+needs a lock on every call, and that measurably *regresses* with threads.
+
+Measured on a 24-core host, GDAL 3.12.1 / PROJ 9.7.1
+(`test/SpatialReferenceCloneBench`), acquisitions/s:
+
+| design | 1 | 2 | 4 | 8 | 16 |
+|---:|---:|---:|---:|---:|---:|
+| shared cached object (before) | see below | | | | |
+| check-out pool (intermediate) | 2 372 881 | 782 568 | 1 241 595 | 919 029 | 130 272 |
+| Clone from one shared sample + lock | 220 180 | 177 944 | 166 648 | 135 981 | 108 949 |
+| **Clone from thread-local sample (implemented)** | 205 712 | 385 779 | 1 192 712 | **1 972 234** | **1 198 640** |
+
+The implemented path is within ~1% of a hand-written thread-local clone at eight
+threads, 2.1x the check-out pool there, and 9.2x the pool at sixteen threads,
+where the pool's single mutex convoys. The pool is ~11x faster on *one* thread
+(0.42 us versus 4.8 us per acquisition) and that is the trade accepted: 4.8 us is
+nothing next to the work any real request does, and it buys away all of the
+pool's machinery.
+
+The far bigger cost sits elsewhere, and it is why `Fmi::SpatialReference` and not
+`OGRSpatialReference` is the thing worth copying:
+
+| operation | rate | per call |
+|---|---:|---:|
+| `Fmi::SpatialReference(definition string)` - derived values cached | 5 039 480/s | 0.2 us |
+| `Fmi::SpatialReference(const OGRSpatialReference&)` - re-derives everything | **581/s** | **1.7 ms** |
+
+Both are single-threaded. The first figure does not survive concurrency, for a
+reason that has nothing to do with GDAL; see *The normal door's remaining cost is
+the cache lock* below.
+
+The second re-runs `exportToWkt`, `exportToProj`, a `ProjInfo` parse and the
+`GetRoot()` walk: roughly 4000x a clone. So `ImplData` holds only immutable
+derived values (WKT, PROJ string, EPSG code, axis flags) and is shared by copies,
+while each instance clones its own `OGRSpatialReference` lazily - and only if
+someone actually calls `get()`/`operator*`. Copying a `Fmi::SpatialReference` is
+therefore free, its accessors never touch GDAL, and the 1.7 ms path is reached
+only by callers that hand in a raw `OGRSpatialReference`. Those are worth
+converting: `newbase/NFmiGdalArea.cpp:217-219` is one, and it runs per area.
+
+Consequences elsewhere in `gis`:
+
+* `SpatialReference::Impl::init()` derives from a private clone, so it no longer
+  needs the factory mutex - including `get_epsg()`, whose `GetRoot()` builds a
+  node tree inside the object (§4.1).
+* `OGRCoordinateTransformationFactory::Create()` no longer locks around
+  `OGRCreateCoordinateTransformation()`: both inputs are private clones.
+
+#### A destruction-order trap worth knowing about
+
+Handing out clones means a thread keeps GDAL objects in thread-local storage
+until it exits, and that leaks one `PJ_CONTEXT` per thread unless the ordering is
+forced. `thread_local` objects are destroyed in reverse order of the completion
+of their construction; GDAL keeps each thread's context in a `thread_local` of
+its own; and `~OGRSpatialReference` reassigns a context to the object before
+destroying it (§3.6). If GDAL's goes first, every sample destroyed afterwards
+makes GDAL create a replacement context that nothing ever frees.
+
+Measured with a 48-thread probe: 48 leaked contexts, one per thread. It was
+invisible before this change only because a warm `Create()` used to be a pure
+cache lookup that never touched PROJ at all - the worker threads never acquired a
+context to leak.
+
+The fix is to touch GDAL once in the sample store's constructor, which puts
+GDAL's `thread_local` *ahead* of ours in construction order and therefore behind
+it in destruction order. Costs one `proj.db` lookup per thread and shows up
+nowhere in the throughput table above. `ReleaseThreadSamples()` is also exposed
+for applications that have an explicit worker-thread teardown hook, but is no
+longer required.
+
+#### One store, and which door to use
+
+`OGRSpatialReferenceFactory` and `SpatialReference` used to keep two caches keyed
+by the same definition string - a parsed object in one (limit 1000), the values
+derived from it in the other (limit 10000) - evicting independently and reported
+as two separate statistics lines. One could evict while the other retained, so a
+`SpatialReference` that still had its derived values could be forced to re-parse
+the CRS just to produce an object.
+
+They are now a single store, `CrsRegistry` (`gis/CrsRegistry.h`, implemented in
+the factory translation unit, which is where the parsing already lived). One
+entry per definition string holds the master object and, behind a
+`std::once_flag`, the derived values - so a caller that only wants an object
+never pays for the derivation, which is the expensive half. `is_axis_swapped()`
+and `get_epsg()` moved there with it, and `SpatialReference.cpp` is now a facade.
+Both `getCacheStats()` functions report that one store.
+
+With that in place the two entry points have distinct, documented jobs:
+
+* **`Fmi::SpatialReference(definition string)`** - the normal door. Derived values
+  are shared, copying is free, accessors never enter GDAL.
+* **`OGRSpatialReferenceFactory::Create()`** - the raw-object door, for code that
+  must hand a mutable `OGRSpatialReference` to GDAL itself
+  (`OGRCreateCoordinateTransformation`, `assignSpatialReference`, a dataset).
+  Narrowed to that role the name is accurate, so it keeps it.
+
+The cost of using the wrong door is not small. `newbase/NFmiGdalArea.cpp` held its
+datum as a `std::shared_ptr<OGRSpatialReference>` and passed `*datum` into
+`CoordinateTransformation`, which takes `const SpatialReference&`: that implicit
+conversion re-derived everything, once per direction, twice per area
+construction. Holding a `Fmi::SpatialReference` instead:
+
+| NFmiGdalArea("FMI", "EPSG:2393", ...) | per construction | rate |
+|---|---:|---:|
+| datum as raw `OGRSpatialReference` | 1.754 ms | 570/s |
+| datum as `Fmi::SpatialReference` | **0.015 ms** | **65 901/s** |
+
+117x, measured over 300 constructions against the installed gis, so the gain is
+independent of the factory rework above. Areas are constructed per querydata file
+and on every `Clone()`. The comment at that call site had chosen the factory
+specifically to avoid a per-construction `proj.db` parse - it avoided the parse
+and then paid more for the derivation.
+
+#### The normal door's remaining cost is the cache lock
+
+Once the store is warm, `Fmi::SpatialReference(definition string)` does almost no
+work of its own: it performs one `Fmi::Cache::Cache::find()` on the master store
+and copies a `shared_ptr` to the derived values. That lookup is therefore the
+whole steady-state cost of the recommended entry point - and until macgyver
+26.8.29 it did not scale.
+
+`Cache::find()` held a `boost::upgrade_lock` for the duration of the lookup. A
+`shared_mutex` permits only one upgrade owner at a time, so every lookup in a
+shard excluded every other lookup in that shard: a plain hit on an entry already
+at the MRU end, where the splice is skipped and nothing is mutated, and a miss,
+which touches only a relaxed atomic, both serialised exactly like a write.
+Striping across shards spreads that cost only to the extent that the keys spread,
+and CRS lookups are the opposite of spread - a handful of definition strings
+dominate, so they land on a handful of shards and queue there.
+
+Measured with `test/SpatialReferenceCloneBench` on the same 24-core host, two gis
+builds from identical sources differing only in `macgyver/Cache.h`, medians of
+three alternating rounds. `Fmi::SpatialReference(string)`, acquisitions/s:
+
+| `Cache::find()` | 1 | 2 | 4 | 8 | 16 |
+|---|---:|---:|---:|---:|---:|
+| `upgrade_lock` (before) | 4 398 838 | 3 020 907 | 1 327 338 | 519 512 | 73 004 |
+| **`shared_lock` (after)** | 4 537 283 | 2 460 893 | 1 522 865 | **774 236** | **221 714** |
+| ratio | 1.03x | 0.81x | 1.15x | 1.49x | **3.04x** |
+
+At sixteen threads that is 219 us per construction before and 72 us after,
+against 0.23 us uncontended. The fix, in `macgyver` on branch `proj-safety`
+alongside this one, is to take a plain shared lock and re-lock the shard
+exclusively only to promote an entry that is not already at the MRU end, looking
+the key up again after re-locking because it may have been evicted or promoted in
+between.
+
+Two caveats worth recording. The 19% loss at two threads reproduced in every
+round: it is the price of letting readers genuinely overlap, since they then
+contend for the hit-counter cache lines instead of taking turns behind the lock.
+And the fix reduces the convoy without removing it - the path still degrades
+about 20x from one thread to sixteen, because a shared lock is still an atomic
+write to one word per shard. Only per-thread state avoids that entirely.
+
+Which is precisely what the raw-object door already does, and it is the reason
+the two doors behave so differently under load. `OGRSpatialReferenceFactory::Create()`
+consults the cache only to seed a thread's sample; every later call is answered
+from thread-local storage without touching the shared store at all, which is why
+its row in the throughput table above rises with threads while this one falls.
+If `Fmi::SpatialReference(string)` ever becomes hot enough to matter, giving the
+derived values the same per-thread treatment is the remedy - though at 222k
+constructions/s across sixteen threads it is far from that today.
+
+#### Verification
+
+`test/SpatialReferenceOwnershipTest.cpp`, 15 tests. Against the pre-change
+implementation **10 of them fail, and the process then dies with
+`double free or corruption (out)` and SIGSEGV** in
+`ConcurrentMutatorsDoNotDisturbEachOther` - eight threads each modifying the CRS
+the factory handed them. That is worth recording plainly: §2.3 concluded the
+shared-object defects were latent because concurrent *reads* did not misbehave,
+and that still holds, but concurrent *mutation* of the shared object corrupts the
+heap outright, and the old API invited exactly that by returning a mutable
+pointer to a process-wide object.
+
+Sanitisers, with `libsmartmet-gis.so` itself built `ASAN=yes` / `TSAN=yes` so the
+factory code is instrumented and not just the test translation unit:
+
+| build | result |
+|---|---|
+| ASan + UBSan, full suite (90 tests) | 0 errors, 0 `runtime error:`, 0 leaks |
+| TSan, ownership tests + 8-thread stress | 0 data races |
+
+Neither TSan nor Helgrind reports anything on the **pre-change** code either -
+GDAL and PROJ are linked uninstrumented from `/usr/gdal312` and `/usr/proj97`,
+and a sanitiser cannot see accesses inside them. Do not expect a sanitiser to
+demonstrate this class of defect; the crash above and the deterministic ownership
+assertions are the evidence.
+
 ## 5. PROJ: the deeper problems
 
 Listed roughly in order of how much they block sharing.
@@ -793,8 +1005,421 @@ Override `PROJ_PREFIX` / `GDAL_PREFIX` to test other versions.
 | `proj_race.cpp 2` | §2.2 `proj_create(nullptr,…)` from N threads → wrong results, then abort in the LRU cache |
 | `srs_race.cpp` | §2.3 shared `OGRSpatialReference`, getter mix, both GDAL modes |
 | `srs_share.cpp` | §2.3 shared SRS passed to `OGRCreateCoordinateTransformation()`, as `gis` does |
-| `srs_scale.cpp` | §3.5 read scaling, private clones vs one shared object |
+| `srs_scale.cpp` | §3.5 read scaling: private clones vs shared object, plain / thread-safe / frozen (§12) |
+| `srs_mixed.cpp` | §3.1 readers + writer on a *thread-safe* SRS: segfaults on unpatched GDAL, clean on the §12 branch |
 | `ctx_cost.cpp` | §3.7 resident cost per `PJ_CONTEXT` |
 
 `proj_race` is expected to abort. The others exit 0 on the versions tested
 here; keep them as regression canaries for future PROJ/GDAL upgrades.
+
+
+## 8. Re-audit of PROJ master, 2026-08-29
+
+Checked against PROJ 9.9.0-dev, commit `3641df4d02b1d7cea174282666bea15deda00466`
+(master, 2026-08-28).
+
+**Nothing has changed.** 41 commits landed since the baseline commit this
+document analysed (`620ac36`, 2026-07-23); all of them are new projections
+(Hourglass, IVEA, Snyder polyhedral, interrupted variants, TM zoned grid),
+EPSG database updates (12.059a → 13.102) and CI work. None touches
+synchronisation, `mutable` state, or the context machinery. Every defect above
+re-verified present at the same locations:
+
+| Defect | Status on master |
+|---|---|
+| §2.1/§5.2 `mutable lastWKT/lastPROJString/lastJSONString`, interior-pointer returns | unchanged (`src/proj_internal.h:672-674`, `c_api.cpp:1708-1709`) |
+| §5.2 `mutable PJ_TYPE type`, `gridsNeeded*` | unchanged (`proj_internal.h:675-679`) |
+| §2.2/§5.3 ten `NullLock` LRU caches + `mapSqlToStatement_` in `DatabaseContext` | unchanged (`factory.cpp:847,858-877`) |
+| §5.3 process-wide unsynchronised default context | unchanged (`ctx.cpp:188-194`) |
+| §5.4 five classes documented single-thread-at-a-time | unchanged (`io.hpp:186,405,536,874,1009`) |
+| §5.5 mutable grid decode buffers | unchanged (`grids.cpp:207,456-457,2091,2853-2854`) |
+
+Three items this document had not listed, found on this pass. All are minor or
+transformation-side, none changes the conclusions:
+
+* `PJCoordOperation::isInstantiableCached` (`proj_internal.h:446`, written
+  lazily at `coord_operation.cpp:51-52`) — one more lazy `mutable` inside
+  transformation objects; same category as §5.5, covered by the
+  one-`PJ`-per-thread rule.
+* `proj_info()` (`src/info.cpp:88-130`) fills a file-scope `static PJ_INFO`
+  under `core_lock`, `free()`s the previous `searchpath` and returns pointers
+  to that static storage — the §5.2 interior-pointer shape one level up, in a
+  cold path.
+* `src/rtodms.cpp:16-18` — `static double RES, RES60, CONV; static int dolong;`
+  written by `set_rtodms()` and read by the public `proj_rtodms()` /
+  `proj_rtodms2()` with no synchronisation. Cold, CLI-oriented, but public API.
+
+**Upstream status.** GitHub has no open issue or PR mentioning thread safety
+(the last thread-related fix was #4692, a `localtime()` fix, March 2026).
+Neither reproduced crash in §2 has been reported by anyone. The field is clear:
+nothing here is being worked on, and nothing will change until someone files it.
+
+**The deprecate-and-replace path is viable with machinery PROJ already has.**
+The three formatting functions cannot be fixed in place — their signature
+*returns* the interior pointer, so no implementation can make them safe on a
+shared object. But PROJ already has the two ingredients the additive plan in
+§5.2/§6 needs:
+
+* `PROJ_DEPRECATED(decl, msg)` (`src/proj.h:158-172`), already applied to
+  `proj_list_units()` (`:795`) — attribute-based, per-compiler, warning-only.
+* The caller-owned-result-plus-destructor convention:
+  `proj_string_list_destroy()` (`:1187`), `proj_unit_list_destroy()` (`:1334`).
+
+So the migration is: add the `_alloc` variants (P2), reimplement the old
+functions on top of them, mark the old ones `PROJ_DEPRECATED` with a message
+naming the replacement, and drop the `mutable` members once a major release has
+passed. No ABI break at any point, and GDAL is a motivated first adopter — it
+pays two unconditional mutexes today (`ogrspatialreference.cpp:1755-1758`,
+`:11755-11761`) purely to work around `proj_as_wkt()`.
+
+
+## 9. Provenance: why the `mutable` members exist at all
+
+A fair question is whether the mutable caches are pre-C++11 legacy that predates
+the "const implies thread-safe" convention. Git archaeology says no — they are
+deliberate, modern, and *licensed by a documented contract*. That matters for
+the upstream pitch, because it means the fix is an API-contract change, not a
+cleanup of forgotten code.
+
+**Three strata with three different explanations:**
+
+*The genuinely pre-C++11 layer.* `pj_ctx` with `last_errno` (the C `errno`
+idiom), the static `PJ_INFO` in `info.cpp`, the `rtodms.cpp` statics — proj.4
+heritage. Notably, the context itself was Frank Warmerdam's 2010 **fix** for
+the previous generation of thread bugs (`ec678c07`, "preliminary implementation
+of projCtx API"): one-context-per-thread was the thread-safety *solution* of
+2010, and it is still the load-bearing contract today.
+
+*The ISO19111 C++ object model (2018).* RFC 2 (`docs/source/community/rfc/rfc-2.rst:163-168`)
+states the intent explicitly: *"all ISO19111 objects are immutable after
+creation … Consequently they could possibly [be] used in a thread-safe way.
+There are however classes like PROJStringFormatter, WKTFormatter,
+DatabaseContext, AuthorityFactory and CoordinateOperationContext whose
+instances are mutable and thus can not be used by multiple threads at once."*
+And the implementation honours it: `src/iso19111/*.cpp` contains **zero**
+`mutable` members (only the vendored nlohmann/json has any). The author knew
+the convention and designed for it. One caveat: `DatabaseContext` /
+`AuthorityFactory` mutate their caches from `const` methods *without* the
+`mutable` keyword, through the pimpl loophole — `d` is a
+`std::unique_ptr<Private>`, whose constness is shallow, so
+`createUnitOfMeasure(...) const` inserts into `cacheUOM_` with no `mutable`
+anywhere (`factory.cpp:1064-1067`). Counting `mutable` therefore *undercounts*
+const-mutation; RFC 2's honest class list is the real inventory.
+
+*The C API bridge (where our crashes live).* The caches arrived with RFC 2's
+original `PJ_OBJ` struct (`d928db15`, 2018-11-14), which carried its own
+explicit contract — *"Should be used by at most one thread at a time"* — and
+held `lastWKT` / `lastPROJString` / `gridsNeeded` as **plain members**, since
+`proj_obj_as_wkt()` took a non-const pointer. The design serves the GDAL-style
+C convention of returning a borrowed `const char*` (no caller `free()`, easy
+language bindings): the storage must outlive the call, so it was hung on the
+object, with the documented lifetime *"valid … until a next call to
+proj_as_wkt() with the same input object"* (`c_api.cpp:1611-1613`) — phrasing
+that is single-threaded by construction. The `mutable` keyword appeared two
+weeks later (`cf855b24`, 2018-11-28, "C API extensions and renaming") when the
+signatures were const-ified to `const PJ*` — i.e. the `const` in today's
+signature documents "logically non-modifying", not shareability, and the
+`mutable` is what reconciles the cosmetic constness with the cache. The merge
+of `PJ_OBJ` into `PJconsts` (`53a81c44`, 2018-12-26) is what wired CRS
+descriptions into the context-carrying transformation struct (§5.1). The later
+additions are performance memoizations under the same contract:
+`mutable PJ_TYPE type` (`6a43bee9`, 2021, for `proj_factors()`, #2965) and
+`PJCoordOperation::isInstantiableCached` (`d9503987`, 2023, `proj_trans()`
+regression fix).
+
+**Two consequences for the plan in §6.** First, the underlying C++
+`exportToWKT()` is already const and pure — the mutation exists *only* in the
+wrapper — so the `_alloc` variants (P2) are trivial to implement and the value
+classes need no work at all. Second, because the caches are contract-licensed
+rather than accidental, upstream is entitled to keep the old functions'
+behaviour; the deprecation cycle is the honest route, not a courtesy. On the
+"const implies thread safety" premise itself: C++11 requires it only of the
+standard library (`[res.on.data.races]`); for user types it is convention
+(Sutter's "const means thread-safe", Meyers EMC++ Item 16: mutable members
+used in const functions must be internally synchronised). RFC 2 shows PROJ
+followed the convention where it designed for it and documented its way out
+where it did not — the trap is that a `const PJ*` parameter reads as the
+convention while the contract says otherwise.
+
+
+## 10. Implemented: the full fix, on a local branch (2026-08-30)
+
+Everything §6 asked of PROJ — and considerably more — is now implemented in
+`~/hub/PROJ`, branch `thread-safety` (nine commits on master `3641df4`,
+2026-08-28). **Local only: not pushed, no pull requests**, per explicit
+decision; the branch is the reference implementation for an eventual upstream
+conversation.
+
+What the branch changes, in commit order:
+
+1. **Per-thread default context** (P4). `pj_get_default_ctx()` returns a
+   thread-local clone of a process-wide template; configuration setters on
+   the default context mirror into the template so threads started later
+   inherit it. Fixes §2.2 structurally, makes `proj_context_errno(NULL)`
+   per-thread, keeps `proj_context_create()` semantics.
+2. **`proj_as_wkt_alloc()` / `proj_as_proj_string_alloc()` /
+   `proj_as_projjson_alloc()`** (P2) returning caller-owned strings
+   (`proj_string_destroy()` already existed upstream, added in 8.1). The old
+   three are reimplemented over shared helpers with the per-`PJ` cache behind
+   a new mutex — identical-argument concurrent calls now return stable
+   pointers — and carry `PROJ_DEPRECATED`. `PJ::type` became
+   `std::atomic<PJ_TYPE>` (P3); `gridsNeeded` fills under the same mutex.
+3. **Shareable contexts for coordinate-operation paths.** `last_errno`,
+   `debug_level`, `forceOver`, `defer_grid_opening`, `epsg_file_exists`,
+   `networking.enabled` became atomic; a recursive `lazyMutex` guards
+   `lookupedFiles`, proj.ini loading, `cpp_context` creation and
+   `lastFullErrorMessage`; the ten `DatabaseContext` LRU caches got the
+   `std::mutex` lock policy (P1) and `run()` serializes the whole prepared
+   statement lifecycle.
+4. **`proj_trans()` on a shared transformation** is bit-identical to
+   single-threaded execution: `iCurCoordOp` and the one-shot warning flag are
+   atomic, `cached_op_for_proj_factors` publishes by compare-and-exchange,
+   `isInstantiableCached` is atomic.
+5. **Grid readers** (§5.5, which §6 had written off as thread-affine
+   forever): per-grid / per-dataset I/O mutexes for GTX, NTv1, CTable2, NTv2
+   and GTiff; `reopen()` *retires* replaced grids and datasets instead of
+   destroying them — which also fixed a pre-existing, single-threaded
+   use-after-free (`HorizontalShiftGridSet::reopen()` destroyed the freshly
+   opened set whose file handle and line cache the stolen NTv2 grids still
+   referenced). Deformation-model and TIN-shift evaluators serialize per
+   object.
+6. **`proj_info()` and `proj_rtodms2()`** moved to thread-local state (the
+   new finds from §8).
+7. **`docs/source/development/threads.rst`** states the new contract (P5/P6).
+
+Verification, which is where the honest work was:
+
+* `test/unit/test_thread_safety.cpp` — 24 tests, every documented concurrent
+  pattern, results compared bit-exactly against single-threaded references;
+  covers all five grid formats plus defmodel and tinshift using PROJ's own
+  test grids.
+* Full suite green in the normal build (71/72 — the one failure is a
+  projinfo message text that expects a curl-enabled build).
+* **10× repeats clean under both ThreadSanitizer and ASan+UBSan**, run from
+  out-of-tree build directories with injected flags — deliberately zero
+  build-system changes, since PROJ's CI has only one ASan job and no TSan,
+  and a build change would be a separate, contentious conversation.
+
+The sanitizers earned their keep twice. TSan found `forceOver` being flipped
+transiently around `pj_obj_create()` — a race class the July analysis had
+missed entirely. And ASan caught the one real bug *introduced by the branch*:
+the PROJ-string parser installs a transient, stack-capturing error logger via
+`proj_log_func()`, which under the new template-mirroring left the template
+pointing at a dead stack frame for every later-created thread to inherit —
+stack-use-after-return, and the same corruption crashed TSan's own runtime.
+The parser now installs and restores the handler by direct assignment. Both
+finds are regression-tested.
+
+
+## 11. The GDAL side, given the PROJ branch (audited 2026-08-30)
+
+Audited against GDAL master `c70081f` (2026-08-28, 3.14.0dev). Every §3
+finding is unchanged: the mutating `GetAttrNode` is still unlocked
+(`ogrspatialreference.cpp:1250`), the optional lock still covers one file out
+of 23 (138 sites in `ogrspatialreference.cpp`, zero elsewhere), `Clone()`
+still drops the thread-safe flag (`:1519`), the two unconditional mutexes
+still stand (`:1758`, `:11761`), `g_bForkOccurred` is still a plain bool, and
+`multithreading.rst` still says nothing about `OGRSpatialReference`.
+
+What changes with the PROJ `thread-safety` branch is the *shape* of the fix,
+not the list. Scope below is "projection issues only": the OSR layer, not
+GDAL's driver zoo.
+
+**What GDAL gets for free, with no change.** The §2.2 default-context
+corruption class is gone even for code that passes null contexts; a
+`proj_context_create()` in GDAL's TLS machinery now inherits configuration
+applied to the default context before threads started; and the description
+`PJ` inside `OGRSpatialReference::Private` is safe to *read* concurrently at
+the PROJ level. Every remaining hazard in OSR is GDAL's own lazy state.
+
+**The fix list, reprioritised:**
+
+* **G0 (new, unlocked by the PROJ branch, do first).** Migrate the eleven
+  call sites of `proj_as_wkt` / `proj_as_proj_string` / `proj_as_projjson`
+  (7 in `ogrspatialreference.cpp`, 2 in `ogrct.cpp`, 1 each in
+  `frmts/gtiff/gt_wkt_srs.cpp` and `frmts/hdf5/s100.cpp`) to the `_alloc`
+  variants under `#if PROJ_AT_LEAST_VERSION(9,9,0)` — the version-gating
+  idiom already used throughout `ogrct.cpp`. Then downgrade the two
+  unconditional `std::lock_guard(d->m_mutex)` in `exportToWkt()` and
+  `exportToProj4()` to `TAKE_OPTIONAL_LOCK()`: their comments say explicitly
+  they exist only because "proj_as_wkt() will cache the result internally".
+  This removes permanent serialisation from the two hottest export paths for
+  every GDAL user, thread-safe mode or not — and it is also what keeps a
+  `-Werror` GDAL building against a PROJ that carries the deprecation
+  attributes. Small.
+* **G1.** The one-line missing lock in the mutating `GetAttrNode`. Trivial.
+* **G2.** Move `Private`, `OptionalLockGuard` and `TAKE_OPTIONAL_LOCK` into
+  an internal header and take the guard at the top of each public method in
+  the other 22 files (`ogr_srs_esri/pci/usgs/erm/panorama/ozi/isis/dict/xml`,
+  `ogr_fromepsg`, ...), giving them the whole-operation envelope the
+  recursive mutex was designed for. Mechanical, small-medium.
+* **G3.** Propagate the thread-safe flag in `Clone()`; add `SetThreadSafe()`,
+  `IsThreadSafe()`, `OSRSetThreadSafe()`. Small.
+* **G4.** Value-returning accessors (`GetAttrValueAsString()`,
+  `GetAngularUnitsName()`, `GetEPSGCode()` returning `std::optional<int>`,
+  ...) so callers stop holding interior pointers into the node tree;
+  precedent since 3.9's `std::string exportToWkt()`. Medium.
+* **G5 — still the centrepiece.** `Freeze()` / `IsFrozen()`: materialise
+  `refreshProjObj()`, the node tree, axis mapping and units eagerly, after
+  which const reads need no lock at all and scale linearly instead of the
+  measured 12x regression at 8 threads. The PROJ branch removes its last
+  obstacle: the materialisation can use the `_alloc` exports, and the frozen
+  object's inner `PJ` is genuinely shareable. Medium.
+* **G6.** An OSR section in `multithreading.rst`. Small.
+* **G7 (later, optional).** Opt-in process-wide frozen-CRS cache to stop N
+  threads parsing the same CRS from proj.db independently.
+* **G8.** Minors: `g_bForkOccurred` to `std::atomic<bool>`; `std::unique_lock`
+  in `OSRGetPROJEnableNetwork()`.
+
+**What should deliberately not change.** `OGRCoordinateTransformation`
+remains clone-per-thread: `OGRProjCT` mutates per-object state on the
+`Transform()` hot path (`nErrorCount`, `m_differentOperationsUsed`, the
+selected-operation bookkeeping), and even at the PROJ level a shared
+transformation is serialised, not parallel. The per-thread `PJ_CONTEXT` and
+`OSRProjTLSCache` likewise stay — they are the scalable design. The twelve
+`proj_assign_context()` sites (§3.6) also stay until PROJ some day decouples
+a description `PJ` from its context; they are lifetime management, not a
+race.
+
+**Testing, mirroring the PROJ branch:** an OSR concurrency battery
+(concurrent const reads on a frozen and on a thread-safe SRS, mixed
+readers/writer on a thread-safe SRS exercising the `ogr_srs_*` methods,
+concurrent `exportToWkt`/`exportToProj4` with pointer-stability checks,
+`Clone()`-propagation, plus concurrent
+`OGRCreateCoordinateTransformation()` construction from shared SRS objects),
+run under TSan and ASan from out-of-tree builds. GDAL's CI has ASan but no
+TSan, same as PROJ had.
+
+Altogether this is a far smaller job than the PROJ branch was — roughly a
+tenth of the surface — because GDAL's object model needs no redesign: the
+work is one missing lock, one lock-scope move, additive accessors, `Freeze()`
+and the `_alloc` migration.
+
+
+## 12. Implemented: the GDAL fixes, on a local branch (2026-08-30)
+
+Everything §11 asked for except G7 is now implemented in `~/hub/GDAL`,
+branch `thread-safety` (ten commits on master `c70081f`, 2026-08-28,
+3.14.0dev). **Local only: not pushed, no pull requests**, same standing as
+the PROJ branch in §10, and built and verified against that branch
+(PROJ 9.9.0-dev, `install/`, `install-asan/`, `install-tsan/` prefixes under
+`~/hub/PROJ`). 23 files, +1848/-170 including tests.
+
+What the branch changes, in commit order:
+
+1. **The `_alloc` migration** (G0). All eleven call sites of
+   `proj_as_wkt` / `proj_as_proj_string` / `proj_as_projjson` go through
+   three new helpers in `ogr_proj_p.h` (`OSRProjAsWkt()` & co) returning a
+   caller-owned `OSRProjString`; under `PROJ_AT_LEAST_VERSION(9,9,0)` they
+   use the `_alloc` exports, otherwise they copy the historical functions'
+   results. The two unconditional mutexes in `exportToWkt()` and
+   `exportToProj4()` become `TAKE_OPTIONAL_LOCK()` under the same gate —
+   removing permanent serialisation from the two hottest export paths —
+   and `exportToPROJJSON()`, which had the same defect and *no* lock,
+   is fixed for free.
+2. **G1**: the mutating `GetAttrNode()` takes the optional lock.
+3. **G2**: `Private`, `OptionalLockGuard` and `TAKE_OPTIONAL_LOCK` moved
+   to a new internal header `ogrspatialreference_private.h`; the guard is
+   taken once at the top of the 22 methods implemented in the eleven
+   other files (ESRI, XML, PCI, USGS, ERM, Panorama, Ozi, dict, ISIS,
+   CF-1, `ogr_fromepsg`), giving them the whole-operation envelope.
+4. **G3**: `SetThreadSafe()`, `IsThreadSafe()`, `OSRSetThreadSafe()`,
+   `OSRIsThreadSafe()`; `Clone()` propagates the flag.
+5. **G4**: `GetAttrValueAsString()`, `GetAngularUnitsName()`,
+   `GetLinearUnitsName()`, `GetEPSGCode()` returning `std::optional<int>`.
+6. **G5 — `Freeze()` / `IsFrozen()`** (+ C API). Materialises the node
+   tree, norm info, units, prime meridian, axis names, area and celestial
+   body names while the object is still thread-private, then forbids
+   modification: all ~120 public mutators check the flag at entry (the
+   `OGRErr`-returning ones fail with `OGRERR_FAILURE`), and the mutation
+   funnels in `Private` (`clear`, `setPjCRS`, `setRoot`, `nodesChanged`)
+   carry safety-net checks. Design decisions worth recording: a frozen
+   **BoundCRS** falls back on the thread-safe mode, because reading one
+   demotes it to its base CRS and back; `Clone()` of a frozen SRS is
+   deliberately *not* frozen (a writable private copy); and on a frozen
+   SRS the `GetAttrNode("...CONVERSION...")` paths that would swap the
+   node tree for its WKT2 form return nullptr instead.
+7. **G6/G8**: an OSR section in `multithreading.rst` stating the per-type
+   rules; `g_bForkOccurred` becomes `std::atomic<bool>`; the manual
+   `unlock()`/`lock()` of a guard-held mutex in
+   `OSRGetPROJEnableNetwork()` becomes a `std::unique_lock`.
+8. **The test battery**: `autotest/cpp/test_osr_threadsafety.cpp`, ten
+   tests mirroring the PROJ approach — eight threads, results compared
+   bit-exactly against single-threaded references — covering concurrent
+   exports on a shared plain SRS, concurrent reads on a thread-safe SRS
+   including the `ogr_srs_*` methods, readers against a writer
+   alternating full definitions, the lazy node-tree first build, frozen
+   lock-free reads, mutation refusal, `Clone()` propagation, the BoundCRS
+   fallback, and concurrent `OGRCreateCoordinateTransformation()` from
+   shared frozen objects.
+
+G7 (the opt-in process-wide frozen-CRS cache) remains future work, as
+planned. Everything §11 said should *not* change — clone-per-thread
+transformations, per-thread contexts, the `proj_assign_context()`
+lifetime sites — is unchanged.
+
+TSan earned its keep here exactly as it did on the PROJ branch, catching
+two real bugs in the branch's own first draft (both fixed in the
+ninth commit):
+
+* `demoteFromBoundCRS()` / `undoDemoteFromBoundCRS()` wrote their
+  bookkeeping flags even when there was nothing to demote — a write on
+  every const read path. Invisible while the export paths serialised
+  unconditionally, it became a genuine data race the moment G0 removed
+  that lock. The fix — move the writes inside the BoundCRS branch — is
+  what §3.5's "freeze" analysis should have demanded outright: the no-op
+  demote path is now write-free for *every* caller, not just frozen ones.
+* `OptionalLockGuard` decided whether to unlock by re-reading
+  `m_bIsThreadSafe` at destruction, so `Freeze()` flipping the flag
+  mid-guard (the BoundCRS fallback) unlocked a never-locked mutex. The
+  guard now remembers its construction-time decision.
+
+Verification, all against the PROJ `thread-safety` branch:
+
+| check | result |
+|---|---|
+| full `gdal_unit_test`, normal build | 1004/1004 pass |
+| `ctest` (34 targets) | 34/34 pass |
+| battery + all OSR suites under TSan, 10× | 0 warnings |
+| battery under ASan+UBSan, 10× | 0 errors |
+| full `gdal_unit_test` under ASan+UBSan | 1003/1003 pass, 0 errors¹ |
+
+¹ Two pre-existing, branch-unrelated exclusions: `gdal_unit_test`'s own
+`main()` leaks the `GDALGeneralCmdLineProcessor` argument copy (39 bytes,
+reproducible with untouched tests only), and `test_cpl.CPLSpawn` trips
+ASan's `posix_spawn` interceptor inside unmodified CPL code.
+
+Two reproducers were added to [`thread-safety/`](thread-safety/) for the
+before/after evidence:
+
+**`srs_mixed.cpp`** — five readers running `exportToPCI()` and
+`exportToWkt()` against one writer alternating `importFromEPSG()` on a
+shared **thread-safe** SRS, i.e. entirely within the documented contract
+of the existing opt-in mode. On unpatched GDAL 3.12.1 it segfaults in
+seconds — `exportToPCI() → GetAttrValue() → OGR_SRSNode::GetNode()`
+dereferencing the tree the writer freed, the exact §3.1 failure — which
+upgrades that finding from "established by inspection" (§2.3) to
+reproduced. On the branch: 40k reads against 55k writes, zero torn
+results, clean exit.
+
+**`srs_scale.cpp`** grew `tsafe` and `frozen` modes. `exportToWkt()`/s on
+the same 24-core host, 3-second runs, branch GDAL + branch PROJ:
+
+| mode | 1 | 2 | 4 | 8 | 16 |
+|---|---:|---:|---:|---:|---:|
+| `tsafe` (shared, mutex) | 90 485 | 83 079 | 108 609 | 100 396 | 83 549 |
+| **`frozen` (shared, lock-free)** | 91 657 | 177 678 | 691 250 | 1 246 593 | **1 573 875** |
+| `percpu` (private clones) | 91 925 | 179 261 | 677 121 | 1 215 294 | 1 530 694 |
+| `shared` (plain, post-G0 exports) | 91 278 | 178 315 | 665 647 | 1 242 851 | 1 599 240 |
+
+A frozen shared object now scales indistinguishably from private clones —
+18.8× the mutex mode at sixteen threads — with none of the per-thread
+memory. The `shared` row shows G0 alone already de-serialised the export
+paths; `Freeze()` is what extends that guarantee to every const method
+and turns accidental safety into a contract. (The single-thread rate is
+lower than §3.5's 124k because these runs use the debug-heavy dev builds.)
+
+For SmartMet this closes the loop opened in §4.2: once this GDAL is
+deployed, `OGRSpatialReferenceFactory::make_crs()` can call `Freeze()`
+on the master objects, and the per-thread sample stores keep working
+unchanged — clones of a frozen master are writable by design.
