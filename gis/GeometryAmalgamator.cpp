@@ -35,7 +35,7 @@ CDT::VertInd add_vertex(const OGRPoint& pt,
     return it->second;
 
   auto idx = static_cast<CDT::VertInd>(vertices.size());
-  vertices.push_back(CDT::V2d<double>(pt.getX(), pt.getY()));
+  vertices.emplace_back(pt.getX(), pt.getY());
   vertex_map.insert({pt, idx});
   return idx;
 }
@@ -76,14 +76,14 @@ void extract_ring(const OGRLineString* ring,
                      pt1.getY() + t * (pt2.getY() - pt1.getY()));
         auto mid_idx = add_vertex(mid, vertex_map, vertices);
         if (prev_idx != mid_idx)
-          edges.push_back(CDT::Edge(prev_idx, mid_idx));
+          edges.emplace_back(prev_idx, mid_idx);
         prev_idx = mid_idx;
       }
     }
 
     auto cur_idx = add_vertex(pt2, vertex_map, vertices);
     if (prev_idx != cur_idx)
-      edges.push_back(CDT::Edge(prev_idx, cur_idx));
+      edges.emplace_back(prev_idx, cur_idx);
     prev_idx = cur_idx;
     pt1 = pt2;
   }

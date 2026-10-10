@@ -140,6 +140,7 @@ FMI GIS library static library
 %changelog
 * Sat Oct 10 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.10-1.fmi
 - Use auto and return {} where clang-tidy suggests it, no functional changes
+- Use emplace and C++ standard library headers where clang-tidy suggests it, no functional changes
 
 * Sun Oct 04 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.4-1.fmi
 - OGRSpatialReferenceFactory::Create() hands every caller its own spatial reference instead of a pointer to one process-wide cached object. Concurrent modification of a shared spatial reference corrupted the heap, and the API invited it by returning a mutable pointer. SpatialReferenceOwnershipTest reproduces the old failure.

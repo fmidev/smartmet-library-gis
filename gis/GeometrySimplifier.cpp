@@ -57,7 +57,7 @@ std::vector<bool> simplify_vw(const std::vector<OGRPoint>& pts, double tolerance
   std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> heap;
 
   for (int i = 1; i < n - 1; i++)
-    heap.push({areas[i], i});
+    heap.emplace(areas[i], i);
 
   double last_removed_area = 0;
 
@@ -92,7 +92,7 @@ std::vector<bool> simplify_vw(const std::vector<OGRPoint>& pts, double tolerance
     {
       double new_area = triangle_area(pts[prev[p]], pts[p], pts[next[p]]);
       areas[p] = std::max(new_area, last_removed_area);  // monotonicity rule
-      heap.push({areas[p], p});
+      heap.emplace(areas[p], p);
     }
 
     // Update area of next neighbor (if it's an interior point)
@@ -100,7 +100,7 @@ std::vector<bool> simplify_vw(const std::vector<OGRPoint>& pts, double tolerance
     {
       double new_area = triangle_area(pts[prev[nx]], pts[nx], pts[next[nx]]);
       areas[nx] = std::max(new_area, last_removed_area);  // monotonicity rule
-      heap.push({areas[nx], nx});
+      heap.emplace(areas[nx], nx);
     }
   }
 
