@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.10.4
+Version: 26.10.10
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -138,6 +138,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Sat Oct 10 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.10-1.fmi
+- Use auto and return {} where clang-tidy suggests it, no functional changes
+
 * Sun Oct 04 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.4-1.fmi
 - OGRSpatialReferenceFactory::Create() hands every caller its own spatial reference instead of a pointer to one process-wide cached object. Concurrent modification of a shared spatial reference corrupted the heap, and the API invited it by returning a mutable pointer. SpatialReferenceOwnershipTest reproduces the old failure.
 - Clones come from a per-thread sample cloned once from a master object, so the steady-state path takes no lock. SetSampleStoreSize() bounds the per-thread sample count (default 64).

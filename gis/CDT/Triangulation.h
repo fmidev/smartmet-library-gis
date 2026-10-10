@@ -1056,7 +1056,7 @@ void Triangulation<T, TNearPointLocator>::insertVertices(
         addSuperTriangle(box);
     }
     tryInitNearestPointLocator();
-    const VertInd nExistingVerts = static_cast<VertInd>(vertices.size());
+    const auto nExistingVerts = static_cast<VertInd>(vertices.size());
 
     for(TVertexIter it = first; it != last; ++it)
         addNewVertex(V2d<T>(getX(*it), getY(*it)), noNeighbor);

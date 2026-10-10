@@ -160,7 +160,7 @@ public:
                 point_data_vec& c1data = m_nodes[c1].data;
                 point_data_vec& c2data = m_nodes[c2].data;
                 // move node's points to children
-                for(pd_cit it = n.data.begin(); it != n.data.end(); ++it)
+                for (auto it = n.data.begin(); it != n.data.end(); ++it)
                 {
                     whichChild(points[*it], mid, dir) == 0
                         ? c1data.push_back(*it)
@@ -205,16 +205,16 @@ public:
             const Node& n = m_nodes[t.node];
             if(n.isLeaf())
             {
-                for(pd_cit it = n.data.begin(); it != n.data.end(); ++it)
+              for (auto it = n.data.begin(); it != n.data.end(); ++it)
+              {
+                const point_type& p = points[*it];
+                const coord_type distSq = CDT::distanceSquared(point, p);
+                if (distSq < minDistSq)
                 {
-                    const point_type& p = points[*it];
-                    const coord_type distSq = CDT::distanceSquared(point, p);
-                    if(distSq < minDistSq)
-                    {
-                        minDistSq = distSq;
-                        out.first = p;
-                        out.second = *it;
-                    }
+                  minDistSq = distSq;
+                  out.first = p;
+                  out.second = *it;
+                }
                 }
             }
             else
@@ -289,9 +289,9 @@ private:
     /// Add a new node and return it's index in nodes buffer
     node_index addNewNode()
     {
-        const node_index newNodeIndex = static_cast<node_index>(m_nodes.size());
-        m_nodes.push_back(Node());
-        return newNodeIndex;
+      const auto newNodeIndex = static_cast<node_index>(m_nodes.size());
+      m_nodes.push_back(Node());
+      return newNodeIndex;
     }
 
     static bool isAfterSplit(
@@ -394,7 +394,7 @@ private:
         const point_data_vec& data = m_nodes[m_root].data;
         m_min = points[data.front()];
         m_max = m_min;
-        for(pd_cit it = data.begin(); it != data.end(); ++it)
+        for (auto it = data.begin(); it != data.end(); ++it)
         {
             const point_type& p = points[*it];
             m_min = point_type(std::min(m_min.x, p.x), std::min(m_min.y, p.y));

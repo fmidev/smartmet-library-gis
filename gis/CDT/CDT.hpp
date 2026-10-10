@@ -25,7 +25,7 @@ CDT_INLINE_IF_HEADER_ONLY VerticesTriangles calculateTrianglesByVertex(
     for(TriInd iT(0); iT < triangles.size(); ++iT)
     {
         const VerticesArr3& vv = triangles[iT].vertices;
-        for(VerticesArr3::const_iterator v = vv.begin(); v != vv.end(); ++v)
+        for (auto v = vv.begin(); v != vv.end(); ++v)
         {
             vertTris[*v].push_back(iT);
         }
@@ -75,7 +75,7 @@ extractEdgesFromTriangles(const TriangleVec& triangles)
 {
     EdgeUSet edges;
     typedef TriangleVec::const_iterator CIt;
-    for(CIt t = triangles.begin(); t != triangles.end(); ++t)
+    for (auto t = triangles.begin(); t != triangles.end(); ++t)
     {
         edges.insert(Edge(VertInd(t->vertices[0]), VertInd(t->vertices[1])));
         edges.insert(Edge(VertInd(t->vertices[1]), VertInd(t->vertices[2])));
@@ -89,14 +89,11 @@ EdgeToPiecesMapping(const unordered_map<Edge, EdgeVec>& pieceToOriginals)
 {
     unordered_map<Edge, EdgeVec> originalToPieces;
     typedef unordered_map<Edge, EdgeVec>::const_iterator Cit;
-    for(Cit ptoIt = pieceToOriginals.begin(); ptoIt != pieceToOriginals.end();
-        ++ptoIt)
+    for (auto ptoIt = pieceToOriginals.begin(); ptoIt != pieceToOriginals.end(); ++ptoIt)
     {
         const Edge piece = ptoIt->first;
         const EdgeVec& originals = ptoIt->second;
-        for(EdgeVec::const_iterator origIt = originals.begin();
-            origIt != originals.end();
-            ++origIt)
+        for (auto origIt = originals.begin(); origIt != originals.end(); ++origIt)
         {
             originalToPieces[*origIt].push_back(piece);
         }

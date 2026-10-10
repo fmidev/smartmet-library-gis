@@ -32,7 +32,7 @@ public:
         V2d_t min = points.front();
         V2d_t max = min;
         typedef typename std::vector<V2d_t>::const_iterator Cit;
-        for(Cit it = points.begin(); it != points.end(); ++it)
+        for (auto it = points.begin(); it != points.end(); ++it)
         {
             min = V2d_t(std::min(min.x, it->x), std::min(min.y, it->y));
             max = V2d_t(std::max(max.x, it->x), std::max(max.y, it->y));

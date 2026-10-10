@@ -77,10 +77,9 @@ void selection_sort(
     for(--lm1; first != lm1; ++first)
     {
 #ifdef CDT_CXX11_IS_SUPPORTED
-        BirdirectionalIterator i = std::min_element<
-            BirdirectionalIterator,
-            typename std::add_lvalue_reference<Compare>::type>(
-            first, last, comp);
+      auto i =
+          std::min_element<BirdirectionalIterator,
+                           typename std::add_lvalue_reference<Compare>::type>(first, last, comp);
 #else
         BirdirectionalIterator i = std::min_element<
             BirdirectionalIterator,

@@ -224,10 +224,10 @@ bool isInCircumcircle(
 CDT_INLINE_IF_HEADER_ONLY
 bool verticesShareEdge(const TriIndVec& aTris, const TriIndVec& bTris)
 {
-    for(TriIndVec::const_iterator it = aTris.begin(); it != aTris.end(); ++it)
-        if(std::find(bTris.begin(), bTris.end(), *it) != bTris.end())
-            return true;
-    return false;
+  for (auto it = aTris.begin(); it != aTris.end(); ++it)
+    if (std::find(bTris.begin(), bTris.end(), *it) != bTris.end())
+      return true;
+  return false;
 }
 
 template <typename T>

@@ -163,7 +163,7 @@ void Triangulation<T, TNearPointLocator>::removeTriangles(
         Triangle& t = triangles[iT];
         // update neighbors to account for removed triangles
         NeighborsArr3& nn = t.neighbors;
-        for(NeighborsArr3::iterator n = nn.begin(); n != nn.end(); ++n)
+        for (auto n = nn.begin(); n != nn.end(); ++n)
         {
             if(removedTriangles.count(*n))
             {
@@ -203,7 +203,7 @@ void Triangulation<T, TNearPointLocator>::finalizeTriangulation(
         { // fixed edges
             EdgeUSet updatedFixedEdges;
             typedef CDT::EdgeUSet::const_iterator It;
-            for(It e = fixedEdges.begin(); e != fixedEdges.end(); ++e)
+            for (auto e = fixedEdges.begin(); e != fixedEdges.end(); ++e)
             {
                 updatedFixedEdges.insert(RemapNoSuperTriangle(*e));
             }
@@ -213,7 +213,7 @@ void Triangulation<T, TNearPointLocator>::finalizeTriangulation(
             unordered_map<Edge, BoundaryOverlapCount> updatedOverlapCount;
             typedef unordered_map<Edge, BoundaryOverlapCount>::const_iterator
                 It;
-            for(It it = overlapCount.begin(); it != overlapCount.end(); ++it)
+            for (auto it = overlapCount.begin(); it != overlapCount.end(); ++it)
             {
                 updatedOverlapCount.insert(
                     std::make_pair(
@@ -224,12 +224,10 @@ void Triangulation<T, TNearPointLocator>::finalizeTriangulation(
         { // split edges mapping
             unordered_map<Edge, EdgeVec> updatedPieceToOriginals;
             typedef unordered_map<Edge, EdgeVec>::const_iterator It;
-            for(It it = pieceToOriginals.begin(); it != pieceToOriginals.end();
-                ++it)
+            for (auto it = pieceToOriginals.begin(); it != pieceToOriginals.end(); ++it)
             {
                 EdgeVec ee = it->second;
-                for(EdgeVec::iterator eeIt = ee.begin(); eeIt != ee.end();
-                    ++eeIt)
+                for (auto eeIt = ee.begin(); eeIt != ee.end(); ++eeIt)
                 {
                     *eeIt = RemapNoSuperTriangle(*eeIt);
                 }
@@ -244,14 +242,13 @@ void Triangulation<T, TNearPointLocator>::finalizeTriangulation(
     // adjust triangle vertices: account for removed super-triangle
     if(m_superGeomType == SuperGeometryType::SuperTriangle)
     {
-        for(TriangleVec::iterator t = triangles.begin(); t != triangles.end();
-            ++t)
+      for (auto t = triangles.begin(); t != triangles.end(); ++t)
+      {
+        VerticesArr3& vv = t->vertices;
+        for (auto v = vv.begin(); v != vv.end(); ++v)
         {
-            VerticesArr3& vv = t->vertices;
-            for(VerticesArr3::iterator v = vv.begin(); v != vv.end(); ++v)
-            {
-                *v -= nSuperTriangleVertices;
-            }
+          *v -= nSuperTriangleVertices;
+        }
         }
     }
 }
@@ -346,7 +343,7 @@ void insert_unique(
 {
     typedef typename std::vector<T, Allocator2>::const_iterator Cit;
     to.reserve(to.size() + from.size());
-    for(Cit cit = from.begin(); cit != from.end(); ++cit)
+    for (auto cit = from.begin(); cit != from.end(); ++cit)
     {
         insert_unique(to, *cit);
     }
@@ -368,7 +365,7 @@ void Triangulation<T, TNearPointLocator>::splitFixedEdge(
     fixEdge(half2);
     // maintain overlaps
     typedef unordered_map<Edge, BoundaryOverlapCount>::const_iterator It;
-    const It overlapIt = overlapCount.find(edge);
+    const auto overlapIt = overlapCount.find(edge);
     if(overlapIt != overlapCount.end())
     {
         overlapCount[half1] += overlapIt->second;
@@ -377,8 +374,7 @@ void Triangulation<T, TNearPointLocator>::splitFixedEdge(
     }
     // maintain piece-to-original mapping
     EdgeVec newOriginals(1, edge);
-    const unordered_map<Edge, EdgeVec>::const_iterator originalsIt =
-        pieceToOriginals.find(edge);
+    const auto originalsIt = pieceToOriginals.find(edge);
     if(originalsIt != pieceToOriginals.end())
     { // edge being split was split before: pass-through originals
         newOriginals = originalsIt->second;
@@ -395,7 +391,7 @@ VertInd Triangulation<T, TNearPointLocator>::addSplitEdgeVertex(
     const TriInd iTopo)
 {
     // add a new point on the edge that splits an edge in two
-    const VertInd iSplitVert = static_cast<VertInd>(vertices.size());
+    const auto iSplitVert = static_cast<VertInd>(vertices.size());
     addNewVertex(splitVert, noNeighbor);
 
 #ifdef CDT_ENABLE_CALLBACK_HANDLER
@@ -825,7 +821,7 @@ void Triangulation<T, TNearPointLocator>::conformToEdgeIteration(
     }
 
     // add mid-point to triangulation
-    const VertInd iMid = static_cast<VertInd>(vertices.size());
+    const auto iMid = static_cast<VertInd>(vertices.size());
     const V2d<T>& start = vertices[iA];
     const V2d<T>& end = vertices[iB];
     addNewVertex(
@@ -852,16 +848,13 @@ void Triangulation<T, TNearPointLocator>::conformToEdgeIteration(
 
     // re-introduce fixed edges that were flipped
     // and make sure overlap count is preserved
-    for(std::vector<Edge>::const_iterator it = flippedFixedEdges.begin();
-        it != flippedFixedEdges.end();
-        ++it)
+    for (auto it = flippedFixedEdges.begin(); it != flippedFixedEdges.end(); ++it)
     {
         const Edge& flippedFixedEdge = *it;
         fixedEdges.erase(flippedFixedEdge);
 
         BoundaryOverlapCount prevOverlaps = 0;
-        const unordered_map<Edge, BoundaryOverlapCount>::const_iterator
-            overlapsIt = overlapCount.find(flippedFixedEdge);
+        const auto overlapsIt = overlapCount.find(flippedFixedEdge);
         if(overlapsIt != overlapCount.end())
         {
             prevOverlaps = overlapsIt->second;
@@ -869,8 +862,7 @@ void Triangulation<T, TNearPointLocator>::conformToEdgeIteration(
         }
         // override overlapping boundaries count when re-inserting an edge
         EdgeVec prevOriginals(1, flippedFixedEdge);
-        const unordered_map<Edge, EdgeVec>::const_iterator originalsIt =
-            pieceToOriginals.find(flippedFixedEdge);
+        const auto originalsIt = pieceToOriginals.find(flippedFixedEdge);
         if(originalsIt != pieceToOriginals.end())
         {
             prevOriginals = originalsIt->second;
@@ -1536,7 +1528,7 @@ array<TriInd, 2>
 Triangulation<T, TNearPointLocator>::trianglesAt(const V2d<T>& pos) const
 {
     array<TriInd, 2> out = {noNeighbor, noNeighbor};
-    for(TriInd i = TriInd(0); i < TriInd(triangles.size()); ++i)
+    for (auto i = TriInd(0); i < TriInd(triangles.size()); ++i)
     {
         const Triangle& t = triangles[i];
         const V2d<T>& v1 = vertices[t.vertices[0]];
@@ -1819,13 +1811,11 @@ Triangulation<T, TNearPointLocator>::peelLayer(
                 continue;
             if(fixedEdges.count(opEdge))
             {
-                const unordered_map<Edge, LayerDepth>::const_iterator cit =
-                    overlapCount.find(opEdge);
-                const LayerDepth triDepth = cit == overlapCount.end()
-                                                ? layerDepth + 1
-                                                : layerDepth + cit->second + 1;
-                behindBoundary[iN] = triDepth;
-                continue;
+              const auto cit = overlapCount.find(opEdge);
+              const LayerDepth triDepth =
+                  cit == overlapCount.end() ? layerDepth + 1 : layerDepth + cit->second + 1;
+              behindBoundary[iN] = triDepth;
+              continue;
             }
             seeds.push(iN);
         }
@@ -1851,7 +1841,7 @@ Triangulation<T, TNearPointLocator>::calculateTriangleDepths() const
 
         seedsByDepth.erase(layerDepth);
         typedef unordered_map<TriInd, LayerDepth>::const_iterator Iter;
-        for(Iter it = newSeeds.begin(); it != newSeeds.end(); ++it)
+        for (auto it = newSeeds.begin(); it != newSeeds.end(); ++it)
         {
             deepestSeedDepth = std::max(deepestSeedDepth, it->second);
             seedsByDepth[it->second].insert(it->first);
@@ -1898,7 +1888,7 @@ void Triangulation<T, TNearPointLocator>::insertVertices_Randomized(
     std::vector<VertInd> ii(vertexCount);
     detail::iota(ii.begin(), ii.end(), superGeomVertCount);
     detail::random_shuffle(ii.begin(), ii.end());
-    for(std::vector<VertInd>::iterator it = ii.begin(); it != ii.end(); ++it)
+    for (auto it = ii.begin(); it != ii.end(); ++it)
     {
 #ifdef CDT_ENABLE_CALLBACK_HANDLER
         if(m_callbackHandler && m_callbackHandler->isAbortCalculation())
@@ -1933,10 +1923,8 @@ inline std::size_t maxQueueLengthBFSKDTree(const std::size_t vertexCount)
 {
     const int filledLayerPow2 =
         static_cast<int>(std::floor(log2_bc(vertexCount)) - 1);
-    const std::size_t nodesInFilledTree =
-        static_cast<std::size_t>(std::pow(2., filledLayerPow2 + 1) - 1);
-    const std::size_t nodesInLastFilledLayer =
-        static_cast<std::size_t>(std::pow(2., filledLayerPow2));
+    const auto nodesInFilledTree = static_cast<std::size_t>(std::pow(2., filledLayerPow2 + 1) - 1);
+    const auto nodesInLastFilledLayer = static_cast<std::size_t>(std::pow(2., filledLayerPow2));
     const std::size_t nodesInLastLayer = vertexCount - nodesInFilledTree;
     return nodesInLastLayer >= nodesInLastFilledLayer
                ? nodesInLastFilledLayer + nodesInLastLayer -
@@ -2071,7 +2059,7 @@ void Triangulation<T, TNearPointLocator>::insertVertices_KDTreeBFS(
             insertVertex(*first, parent);
             continue;
         }
-        const It midIt = first + len / 2;
+        const auto midIt = first + len / 2;
         if(box.max.x - box.min.x >= box.max.y - box.min.y)
         {
             detail::portable_nth_element(first, midIt, last, cmpX);

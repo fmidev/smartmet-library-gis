@@ -396,7 +396,7 @@ unordered_map<Edge, std::vector<VertInd> > EdgeToSplitVertices(
 
     unordered_map<Edge, std::vector<VertInd> > edgeToSplitVerts;
     typedef unordered_map<Edge, EdgeVec>::const_iterator It;
-    for(It e2pIt = edgeToPieces.begin(); e2pIt != edgeToPieces.end(); ++e2pIt)
+    for (auto e2pIt = edgeToPieces.begin(); e2pIt != edgeToPieces.end(); ++e2pIt)
     {
         const Edge& e = e2pIt->first;
         const T dX = vertices[e.v2()].x - vertices[e.v1()].x;
@@ -409,11 +409,11 @@ unordered_map<Edge, std::vector<VertInd> > EdgeToSplitVertices(
         // size is:  2[ends] + (pieces - 1)[split vertices] = pieces + 1
         splitVerts.reserve(pieces.size() + 1);
         typedef EdgeVec::const_iterator EIt;
-        for(EIt pieceIt = pieces.begin(); pieceIt != pieces.end(); ++pieceIt)
+        for (auto pieceIt = pieces.begin(); pieceIt != pieces.end(); ++pieceIt)
         {
             const array<VertInd, 2> vv = {pieceIt->v1(), pieceIt->v2()};
             typedef array<VertInd, 2>::const_iterator VIt;
-            for(VIt v = vv.begin(); v != vv.end(); ++v)
+            for (auto v = vv.begin(); v != vv.end(); ++v)
             {
                 const T c = isX ? vertices[*v].x : vertices[*v].y;
                 splitVerts.push_back(std::make_pair(*v, isAscending ? c : -c));
