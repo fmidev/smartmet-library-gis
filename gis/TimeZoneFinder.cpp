@@ -57,6 +57,7 @@ std::int64_t grid_start(std::int64_t theIndex, std::int64_t theOffset, std::int6
  */
 // ----------------------------------------------------------------------
 
+// NOLINTNEXTLINE(cert-dcl50-cpp): signature required by the GEOS C API
 void geos_message(const char* /* fmt */, ...) {}
 
 class GeosContext
