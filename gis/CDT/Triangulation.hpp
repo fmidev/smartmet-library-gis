@@ -202,7 +202,6 @@ void Triangulation<T, TNearPointLocator>::finalizeTriangulation(
         // Edge re-mapping
         { // fixed edges
             EdgeUSet updatedFixedEdges;
-            typedef CDT::EdgeUSet::const_iterator It;
             for (auto e = fixedEdges.begin(); e != fixedEdges.end(); ++e)
             {
                 updatedFixedEdges.insert(RemapNoSuperTriangle(*e));
@@ -211,8 +210,6 @@ void Triangulation<T, TNearPointLocator>::finalizeTriangulation(
         }
         { // overlap count
             unordered_map<Edge, BoundaryOverlapCount> updatedOverlapCount;
-            typedef unordered_map<Edge, BoundaryOverlapCount>::const_iterator
-                It;
             for (auto it = overlapCount.begin(); it != overlapCount.end(); ++it)
             {
                 updatedOverlapCount.insert(
@@ -223,7 +220,6 @@ void Triangulation<T, TNearPointLocator>::finalizeTriangulation(
         }
         { // split edges mapping
             unordered_map<Edge, EdgeVec> updatedPieceToOriginals;
-            typedef unordered_map<Edge, EdgeVec>::const_iterator It;
             for (auto it = pieceToOriginals.begin(); it != pieceToOriginals.end(); ++it)
             {
                 EdgeVec ee = it->second;
@@ -341,7 +337,6 @@ void insert_unique(
     std::vector<T, Allocator1>& to,
     const std::vector<T, Allocator2>& from)
 {
-    typedef typename std::vector<T, Allocator2>::const_iterator Cit;
     to.reserve(to.size() + from.size());
     for (auto cit = from.begin(); cit != from.end(); ++cit)
     {
@@ -364,7 +359,6 @@ void Triangulation<T, TNearPointLocator>::splitFixedEdge(
     fixEdge(half1);
     fixEdge(half2);
     // maintain overlaps
-    typedef unordered_map<Edge, BoundaryOverlapCount>::const_iterator It;
     const auto overlapIt = overlapCount.find(edge);
     if(overlapIt != overlapCount.end())
     {
@@ -1840,7 +1834,6 @@ Triangulation<T, TNearPointLocator>::calculateTriangleDepths() const
             peelLayer(seeds, layerDepth, triDepths);
 
         seedsByDepth.erase(layerDepth);
-        typedef unordered_map<TriInd, LayerDepth>::const_iterator Iter;
         for (auto it = newSeeds.begin(); it != newSeeds.end(); ++it)
         {
             deepestSeedDepth = std::max(deepestSeedDepth, it->second);
