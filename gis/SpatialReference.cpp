@@ -56,18 +56,6 @@ class SpatialReference::Impl
 
   Impl &operator=(const Impl &other) = delete;
 
-  explicit Impl(OGRSpatialReference &other)
-  {
-    try
-    {
-      init(const_cast<const OGRSpatialReference &>(other));
-    }
-    catch (...)
-    {
-      throw Fmi::Exception::Trace(BCP, "Operation failed!");
-    }
-  }
-
   explicit Impl(const std::shared_ptr<OGRSpatialReference> &other)
   {
     try

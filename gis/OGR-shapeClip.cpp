@@ -187,7 +187,7 @@ int do_circle(const OGRLineString *theGeom,
 
 void do_polygon_to_linestrings(const OGRPolygon *theGeom,
                                GeometryBuilder &theBuilder,
-                               Shape_sptr &theShape,
+                               const Shape_sptr& theShape,
                                bool keep_inside)
 {
   try
@@ -310,7 +310,7 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
 
 void do_polygon_to_polygons(const OGRPolygon *theGeom,
                             GeometryBuilder &theBuilder,
-                            Shape_sptr &theShape,
+                            const Shape_sptr& theShape,
                             double max_length,
                             bool keep_inside)
 {
@@ -457,7 +457,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
 
 void do_polygon(const OGRPolygon *theGeom,
                 GeometryBuilder &theBuilder,
-                Shape_sptr &theShape,
+                const Shape_sptr& theShape,
                 double max_length,
                 bool keep_polygons,
                 bool keep_inside)
@@ -477,7 +477,7 @@ void do_polygon(const OGRPolygon *theGeom,
 
 void do_linestring(const OGRLineString *theGeom,
                    GeometryBuilder &theBuilder,
-                   Shape_sptr &theShape,
+                   const Shape_sptr& theShape,
                    bool keep_inside)
 {
   try
@@ -515,7 +515,7 @@ void do_linestring(const OGRLineString *theGeom,
 
 void do_multipoint(const OGRMultiPoint *theGeom,
                    GeometryBuilder &theBuilder,
-                   Shape_sptr &theShape,
+                   const Shape_sptr& theShape,
                    bool keep_inside)
 {
   try
@@ -536,7 +536,7 @@ void do_multipoint(const OGRMultiPoint *theGeom,
 
 void do_multilinestring(const OGRMultiLineString *theGeom,
                         GeometryBuilder &theBuilder,
-                        Shape_sptr &theShape,
+                        const Shape_sptr& theShape,
                         bool keep_inside)
 {
   try
@@ -557,7 +557,7 @@ void do_multilinestring(const OGRMultiLineString *theGeom,
 
 void do_multipolygon(const OGRMultiPolygon *theGeom,
                      GeometryBuilder &theBuilder,
-                     Shape_sptr &theShape,
+                     const Shape_sptr& theShape,
                      double max_length,
                      bool keep_polygons,
                      bool keep_inside)

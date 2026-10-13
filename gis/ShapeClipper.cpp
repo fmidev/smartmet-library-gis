@@ -136,11 +136,11 @@ void removeDoubles(OGRLineString &line)
   }
 }
 
-void removeDoubles(std::list<OGRLineString *> &lines)
+void removeDoubles(const std::list<OGRLineString*>& lines)
 {
   try
   {
-    for (auto &line : lines)
+    for (const auto& line : lines)
       removeDoubles(*line);
   }
   catch (...)
