@@ -1086,7 +1086,10 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
         const int np = run->getNumPoints();
         if (np < 2)
           return;
-        double px = NAN, py = NAN, dx = NAN, dy = NAN;
+        double px = NAN;
+        double py = NAN;
+        double dx = NAN;
+        double dy = NAN;
         if (atFront)
         {
           px = run->getX(0);

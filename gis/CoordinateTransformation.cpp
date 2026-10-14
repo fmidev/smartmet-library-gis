@@ -285,7 +285,10 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
       if (projector.hasProjectedBounds())
       {
-        double minX = NAN, minY = NAN, maxX = NAN, maxY = NAN;
+        double minX = NAN;
+        double minY = NAN;
+        double maxX = NAN;
+        double maxY = NAN;
         projector.getProjectedBounds(minX, minY, maxX, maxY);
 
         OGREnvelope env;
