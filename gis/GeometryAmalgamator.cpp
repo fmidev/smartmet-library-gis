@@ -194,8 +194,7 @@ double polygon_area_km2(const OGRPolygon* poly)
     area_m2 -= ha;
   }
 
-  if (area_m2 < 0)
-    area_m2 = 0;
+  area_m2 = std::max<double>(area_m2, 0);
 
   // Convert to km^2. For geographic, area_m2 is already in m^2; for planar
   // (assumed metric) the same conversion applies.
@@ -516,10 +515,10 @@ void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
       er.ymin = er.ymax = r[0].y;
       for (const auto& p : r)
       {
-        if (p.x < er.xmin) er.xmin = p.x;
-        if (p.x > er.xmax) er.xmax = p.x;
-        if (p.y < er.ymin) er.ymin = p.y;
-        if (p.y > er.ymax) er.ymax = p.y;
+        er.xmin = std::min(p.x, er.xmin);
+        er.xmax = std::max(p.x, er.xmax);
+        er.ymin = std::min(p.y, er.ymin);
+        er.ymax = std::max(p.y, er.ymax);
       }
       er.pts = std::move(r);
       exteriors.push_back(std::move(er));

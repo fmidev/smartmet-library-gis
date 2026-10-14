@@ -13,6 +13,7 @@
 #include <macgyver/Hash.h>
 #include <gdal_version.h>
 #include <limits>
+#include <cmath>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 
@@ -284,7 +285,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
       if (projector.hasProjectedBounds())
       {
-        double minX, minY, maxX, maxY;
+        double minX = NAN, minY = NAN, maxX = NAN, maxY = NAN;
         projector.getProjectedBounds(minX, minY, maxX, maxY);
 
         OGREnvelope env;

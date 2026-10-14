@@ -173,7 +173,7 @@ class LineSimplifier
 
     const int n = geom->getNumPoints();
     if (n < 3)
-      return dynamic_cast<OGRLineString*>(geom->clone());
+      return geom->clone();
 
     const bool closed = geom->get_IsClosed();
 
@@ -233,7 +233,7 @@ class LineSimplifier
         if (out->getNumPoints() < 4)
         {
           delete out;
-          return dynamic_cast<OGRLineString*>(geom->clone());
+          return geom->clone();
         }
       }
       return out;
@@ -314,7 +314,7 @@ class LineSimplifier
       if (out->getNumPoints() < 4)
       {
         delete out;
-        return dynamic_cast<OGRLineString*>(geom->clone());
+        return geom->clone();
       }
     }
 

@@ -184,7 +184,7 @@ OGRGeometry* filter_multipolygon(const OGRMultiPolygon* mp,
   const int n = mp->getNumGeometries();
   for (int i = 0; i < n; ++i)
   {
-    const auto* p = dynamic_cast<const OGRPolygon*>(mp->getGeometryRef(i));
+    const auto* p = mp->getGeometryRef(i);
     if (p != nullptr && keep_polygon(*p, minCompactness, minAreaNative, mode, geographic))
       out->addGeometry(p);  // clones
   }
