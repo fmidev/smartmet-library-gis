@@ -150,19 +150,19 @@ class SampleStoreRegistry
  public:
   void Register(SampleStore* store)
   {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::scoped_lock lock(m_mutex);
     m_stores.insert(store);
   }
 
   void Unregister(SampleStore* store)
   {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::scoped_lock lock(m_mutex);
     m_stores.erase(store);
   }
 
   void ClearAll()
   {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::scoped_lock lock(m_mutex);
     for (auto* store : m_stores)
       store->Clear();
   }
@@ -194,7 +194,7 @@ SampleStore::SampleStore()
   //
   // Costs one proj.db lookup per thread, serialised like every other parse.
   {
-    std::lock_guard<std::mutex> lock(OGRSpatialReferenceFactory::mutex());
+    std::scoped_lock lock(OGRSpatialReferenceFactory::mutex());
     OGRSpatialReference probe;
     probe.importFromEPSG(4326);
   }
@@ -332,7 +332,7 @@ std::shared_ptr<MasterEntry> get_master_entry(const std::string& theDesc)
   if (cached)
     return *cached;
 
-  std::lock_guard<std::mutex> parseLock(OGRSpatialReferenceFactory::mutex());
+  std::scoped_lock parseLock(OGRSpatialReferenceFactory::mutex());
 
   // Re-check under the lock: another thread may have parsed the same key while
   // we waited, in which case we reuse its result instead of parsing again.
@@ -363,7 +363,7 @@ OGRSpatialReference* get_sample(const std::string& theDesc)
   // use of it. This happens once per thread per CRS.
   std::shared_ptr<OGRSpatialReference> mine;
   {
-    std::lock_guard<std::mutex> lock(OGRSpatialReferenceFactory::mutex());
+    std::scoped_lock lock(OGRSpatialReferenceFactory::mutex());
     auto* copy = master->Clone();
     if (copy == nullptr)
       throw Fmi::Exception(BCP, "Failed to clone spatial reference: " + theDesc);

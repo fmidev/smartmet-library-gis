@@ -687,7 +687,7 @@ TimeZoneFinder::Impl::Impl(OGRLayer& theLayer, const Options& theOptions)
         }
         catch (...)
         {
-          std::lock_guard<std::mutex> lock(failure_mutex);
+          std::scoped_lock lock(failure_mutex);
           if (!failure)
             failure = std::current_exception();
           next = order.size();
