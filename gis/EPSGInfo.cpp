@@ -76,7 +76,7 @@ std::optional<EPSG> getInfo(int code)
     sqlite3pp::query qry(projdb, sql.c_str());
 
     // Look for the largest valid area
-    for (const auto& row : qry)
+    for (const auto row : qry)
     {
       EPSG epsg;
       epsg.number = Fmi::stoi(row.get<std::string>(0));
