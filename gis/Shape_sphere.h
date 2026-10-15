@@ -9,6 +9,8 @@ class Shape_sphere : public Shape
  public:
   Shape_sphere(double theX, double theY, double theRadius);
   ~Shape_sphere() override;
+  Shape_sphere(const Shape_sphere&) = delete;
+  Shape_sphere& operator=(const Shape_sphere&) = delete;
 
   int clip(const OGRLineString* theGeom, ShapeClipper& theClipper, bool exterior) const override;
   int cut(const OGRLineString* theGeom, ShapeClipper& theClipper, bool exterior) const override;

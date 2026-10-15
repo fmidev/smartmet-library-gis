@@ -88,7 +88,7 @@ using GeosPtr = std::unique_ptr<GEOSGeometry, GeosDeleter>;
 // A feature read from the data source, the zone name is resolved to an index
 struct SourceFeature
 {
-  std::uint32_t zone;
+  std::uint32_t zone = 0;
   std::vector<unsigned char> wkb;
 };
 

@@ -108,7 +108,7 @@ void extract_polygon(const OGRPolygon* poly,
 // Flatten any OGR geometry containing polygons into a list of OGRPolygon* with cached envelopes.
 struct FlatPoly
 {
-  const OGRPolygon* poly;
+  const OGRPolygon* poly = nullptr;
   OGREnvelope env;
 };
 
@@ -499,8 +499,8 @@ void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
   struct ExtRing
   {
     std::vector<CDT::V2d<double>> pts;
-    double area;
-    double xmin, ymin, xmax, ymax;
+    double area = 0.0;
+    double xmin = 0.0, ymin = 0.0, xmax = 0.0, ymax = 0.0;
   };
   std::vector<ExtRing> exteriors;
   std::vector<std::vector<CDT::V2d<double>>> holes;

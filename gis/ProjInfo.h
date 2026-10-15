@@ -17,6 +17,7 @@ class ProjInfo
 
   ProjInfo(ProjInfo&& other) = default;
   ProjInfo& operator=(ProjInfo&& other) = default;
+  ~ProjInfo() = default;
 
   const std::string& projStr() const { return itsProjStr; }
   std::optional<double> getDouble(const std::string& theName) const;

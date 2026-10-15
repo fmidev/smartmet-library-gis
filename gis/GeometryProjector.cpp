@@ -184,8 +184,8 @@ void finalizeCurrentRun(std::vector<std::unique_ptr<OGRLineString>>& runs,
 ClipHit clipSegmentLB(double x0, double y0, double x1, double y1, const ProjectionBoundary& b)
 {
   ClipHit hit;
-  std::array<double, 4> p;
-  std::array<double, 4> q;
+  std::array<double, 4> p{};
+  std::array<double, 4> q{};
   p[0] = -(x1 - x0);
   q[0] = x0 - b.minX;
   p[1] = (x1 - x0);
@@ -762,7 +762,7 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::projectMultiGeometry(
 
 ProjectionBoundary GeometryProjector::Impl::getProjectionBoundary() const
 {
-  ProjectionBoundary b;
+  ProjectionBoundary b{};
   b.minX = m_projectedBounds[0];
   b.minY = m_projectedBounds[1];
   b.maxX = m_projectedBounds[2];
