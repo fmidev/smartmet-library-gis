@@ -254,6 +254,370 @@ Shape_sptr make_horizontal_cut(double lat, double lon1, double lon2)
   }
 }
 
+// Cut at the anti-meridian of the central meridian
+void add_antimeridian_cuts(Interrupt& result, double lon_0)
+{
+  result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
+  if (lon_0 == 0)
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+}
+
+// The distance to the horizon from the height h, reduced by 0.1 % to avoid projection failures
+// right at the horizon edge
+double horizon_radius(const SpatialReference& theSRS, double default_h)
+{
+  auto opt_h = theSRS.projInfo().getDouble("h");
+  auto h = (opt_h ? *opt_h : default_h);
+  auto radius = acos(wgs84radius / (wgs84radius + h)) * wgs84radius;
+  radius = 0.999 * radius;
+  return radius;
+}
+
+// Interrupts of the transverse aspect of the general oblique transformation, false for other
+// oblique transformations
+bool ob_tran_interrupt(const SpatialReference& theSRS, Interrupt& result)
+{
+  const auto opt_lat_p = theSRS.projInfo().getDouble("o_lat_p");
+  const auto lat_p = opt_lat_p ? *opt_lat_p : 0.0;
+
+  if (std::abs(lat_p - 90.0) < 0.01)
+  {
+    // Transverse aspect (o_lat_p ≈ 90°): the oblique transform is a pure
+    // longitude rotation by o_lon_p.  The natural seam in geographic
+    // coordinates is the meridian at modlon(o_lon_p + 180°) — the
+    // antimeridian of the rotated frame — where PROJ's normalisation wraps
+    // both sides of the input to the same projected longitude, causing
+    // world-spanning polygons to degenerate.
+    const auto opt_o_lon_p = theSRS.projInfo().getDouble("o_lon_p");
+    const auto o_lon_p = opt_o_lon_p ? *opt_o_lon_p : 0.0;
+    const auto seam_lon = modlon(o_lon_p + 180.0);
+
+    result.shapeCuts.emplace_back(make_vertical_cut(seam_lon, -90, 90));
+    // When the seam lands on ±180° also add the other side (same meridian,
+    // opposite sign convention) — matching the default antimeridian case.
+    if (std::abs(std::abs(seam_lon) - 180.0) < 0.01)
+      result.shapeCuts.emplace_back(make_vertical_cut(-seam_lon, -90, 90));
+    return true;
+  }
+
+  // General oblique (o_lat_p ≠ 90°): the natural seam is a great circle in
+  // geographic coordinates, not a simple meridian.  Exact great-circle
+  // cutting is not yet implemented; fall through to the default antimeridian
+  // cut below, which is a reasonable approximation for mildly oblique cases.
+  return false;
+}
+
+// Interrupts of geographic coordinates, false if not geographic
+bool geographic_interrupt(const SpatialReference& theSRS, Interrupt& result)
+{
+  if (!theSRS.isGeographic())
+    return false;
+
+  const auto opt_lon_wrap = theSRS.projInfo().getDouble("lon_wrap");
+  const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 0.0);
+
+  result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_wrap + 180), -90, 90));
+  if (lon_wrap == 0)
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_wrap - 180), -90, 90));
+
+  return true;
+}
+
+// Interrupts of projections whose valid domain is clipped with a circle, false for other
+// projections
+bool circle_interrupt(const std::string& name,
+                      const SpatialReference& theSRS,
+                      double lon_0,
+                      double lat_0,
+                      Interrupt& result)
+{
+  using boost::math::double_constants::degree;
+
+  if (name == "laea")
+  {
+    // Lambert Azimuthal Equal-Area: valid over a full hemisphere (180° from centre).
+    // The antipodal point (lon_0+180°, −lat_0) maps to a circle of infinite radius
+    // and must be excluded.
+    //
+    // circle_cut() cannot be used for a near-full-hemisphere clip (radius ≈ 180°)
+    // because the geodesic ring degenerates near the poles and the interior
+    // orientation of the resulting polygon becomes wrong for radii > 90°.
+    //
+    // Instead we cut away a small disc (radius 1°) centred on the antipodal point.
+    // This correctly handles polar, oblique, and equatorial aspects; the previous
+    // ±178° rectangular clip only worked for the north-polar aspect (lat_0 = 90°).
+    const auto antiLon = modlon(lon_0 + 180.0);
+    const auto antiLat = -lat_0;
+    const auto antiRadius = 1.0 * wgs84radius * degree;
+    result.cutGeometry = circle_cut(antiLon, antiLat, antiRadius);
+    return true;
+  }
+
+  if (name == "nsper")
+  {
+    // Near-Side Perspective: only points within line-of-sight of the satellite at
+    // height h above the surface are visible.  The visible radius is the angle to
+    // the horizon: cos(θ) = R / (R+h).  Reduced by 0.1 % to avoid projection
+    // failures right at the horizon edge.
+    auto radius = horizon_radius(theSRS, 3000000.0);
+    result.andGeometry = circle_cut(lon_0, lat_0, radius);
+    return true;
+  }
+
+  if (name == "aeqd")
+  {
+    // Azimuthal Equidistant: valid up to 180° from centre but the antipodal region
+    // is heavily distorted.  130° was found experimentally to give reasonable
+    // results; a proper hemisphere clip would require correctly handling the
+    // antarctic, which the current circle-cut implementation does not do.
+    const auto radius = 130 * wgs84radius * degree;
+    result.andGeometry = circle_cut(lon_0, lat_0, radius);
+    return true;
+  }
+
+  if (name == "tmerc")
+  {
+    // Transverse Mercator (tmerc) and Gauss-Schreiber Transverse Mercator (gstmerc):
+    // both project the hemisphere within ±90° of the central meridian.  Beyond that
+    // boundary the projection diverges.  89.9° was found experimentally to avoid
+    // projection failures right at the ±90° horizon without clipping legitimate data.
+    const auto radius = 89.9 * wgs84radius * degree;
+    result.andGeometry = circle_cut(lon_0, lat_0, radius);
+    return true;
+  }
+
+  if (name == "gstmerc")
+  {
+    // Transverse Mercator (tmerc) and Gauss-Schreiber Transverse Mercator (gstmerc):
+    // both project the hemisphere within ±90° of the central meridian.  Beyond that
+    // boundary the projection diverges.  89.5° was found experimentally to avoid
+    // projection failures right at the ±90° horizon without clipping legitimate data.
+    const auto radius = 89.5 * wgs84radius * degree;
+    result.andGeometry = circle_cut(lon_0, lat_0, radius);
+    return true;
+  }
+
+  if (name == "gnom")
+  {
+    // Gnomonic: only the hemisphere facing the centre is valid.  89° avoids the
+    // NaN/infinity values that PROJ produces right at the 90° horizon.
+    const auto radius = 89 * wgs84radius * degree;
+    result.andGeometry = circle_cut(lon_0, lat_0, radius);
+    return true;
+  }
+
+  if (name == "airy" || name == "ortho")
+  {
+    // Clip to just inside the hemisphere boundary.  Exactly 90° passes through
+    // both poles, which project to a single point in azimuthal projections —
+    // this collapses the north/south edges of the clip polygon to zero length,
+    // producing run endpoints interior to the box that RectClipper cannot close.
+    const auto radius = 0.999 * 90 * wgs84radius * degree;
+    result.andGeometry = circle_cut(lon_0, lat_0, radius);
+    return true;
+  }
+
+  if (name == "tpers")
+  {
+    // Tilted Perspective (satellite view): the visible disk has the same geometric
+    // horizon as nsper — cos(θ) = R/(R+h).  The tilt and azimuth parameters rotate
+    // the view but do not change the outer boundary of the visible hemisphere.
+    // Reduced by 0.1 % to avoid projection failures right at the horizon edge.
+    // Falls back to 50° (≈ h = 5 500 km) when h is absent.
+    auto radius = horizon_radius(theSRS, 5500000.0);
+    result.andGeometry = circle_cut(lon_0, lat_0, radius);
+    return true;
+  }
+
+  if (name == "geos")
+  {
+    // Geostationary Satellite View: visible horizon is the same geometric formula
+    // as nsper — cos(θ) = R/(R+h).  Standard GEO orbit h ≈ 35 786 km gives
+    // θ ≈ 81.3°; the formula handles any non-standard h correctly.
+    // Reduced by 0.1 % to avoid projection failures right at the horizon edge.
+    // Falls back to the standard GEO orbit height when h is absent.
+    auto radius = horizon_radius(theSRS, 35786000.0);
+    result.andGeometry = circle_cut(lon_0, lat_0, radius);
+    return true;
+  }
+
+  if (name == "tpeqd")
+  {
+    // Two-Point Equidistant: the projection centre is the midpoint of the two
+    // control points.  145° gives enough coverage without hitting the antipodal
+    // singularity region.  This is an approximation; the true valid domain depends
+    // on the geometry of the two control points.
+    //
+    // The midpoint longitude must be computed wrap-aware: a simple arithmetic
+    // mean of lon_1 and lon_2 gives the wrong answer when the two points straddle
+    // the anti-meridian (e.g. lon_1=170, lon_2=-170 → mean=0 instead of ±180).
+    // We normalise the angular difference to (−180, +180] before halving.
+    const auto opt_lon_1 = theSRS.projInfo().getDouble("lon_1");
+    const auto lon_1 = opt_lon_1 ? *opt_lon_1 : 0.0;
+
+    const auto opt_lat_1 = theSRS.projInfo().getDouble("lat_1");
+    const auto lat_1 = opt_lat_1 ? *opt_lat_1 : 0.0;
+
+    const auto opt_lon_2 = theSRS.projInfo().getDouble("lon_2");
+    const auto lon_2 = opt_lon_2 ? *opt_lon_2 : 0.0;
+
+    const auto opt_lat_2 = theSRS.projInfo().getDouble("lat_2");
+    const auto lat_2 = opt_lat_2 ? *opt_lat_2 : 0.0;
+
+    // Wrap-aware longitude midpoint: normalise diff to (−180, +180], then add half.
+    double dlon = lon_2 - lon_1;
+    if (dlon > 180.0)
+      dlon -= 360.0;
+    else if (dlon <= -180.0)
+      dlon += 360.0;
+    const auto lon = modlon(lon_1 + 0.5 * dlon);
+    const auto lat = 0.5 * (lat_1 + lat_2);
+
+    const auto radius = 145 * wgs84radius * degree;
+    result.andGeometry = circle_cut(lon, lat, radius);
+    return true;
+  }
+
+  return false;
+}
+
+// Interrupts of projections whose valid domain is cut with meridians or rectangles, false for
+// other projections
+bool cut_interrupt(const std::string& name, double lon_0, Interrupt& result)
+{
+  if (name == "nicol")
+  {
+    // Nicolosi Globular: cut at the anti-meridian like most geometric projections.
+    // The projection wraps around itself near lon_0 ± 90°, which would require
+    // additional cuts at those meridians for correct handling — but those cuts
+    // are very slow in practice and are left disabled for now.
+    add_antimeridian_cuts(result, lon_0);
+    return true;
+  }
+
+  if (name == "tcc")
+  {
+    // Transverse Central Cylindrical: PROJ produces artefacts in the longitude
+    // range 90…130° for unknown reasons; clip that band out as a workaround.
+    result.shapeCuts.emplace_back(std::make_shared<Shape_rect>(90, -90, 130, 90));
+    return true;
+  }
+
+  if (name == "lcc")
+  {
+    // Lambert Conformal Conic: cut at the anti-meridian and at the south pole
+    // latitude.  The conic wraps around the pole on the far side; without the
+    // horizontal cut the south-polar region projects to a huge swept arc that
+    // jumps across the box.
+    add_antimeridian_cuts(result, lon_0);
+    result.shapeCuts.emplace_back(make_horizontal_cut(-90, -180, 180));
+    return true;
+  }
+
+  if (name == "imw_p")
+  {
+    // International Map of the World Polyconic: no reliable clip has been found
+    // (circle clipping was too slow).  Return an empty interrupt and let the
+    // projection produce whatever it can.
+    return true;
+  }
+
+  if (name == "adams_hemi")
+  {
+    // Adams Hemisphere-in-a-Square: valid domain is exactly one hemisphere (90°
+    // from centre).
+
+    if (lon_0 > -90 && lon_0 < 90)
+    {
+      result.shapeCuts.emplace_back(std::make_shared<Shape_rect>(-180, -90, lon_0 - 90, 90));
+      result.shapeCuts.emplace_back(std::make_shared<Shape_rect>(lon_0 + 90, -90, 180, 90));
+    }
+    else if (lon_0 <= -90)
+    {
+      result.shapeCuts.emplace_back(
+          std::make_shared<Shape_rect>(lon_0 + 90, -90, lon_0 + 270, 90));
+    }
+    else if (lon_0 >= 90)
+    {
+      result.shapeCuts.emplace_back(
+          std::make_shared<Shape_rect>(lon_0 - 270, -90, lon_0 - 90, 90));
+    }
+
+    return true;
+  }
+
+  if (name == "bertin1953" || name == "peirce_q")
+  {
+    // Bertin 1953 and Peirce Quincuncial: these projections have irregular
+    // singularity patterns that do not align with simple meridian cuts or circle
+    // clips.  No satisfactory interrupt geometry has been found; return empty and
+    // accept that artefacts may appear near the singularities.
+    return true;
+  }
+
+  if (name == "igh")
+  {
+    // Interrupted Goode Homolosine
+    add_antimeridian_cuts(result, lon_0);
+
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 40), 0, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 100), -90, 0));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 20), -90, 0));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 80), -90, 0));
+
+    return true;
+  }
+
+  if (name == "igh_o")
+  {
+    // Interrupted Goode Homolosine (Oceanic)
+
+    add_antimeridian_cuts(result, lon_0);
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), 0, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 60), 0, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 60), -90, 0));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), -90, 0));
+    return true;
+  }
+
+  if (name == "healpix")
+  {
+    add_antimeridian_cuts(result, lon_0);
+
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), -90, -45));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), 45, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0), -90, -45));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0), 45, 90));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), -90, -45));
+    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), 45, 90));
+
+    return true;
+  }
+
+  if (name == "isea")
+  {
+    // Icosahedral Snyder Equal Area.
+    // TODO: PROJ.7 implementation seems to have the cuts at odd locations, perhaps a bug?
+
+    add_antimeridian_cuts(result, lon_0);
+
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 108), 30, 90));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 36), 30, 90));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 36), 30, 90));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 108), 30, 90));
+    //
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 144), -90, -30));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 72), -90, -30));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 0), -90, -30));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 72), -90, -30));
+    // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 144), -90, -30));
+
+    return true;
+  }
+
+  return false;
+}
+
 }  // anonymous namespace
 
 Interrupt interruptGeometry(const SpatialReference& theSRS)
@@ -274,8 +638,6 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     const auto opt_lat_0 = theSRS.projInfo().getDouble("lat_0");
     const auto lat_0 = opt_lat_0 ? *opt_lat_0 : 0.0;
 
-    using boost::math::double_constants::degree;
-
     // If general oblique transformation such as rotated latlon, cut the Antarctic in half at the
     // central meridian. -60 is large enough to make the cut, since Drake passage is below
     // that latitude. In reality, the cut should be made for any polygon which spans the south pole,
@@ -288,345 +650,19 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     // The code commented out shows various tests used to find out how a nonzero lon_0 should be
     // handled, but the (random) experimental approach failed.
 
-    if (theSRS.projInfo().getString("proj") == std::string("ob_tran"))
-    {
-      const auto opt_lat_p = theSRS.projInfo().getDouble("o_lat_p");
-      const auto lat_p = opt_lat_p ? *opt_lat_p : 0.0;
-
-      if (std::abs(lat_p - 90.0) < 0.01)
-      {
-        // Transverse aspect (o_lat_p ≈ 90°): the oblique transform is a pure
-        // longitude rotation by o_lon_p.  The natural seam in geographic
-        // coordinates is the meridian at modlon(o_lon_p + 180°) — the
-        // antimeridian of the rotated frame — where PROJ's normalisation wraps
-        // both sides of the input to the same projected longitude, causing
-        // world-spanning polygons to degenerate.
-        const auto opt_o_lon_p = theSRS.projInfo().getDouble("o_lon_p");
-        const auto o_lon_p = opt_o_lon_p ? *opt_o_lon_p : 0.0;
-        const auto seam_lon = modlon(o_lon_p + 180.0);
-
-        result.shapeCuts.emplace_back(make_vertical_cut(seam_lon, -90, 90));
-        // When the seam lands on ±180° also add the other side (same meridian,
-        // opposite sign convention) — matching the default antimeridian case.
-        if (std::abs(std::abs(seam_lon) - 180.0) < 0.01)
-          result.shapeCuts.emplace_back(make_vertical_cut(-seam_lon, -90, 90));
-        return result;
-      }
-
-      // General oblique (o_lat_p ≠ 90°): the natural seam is a great circle in
-      // geographic coordinates, not a simple meridian.  Exact great-circle
-      // cutting is not yet implemented; fall through to the default antimeridian
-      // cut below, which is a reasonable approximation for mildly oblique cases.
-    }
+    if (theSRS.projInfo().getString("proj") == std::string("ob_tran") &&
+        ob_tran_interrupt(theSRS, result))
+      return result;
 
     // Geographic: cut everything at lon_wrap (default=Greenwich) antimeridians
-    if (theSRS.isGeographic())
-    {
-      const auto opt_lon_wrap = theSRS.projInfo().getDouble("lon_wrap");
-      const auto lon_wrap = (opt_lon_wrap ? *opt_lon_wrap : 0.0);
-
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_wrap + 180), -90, 90));
-      if (lon_wrap == 0)
-        result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_wrap - 180), -90, 90));
-
+    if (geographic_interrupt(theSRS, result))
       return result;
-    }
 
-    if (name == "laea")
-    {
-      // Lambert Azimuthal Equal-Area: valid over a full hemisphere (180° from centre).
-      // The antipodal point (lon_0+180°, −lat_0) maps to a circle of infinite radius
-      // and must be excluded.
-      //
-      // circle_cut() cannot be used for a near-full-hemisphere clip (radius ≈ 180°)
-      // because the geodesic ring degenerates near the poles and the interior
-      // orientation of the resulting polygon becomes wrong for radii > 90°.
-      //
-      // Instead we cut away a small disc (radius 1°) centred on the antipodal point.
-      // This correctly handles polar, oblique, and equatorial aspects; the previous
-      // ±178° rectangular clip only worked for the north-polar aspect (lat_0 = 90°).
-      const auto antiLon = modlon(lon_0 + 180.0);
-      const auto antiLat = -lat_0;
-      const auto antiRadius = 1.0 * wgs84radius * degree;
-      result.cutGeometry = circle_cut(antiLon, antiLat, antiRadius);
+    if (circle_interrupt(name, theSRS, lon_0, lat_0, result))
       return result;
-    }
 
-    if (name == "nicol")
-    {
-      // Nicolosi Globular: cut at the anti-meridian like most geometric projections.
-      // The projection wraps around itself near lon_0 ± 90°, which would require
-      // additional cuts at those meridians for correct handling — but those cuts
-      // are very slow in practice and are left disabled for now.
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-      if (lon_0 == 0)
-        result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    if (cut_interrupt(name, lon_0, result))
       return result;
-    }
-
-    if (name == "nsper")
-    {
-      // Near-Side Perspective: only points within line-of-sight of the satellite at
-      // height h above the surface are visible.  The visible radius is the angle to
-      // the horizon: cos(θ) = R / (R+h).  Reduced by 0.1 % to avoid projection
-      // failures right at the horizon edge.
-      auto opt_h = theSRS.projInfo().getDouble("h");
-      auto h = (opt_h ? *opt_h : 3000000.0);
-      auto radius = acos(wgs84radius / (wgs84radius + h)) * wgs84radius;
-      radius = 0.999 * radius;
-      result.andGeometry = circle_cut(lon_0, lat_0, radius);
-      return result;
-    }
-
-    if (name == "tcc")
-    {
-      // Transverse Central Cylindrical: PROJ produces artefacts in the longitude
-      // range 90…130° for unknown reasons; clip that band out as a workaround.
-      result.shapeCuts.emplace_back(std::make_shared<Shape_rect>(90, -90, 130, 90));
-      return result;
-    }
-
-    if (name == "lcc")
-    {
-      // Lambert Conformal Conic: cut at the anti-meridian and at the south pole
-      // latitude.  The conic wraps around the pole on the far side; without the
-      // horizontal cut the south-polar region projects to a huge swept arc that
-      // jumps across the box.
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-      if (lon_0 == 0)
-        result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-      result.shapeCuts.emplace_back(make_horizontal_cut(-90, -180, 180));
-      return result;
-    }
-
-    if (name == "imw_p")
-    {
-      // International Map of the World Polyconic: no reliable clip has been found
-      // (circle clipping was too slow).  Return an empty interrupt and let the
-      // projection produce whatever it can.
-      return result;
-    }
-
-    if (name == "aeqd")
-    {
-      // Azimuthal Equidistant: valid up to 180° from centre but the antipodal region
-      // is heavily distorted.  130° was found experimentally to give reasonable
-      // results; a proper hemisphere clip would require correctly handling the
-      // antarctic, which the current circle-cut implementation does not do.
-      const auto radius = 130 * wgs84radius * degree;
-      result.andGeometry = circle_cut(lon_0, lat_0, radius);
-      return result;
-    }
-
-    if (name == "tmerc")
-    {
-      // Transverse Mercator (tmerc) and Gauss-Schreiber Transverse Mercator (gstmerc):
-      // both project the hemisphere within ±90° of the central meridian.  Beyond that
-      // boundary the projection diverges.  89.9° was found experimentally to avoid
-      // projection failures right at the ±90° horizon without clipping legitimate data.
-      const auto radius = 89.9 * wgs84radius * degree;
-      result.andGeometry = circle_cut(lon_0, lat_0, radius);
-      return result;
-    }
-
-    if (name == "gstmerc")
-    {
-      // Transverse Mercator (tmerc) and Gauss-Schreiber Transverse Mercator (gstmerc):
-      // both project the hemisphere within ±90° of the central meridian.  Beyond that
-      // boundary the projection diverges.  89.5° was found experimentally to avoid
-      // projection failures right at the ±90° horizon without clipping legitimate data.
-      const auto radius = 89.5 * wgs84radius * degree;
-      result.andGeometry = circle_cut(lon_0, lat_0, radius);
-      return result;
-    }
-
-    if (name == "gnom")
-    {
-      // Gnomonic: only the hemisphere facing the centre is valid.  89° avoids the
-      // NaN/infinity values that PROJ produces right at the 90° horizon.
-      const auto radius = 89 * wgs84radius * degree;
-      result.andGeometry = circle_cut(lon_0, lat_0, radius);
-      return result;
-    }
-
-    if (name == "airy" || name == "ortho")
-    {
-      // Clip to just inside the hemisphere boundary.  Exactly 90° passes through
-      // both poles, which project to a single point in azimuthal projections —
-      // this collapses the north/south edges of the clip polygon to zero length,
-      // producing run endpoints interior to the box that RectClipper cannot close.
-      const auto radius = 0.999 * 90 * wgs84radius * degree;
-      result.andGeometry = circle_cut(lon_0, lat_0, radius);
-      return result;
-    }
-
-    if (name == "tpers")
-    {
-      // Tilted Perspective (satellite view): the visible disk has the same geometric
-      // horizon as nsper — cos(θ) = R/(R+h).  The tilt and azimuth parameters rotate
-      // the view but do not change the outer boundary of the visible hemisphere.
-      // Reduced by 0.1 % to avoid projection failures right at the horizon edge.
-      // Falls back to 50° (≈ h = 5 500 km) when h is absent.
-      auto opt_h = theSRS.projInfo().getDouble("h");
-      auto h = (opt_h ? *opt_h : 5500000.0);
-      auto radius = acos(wgs84radius / (wgs84radius + h)) * wgs84radius;
-      radius = 0.999 * radius;
-      result.andGeometry = circle_cut(lon_0, lat_0, radius);
-      return result;
-    }
-
-    if (name == "geos")
-    {
-      // Geostationary Satellite View: visible horizon is the same geometric formula
-      // as nsper — cos(θ) = R/(R+h).  Standard GEO orbit h ≈ 35 786 km gives
-      // θ ≈ 81.3°; the formula handles any non-standard h correctly.
-      // Reduced by 0.1 % to avoid projection failures right at the horizon edge.
-      // Falls back to the standard GEO orbit height when h is absent.
-      auto opt_h = theSRS.projInfo().getDouble("h");
-      auto h = (opt_h ? *opt_h : 35786000.0);
-      auto radius = acos(wgs84radius / (wgs84radius + h)) * wgs84radius;
-      radius = 0.999 * radius;
-      result.andGeometry = circle_cut(lon_0, lat_0, radius);
-      return result;
-    }
-
-    if (name == "adams_hemi")
-    {
-      // Adams Hemisphere-in-a-Square: valid domain is exactly one hemisphere (90°
-      // from centre).
-
-      if (lon_0 > -90 && lon_0 < 90)
-      {
-        result.shapeCuts.emplace_back(std::make_shared<Shape_rect>(-180, -90, lon_0 - 90, 90));
-        result.shapeCuts.emplace_back(std::make_shared<Shape_rect>(lon_0 + 90, -90, 180, 90));
-      }
-      else if (lon_0 <= -90)
-      {
-        result.shapeCuts.emplace_back(
-            std::make_shared<Shape_rect>(lon_0 + 90, -90, lon_0 + 270, 90));
-      }
-      else if (lon_0 >= 90)
-      {
-        result.shapeCuts.emplace_back(
-            std::make_shared<Shape_rect>(lon_0 - 270, -90, lon_0 - 90, 90));
-      }
-
-      return result;
-    }
-
-    if (name == "bertin1953" || name == "peirce_q")
-    {
-      // Bertin 1953 and Peirce Quincuncial: these projections have irregular
-      // singularity patterns that do not align with simple meridian cuts or circle
-      // clips.  No satisfactory interrupt geometry has been found; return empty and
-      // accept that artefacts may appear near the singularities.
-      return result;
-    }
-
-    if (name == "tpeqd")
-    {
-      // Two-Point Equidistant: the projection centre is the midpoint of the two
-      // control points.  145° gives enough coverage without hitting the antipodal
-      // singularity region.  This is an approximation; the true valid domain depends
-      // on the geometry of the two control points.
-      //
-      // The midpoint longitude must be computed wrap-aware: a simple arithmetic
-      // mean of lon_1 and lon_2 gives the wrong answer when the two points straddle
-      // the anti-meridian (e.g. lon_1=170, lon_2=-170 → mean=0 instead of ±180).
-      // We normalise the angular difference to (−180, +180] before halving.
-      const auto opt_lon_1 = theSRS.projInfo().getDouble("lon_1");
-      const auto lon_1 = opt_lon_1 ? *opt_lon_1 : 0.0;
-
-      const auto opt_lat_1 = theSRS.projInfo().getDouble("lat_1");
-      const auto lat_1 = opt_lat_1 ? *opt_lat_1 : 0.0;
-
-      const auto opt_lon_2 = theSRS.projInfo().getDouble("lon_2");
-      const auto lon_2 = opt_lon_2 ? *opt_lon_2 : 0.0;
-
-      const auto opt_lat_2 = theSRS.projInfo().getDouble("lat_2");
-      const auto lat_2 = opt_lat_2 ? *opt_lat_2 : 0.0;
-
-      // Wrap-aware longitude midpoint: normalise diff to (−180, +180], then add half.
-      double dlon = lon_2 - lon_1;
-      if (dlon > 180.0)
-        dlon -= 360.0;
-      else if (dlon <= -180.0)
-        dlon += 360.0;
-      const auto lon = modlon(lon_1 + 0.5 * dlon);
-      const auto lat = 0.5 * (lat_1 + lat_2);
-
-      const auto radius = 145 * wgs84radius * degree;
-      result.andGeometry = circle_cut(lon, lat, radius);
-      return result;
-    }
-
-    if (name == "igh")
-    {
-      // Interrupted Goode Homolosine
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-      if (lon_0 == 0)
-        result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 40), 0, 90));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 100), -90, 0));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 20), -90, 0));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 80), -90, 0));
-
-      return result;
-    }
-
-    if (name == "igh_o")
-    {
-      // Interrupted Goode Homolosine (Oceanic)
-
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-      if (lon_0 == 0)
-        result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), 0, 90));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 60), 0, 90));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 60), -90, 0));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), -90, 0));
-      return result;
-    }
-
-    if (name == "healpix")
-    {
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-      if (lon_0 == 0)
-        result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), -90, -45));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 90), 45, 90));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0), -90, -45));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0), 45, 90));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), -90, -45));
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 90), 45, 90));
-
-      return result;
-    }
-
-    if (name == "isea")
-    {
-      // Icosahedral Snyder Equal Area.
-      // TODO: PROJ.7 implementation seems to have the cuts at odd locations, perhaps a bug?
-
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-      if (lon_0 == 0)
-        result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
-
-      // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 108), 30, 90));
-      // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 36), 30, 90));
-      // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 36), 30, 90));
-      // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 108), 30, 90));
-      //
-      // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 144), -90, -30));
-      // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 72), -90, -30));
-      // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 0), -90, -30));
-      // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 72), -90, -30));
-      // result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 144), -90, -30));
-
-      return result;
-    }
 
     // Default: cut the input polygon at the anti-meridian (lon_0 ± 180°).
     // This is the correct pre-processing for all remaining geometric projections
@@ -634,9 +670,7 @@ Interrupt interruptGeometry(const SpatialReference& theSRS)
     // Without this cut, a polygon that straddles the anti-meridian would project to
     // two widely-separated halves connected by a huge "jump" segment.
 
-    result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 + 180), -90, 90));
-    if (lon_0 == 0)
-      result.shapeCuts.emplace_back(make_vertical_cut(modlon(lon_0 - 180), -90, 90));
+    add_antimeridian_cuts(result, lon_0);
 
     return result;
   }
