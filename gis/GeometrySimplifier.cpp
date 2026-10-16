@@ -165,6 +165,140 @@ class LineSimplifier
     keep.insert(keep.end(), seg_keep.begin(), seg_keep.end());
   }
 
+  // Indices of the anchor points. For open linestrings, first and last are always anchors.
+  std::vector<int> find_anchors(int n, bool closed, int effective_n) const
+  {
+    // Identify anchor indices. For open linestrings, first and last are always anchors.
+    std::vector<bool> anchor(n, false);
+    if (!m_counts.empty())
+    {
+      for (int i = 0; i < n; i++)
+        anchor[i] = is_anchor(i);
+    }
+
+    if (!closed)
+    {
+      anchor[0] = true;
+      anchor[n - 1] = true;
+    }
+
+    // Collect anchor indices
+    std::vector<int> anchor_indices;
+    for (int i = 0; i < effective_n; i++)
+      if (anchor[i])
+        anchor_indices.push_back(i);
+    return anchor_indices;
+  }
+
+  // Build the output from the kept points, or a clone of the input if a ring would degenerate
+  static OGRLineString* build_output(const OGRLineString* geom,
+                                     const std::vector<OGRPoint>& all_pts,
+                                     const std::vector<bool>& keep,
+                                     int effective_n,
+                                     bool closed)
+  {
+    auto* out = closed ? static_cast<OGRLineString*>(new OGRLinearRing) : new OGRLineString;
+    for (int i = 0; i < effective_n; i++)
+      if (keep[i])
+        out->addPoint(all_pts[i].getX(), all_pts[i].getY());
+
+    if (closed)
+    {
+      out->closeRings();
+      if (out->getNumPoints() < 4)
+      {
+        delete out;
+        return geom->clone();
+      }
+    }
+    return out;
+  }
+
+  // The points to keep when there are no anchors at all
+  std::vector<bool> simplify_unanchored(const std::vector<OGRPoint>& all_pts,
+                                        int effective_n) const
+  {
+    std::vector<OGRPoint> pts(all_pts.begin(), all_pts.begin() + effective_n);
+
+    // Visvalingam-Whyatt on a closed ring: process as linear sequence with wraparound.
+    auto keep = simplify_vw(pts, m_tolerance);
+
+    // Ensure at least 3 vertices survive
+    int kept = 0;
+    for (bool k : keep)
+      if (k)
+        kept++;
+    if (kept < 3)
+      keep.assign(effective_n, true);  // keep all
+    return keep;
+  }
+
+  // Simplify the segments between consecutive anchors of a closed ring, wrapping around
+  void simplify_closed_segments(const std::vector<OGRPoint>& all_pts,
+                                const std::vector<int>& anchor_indices,
+                                int effective_n,
+                                std::vector<bool>& keep) const
+  {
+    const int num_anchors = anchor_indices.size();
+
+    // Process segments between consecutive anchors, wrapping around
+    for (int a = 0; a < num_anchors; a++)
+    {
+      int start = anchor_indices[a];
+      int end = anchor_indices[(a + 1) % num_anchors];
+
+      // Collect segment points
+      std::vector<OGRPoint> seg;
+      std::vector<int> seg_indices;
+
+      for (int i = start;; i = (i + 1) % effective_n)
+      {
+        seg.push_back(all_pts[i]);
+        seg_indices.push_back(i);
+        if (i == end)
+          break;
+      }
+
+      if (seg.size() < 3)
+        continue;
+
+      std::vector<bool> seg_keep;
+      // Use a temporary copy so simplify_segment can canonicalize
+      auto seg_pts = seg;
+      simplify_segment(seg_pts, seg_keep);
+
+      for (std::size_t i = 0; i < seg_keep.size(); i++)
+        if (seg_keep[i])
+          keep[seg_indices[i]] = true;
+    }
+  }
+
+  // Simplify the segments between consecutive anchors of an open linestring
+  void simplify_open_segments(const std::vector<OGRPoint>& all_pts,
+                              const std::vector<int>& anchor_indices,
+                              std::vector<bool>& keep) const
+  {
+    const int num_anchors = anchor_indices.size();
+
+    // Process segments between consecutive anchors
+    for (int a = 0; a + 1 < num_anchors; a++)
+    {
+      int start = anchor_indices[a];
+      int end = anchor_indices[a + 1];
+
+      if (end - start < 2)
+        continue;
+
+      std::vector<OGRPoint> seg(all_pts.begin() + start, all_pts.begin() + end + 1);
+      std::vector<bool> seg_keep;
+      simplify_segment(seg, seg_keep);
+
+      for (int i = 0; i < static_cast<int>(seg_keep.size()); i++)
+        if (seg_keep[i])
+          keep[start + i] = true;
+    }
+  }
+
   // Simplify a linestring, respecting anchor points
   OGRLineString* simplify(const OGRLineString* geom) const
   {
@@ -182,62 +316,15 @@ class LineSimplifier
     for (int i = 0; i < n; i++)
       geom->getPoint(i, &all_pts[i]);
 
-    // Identify anchor indices. For open linestrings, first and last are always anchors.
-    std::vector<bool> anchor(n, false);
-    if (!m_counts.empty())
-    {
-      for (int i = 0; i < n; i++)
-        anchor[i] = is_anchor(i);
-    }
-
-    if (!closed)
-    {
-      anchor[0] = true;
-      anchor[n - 1] = true;
-    }
-
     // For closed rings: work with indices 0..n-2 (last point is duplicate of first)
     const int effective_n = closed ? n - 1 : n;
 
-    // Collect anchor indices
-    std::vector<int> anchor_indices;
-    for (int i = 0; i < effective_n; i++)
-      if (anchor[i])
-        anchor_indices.push_back(i);
+    std::vector<int> anchor_indices = find_anchors(n, closed, effective_n);
 
     // If no anchors at all (e.g. standalone ring with no topology), simplify the whole ring.
     if (anchor_indices.empty())
-    {
-      std::vector<OGRPoint> pts(all_pts.begin(), all_pts.begin() + effective_n);
-
-      // Visvalingam-Whyatt on a closed ring: process as linear sequence with wraparound.
-      auto keep = simplify_vw(pts, m_tolerance);
-
-      // Ensure at least 3 vertices survive
-      int kept = 0;
-      for (bool k : keep)
-        if (k)
-          kept++;
-      if (kept < 3)
-        keep.assign(effective_n, true);  // keep all
-
-      // Build output
-      auto* out = closed ? static_cast<OGRLineString*>(new OGRLinearRing) : new OGRLineString;
-      for (int i = 0; i < effective_n; i++)
-        if (keep[i])
-          out->addPoint(all_pts[i].getX(), all_pts[i].getY());
-
-      if (closed)
-      {
-        out->closeRings();
-        if (out->getNumPoints() < 4)
-        {
-          delete out;
-          return geom->clone();
-        }
-      }
-      return out;
-    }
+      return build_output(
+          geom, all_pts, simplify_unanchored(all_pts, effective_n), effective_n, closed);
 
     // Segment-based simplification between consecutive anchors
     std::vector<bool> keep(effective_n, false);
@@ -246,79 +333,13 @@ class LineSimplifier
     for (int idx : anchor_indices)
       keep[idx] = true;
 
-    const int num_anchors = anchor_indices.size();
-
     if (closed)
-    {
-      // Process segments between consecutive anchors, wrapping around
-      for (int a = 0; a < num_anchors; a++)
-      {
-        int start = anchor_indices[a];
-        int end = anchor_indices[(a + 1) % num_anchors];
-
-        // Collect segment points
-        std::vector<OGRPoint> seg;
-        std::vector<int> seg_indices;
-
-        for (int i = start;; i = (i + 1) % effective_n)
-        {
-          seg.push_back(all_pts[i]);
-          seg_indices.push_back(i);
-          if (i == end)
-            break;
-        }
-
-        if (seg.size() < 3)
-          continue;
-
-        std::vector<bool> seg_keep;
-        // Use a temporary copy so simplify_segment can canonicalize
-        auto seg_pts = seg;
-        simplify_segment(seg_pts, seg_keep);
-
-        for (std::size_t i = 0; i < seg_keep.size(); i++)
-          if (seg_keep[i])
-            keep[seg_indices[i]] = true;
-      }
-    }
+      simplify_closed_segments(all_pts, anchor_indices, effective_n, keep);
     else
-    {
-      // Process segments between consecutive anchors
-      for (int a = 0; a + 1 < num_anchors; a++)
-      {
-        int start = anchor_indices[a];
-        int end = anchor_indices[a + 1];
-
-        if (end - start < 2)
-          continue;
-
-        std::vector<OGRPoint> seg(all_pts.begin() + start, all_pts.begin() + end + 1);
-        std::vector<bool> seg_keep;
-        simplify_segment(seg, seg_keep);
-
-        for (int i = 0; i < static_cast<int>(seg_keep.size()); i++)
-          if (seg_keep[i])
-            keep[start + i] = true;
-      }
-    }
+      simplify_open_segments(all_pts, anchor_indices, keep);
 
     // Build output
-    auto* out = closed ? static_cast<OGRLineString*>(new OGRLinearRing) : new OGRLineString;
-    for (int i = 0; i < effective_n; i++)
-      if (keep[i])
-        out->addPoint(all_pts[i].getX(), all_pts[i].getY());
-
-    if (closed)
-    {
-      out->closeRings();
-      if (out->getNumPoints() < 4)
-      {
-        delete out;
-        return geom->clone();
-      }
-    }
-
-    return out;
+    return build_output(geom, all_pts, keep, effective_n, closed);
   }
 };
 
