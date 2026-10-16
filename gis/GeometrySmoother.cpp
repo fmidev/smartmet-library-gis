@@ -316,6 +316,20 @@ class LineFilter
   }
 };
 
+// Add the stencil points jmin..jmax around vertex i to the filter: first backwards from i,
+// then forwards from i+1, in both directions until the filter radius is reached
+void add_stencil(LineFilter& filter, const OGRLineString* g, int i, int jmin, int jmax)
+{
+  for (int j = i; j >= jmin; --j)
+    if (!filter.add(g, j, j))
+      break;
+
+  filter.resetPathLength();
+  for (int j = i + 1; j <= jmax; ++j)
+    if (!filter.add(g, j, j - 1))
+      break;
+}
+
 // Forward declaration needed since two functions call each other
 OGRGeometry* apply_filter(const OGRGeometry* theGeom, LineFilter& filter, uint iterations);
 
@@ -356,29 +370,12 @@ OGRLineString* apply_filter(const OGRLineString* geom, LineFilter& filter, uint 
           // shrinkage at the ends if the number of iterations is > 1. The effective smoothing
           // radius thus shrinks when we get close to the isoline end points.
 
-          // Closed isoline stencil is always symmetric
-          int jmin = i - max_closed_length;
-          int jmax = i + max_closed_length;
+          // Closed isoline stencil is always symmetric. Otherwise use the shorter of lengths
+          // to start (0) and end vertices (n-1)
+          const int max_offset = (closed ? max_closed_length : std::min(i - 0, n - 1 - i));
 
-          if (!closed)
-          {
-            // Shorter of lengths to start (0) and end vertices (n-1)
-            auto max_offset = std::min(i - 0, n - 1 - i);
-
-            jmin = i - max_offset;  // symmetric stencil
-            jmax = i + max_offset;
-          }
-
-          // Iterate backwards until radius is reached
-          for (int j = i; j >= jmin; --j)
-            if (!filter.add(g, j, j))
-              break;
-
-          // Iterate forwards until maxdistance is reached
-          filter.resetPathLength();
-          for (int j = i + 1; j <= jmax; ++j)
-            if (!filter.add(g, j, j - 1))
-              break;
+          // Iterate backwards and forwards until radius is reached
+          add_stencil(filter, g, i, i - max_offset, i + max_offset);
         }
         filter.append(out);
       }
@@ -395,8 +392,8 @@ OGRLineString* apply_filter(const OGRLineString* geom, LineFilter& filter, uint 
         out->addPoint(first.getX(), first.getY());
       }
 
-      if (iter > 1)
-        delete g;
+      if (iter > 0)
+        delete g;  // the result of the previous iteration
     }
 
     return out;
@@ -439,27 +436,16 @@ OGRLinearRing* apply_filter(const OGRLinearRing* geom, LineFilter& filter, uint 
 
         if (filter.reset(&v1, i))
         {
-          // Iterate backwards until max radius is reached
-          const int jmin = i - max_closed_length;
-          for (int j = i; j >= jmin; --j)
-            if (!filter.add(g, j, j))
-              break;
-
-          // Iterate forwards until max radius is reached
-
-          filter.resetPathLength();
-          const int jmax = i + max_closed_length;
-          for (int j = i + 1; j <= jmax; ++j)
-            if (!filter.add(g, j, j - 1))
-              break;
+          // Iterate backwards and forwards until max radius is reached
+          add_stencil(filter, g, i, i - max_closed_length, i + max_closed_length);
         }
         filter.append(out);
       }
 
       out->closeRings();  // Make sure the ring is exactly closed, rounding errors may be present
 
-      if (iter > 1)
-        delete g;
+      if (iter > 0)
+        delete g;  // the result of the previous iteration
     }
 
     return out;
