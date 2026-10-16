@@ -97,6 +97,46 @@ void GeometryBuilder::add(OGRPoint *theGeom)
   }
 }
 
+namespace
+{
+// Take the only element out of the container
+template <typename Container>
+OGRGeometry *take_front(Container &items)
+{
+  auto *ptr = items.front();
+  items.clear();
+  return ptr;
+}
+
+// Move all the elements of the container into a new multi-geometry
+template <typename Multi, typename Container>
+Multi *take_multi(Container &items)
+{
+  auto *geom = new Multi;
+  for (auto *ptr : items)
+    geom->addGeometryDirectly(ptr);
+  items.clear();
+  return geom;
+}
+
+// Move the elements of the container into the collection, as a multi-geometry if there are
+// several of them
+template <typename Multi, typename Container>
+void add_single_or_multi(OGRGeometryCollection &geom, Container &items)
+{
+  if (items.empty())
+    return;
+
+  if (items.size() == 1)
+  {
+    geom.addGeometryDirectly(items.front());
+    items.clear();
+  }
+  else
+    geom.addGeometryDirectly(take_multi<Multi>(items));
+}
+}  // namespace
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Build final geometry from the elements
@@ -120,50 +160,22 @@ OGRGeometry *GeometryBuilder::build()
     if (n == 1)
     {
       if (itsPolygons.size() == 1)
-      {
-        auto *ptr = itsPolygons.front();
-        itsPolygons.clear();
-        return ptr;
-      }
+        return take_front(itsPolygons);
       if (itsLines.size() == 1)
-      {
-        auto *ptr = itsLines.front();
-        itsLines.clear();
-        return ptr;
-      }
-      auto *ptr = itsPoints.front();
-      itsPoints.clear();
-      return ptr;
+        return take_front(itsLines);
+      return take_front(itsPoints);
     }
 
     // Simplify to MultiLineString, MultiPolygon or MultiPoint if possible
 
     if (!itsPolygons.empty() && itsLines.empty() && itsPoints.empty())
-    {
-      auto *geom = new OGRMultiPolygon;
-      for (auto *ptr : itsPolygons)
-        geom->addGeometryDirectly(ptr);
-      itsPolygons.clear();
-      return geom;
-    }
+      return take_multi<OGRMultiPolygon>(itsPolygons);
 
     if (!itsLines.empty() && itsPolygons.empty() && itsPoints.empty())
-    {
-      auto *geom = new OGRMultiLineString;
-      for (auto *ptr : itsLines)
-        geom->addGeometryDirectly(ptr);
-      itsLines.clear();
-      return geom;
-    }
+      return take_multi<OGRMultiLineString>(itsLines);
 
     if (!itsPoints.empty() && itsLines.empty() && itsPolygons.empty())
-    {
-      auto *geom = new OGRMultiPoint;
-      for (auto *ptr : itsPoints)
-        geom->addGeometryDirectly(ptr);
-      itsPoints.clear();
-      return geom;
-    }
+      return take_multi<OGRMultiPoint>(itsPoints);
 
     // A generic collection must be used, the types differ too much.
     // The order should be kept the same for the benefit of
@@ -172,49 +184,13 @@ OGRGeometry *GeometryBuilder::build()
     auto *geom = new OGRGeometryCollection;
 
     // Add a Polygon or a MultiPolygon
-    if (!itsPolygons.empty())
-    {
-      if (itsPolygons.size() == 1)
-        geom->addGeometryDirectly(itsPolygons.front());
-      else
-      {
-        auto *tmp = new OGRMultiPolygon;
-        for (auto *ptr : itsPolygons)
-          tmp->addGeometryDirectly(ptr);
-        geom->addGeometryDirectly(tmp);
-      }
-      itsPolygons.clear();
-    }
+    add_single_or_multi<OGRMultiPolygon>(*geom, itsPolygons);
 
     // Add a LineString or a MultiLineString
-    if (!itsLines.empty())
-    {
-      if (itsLines.size() == 1)
-        geom->addGeometryDirectly(itsLines.front());
-      else
-      {
-        auto *tmp = new OGRMultiLineString;
-        for (auto *ptr : itsLines)
-          tmp->addGeometryDirectly(ptr);
-        geom->addGeometryDirectly(tmp);
-      }
-      itsLines.clear();
-    }
+    add_single_or_multi<OGRMultiLineString>(*geom, itsLines);
 
     // Add a Point or a MultiPoint
-    if (!itsPoints.empty())
-    {
-      if (itsPoints.size() == 1)
-        geom->addGeometryDirectly(itsPoints.front());
-      else
-      {
-        auto *tmp = new OGRMultiPoint;
-        for (auto *ptr : itsPoints)
-          tmp->addGeometryDirectly(ptr);
-        geom->addGeometryDirectly(tmp);
-      }
-      itsPoints.clear();
-    }
+    add_single_or_multi<OGRMultiPoint>(*geom, itsPoints);
 
     return geom;
   }
