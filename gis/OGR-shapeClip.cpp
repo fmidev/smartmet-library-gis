@@ -181,6 +181,85 @@ int do_circle(const OGRLineString *theGeom,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Handle an exterior with no vertices inside the shape when clipping to linestrings
+ *
+ * Returns false if the result is complete.
+ */
+// ----------------------------------------------------------------------
+
+bool linestrings_exterior_not_inside(const OGRPolygon *theGeom,
+                                     GeometryBuilder &theBuilder,
+                                     const Shape_sptr &theShape,
+                                     ShapeClipper &clipper,
+                                     bool keep_inside)
+{
+  // CLIP:
+  // -if circle inside exterior, omit exterior
+  // -if circle outside exterior, return empty result
+  // CUT:
+  // - if circle inside exterior, keep exterior and continue
+  // - if circle outside exterior, return input as is
+
+  bool insideRing = theShape->isInsideRing(*theGeom->getExteriorRing());
+
+  if (keep_inside)
+    return insideRing;
+
+  if (!insideRing)
+  {
+    theBuilder.add(theGeom->clone());
+    return false;
+  }
+
+  clipper.addExterior(theGeom->getExteriorRing()->clone());
+  return true;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Handle a hole of a polygon when clipping to linestrings
+ *
+ * Returns false if the result is complete.
+ */
+// ----------------------------------------------------------------------
+
+bool linestrings_hole(const OGRPolygon *theGeom,
+                      const OGRLinearRing *hole,
+                      int holeposition,
+                      GeometryBuilder &theBuilder,
+                      const Shape_sptr &theShape,
+                      ShapeClipper &clipper,
+                      bool keep_inside)
+{
+  if (Shape::all_only_inside(holeposition))
+  {
+    if (keep_inside)
+      clipper.addExterior(hole->clone());
+  }
+  else if (Shape::all_not_inside(holeposition))
+  {
+    bool insideHole = theShape->isInsideRing(*hole);
+
+    if (insideHole)
+    {
+      // If the box clip is inside a hole the result is empty
+      // Otherwise we can keep the original input
+
+      if (!keep_inside)
+        theBuilder.add(theGeom->clone());
+
+      return false;
+    }
+
+    // Otherwise the hole is outside the box
+    if (!keep_inside)
+      clipper.addExterior(hole->clone());
+  }
+  return true;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Clip polygon, do not close clipped ones
  */
 // ----------------------------------------------------------------------
@@ -215,33 +294,9 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       return;
     }
 
-    if (Shape::all_not_inside(position))
-    {
-      // CLIP:
-      // -if circle inside exterior, omit exterior
-      // -if circle outside exterior, return empty result
-      // CUT:
-      // - if circle inside exterior, keep exterior and continue
-      // - if circle outside exterior, return input as is
-
-      bool insideRing = theShape->isInsideRing(*theGeom->getExteriorRing());
-
-      if (keep_inside)
-      {
-        if (!insideRing)
-          return;
-      }
-      else
-      {
-        if (!insideRing)
-        {
-          theBuilder.add(theGeom->clone());
-          return;
-        }
-
-        clipper.addExterior(theGeom->getExteriorRing()->clone());
-      }
-    }
+    if (Shape::all_not_inside(position) &&
+        !linestrings_exterior_not_inside(theGeom, theBuilder, theShape, clipper, keep_inside))
+      return;
 
     // Clipping:
     // Handle the holes now:
@@ -260,30 +315,8 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       const auto *hole = theGeom->getInteriorRing(i);
       auto holeposition = do_circle(hole, clipper, theShape, keep_inside, all_exterior);
 
-      if (Shape::all_only_inside(holeposition))
-      {
-        if (keep_inside)
-          clipper.addExterior(hole->clone());
-      }
-      else if (Shape::all_not_inside(holeposition))
-      {
-        bool insideHole = theShape->isInsideRing(*hole);
-
-        if (insideHole)
-        {
-          // If the box clip is inside a hole the result is empty
-          // Otherwise we can keep the original input
-
-          if (!keep_inside)
-            theBuilder.add(theGeom->clone());
-
-          return;
-        }
-
-        // Otherwise the hole is outside the box
-        if (!keep_inside)
-          clipper.addExterior(hole->clone());
-      }
+      if (!linestrings_hole(theGeom, hole, holeposition, theBuilder, theShape, clipper, keep_inside))
+        return;
     }
 
     clipper.reconnect();
