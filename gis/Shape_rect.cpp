@@ -190,6 +190,15 @@ bool Shape_rect::clipOutside(LineState& st, ShapeClipper& theClipper, bool exter
 
 bool Shape_rect::clipInside(LineState& st, ShapeClipper& theClipper, bool exterior) const
 {
+  /*
+   *  1. in-in
+   *     - continue clip
+   *  2. in-edge
+   *     - terminate clip
+   *  3. in-out
+   *     - terminate clip at intersection point
+   */
+
   while (++st.i < st.n)
   {
     st.x = st.g.getX(st.i);
@@ -275,6 +284,19 @@ bool Shape_rect::clipInside(LineState& st, ShapeClipper& theClipper, bool exteri
 
 bool Shape_rect::clipEdge(LineState& st, ShapeClipper& theClipper, bool exterior) const
 {
+  /*
+   *  4. edge-in
+   *     - begin new linestring
+   *  5. edge-edge
+   *     a) from edge 1 to edge 1
+   *        - ignore segment for travelling on the edges only
+   *     b) from edge 1 to edge 2
+   *        - produce segment between endpoints
+   *  6. edge-out
+   *     - if passes inside the rectangle, produce a linesegment
+   *     - ignore segment if goes straight out
+   */
+
   while (++st.i < st.n)
   {
     auto prev_pos = st.pos;
