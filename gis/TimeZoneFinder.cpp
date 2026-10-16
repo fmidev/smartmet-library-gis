@@ -518,6 +518,66 @@ std::shared_ptr<GDALDataset> open_source(const std::string& theSource)
   return {ds, [](GDALDataset* p) { GDALClose(p); }};
 }
 
+// Subdivide the features in parallel
+std::vector<FeaturePieces> subdivide_features(const std::vector<SourceFeature>& features,
+                                              const TimeZoneFinder::Options& theOptions)
+{
+  // Features are handed out largest first so that
+  // the huge zones (Russia, oceans) do not end up last on a single thread.
+
+  std::vector<std::size_t> order(features.size());
+  for (std::size_t i = 0; i < order.size(); i++)
+    order[i] = i;
+  std::sort(order.begin(),
+            order.end(),
+            [&](std::size_t a, std::size_t b)
+            { return features[a].wkb.size() > features[b].wkb.size(); });
+
+  std::vector<FeaturePieces> results(features.size());
+  std::atomic<std::size_t> next{0};
+  std::exception_ptr failure;
+  std::mutex failure_mutex;
+
+  unsigned int nthreads = theOptions.threads;
+  if (nthreads == 0)
+    nthreads = std::max(1U, std::thread::hardware_concurrency());
+  nthreads = std::min<unsigned int>(nthreads, features.size());
+
+  auto worker = [&]()
+  {
+    GeosContext context;
+    while (true)
+    {
+      std::size_t i = next++;
+      if (i >= order.size())
+        break;
+      try
+      {
+        results[order[i]] = Subdivider::process(context.get(), features[order[i]], theOptions);
+      }
+      catch (...)
+      {
+        std::scoped_lock lock(failure_mutex);
+        if (!failure)
+          failure = std::current_exception();
+        next = order.size();
+      }
+    }
+  };
+
+  std::vector<std::thread> threads;
+  for (unsigned int i = 0; i + 1 < nthreads; i++)
+    threads.emplace_back(worker);
+  worker();
+  for (auto& t : threads)
+    t.join();
+
+  if (failure)
+    std::rethrow_exception(failure);
+
+  return results;
+}
+
 }  // namespace
 
 // ----------------------------------------------------------------------
@@ -556,6 +616,14 @@ class TimeZoneFinder::Impl
   Statistics itsStatistics;
 
  private:
+  std::vector<SourceFeature> readFeatures(OGRLayer& theLayer, const Options& theOptions);
+  void mergeResults(std::vector<FeaturePieces>& results,
+                    const std::vector<SourceFeature>& features,
+                    const Options& theOptions,
+                    std::vector<double>& zone_area,
+                    std::vector<Value>& values);
+  void rankZones(const std::vector<double>& zone_area, const Options& theOptions);
+  void collectStatistics(std::size_t nfeatures, const Options& theOptions);
   void buildGrid(const std::vector<Value>& thePieceBoxes);
   bool inside(const Piece& thePiece, std::int32_t x, std::int32_t y) const;
   template <typename Callback>
@@ -582,6 +650,199 @@ class TimeZoneFinder::Impl
  */
 // ----------------------------------------------------------------------
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief Read the features and the zone names of the layer
+ *
+ * Read all features first, OGR layers are not thread safe.
+ */
+// ----------------------------------------------------------------------
+
+std::vector<SourceFeature> TimeZoneFinder::Impl::readFeatures(OGRLayer& theLayer,
+                                                              const Options& theOptions)
+{
+  std::map<std::string, std::uint32_t> zone_index;
+  std::vector<SourceFeature> features;
+
+  auto* defn = theLayer.GetLayerDefn();
+  int field = defn->GetFieldIndex(theOptions.field.c_str());
+  if (field < 0)
+    throw Fmi::Exception(BCP, "Timezone name field not found in the timezone layer")
+        .addParameter("Field", theOptions.field)
+        .addParameter("Layer", theLayer.GetName());
+
+  // Read only the polygons intersecting the load area. Every polygon
+  // covering a point inside the area intersects the area, hence searches
+  // inside the area give the same results as with the full data set.
+
+  SpatialFilterGuard filter_guard(theLayer);
+  if (theOptions.area)
+  {
+    const auto& area = *theOptions.area;
+    if (!std::isfinite(area.west) || !std::isfinite(area.south) || !std::isfinite(area.east) ||
+        !std::isfinite(area.north) || area.west > area.east || area.south > area.north ||
+        area.west < -180 || area.east > 180 || area.south < -90 || area.north > 90)
+      throw Fmi::Exception(BCP, "Invalid timezone load area")
+          .addParameter("Area",
+                        fmt::format("{},{},{},{}", area.west, area.south, area.east, area.north));
+
+    itsHasArea = true;
+    itsArea = {
+        quantize(area.west), quantize(area.south), quantize(area.east), quantize(area.north)};
+    theLayer.SetSpatialFilterRect(area.west, area.south, area.east, area.north);
+  }
+
+  theLayer.ResetReading();
+  for (auto& feature : theLayer)
+  {
+    const OGRGeometry* geom = feature->GetGeometryRef();
+    if (geom == nullptr || geom->IsEmpty())
+      continue;
+
+    std::string name = feature->GetFieldAsString(field);
+    if (name.empty())
+      throw Fmi::Exception(BCP, "Timezone feature has an empty zone name")
+          .addParameter("FID", std::to_string(feature->GetFID()));
+
+    auto pos = zone_index.find(name);
+    if (pos == zone_index.end())
+    {
+      pos = zone_index.insert({name, static_cast<std::uint32_t>(itsZones.size())}).first;
+      itsZones.push_back(name);
+    }
+
+    SourceFeature f;
+    f.zone = pos->second;
+    f.wkb.resize(geom->WkbSize());
+    geom->exportToWkb(wkbNDR, f.wkb.data());
+    features.push_back(std::move(f));
+  }
+
+  if (features.empty())
+    throw Fmi::Exception(BCP,
+                         itsHasArea ? "Timezone layer contains no polygons in the load area"
+                                    : "Timezone layer contains no polygons")
+        .addParameter("Layer", theLayer.GetName());
+
+  return features;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Merge the subdivided pieces of the features
+ */
+// ----------------------------------------------------------------------
+
+void TimeZoneFinder::Impl::mergeResults(std::vector<FeaturePieces>& results,
+                                        const std::vector<SourceFeature>& features,
+                                        const Options& theOptions,
+                                        std::vector<double>& zone_area,
+                                        std::vector<Value>& values)
+{
+  itsRingOffsets.push_back(0);
+  for (std::size_t i = 0; i < results.size(); i++)
+  {
+    auto& r = results[i];
+    zone_area[features[i].zone] += r.area;
+    if (r.invalid)
+    {
+      ++itsStatistics.invalid_features;
+      if (theOptions.verbose)
+        std::cerr << fmt::format("Warning: invalid timezone geometry for {}: {}{}\n",
+                                 itsZones[features[i].zone],
+                                 r.reason,
+                                 theOptions.make_valid ? " (repaired)" : "");
+    }
+
+    const auto point_offset = static_cast<std::uint32_t>(itsCoords.size() / 2);
+    const auto ring_offset = static_cast<std::uint32_t>(itsRingOffsets.size() - 1);
+
+    for (std::size_t j = 0; j < r.pieces.size(); j++)
+    {
+      Piece piece = r.pieces[j];
+      if (piece.rings > 0)
+        piece.first_ring += ring_offset;
+      values.emplace_back(r.boxes[j], static_cast<std::uint32_t>(itsPieces.size()));
+      itsPieces.push_back(piece);
+    }
+    for (std::size_t j = 1; j < r.ring_offsets.size(); j++)
+      itsRingOffsets.push_back(r.ring_offsets[j] + point_offset);
+    itsCoords.insert(itsCoords.end(), r.coords.begin(), r.coords.end());
+
+    r = FeaturePieces();  // release memory early
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Rank the zones
+ */
+// ----------------------------------------------------------------------
+
+void TimeZoneFinder::Impl::rankZones(const std::vector<double>& zone_area,
+                                     const Options& theOptions)
+{
+  // Preferred zones first in the given order, then the rest by increasing area
+  std::vector<std::uint32_t> order_by_rank(itsZones.size());
+  for (std::uint32_t i = 0; i < order_by_rank.size(); i++)
+    order_by_rank[i] = i;
+  auto preference = [&](std::uint32_t zone) -> std::size_t
+  {
+    const auto& pref = theOptions.preferred;
+    auto pos = std::find(pref.begin(), pref.end(), itsZones[zone]);
+    return static_cast<std::size_t>(pos - pref.begin());
+  };
+  std::stable_sort(order_by_rank.begin(),
+                   order_by_rank.end(),
+                   [&](std::uint32_t a, std::uint32_t b)
+                   {
+                     auto pa = preference(a);
+                     auto pb = preference(b);
+                     if (pa != pb)
+                       return pa < pb;
+                     return zone_area[a] < zone_area[b];
+                   });
+  itsRank.resize(itsZones.size());
+  for (std::uint32_t i = 0; i < order_by_rank.size(); i++)
+    itsRank[order_by_rank[i]] = i;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Collect the statistics and optionally report them
+ */
+// ----------------------------------------------------------------------
+
+void TimeZoneFinder::Impl::collectStatistics(std::size_t nfeatures, const Options& theOptions)
+{
+  itsStatistics.features = nfeatures;
+  itsStatistics.zones = itsZones.size();
+  itsStatistics.pieces = itsPieces.size();
+  itsStatistics.full_pieces = static_cast<std::size_t>(std::count_if(
+      itsPieces.begin(), itsPieces.end(), [](const Piece& p) { return p.rings == 0; }));
+  itsStatistics.vertices = itsCoords.size() / 2;
+  itsStatistics.uniform_cells = static_cast<std::size_t>(
+      std::count_if(itsGrid.begin(), itsGrid.end(), [](auto c) { return c < mixed_flag; }));
+  itsStatistics.bytes =
+      itsCoords.capacity() * sizeof(std::int32_t) +
+      itsRingOffsets.capacity() * sizeof(std::uint32_t) + itsPieces.capacity() * sizeof(Piece) +
+      itsGrid.capacity() * sizeof(std::uint32_t) +
+      itsListStart.capacity() * sizeof(std::uint32_t) + itsListEntries.capacity() * sizeof(Value);
+
+  if (theOptions.verbose)
+    std::cout << fmt::format(
+        "Timezones: {} features, {} zones, {} invalid, {} pieces ({} full cells), {} vertices, "
+        "{:.1f}% uniform grid cells, {:.1f} MB\n",
+        itsStatistics.features,
+        itsStatistics.zones,
+        itsStatistics.invalid_features,
+        itsStatistics.pieces,
+        itsStatistics.full_pieces,
+        itsStatistics.vertices,
+        100.0 * itsStatistics.uniform_cells / itsGrid.size(),
+        itsStatistics.bytes / 1048576.0);
+}
+
 TimeZoneFinder::Impl::Impl(OGRLayer& theLayer, const Options& theOptions)
     : itsNauticalZones(nautical_zones())
 {
@@ -589,159 +850,17 @@ TimeZoneFinder::Impl::Impl(OGRLayer& theLayer, const Options& theOptions)
   {
     // Read all features first, OGR layers are not thread safe
 
-    std::map<std::string, std::uint32_t> zone_index;
-    std::vector<SourceFeature> features;
+    std::vector<SourceFeature> features = readFeatures(theLayer, theOptions);
 
-    auto* defn = theLayer.GetLayerDefn();
-    int field = defn->GetFieldIndex(theOptions.field.c_str());
-    if (field < 0)
-      throw Fmi::Exception(BCP, "Timezone name field not found in the timezone layer")
-          .addParameter("Field", theOptions.field)
-          .addParameter("Layer", theLayer.GetName());
+    // Subdivide in parallel.
 
-    // Read only the polygons intersecting the load area. Every polygon
-    // covering a point inside the area intersects the area, hence searches
-    // inside the area give the same results as with the full data set.
-
-    SpatialFilterGuard filter_guard(theLayer);
-    if (theOptions.area)
-    {
-      const auto& area = *theOptions.area;
-      if (!std::isfinite(area.west) || !std::isfinite(area.south) || !std::isfinite(area.east) ||
-          !std::isfinite(area.north) || area.west > area.east || area.south > area.north ||
-          area.west < -180 || area.east > 180 || area.south < -90 || area.north > 90)
-        throw Fmi::Exception(BCP, "Invalid timezone load area")
-            .addParameter("Area",
-                          fmt::format("{},{},{},{}", area.west, area.south, area.east, area.north));
-
-      itsHasArea = true;
-      itsArea = {
-          quantize(area.west), quantize(area.south), quantize(area.east), quantize(area.north)};
-      theLayer.SetSpatialFilterRect(area.west, area.south, area.east, area.north);
-    }
-
-    theLayer.ResetReading();
-    for (auto& feature : theLayer)
-    {
-      const OGRGeometry* geom = feature->GetGeometryRef();
-      if (geom == nullptr || geom->IsEmpty())
-        continue;
-
-      std::string name = feature->GetFieldAsString(field);
-      if (name.empty())
-        throw Fmi::Exception(BCP, "Timezone feature has an empty zone name")
-            .addParameter("FID", std::to_string(feature->GetFID()));
-
-      auto pos = zone_index.find(name);
-      if (pos == zone_index.end())
-      {
-        pos = zone_index.insert({name, static_cast<std::uint32_t>(itsZones.size())}).first;
-        itsZones.push_back(name);
-      }
-
-      SourceFeature f;
-      f.zone = pos->second;
-      f.wkb.resize(geom->WkbSize());
-      geom->exportToWkb(wkbNDR, f.wkb.data());
-      features.push_back(std::move(f));
-    }
-
-    if (features.empty())
-      throw Fmi::Exception(BCP,
-                           itsHasArea ? "Timezone layer contains no polygons in the load area"
-                                      : "Timezone layer contains no polygons")
-          .addParameter("Layer", theLayer.GetName());
-
-    // Subdivide in parallel. Features are handed out largest first so that
-    // the huge zones (Russia, oceans) do not end up last on a single thread.
-
-    std::vector<std::size_t> order(features.size());
-    for (std::size_t i = 0; i < order.size(); i++)
-      order[i] = i;
-    std::sort(order.begin(),
-              order.end(),
-              [&](std::size_t a, std::size_t b)
-              { return features[a].wkb.size() > features[b].wkb.size(); });
-
-    std::vector<FeaturePieces> results(features.size());
-    std::atomic<std::size_t> next{0};
-    std::exception_ptr failure;
-    std::mutex failure_mutex;
-
-    unsigned int nthreads = theOptions.threads;
-    if (nthreads == 0)
-      nthreads = std::max(1U, std::thread::hardware_concurrency());
-    nthreads = std::min<unsigned int>(nthreads, features.size());
-
-    auto worker = [&]()
-    {
-      GeosContext context;
-      while (true)
-      {
-        std::size_t i = next++;
-        if (i >= order.size())
-          break;
-        try
-        {
-          results[order[i]] = Subdivider::process(context.get(), features[order[i]], theOptions);
-        }
-        catch (...)
-        {
-          std::scoped_lock lock(failure_mutex);
-          if (!failure)
-            failure = std::current_exception();
-          next = order.size();
-        }
-      }
-    };
-
-    std::vector<std::thread> threads;
-    for (unsigned int i = 0; i + 1 < nthreads; i++)
-      threads.emplace_back(worker);
-    worker();
-    for (auto& t : threads)
-      t.join();
-
-    if (failure)
-      std::rethrow_exception(failure);
+    std::vector<FeaturePieces> results = subdivide_features(features, theOptions);
 
     // Merge the results and rank the zones
 
     std::vector<double> zone_area(itsZones.size(), 0.0);
     std::vector<Value> values;
-
-    itsRingOffsets.push_back(0);
-    for (std::size_t i = 0; i < results.size(); i++)
-    {
-      auto& r = results[i];
-      zone_area[features[i].zone] += r.area;
-      if (r.invalid)
-      {
-        ++itsStatistics.invalid_features;
-        if (theOptions.verbose)
-          std::cerr << fmt::format("Warning: invalid timezone geometry for {}: {}{}\n",
-                                   itsZones[features[i].zone],
-                                   r.reason,
-                                   theOptions.make_valid ? " (repaired)" : "");
-      }
-
-      const auto point_offset = static_cast<std::uint32_t>(itsCoords.size() / 2);
-      const auto ring_offset = static_cast<std::uint32_t>(itsRingOffsets.size() - 1);
-
-      for (std::size_t j = 0; j < r.pieces.size(); j++)
-      {
-        Piece piece = r.pieces[j];
-        if (piece.rings > 0)
-          piece.first_ring += ring_offset;
-        values.emplace_back(r.boxes[j], static_cast<std::uint32_t>(itsPieces.size()));
-        itsPieces.push_back(piece);
-      }
-      for (std::size_t j = 1; j < r.ring_offsets.size(); j++)
-        itsRingOffsets.push_back(r.ring_offsets[j] + point_offset);
-      itsCoords.insert(itsCoords.end(), r.coords.begin(), r.coords.end());
-
-      r = FeaturePieces();  // release memory early
-    }
+    mergeResults(results, features, theOptions, zone_area, values);
 
     buildGrid(values);
 
@@ -749,56 +868,9 @@ TimeZoneFinder::Impl::Impl(OGRLayer& theLayer, const Options& theOptions)
     itsRingOffsets.shrink_to_fit();
     itsPieces.shrink_to_fit();
 
-    // Preferred zones first in the given order, then the rest by increasing area
-    std::vector<std::uint32_t> order_by_rank(itsZones.size());
-    for (std::uint32_t i = 0; i < order_by_rank.size(); i++)
-      order_by_rank[i] = i;
-    auto preference = [&](std::uint32_t zone) -> std::size_t
-    {
-      const auto& pref = theOptions.preferred;
-      auto pos = std::find(pref.begin(), pref.end(), itsZones[zone]);
-      return static_cast<std::size_t>(pos - pref.begin());
-    };
-    std::stable_sort(order_by_rank.begin(),
-                     order_by_rank.end(),
-                     [&](std::uint32_t a, std::uint32_t b)
-                     {
-                       auto pa = preference(a);
-                       auto pb = preference(b);
-                       if (pa != pb)
-                         return pa < pb;
-                       return zone_area[a] < zone_area[b];
-                     });
-    itsRank.resize(itsZones.size());
-    for (std::uint32_t i = 0; i < order_by_rank.size(); i++)
-      itsRank[order_by_rank[i]] = i;
+    rankZones(zone_area, theOptions);
 
-    itsStatistics.features = features.size();
-    itsStatistics.zones = itsZones.size();
-    itsStatistics.pieces = itsPieces.size();
-    itsStatistics.full_pieces = static_cast<std::size_t>(std::count_if(
-        itsPieces.begin(), itsPieces.end(), [](const Piece& p) { return p.rings == 0; }));
-    itsStatistics.vertices = itsCoords.size() / 2;
-    itsStatistics.uniform_cells = static_cast<std::size_t>(
-        std::count_if(itsGrid.begin(), itsGrid.end(), [](auto c) { return c < mixed_flag; }));
-    itsStatistics.bytes =
-        itsCoords.capacity() * sizeof(std::int32_t) +
-        itsRingOffsets.capacity() * sizeof(std::uint32_t) + itsPieces.capacity() * sizeof(Piece) +
-        itsGrid.capacity() * sizeof(std::uint32_t) +
-        itsListStart.capacity() * sizeof(std::uint32_t) + itsListEntries.capacity() * sizeof(Value);
-
-    if (theOptions.verbose)
-      std::cout << fmt::format(
-          "Timezones: {} features, {} zones, {} invalid, {} pieces ({} full cells), {} vertices, "
-          "{:.1f}% uniform grid cells, {:.1f} MB\n",
-          itsStatistics.features,
-          itsStatistics.zones,
-          itsStatistics.invalid_features,
-          itsStatistics.pieces,
-          itsStatistics.full_pieces,
-          itsStatistics.vertices,
-          100.0 * itsStatistics.uniform_cells / itsGrid.size(),
-          itsStatistics.bytes / 1048576.0);
+    collectStatistics(features.size(), theOptions);
   }
   catch (...)
   {
