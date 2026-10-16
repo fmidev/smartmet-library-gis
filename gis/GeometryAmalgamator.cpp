@@ -365,28 +365,22 @@ OGRLinearRing* build_ring(const std::vector<CDT::V2d<double>>& pts)
 // kept on the left produces CCW exterior rings and CW hole rings — both ready to drop
 // straight into an OGRPolygon. UnaryUnion is the dominant cost on dense archipelago data
 // and this approach skips it entirely.
-void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
-                        double lengthLimit,
-                        double areaLimit,
-                        std::vector<OGRGeometryPtr>& result)
+// An exterior ring with its area and bounding box
+struct ExtRing
 {
-  // Step 1: extract vertices + constraint edges with edge densification
-  VertexMap vertex_map;
-  std::vector<CDT::V2d<double>> vertices;
-  std::vector<CDT::Edge> edges;
-  const double maxEdgeLen = lengthLimit / 2.0;
-  for (const auto* p : cluster)
-    extract_polygon(p, maxEdgeLen, vertex_map, vertices, edges);
+  std::vector<CDT::V2d<double>> pts;
+  double area = 0.0;
+  double xmin = 0.0, ymin = 0.0, xmax = 0.0, ymax = 0.0;
+};
 
-  if (vertices.size() < 3)
-    return;
+using BoundaryMap = ankerl::unordered_dense::map<CDT::VertInd, std::vector<CDT::VertInd>>;
+using Ring = std::vector<CDT::V2d<double>>;
 
-  // Step 2: constrained Delaunay triangulation
-  CDT::Triangulation<double> cdt;
-  cdt.insertVertices(vertices);
-  cdt.insertEdges(edges);
-  auto depths = cdt.calculateTriangleDepths();
-
+template <typename Depths>
+std::vector<bool> classify_triangles(const CDT::Triangulation<double>& cdt,
+                                     const Depths& depths,
+                                     double lengthLimit)
+{
   // Step 3: classify triangles. accepted[t] is true iff triangle t is part of the merged
   // output region. Super-triangle-adjacent triangles (any vertex < 3) are never accepted.
   std::vector<bool> accepted(cdt.triangles.size(), false);
@@ -412,7 +406,12 @@ void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
     }
     // depth even > 0: hole interior, leave rejected.
   }
+  return accepted;
+}
 
+BoundaryMap collect_boundary(const CDT::Triangulation<double>& cdt,
+                             const std::vector<bool>& accepted)
+{
   // Step 4: collect boundary half-edges. CDT-cpp convention: triangle.neighbors[k] is the
   // triangle across the edge from vertices[k] to vertices[(k+1)%3], with triangle vertices
   // in CCW order. So edge `(vertices[k], vertices[(k+1)%3])` traversed in that direction
@@ -443,10 +442,11 @@ void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
       }
     }
   }
+  return next_v;
+}
 
-  if (next_v.empty())
-    return;
-
+std::vector<Ring> stitch_rings(const CDT::Triangulation<double>& cdt, BoundaryMap& next_v)
+{
   // Step 5: stitch half-edges into closed rings. Walk by repeatedly consuming one
   // outgoing half-edge per visited vertex from the multimap until we return to the
   // start. For pinch vertices (multiple outgoing) we just pop the first available;
@@ -490,20 +490,15 @@ void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
     if (ok && ring.size() >= 3)
       rings.push_back(std::move(ring));
   }
+  return rings;
+}
 
-  if (rings.empty())
-    return;
-
+void separate_rings(std::vector<Ring>& rings,
+                    std::vector<ExtRing>& exteriors,
+                    std::vector<Ring>& holes)
+{
   // Step 6: separate exterior rings (CCW, area > 0) from hole rings (CW, area < 0).
   // We also cache each exterior's bounding box for the hole-classification step.
-  struct ExtRing
-  {
-    std::vector<CDT::V2d<double>> pts;
-    double area = 0.0;
-    double xmin = 0.0, ymin = 0.0, xmax = 0.0, ymax = 0.0;
-  };
-  std::vector<ExtRing> exteriors;
-  std::vector<std::vector<CDT::V2d<double>>> holes;
   for (auto& r : rings)
   {
     const double sa = ring_signed_area(r);
@@ -527,7 +522,11 @@ void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
       holes.push_back(std::move(r));
     // sa == 0: degenerate, drop
   }
+}
 
+std::vector<std::vector<std::size_t>> assign_holes(const std::vector<ExtRing>& exteriors,
+                                                   const std::vector<Ring>& holes)
+{
   // Step 7: assign each hole to the smallest containing exterior. Smallest because a hole
   // strictly inside ring A which is strictly inside ring B should be A's hole, not B's.
   // For dense archipelago data the number of (exterior, hole) pairs can run into the
@@ -568,6 +567,54 @@ void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
       exterior_holes[best].push_back(h);
     // else: orphan hole, drop (shouldn't happen for well-formed input)
   }
+  return exterior_holes;
+}
+
+void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
+                        double lengthLimit,
+                        double areaLimit,
+                        std::vector<OGRGeometryPtr>& result)
+{
+  // Step 1: extract vertices + constraint edges with edge densification
+  VertexMap vertex_map;
+  std::vector<CDT::V2d<double>> vertices;
+  std::vector<CDT::Edge> edges;
+  const double maxEdgeLen = lengthLimit / 2.0;
+  for (const auto* p : cluster)
+    extract_polygon(p, maxEdgeLen, vertex_map, vertices, edges);
+
+  if (vertices.size() < 3)
+    return;
+
+  // Step 2: constrained Delaunay triangulation
+  CDT::Triangulation<double> cdt;
+  cdt.insertVertices(vertices);
+  cdt.insertEdges(edges);
+  auto depths = cdt.calculateTriangleDepths();
+
+  // Step 3: classify triangles. accepted[t] is true iff triangle t is part of the merged
+  // output region. Super-triangle-adjacent triangles (any vertex < 3) are never accepted.
+  std::vector<bool> accepted = classify_triangles(cdt, depths, lengthLimit);
+
+  // Step 4: collect boundary half-edges.
+  auto next_v = collect_boundary(cdt, accepted);
+
+  if (next_v.empty())
+    return;
+
+  // Step 5: stitch half-edges into closed rings.
+  std::vector<Ring> rings = stitch_rings(cdt, next_v);
+
+  if (rings.empty())
+    return;
+
+  // Step 6: separate exterior rings (CCW, area > 0) from hole rings (CW, area < 0).
+  std::vector<ExtRing> exteriors;
+  std::vector<Ring> holes;
+  separate_rings(rings, exteriors, holes);
+
+  // Step 7: assign each hole to the smallest containing exterior.
+  auto exterior_holes = assign_holes(exteriors, holes);
 
   // Step 8: build OGRPolygons, filter by areaLimit, append to result.
   for (std::size_t e = 0; e < exteriors.size(); ++e)
