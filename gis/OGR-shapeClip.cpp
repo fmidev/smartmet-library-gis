@@ -315,7 +315,8 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       const auto *hole = theGeom->getInteriorRing(i);
       auto holeposition = do_circle(hole, clipper, theShape, keep_inside, all_exterior);
 
-      if (!linestrings_hole(theGeom, hole, holeposition, theBuilder, theShape, clipper, keep_inside))
+      if (!linestrings_hole(
+              theGeom, hole, holeposition, theBuilder, theShape, clipper, keep_inside))
         return;
     }
 
