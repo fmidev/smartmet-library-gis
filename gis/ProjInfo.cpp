@@ -73,6 +73,14 @@ std::optional<double> parse_proj_number(const std::string& value)
   }
 }
 
+// Append a term to a PROJ string, separating the terms with spaces
+void append_term(std::string& projstr, const std::string& term)
+{
+  if (!projstr.empty())
+    projstr += ' ';
+  projstr += term;
+}
+
 }  // namespace
 
 // ----------------------------------------------------------------------
@@ -284,49 +292,29 @@ std::string ProjInfo::inverseProjStr() const
       if (g_str_keepers.find(name_value.first) == g_str_keepers.end())
         continue;
 
-      if (!ret.empty())
-        ret += ' ';
-
-      if (name_value.first == "proj")
-      {
-        if (name_value.second != "ob_tran")
-          ret += "+proj=longlat";
-        else
-          ret += "+proj=ob_tran +o_proj=longlat";
-      }
+      if (name_value.first != "proj")
+        append_term(ret, fmt::format("+{}={}", name_value.first, name_value.second));
+      else if (name_value.second != "ob_tran")
+        append_term(ret, "+proj=longlat");
       else
-      {
-        ret += '+';
-        ret += name_value.first;
-        ret += '=';
-        ret += name_value.second;
-      }
+        append_term(ret, "+proj=ob_tran +o_proj=longlat");
     }
 
     for (const auto& name_value : itsDoubles)
     {
       if (g_num_keepers.find(name_value.first) == g_num_keepers.end())
         continue;
-      if (!ret.empty())
-        ret += ' ';
-      ret += '+';
-      ret += name_value.first;
-      ret += '=';
 
       if (g_ints.find(name_value.first) == g_ints.end())
-        ret += fmt::format("{}", name_value.second);
+        append_term(ret, fmt::format("+{}={}", name_value.first, name_value.second));
       else
-        ret += fmt::format("{:.0f}", name_value.second);
+        append_term(ret, fmt::format("+{}={:.0f}", name_value.first, name_value.second));
     }
 
     for (const auto& name : itsOptions)
     {
-      if (g_opt_keepers.find(name) == g_opt_keepers.end())
-        continue;
-      if (!ret.empty())
-        ret += ' ';
-      ret += '+';
-      ret += name;
+      if (g_opt_keepers.find(name) != g_opt_keepers.end())
+        append_term(ret, "+" + name);
     }
 
     return ret;
