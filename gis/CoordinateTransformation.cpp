@@ -64,7 +64,100 @@ bool contains_longitudes(const OGREnvelope& env1, const OGREnvelope& env2)
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+struct OGRGeometryDeleter
+{
+  void operator()(OGRGeometry* g) const noexcept { OGRGeometryFactory::destroyGeometry(g); }
+};
+
+using GeometryPtr = std::unique_ptr<OGRGeometry, OGRGeometryDeleter>;
+
+GeometryPtr make_geometry_ptr(OGRGeometry* geometry)
+{
+  return GeometryPtr(geometry);
+}
+
+// Clone the geometry, clipping it to the projected bounds of the projector if it extends
+// outside them. Returns nullptr if nothing remains.
+GeometryPtr clip_to_projected_bounds(const OGRGeometry& geom, const GeometryProjector& projector)
+{
+  auto g = make_geometry_ptr(geom.clone());
+  OGR::normalizeWindingOrder(g.get());
+
+  if (projector.hasProjectedBounds())
+  {
+    double minX = NAN;
+    double minY = NAN;
+    double maxX = NAN;
+    double maxY = NAN;
+    projector.getProjectedBounds(minX, minY, maxX, maxY);
+
+    OGREnvelope env;
+    g->getEnvelope(&env);
+
+    // Only clip if the geometry extends outside the bounds
+    if (env.MinX < minX || env.MaxX > maxX || env.MinY < minY || env.MaxY > maxY)
+    {
+      auto clipped = make_geometry_ptr(OGR::polyclip(*g, Box(minX, minY, maxX, maxY)));
+      if (!clipped || clipped->IsEmpty())
+        return nullptr;
+      g = std::move(clipped);
+    }
+  }
+
+  return g;
+}
+
+// True if the geometry has been lost
+bool is_lost(const GeometryPtr& g)
+{
+  return (!g || g->IsEmpty());
+}
+
+// Cut and clip the geometry with the interrupts of the target projection. Returns nullptr
+// if nothing remains.
+GeometryPtr apply_interrupt(GeometryPtr g,
+                            Interrupt& interrupt,
+                            double densifyKm,
+                            bool use_cut_geometry)
+{
+  for (const auto& box : interrupt.cuts)
+  {
+    g = make_geometry_ptr(OGR::polycut(*g, box, densifyKm));
+    if (is_lost(g))
+      return nullptr;
+  }
+
+  for (auto& shape : interrupt.shapeCuts)
+  {
+    g = make_geometry_ptr(OGR::polycut(*g, shape, densifyKm));
+    if (is_lost(g))
+      return nullptr;
+  }
+
+  for (auto& shape : interrupt.shapeClips)
+  {
+    g = make_geometry_ptr(OGR::polyclip(*g, shape, densifyKm));
+    if (is_lost(g))
+      return nullptr;
+  }
+
+  if (use_cut_geometry && interrupt.cutGeometry)
+  {
+    g = make_geometry_ptr(g->Difference(interrupt.cutGeometry.get()));
+    if (is_lost(g))
+      return nullptr;
+  }
+
+  if (interrupt.andGeometry)
+  {
+    g = make_geometry_ptr(g->Intersection(interrupt.andGeometry.get()));
+    if (is_lost(g))
+      return nullptr;
+  }
+  return g;
+}
 }  // namespace
+
 
 class CoordinateTransformation::Impl
 {
@@ -260,14 +353,6 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 {
   try
   {
-    struct OGRGeometryDeleter
-    {
-      void operator()(OGRGeometry* g) const noexcept { OGRGeometryFactory::destroyGeometry(g); }
-    };
-
-    const auto make_geometry_ptr = [](OGRGeometry* geometry)
-    { return std::unique_ptr<OGRGeometry, OGRGeometryDeleter>(geometry); };
-
     if (!impl->m_source.isGeographic())
     {
       auto g = make_geometry_ptr(geom.clone());
@@ -279,33 +364,7 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
 
     // Both source and target are geographic and identical: skip reprojection and interrupts
     if (impl->m_target.isGeographic() && impl->m_source.get()->IsSame(impl->m_target.get()))
-    {
-      auto g = make_geometry_ptr(geom.clone());
-      OGR::normalizeWindingOrder(g.get());
-
-      if (projector.hasProjectedBounds())
-      {
-        double minX = NAN;
-        double minY = NAN;
-        double maxX = NAN;
-        double maxY = NAN;
-        projector.getProjectedBounds(minX, minY, maxX, maxY);
-
-        OGREnvelope env;
-        g->getEnvelope(&env);
-
-        // Only clip if the geometry extends outside the bounds
-        if (env.MinX < minX || env.MaxX > maxX || env.MinY < minY || env.MaxY > maxY)
-        {
-          auto clipped = make_geometry_ptr(OGR::polyclip(*g, Box(minX, minY, maxX, maxY)));
-          if (!clipped || clipped->IsEmpty())
-            return nullptr;
-          g = std::move(clipped);
-        }
-      }
-
-      return g.release();
-    }
+      return clip_to_projected_bounds(geom, projector).release();
 
     auto target_envelope = interruptEnvelope(impl->m_target);
 
@@ -320,50 +379,15 @@ OGRGeometry* CoordinateTransformation::transformGeometry(const OGRGeometry& geom
       return result.release();
     }
 
-    auto g = make_geometry_ptr(geom.clone());
+    const bool use_cut_geometry =
+        (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope));
 
-    const double densifyKm = projector.getDensifyResolutionKm();
-
-    for (const auto& box : interrupt.cuts)
-    {
-      g = make_geometry_ptr(OGR::polycut(*g, box, densifyKm));
-      if (!g || g->IsEmpty())
-        return nullptr;
-    }
-
-    for (auto& shape : interrupt.shapeCuts)
-    {
-      g = make_geometry_ptr(OGR::polycut(*g, shape, densifyKm));
-      if (!g || g->IsEmpty())
-        return nullptr;
-    }
-
-    if (!interrupt.shapeClips.empty())
-    {
-      for (auto& shape : interrupt.shapeClips)
-      {
-        g = make_geometry_ptr(OGR::polyclip(*g, shape, densifyKm));
-        if (!g || g->IsEmpty())
-          return nullptr;
-      }
-    }
-
-    if (isEmpty(target_envelope) || !contains_longitudes(shape_envelope, target_envelope))
-    {
-      if (interrupt.cutGeometry)
-      {
-        g = make_geometry_ptr(g->Difference(interrupt.cutGeometry.get()));
-        if (!g || g->IsEmpty())
-          return nullptr;
-      }
-    }
-
-    if (interrupt.andGeometry)
-    {
-      g = make_geometry_ptr(g->Intersection(interrupt.andGeometry.get()));
-      if (!g || g->IsEmpty())
-        return nullptr;
-    }
+    auto g = apply_interrupt(make_geometry_ptr(geom.clone()),
+                             interrupt,
+                             projector.getDensifyResolutionKm(),
+                             use_cut_geometry);
+    if (!g)
+      return nullptr;
 
     auto result = projector.projectGeometry(g.get());
     OGR::normalizeWindingOrder(result.get());
