@@ -218,6 +218,100 @@ void print_orientation(OGRGeometry& geom)
 
 namespace PostGIS
 {
+namespace
+{
+// Establish the attribute filter
+void set_attribute_filter(OGRLayer& layer,
+                          const std::optional<std::string>& theWhereClause,
+                          const std::string& theName)
+{
+  if (theWhereClause && !theWhereClause->empty())
+  {
+    auto err = layer.SetAttributeFilter(theWhereClause->c_str());
+    if (err != OGRERR_NONE)
+      throw std::runtime_error("Failed to set filter '" + *theWhereClause + "' on '" + theName +
+                               "'");
+  }
+}
+
+// The next feature of the layer, or an empty pointer at the end
+std::shared_ptr<OGRFeature> next_feature(OGRLayer& layer)
+{
+  CPLErrorReset();  // see checkReadErrors()
+  return std::shared_ptr<OGRFeature>(
+      layer.GetNextFeature(), [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
+}
+
+// Assign the spatial reference of the layer (WGS84 if not set) to the collection
+void assign_layer_spatial_reference(OGRGeometryCollection& out, OGRLayer& layer)
+{
+  if (layer.GetSpatialRef() == nullptr)
+  {
+    auto* wgs84 = new OGRSpatialReference();
+    wgs84->SetFromUserInput("WGS84");
+    out.assignSpatialReference(wgs84);
+  }
+  else
+  {
+    std::unique_ptr<OGRSpatialReference, OGRSpatialReferenceReleaser> crs(
+        layer.GetSpatialRef()->Clone(), OGRSpatialReferenceReleaser());
+    crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    out.assignSpatialReference(crs.get());
+  }
+}
+
+// Add the geometry to the collection, or count it as dropped if it is null
+void add_geometry(OGRGeometryCollection& out,
+                  OGRGeometry* clone,
+                  std::size_t& geometries,
+                  std::size_t& dropped)
+{
+  if (clone != nullptr)
+  {
+    forceClosePolygonRings(clone);
+    out.addGeometryDirectly(clone);  // takes ownership
+    ++geometries;
+  }
+  else
+    ++dropped;
+}
+
+// Global projection bounds and the default densification
+void configure_projector(GeometryProjector& projector)
+{
+  const double global_bound = 30000 * 1e3;  // 30,000 km
+  projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
+  projector.setDensifyResolutionKm(default_segmentation_length);
+}
+
+// Set the feature geometry, transformed to the target spatial reference if requested
+void set_feature_geometry(Feature& item,
+                          const OGRGeometry& geometry,
+                          CoordinateTransformation* transformation,
+                          GeometryProjector* projector,
+                          const Fmi::SpatialReference* theSR)
+{
+  if (transformation == nullptr)
+  {
+    auto* clone = geometry.clone();
+    forceClosePolygonRings(clone);
+    item.geom.reset(clone);
+    return;
+  }
+
+  auto* clone = transformation->transformGeometry(geometry, *projector);
+  forceClosePolygonRings(clone);
+  item.geom.reset(clone);
+  if (clone != nullptr)
+  {
+    // Note: We clone the input SR since we have no lifetime guarantees for it
+    std::shared_ptr<OGRSpatialReference> tmp(theSR->get()->Clone(),
+                                             [](OGRSpatialReference* sr) { sr->Release(); });
+    item.geom->assignSpatialReference(tmp.get());
+  }
+}
+}  // namespace
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Fetch a shape from the database
@@ -242,22 +336,9 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
 
   // Establish the filter
 
-  if (theWhereClause && !theWhereClause->empty())
-  {
-    auto err = layer->SetAttributeFilter(theWhereClause->c_str());
-    if (err != OGRERR_NONE)
-      throw std::runtime_error("Failed to set filter '" + *theWhereClause + "' on '" + theName +
-                               "'");
-  }
+  set_attribute_filter(*layer, theWhereClause, theName);
 
   auto* out = new OGRGeometryCollection;  // NOLINT
-
-  const auto next_feature = [layer]()
-  {
-    CPLErrorReset();  // see checkReadErrors()
-    return std::shared_ptr<OGRFeature>(
-        layer->GetNextFeature(), [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
-  };
 
   std::shared_ptr<OGRFeature> feature;
   std::size_t geometries = 0;
@@ -266,37 +347,15 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
   if (theSR == nullptr)
   {
     // layer->GetSpatialRef()->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-    if (layer->GetSpatialRef() == nullptr)
-    {
-      auto* wgs84 = new OGRSpatialReference();
-      wgs84->SetFromUserInput("WGS84");
-      out->assignSpatialReference(wgs84);
-    }
-    else
-    {
-      std::unique_ptr<OGRSpatialReference, OGRSpatialReferenceReleaser> crs(
-          layer->GetSpatialRef()->Clone(), OGRSpatialReferenceReleaser());
-      crs->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-      out->assignSpatialReference(crs.get());
-    }
+    assign_layer_spatial_reference(*out, *layer);
 
     layer->ResetReading();
-    while ((feature = next_feature()))
+    while ((feature = next_feature(*layer)))
     {
       // owned by feature
       OGRGeometry* geometry = feature->GetGeometryRef();
       if (geometry != nullptr)
-      {
-        auto* clone = geometry->clone();
-        if (clone)
-        {
-          forceClosePolygonRings(clone);
-          out->addGeometryDirectly(clone);  // takes ownership
-          ++geometries;
-        }
-        else
-          ++dropped;
-      }
+        add_geometry(*out, geometry->clone(), geometries, dropped);
     }
   }
   else
@@ -317,12 +376,10 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
     // every feature, which is dominated by PROJ's CRS-equivalence search
     // (~44 % of total CPU on a 17k-feature read of gshhg.gshhs_h_l1).
     GeometryProjector projector(source->get(), theSR->get());
-    const double global_bound = 30000 * 1e3;  // 30,000 km
-    projector.setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
-    projector.setDensifyResolutionKm(default_segmentation_length);
+    configure_projector(projector);
 
     layer->ResetReading();
-    while ((feature = next_feature()))
+    while ((feature = next_feature(*layer)))
     {
       const auto* defn = feature->GetDefnRef();
       int fieldIndex = defn->GetFieldIndex("iso_a2");
@@ -334,17 +391,8 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
       // owned by feature
       OGRGeometry* geometry = feature->GetGeometryRef();
       if (geometry != nullptr)
-      {
-        auto* clone = transformation.transformGeometry(*geometry, projector);
-        if (clone != nullptr)
-        {
-          forceClosePolygonRings(clone);
-          out->addGeometryDirectly(clone);  // takes ownership
-          ++geometries;
-        }
-        else
-          ++dropped;
-      }
+        add_geometry(
+            *out, transformation.transformGeometry(*geometry, projector), geometries, dropped);
     }
   }
 
@@ -356,6 +404,89 @@ OGRGeometryPtr read(const Fmi::SpatialReference* theSR,
 
   return ret;
 }
+
+namespace
+{
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add the value of a set field as an attribute
+ */
+// ----------------------------------------------------------------------
+
+void add_field_attribute(OGRFeature& feature,
+                         int iField,
+                         const OGRFieldDefn* poFieldDefn,
+                         const std::string& fieldname,
+                         Feature& item)
+{
+  const auto ftype = poFieldDefn->GetType();
+
+  switch (ftype)
+  {
+    case OFTInteger:
+      item.attributes.insert(make_pair(fieldname, feature.GetFieldAsInteger(iField)));
+      break;
+    case OFTInteger64:
+      item.attributes.insert(
+          make_pair(fieldname, static_cast<int>(feature.GetFieldAsInteger64(iField))));
+      break;
+    case OFTReal:
+    {
+      item.attributes.insert(make_pair(fieldname, feature.GetFieldAsDouble(iField)));
+      break;
+    }
+    case OFTString:
+      item.attributes.insert(make_pair(fieldname, feature.GetFieldAsString(iField)));
+      break;
+    case OFTDateTime:
+    {
+      int year = 0;
+      int month = 0;
+      int day = 0;
+      int hour = 0;
+      int min = 0;
+      int sec = 0;
+      int tzFlag = 0;
+      feature.GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
+      Fmi::DateTime timestamp(Fmi::Date(year, month, day), Fmi::TimeDuration(hour, min, sec));
+
+      item.attributes.insert(make_pair(fieldname, timestamp));
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add the wanted fields of the feature as attributes, unset fields as empty strings
+ */
+// ----------------------------------------------------------------------
+
+void add_attributes(OGRFeature& feature,
+                    OGRFeatureDefn& poFDefn,
+                    const std::set<std::string>& theFieldNames,
+                    Feature& item)
+{
+  int iField = 0;
+  for (iField = 0; iField < poFDefn.GetFieldCount(); iField++)
+  {
+    OGRFieldDefn* poFieldDefn = poFDefn.GetFieldDefn(iField);
+    std::string fieldname(poFieldDefn->GetNameRef());
+
+    if (theFieldNames.find(fieldname) == theFieldNames.end())
+      continue;
+    if (feature.IsFieldSet(iField) == 0)
+    {
+      item.attributes.insert(make_pair(fieldname, ""));
+      continue;
+    }
+
+    add_field_attribute(feature, iField, poFieldDefn, fieldname, item);
+  }
+}
+}  // namespace
 
 // ----------------------------------------------------------------------
 /*!
@@ -386,13 +517,7 @@ Features read(const Fmi::SpatialReference* theSR,
 
   // Establish the filter
 
-  if (theWhereClause && !theWhereClause->empty())
-  {
-    auto err = layer->SetAttributeFilter(theWhereClause->c_str());
-    if (err != OGRERR_NONE)
-      throw std::runtime_error("Failed to set filter '" + *theWhereClause + "' on '" + theName +
-                               "'");
-  }
+  set_attribute_filter(*layer, theWhereClause, theName);
 
   // Establish coordinate transformation
 
@@ -413,49 +538,22 @@ Features read(const Fmi::SpatialReference* theSR,
   if (transformation != nullptr)
   {
     projector.reset(new GeometryProjector(source->get(), theSR->get()));
-    const double global_bound = 30000 * 1e3;  // 30,000 km
-    projector->setProjectedBounds(-global_bound, -global_bound, global_bound, global_bound);
-    projector->setDensifyResolutionKm(default_segmentation_length);
+    configure_projector(*projector);
   }
-
-  const auto next_feature = [layer]()
-  {
-    CPLErrorReset();  // see checkReadErrors()
-    return std::shared_ptr<OGRFeature>(
-        layer->GetNextFeature(), [](OGRFeature* feature) { OGRFeature::DestroyFeature(feature); });
-  };
 
   std::shared_ptr<OGRFeature> feature;
   std::size_t geometries = 0;
   std::size_t dropped = 0;
 
   layer->ResetReading();
-  while ((feature = next_feature()))
+  while ((feature = next_feature(*layer)))
   {
     FeaturePtr ret_item(new Feature);
     // owned by feature
     OGRGeometry* geometry = feature->GetGeometryRef();
     if (geometry != nullptr)
     {
-      if (transformation == nullptr)
-      {
-        auto* clone = geometry->clone();
-        forceClosePolygonRings(clone);
-        ret_item->geom.reset(clone);
-      }
-      else
-      {
-        auto* clone = transformation->transformGeometry(*geometry, *projector);
-        forceClosePolygonRings(clone);
-        ret_item->geom.reset(clone);
-        if (clone != nullptr)
-        {
-          // Note: We clone the input SR since we have no lifetime guarantees for it
-          std::shared_ptr<OGRSpatialReference> tmp(theSR->get()->Clone(),
-                                                   [](OGRSpatialReference* sr) { sr->Release(); });
-          ret_item->geom->assignSpatialReference(tmp.get());
-        }
-      }
+      set_feature_geometry(*ret_item, *geometry, transformation.get(), projector.get(), theSR);
 
       if (ret_item->geom)
         ++geometries;
@@ -468,59 +566,7 @@ Features read(const Fmi::SpatialReference* theSR,
     }
 
     // add attribute fields
-    OGRFeatureDefn* poFDefn = layer->GetLayerDefn();
-    int iField = 0;
-    for (iField = 0; iField < poFDefn->GetFieldCount(); iField++)
-    {
-      OGRFieldDefn* poFieldDefn = poFDefn->GetFieldDefn(iField);
-      std::string fieldname(poFieldDefn->GetNameRef());
-
-      if (theFieldNames.find(fieldname) == theFieldNames.end())
-        continue;
-      if (feature->IsFieldSet(iField) == 0)
-      {
-        ret_item->attributes.insert(make_pair(fieldname, ""));
-        continue;
-      }
-
-      const auto ftype = poFieldDefn->GetType();
-
-      switch (ftype)
-      {
-        case OFTInteger:
-          ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsInteger(iField)));
-          break;
-        case OFTInteger64:
-          ret_item->attributes.insert(
-              make_pair(fieldname, static_cast<int>(feature->GetFieldAsInteger64(iField))));
-          break;
-        case OFTReal:
-        {
-          ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsDouble(iField)));
-          break;
-        }
-        case OFTString:
-          ret_item->attributes.insert(make_pair(fieldname, feature->GetFieldAsString(iField)));
-          break;
-        case OFTDateTime:
-        {
-          int year = 0;
-          int month = 0;
-          int day = 0;
-          int hour = 0;
-          int min = 0;
-          int sec = 0;
-          int tzFlag = 0;
-          feature->GetFieldAsDateTime(iField, &year, &month, &day, &hour, &min, &sec, &tzFlag);
-          Fmi::DateTime timestamp(Fmi::Date(year, month, day), Fmi::TimeDuration(hour, min, sec));
-
-          ret_item->attributes.insert(make_pair(fieldname, timestamp));
-          break;
-        }
-        default:
-          break;
-      }
-    }
+    add_attributes(*feature, *layer->GetLayerDefn(), theFieldNames, *ret_item);
     ret.push_back(ret_item);
   }
 
