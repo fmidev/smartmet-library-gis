@@ -154,6 +154,262 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
   }
 }
 
+// cw search along the lower edge
+std::list<OGRLineString *>::iterator cw_lower_edge(OGRLinearRing *ring,
+                                                   std::list<OGRLineString *> &lines,
+                                                   double x1,
+                                                   double y1,
+                                                   double &x2,
+                                                   double &y2,
+                                                   const Fmi::Box &box)
+{
+  auto best = lines.end();
+
+  // On lower edge going left, worst we can do is left corner, closing might be better
+
+  if (ring->getY(0) == y1 && ring->getX(0) < x1)
+    x2 = ring->getX(0);
+  else
+    x2 = box.xmin();
+
+  // Look for a better match from the remaining linestrings.
+
+  for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+  {
+    double x = (*iter)->getX(0);
+    double y = (*iter)->getY(0);
+    if (y == y1 && x > x2 && x <= x1)  // if not to the right and better than previous best
+    {
+      x2 = x;
+      best = iter;
+    }
+  }
+  return best;
+}
+
+// cw search along the left edge
+std::list<OGRLineString *>::iterator cw_left_edge(OGRLinearRing *ring,
+                                                  std::list<OGRLineString *> &lines,
+                                                  double x1,
+                                                  double y1,
+                                                  double &x2,
+                                                  double &y2,
+                                                  const Fmi::Box &box)
+{
+  auto best = lines.end();
+
+  // On left edge going up, worst we can do is upper corner, closing might be better
+
+  if (ring->getX(0) == x1 && ring->getY(0) > y1)
+    y2 = ring->getY(0);
+  else
+    y2 = box.ymax();
+
+  for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+  {
+    double x = (*iter)->getX(0);
+    double y = (*iter)->getY(0);
+    if (x == x1 && y > y1 && y <= y2)
+    {
+      y2 = y;
+      best = iter;
+    }
+  }
+  return best;
+}
+
+// cw search along the top edge
+std::list<OGRLineString *>::iterator cw_top_edge(OGRLinearRing *ring,
+                                                 std::list<OGRLineString *> &lines,
+                                                 double x1,
+                                                 double y1,
+                                                 double &x2,
+                                                 double &y2,
+                                                 const Fmi::Box &box)
+{
+  auto best = lines.end();
+
+  // On top edge going right, worst we can do is right corner, closing might be better
+
+  if (ring->getY(0) == y1 && ring->getX(0) > x1)
+    x2 = ring->getX(0);
+  else
+    x2 = box.xmax();
+
+  for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+  {
+    double x = (*iter)->getX(0);
+    double y = (*iter)->getY(0);
+
+    if (y == y1 && x >= x1 && x <= x2)
+    {
+      x2 = x;
+      best = iter;
+    }
+  }
+  return best;
+}
+
+// cw search along the right edge
+std::list<OGRLineString *>::iterator cw_right_edge(OGRLinearRing *ring,
+                                                   std::list<OGRLineString *> &lines,
+                                                   double x1,
+                                                   double y1,
+                                                   double &x2,
+                                                   double &y2,
+                                                   const Fmi::Box &box)
+{
+  auto best = lines.end();
+
+  // On right edge going down, worst we can do is bottom corner, closing might be better
+
+  if (ring->getX(0) == x1 && ring->getY(0) < y1)
+    y2 = ring->getY(0);
+  else
+    y2 = box.ymin();
+
+  for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+  {
+    double x = (*iter)->getX(0);
+    double y = (*iter)->getY(0);
+
+    if (x == x2 && y <= y1 && y >= y2)
+    {
+      y2 = y;
+      best = iter;
+    }
+  }
+  return best;
+}
+
+// ccw search along the lower edge
+std::list<OGRLineString *>::iterator ccw_lower_edge(OGRLinearRing *ring,
+                                                    std::list<OGRLineString *> &lines,
+                                                    double x1,
+                                                    double y1,
+                                                    double &x2,
+                                                    double &y2,
+                                                    const Fmi::Box &box)
+{
+  auto best = lines.end();
+
+  // On lower edge going right, worst we can do is right corner, closing might be better
+
+  if (ring->getY(0) == y1 && ring->getX(0) > x1)
+    x2 = ring->getX(0);
+  else
+    x2 = box.xmax();
+
+  // Look for a better match from the remaining linestrings.
+
+  for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+  {
+    double x = (*iter)->getX(0);
+    double y = (*iter)->getY(0);
+    if (y == y1 && x < x2 && x >= x1)  // if not to the left and better than previous best
+    {
+      x2 = x;
+      best = iter;
+    }
+  }
+  return best;
+}
+
+// ccw search along the left edge
+std::list<OGRLineString *>::iterator ccw_left_edge(OGRLinearRing *ring,
+                                                   std::list<OGRLineString *> &lines,
+                                                   double x1,
+                                                   double y1,
+                                                   double &x2,
+                                                   double &y2,
+                                                   const Fmi::Box &box)
+{
+  auto best = lines.end();
+
+  // On left edge going down, worst we can do is lower corner, closing might be better
+
+  if (ring->getX(0) == x1 && ring->getY(0) < y1)
+    y2 = ring->getY(0);
+  else
+    y2 = box.ymin();
+
+  for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+  {
+    double x = (*iter)->getX(0);
+    double y = (*iter)->getY(0);
+    if (x == x1 && y < y1 && y >= y2)
+    {
+      y2 = y;
+      best = iter;
+    }
+  }
+  return best;
+}
+
+// ccw search along the top edge
+std::list<OGRLineString *>::iterator ccw_top_edge(OGRLinearRing *ring,
+                                                  std::list<OGRLineString *> &lines,
+                                                  double x1,
+                                                  double y1,
+                                                  double &x2,
+                                                  double &y2,
+                                                  const Fmi::Box &box)
+{
+  auto best = lines.end();
+
+  // On top edge going left, worst we can do is right corner, closing might be better
+
+  if (ring->getY(0) == y1 && ring->getX(0) < x1)
+    x2 = ring->getX(0);
+  else
+    x2 = box.xmin();
+
+  for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+  {
+    double x = (*iter)->getX(0);
+    double y = (*iter)->getY(0);
+
+    if (y == y1 && x <= x1 && x >= x2)
+    {
+      x2 = x;
+      best = iter;
+    }
+  }
+  return best;
+}
+
+// ccw search along the right edge
+std::list<OGRLineString *>::iterator ccw_right_edge(OGRLinearRing *ring,
+                                                    std::list<OGRLineString *> &lines,
+                                                    double x1,
+                                                    double y1,
+                                                    double &x2,
+                                                    double &y2,
+                                                    const Fmi::Box &box)
+{
+  auto best = lines.end();
+
+  // On right edge going up, worst we can do is upper corner, closing might be better
+
+  if (ring->getX(0) == x1 && ring->getY(0) > y1)
+    y2 = ring->getY(0);
+  else
+    y2 = box.ymax();
+
+  for (auto iter = lines.begin(); iter != lines.end(); ++iter)
+  {
+    double x = (*iter)->getX(0);
+    double y = (*iter)->getY(0);
+
+    if (x == x2 && y >= y1 && y <= y2)
+    {
+      y2 = y;
+      best = iter;
+    }
+  }
+  return best;
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Search for matching line segment clockwise (cutting)
@@ -171,94 +427,13 @@ std::list<OGRLineString *>::iterator search_cw(OGRLinearRing *ring,
   try
   {
     // std::cerr << "Searching cw\n";
-    auto best = lines.end();
-
     if (y1 == box.ymin() && x1 > box.xmin())
-    {
-      // On lower edge going left, worst we can do is left corner, closing might be better
-
-      if (ring->getY(0) == y1 && ring->getX(0) < x1)
-        x2 = ring->getX(0);
-      else
-        x2 = box.xmin();
-
-      // Look for a better match from the remaining linestrings.
-
-      for (auto iter = lines.begin(); iter != lines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-        if (y == y1 && x > x2 && x <= x1)  // if not to the right and better than previous best
-        {
-          x2 = x;
-          best = iter;
-        }
-      }
-    }
-    else if (x1 == box.xmin() && y1 < box.ymax())
-    {
-      // On left edge going up, worst we can do is upper corner, closing might be better
-
-      if (ring->getX(0) == x1 && ring->getY(0) > y1)
-        y2 = ring->getY(0);
-      else
-        y2 = box.ymax();
-
-      for (auto iter = lines.begin(); iter != lines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-        if (x == x1 && y > y1 && y <= y2)
-        {
-          y2 = y;
-          best = iter;
-        }
-      }
-    }
-    else if (y1 == box.ymax() && x1 < box.xmax())
-    {
-      // On top edge going right, worst we can do is right corner, closing might be better
-
-      if (ring->getY(0) == y1 && ring->getX(0) > x1)
-        x2 = ring->getX(0);
-      else
-        x2 = box.xmax();
-
-      for (auto iter = lines.begin(); iter != lines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-
-        if (y == y1 && x >= x1 && x <= x2)
-        {
-          x2 = x;
-          best = iter;
-        }
-      }
-    }
-    else
-    {
-      // On right edge going down, worst we can do is bottom corner, closing might be better
-
-      if (ring->getX(0) == x1 && ring->getY(0) < y1)
-        y2 = ring->getY(0);
-      else
-        y2 = box.ymin();
-
-      for (auto iter = lines.begin(); iter != lines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-
-        if (x == x2 && y <= y1 && y >= y2)
-        {
-          y2 = y;
-          best = iter;
-        }
-      }
-    }
-
-    return best;
+      return cw_lower_edge(ring, lines, x1, y1, x2, y2, box);
+    if (x1 == box.xmin() && y1 < box.ymax())
+      return cw_left_edge(ring, lines, x1, y1, x2, y2, box);
+    if (y1 == box.ymax() && x1 < box.xmax())
+      return cw_top_edge(ring, lines, x1, y1, x2, y2, box);
+    return cw_right_edge(ring, lines, x1, y1, x2, y2, box);
   }
   catch (...)
   {
@@ -284,94 +459,13 @@ std::list<OGRLineString *>::iterator search_ccw(OGRLinearRing *ring,
   {
     // std::cerr << "Searching ccw\n";
 
-    auto best = lines.end();
-
     if (y1 == box.ymin() && x1 < box.xmax())
-    {
-      // On lower edge going right, worst we can do is right corner, closing might be better
-
-      if (ring->getY(0) == y1 && ring->getX(0) > x1)
-        x2 = ring->getX(0);
-      else
-        x2 = box.xmax();
-
-      // Look for a better match from the remaining linestrings.
-
-      for (auto iter = lines.begin(); iter != lines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-        if (y == y1 && x < x2 && x >= x1)  // if not to the left and better than previous best
-        {
-          x2 = x;
-          best = iter;
-        }
-      }
-    }
-    else if (x1 == box.xmin() && y1 > box.ymin())
-    {
-      // On left edge going down, worst we can do is lower corner, closing might be better
-
-      if (ring->getX(0) == x1 && ring->getY(0) < y1)
-        y2 = ring->getY(0);
-      else
-        y2 = box.ymin();
-
-      for (auto iter = lines.begin(); iter != lines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-        if (x == x1 && y < y1 && y >= y2)
-        {
-          y2 = y;
-          best = iter;
-        }
-      }
-    }
-    else if (y1 == box.ymax() && x1 > box.xmin())
-    {
-      // On top edge going left, worst we can do is right corner, closing might be better
-
-      if (ring->getY(0) == y1 && ring->getX(0) < x1)
-        x2 = ring->getX(0);
-      else
-        x2 = box.xmin();
-
-      for (auto iter = lines.begin(); iter != lines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-
-        if (y == y1 && x <= x1 && x >= x2)
-        {
-          x2 = x;
-          best = iter;
-        }
-      }
-    }
-    else
-    {
-      // On right edge going up, worst we can do is upper corner, closing might be better
-
-      if (ring->getX(0) == x1 && ring->getY(0) > y1)
-        y2 = ring->getY(0);
-      else
-        y2 = box.ymax();
-
-      for (auto iter = lines.begin(); iter != lines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-
-        if (x == x2 && y >= y1 && y <= y2)
-        {
-          y2 = y;
-          best = iter;
-        }
-      }
-    }
-
-    return best;
+      return ccw_lower_edge(ring, lines, x1, y1, x2, y2, box);
+    if (x1 == box.xmin() && y1 > box.ymin())
+      return ccw_left_edge(ring, lines, x1, y1, x2, y2, box);
+    if (y1 == box.ymax() && x1 > box.xmin())
+      return ccw_top_edge(ring, lines, x1, y1, x2, y2, box);
+    return ccw_right_edge(ring, lines, x1, y1, x2, y2, box);
   }
   catch (...)
   {
