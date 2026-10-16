@@ -980,6 +980,85 @@ int do_rect(const OGRLineString *theGeom,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Handle an exterior with no vertices inside the box when clipping to linestrings
+ *
+ * Returns false if the result is complete.
+ */
+// ----------------------------------------------------------------------
+
+bool linestrings_exterior_not_inside(const OGRPolygon *theGeom,
+                                     GeometryBuilder &theBuilder,
+                                     const Box &theBox,
+                                     RectClipper &rect,
+                                     bool keep_inside)
+{
+  // CLIP:
+  // -if box inside exterior, omit exterior
+  // -if box outside exterior, return empty result
+  // CUT:
+  // - if box inside exterior, keep exterior and continue
+  // - if box outside exterior, return input as is
+
+  const auto *exterior = theGeom->getExteriorRing();
+  if (exterior == nullptr)
+    return false;
+  bool box_inside = box_inside_ring(theBox, *exterior);
+
+  if (keep_inside)
+    return box_inside;
+
+  if (!box_inside)
+  {
+    theBuilder.add(theGeom->clone());
+    return false;
+  }
+  rect.addExterior(theGeom->getExteriorRing()->clone());
+  return true;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Handle a hole of a polygon when clipping to linestrings
+ *
+ * Returns false if the result is complete.
+ */
+// ----------------------------------------------------------------------
+
+bool linestrings_hole(const OGRPolygon *theGeom,
+                      const OGRLinearRing *hole,
+                      int holeposition,
+                      GeometryBuilder &theBuilder,
+                      const Box &theBox,
+                      RectClipper &rect,
+                      bool keep_inside)
+{
+  if (all_only_inside(holeposition))
+  {
+    if (keep_inside)
+      rect.addExterior(hole->clone());
+  }
+  else if (all_not_inside(holeposition))
+  {
+    bool box_inside_hole = box_inside_ring(theBox, *hole);
+
+    if (box_inside_hole)
+    {
+      // If the box clip is inside a hole the result is empty
+      // Otherwise we can keep the original input
+      if (!keep_inside)
+        theBuilder.add(theGeom->clone());
+      return false;
+    }
+
+    // Otherwise the hole is outside the box
+    if (!keep_inside)
+      rect.addExterior(hole->clone());
+  }
+  return true;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Clip polygon, do not close clipped ones
  */
 // ----------------------------------------------------------------------
@@ -1014,35 +1093,9 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
     }
 
     // If no clipped lines were generated and no vertex is inside...
-    if (all_not_inside(position) && rect.empty())
-    {
-      // CLIP:
-      // -if box inside exterior, omit exterior
-      // -if box outside exterior, return empty result
-      // CUT:
-      // - if box inside exterior, keep exterior and continue
-      // - if box outside exterior, return input as is
-
-      const auto *exterior = theGeom->getExteriorRing();
-      if (exterior == nullptr)
-        return;
-      bool box_inside = box_inside_ring(theBox, *exterior);
-
-      if (keep_inside)
-      {
-        if (!box_inside)
-          return;
-      }
-      else
-      {
-        if (!box_inside)
-        {
-          theBuilder.add(theGeom->clone());
-          return;
-        }
-        rect.addExterior(theGeom->getExteriorRing()->clone());
-      }
-    }
+    if (all_not_inside(position) && rect.empty() &&
+        !linestrings_exterior_not_inside(theGeom, theBuilder, theBox, rect, keep_inside))
+      return;
 
     // Clipping:
     // Handle the holes now:
@@ -1061,28 +1114,8 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
       const auto *hole = theGeom->getInteriorRing(i);
       auto holeposition = do_rect(hole, rect, theBox, keep_inside, all_exterior);
 
-      if (all_only_inside(holeposition))
-      {
-        if (keep_inside)
-          rect.addExterior(hole->clone());
-      }
-      else if (all_not_inside(holeposition))
-      {
-        bool box_inside_hole = box_inside_ring(theBox, *hole);
-
-        if (box_inside_hole)
-        {
-          // If the box clip is inside a hole the result is empty
-          // Otherwise we can keep the original input
-          if (!keep_inside)
-            theBuilder.add(theGeom->clone());
-          return;
-        }
-
-        // Otherwise the hole is outside the box
-        if (!keep_inside)
-          rect.addExterior(hole->clone());
-      }
+      if (!linestrings_hole(theGeom, hole, holeposition, theBuilder, theBox, rect, keep_inside))
+        return;
     }
 
     rect.reconnect();
@@ -1093,6 +1126,102 @@ void do_polygon_to_linestrings(const OGRPolygon *theGeom,
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Handle an exterior with no vertices inside the box when clipping to polygons
+ *
+ * Returns false if the result is complete.
+ */
+// ----------------------------------------------------------------------
+
+bool polygons_exterior_not_inside(const OGRPolygon *theGeom,
+                                  GeometryBuilder &theBuilder,
+                                  const Box &theBox,
+                                  RectClipper &rect,
+                                  bool keep_inside)
+{
+  // std::cerr << "all_not_inside true\n";
+
+  // CLIP:
+  // -if box inside exterior, box becomes part of new exterior ; ADD_BOX
+  // -if box outside exterior, return empty result
+  // CUT:
+  // - if box inside exterior, box becomes part of new holes ; ADD_BOX
+  // - if box outside exterior, return input as is
+
+  const auto *exterior = theGeom->getExteriorRing();
+  if (exterior == nullptr)
+    return false;
+  bool box_inside = box_inside_ring(theBox, *exterior);
+
+  if (keep_inside)
+  {
+    if (!box_inside)
+    {
+      // std::cerr << "Returning\n";
+      return false;
+    }
+    rect.addBox();
+    return true;
+  }
+
+  if (!box_inside)
+  {
+    theBuilder.add(theGeom->clone());
+    // std::cerr << "Returning clone\n";
+    return false;
+  }
+  // box is inside exterior, must keep exterior
+  rect.addExterior(theGeom->getExteriorRing()->clone());
+  rect.addBox();
+  return true;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Handle a hole of a polygon when clipping to polygons
+ *
+ * Returns false if the result is complete.
+ */
+// ----------------------------------------------------------------------
+
+bool polygons_hole(const OGRPolygon *theGeom,
+                   const OGRLinearRing *hole,
+                   int holeposition,
+                   GeometryBuilder &theBuilder,
+                   const Box &theBox,
+                   RectClipper &rect,
+                   bool keep_inside)
+{
+  if (all_only_inside(holeposition))
+  {
+    if (keep_inside)
+      rect.addInterior(hole->clone());
+  }
+  else if (all_not_inside(holeposition))
+  {
+    bool box_inside_hole = box_inside_ring(theBox, *hole);
+
+    if (box_inside_hole)
+    {
+      // If the box clip is inside a hole the result is empty
+      // Otherwise we can keep the original input
+      if (!keep_inside)
+        theBuilder.add(theGeom->clone());
+      return false;
+    }
+
+    // Otherwise the hole is outside the box.
+    // If the hole has edge contact with the box, cut_rect already generated interior
+    // lines for it that will be connected along the box boundary. Adding the hole ring
+    // directly too would create duplicate rings.
+    bool has_edge_contact = (holeposition & (Box::Left | Box::Top | Box::Right | Box::Bottom)) != 0;
+    if (!keep_inside && !has_edge_contact)
+      rect.addInterior(hole->clone());
+  }
+  return true;
 }
 
 // ----------------------------------------------------------------------
@@ -1142,44 +1271,9 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
     }
 
     // If clipping produced no lines and nothing is inside...
-    if (all_not_inside(position) && rect.empty())
-    {
-      // std::cerr << "all_not_inside true\n";
-
-      // CLIP:
-      // -if box inside exterior, box becomes part of new exterior ; ADD_BOX
-      // -if box outside exterior, return empty result
-      // CUT:
-      // - if box inside exterior, box becomes part of new holes ; ADD_BOX
-      // - if box outside exterior, return input as is
-
-      const auto *exterior = theGeom->getExteriorRing();
-      if (exterior == nullptr)
-        return;
-      bool box_inside = box_inside_ring(theBox, *exterior);
-
-      if (keep_inside)
-      {
-        if (!box_inside)
-        {
-          // std::cerr << "Returning\n";
-          return;
-        }
-        rect.addBox();
-      }
-      else
-      {
-        if (!box_inside)
-        {
-          theBuilder.add(theGeom->clone());
-          // std::cerr << "Returning clone\n";
-          return;
-        }
-        // box is inside exterior, must keep exterior
-        rect.addExterior(theGeom->getExteriorRing()->clone());
-        rect.addBox();
-      }
-    }
+    if (all_not_inside(position) && rect.empty() &&
+        !polygons_exterior_not_inside(theGeom, theBuilder, theBox, rect, keep_inside))
+      return;
 
     // Clipping:
     // If the exterior does not intersect the bounding box at all, it must
@@ -1220,33 +1314,8 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
 
       auto holeposition = do_rect(hole, rect, theBox, keep_inside, false);
 
-      if (all_only_inside(holeposition))
-      {
-        if (keep_inside)
-          rect.addInterior(hole->clone());
-      }
-      else if (all_not_inside(holeposition))
-      {
-        bool box_inside_hole = box_inside_ring(theBox, *hole);
-
-        if (box_inside_hole)
-        {
-          // If the box clip is inside a hole the result is empty
-          // Otherwise we can keep the original input
-          if (!keep_inside)
-            theBuilder.add(theGeom->clone());
-          return;
-        }
-
-        // Otherwise the hole is outside the box.
-        // If the hole has edge contact with the box, cut_rect already generated interior
-        // lines for it that will be connected along the box boundary. Adding the hole ring
-        // directly too would create duplicate rings.
-        bool has_edge_contact =
-            (holeposition & (Box::Left | Box::Top | Box::Right | Box::Bottom)) != 0;
-        if (!keep_inside && !has_edge_contact)
-          rect.addInterior(hole->clone());
-      }
+      if (!polygons_hole(theGeom, hole, holeposition, theBuilder, theBox, rect, keep_inside))
+        return;
     }
 
     // std::cerr << "Calling reconnect\n";
