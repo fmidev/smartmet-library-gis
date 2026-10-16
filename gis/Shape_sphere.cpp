@@ -71,6 +71,46 @@ double end_connection_angle_diff(double angle1, double angle2, double defaultDif
   return defaultDiff;
 }
 
+// Test whether both segment end points are beyond the same side of the bounding box
+bool both_beyond_bbox(
+    double aX, double aY, double bX, double bY, double xmin, double ymin, double xmax, double ymax)
+{
+  return ((aX < xmin && bX < xmin) || (aX > xmax && bX > xmax) || (aY < ymin && bY < ymin) ||
+          (aY > ymax && bY > ymax));
+}
+
+// Test whether the intersection points are both outside the bounding box of the segment
+bool intersections_outside_segment(double aX,
+                                   double aY,
+                                   double bX,
+                                   double bY,
+                                   double pX1,
+                                   double pY1,
+                                   double pX2,
+                                   double pY2)
+{
+  return (std::max(aX, bX) < std::min(pX1, pX2) || std::max(aY, bY) < std::min(pY1, pY2) ||
+          std::min(aX, bX) > std::max(pX1, pX2) || std::min(aY, bY) > std::max(pY1, pY2));
+}
+
+// Replace the first intersection point by the second one if it is nearer to the given point
+void select_nearer_intersection(
+    double x, double y, double &pX1, double &pY1, double pX2, double pY2)
+{
+  double px1 = pX1 - x;
+  double py1 = pY1 - y;
+  double px2 = pX2 - x;
+  double py2 = pY2 - y;
+  double dp1 = px1 * px1 + py1 * py1;
+  double dp2 = px2 * px2 + py2 * py2;
+
+  if (dp2 < dp1)
+  {
+    pX1 = pX2;
+    pY1 = pY2;
+  }
+}
+
 }  // namespace
 
 Shape_sphere::Shape_sphere(double theX, double theY, double theRadius)
@@ -338,16 +378,7 @@ int Shape_sphere::getLineIntersectionPoints(double aX,
     // Fast checks before more detailed x calculations. Checking if the both
     // end points on the same side of the ring (=> No intersection)
 
-    if (aX < itsXXMin && bX < itsXXMin)
-      return 0;
-
-    if (aX > itsXXMax && bX > itsXXMax)
-      return 0;
-
-    if (aY < itsYYMin && bY < itsYYMin)
-      return 0;
-
-    if (aY > itsYYMax && bY > itsYYMax)
+    if (both_beyond_bbox(aX, aY, bX, bY, itsXXMin, itsYYMin, itsXXMax, itsYYMax))
       return 0;
 
     // Shifting coordinates so that they are all positive numbers, because
@@ -407,35 +438,14 @@ int Shape_sphere::getLineIntersectionPoints(double aX,
     if (std::isnan(pX1) || std::isnan(pY1) || std::isnan(pX2) || std::isnan(pY2))
       return 0;
 
-    if (std::max(aX, bX) < std::min(pX1, pX2))
-      return 0;
-
-    if (std::max(aY, bY) < std::min(pY1, pY2))
-      return 0;
-
-    if (std::min(aX, bX) > std::max(pX1, pX2))
-      return 0;
-
-    if (std::min(aY, bY) > std::max(pY1, pY2))
+    if (intersections_outside_segment(aX, aY, bX, bY, pX1, pY1, pX2, pY2))
       return 0;
 
     if (ar2 <= itsRadius2 && br2 > itsRadius2)
     {
       // The first endpoint is inside the circle
 
-      double bpx1 = pX1 - bX;
-      double bpy1 = pY1 - bY;
-      double bpx2 = pX2 - bX;
-      double bpy2 = pY2 - bY;
-      double dp1 = bpx1 * bpx1 + bpy1 * bpy1;
-      double dp2 = bpx2 * bpx2 + bpy2 * bpy2;
-
-      if (dp2 < dp1)
-      {
-        pX1 = pX2;
-        pY1 = pY2;
-        // printf("SWAP 1\n");
-      }
+      select_nearer_intersection(bX, bY, pX1, pY1, pX2, pY2);
       pX1 = pX1 - DELTA;
       pY1 = pY1 - DELTA;
       return 2;
@@ -445,19 +455,7 @@ int Shape_sphere::getLineIntersectionPoints(double aX,
     {
       // The second endpoint is inside the circle
 
-      double apx1 = pX1 - aX;
-      double apy1 = pY1 - aY;
-      double apx2 = pX2 - aX;
-      double apy2 = pY2 - aY;
-      double dp1 = apx1 * apx1 + apy1 * apy1;
-      double dp2 = apx2 * apx2 + apy2 * apy2;
-
-      if (dp2 < dp1)
-      {
-        pX1 = pX2;
-        pY1 = pY2;
-        // printf("SWAP 2\n");
-      }
+      select_nearer_intersection(aX, aY, pX1, pY1, pX2, pY2);
       pX1 = pX1 - DELTA;
       pY1 = pY1 - DELTA;
       return 3;
