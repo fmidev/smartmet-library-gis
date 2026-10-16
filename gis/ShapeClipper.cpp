@@ -245,7 +245,86 @@ void split_touches(const VertexCounts &counts, OGRLineStringList &lines)
   std::swap(lines, new_lines);
 }
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief Connect two points along the shape edge in the given direction
+ */
+// ----------------------------------------------------------------------
+
+void connect_points(const Fmi::Shape &shape,
+                    OGRLinearRing &ring,
+                    bool cw,
+                    double x1,
+                    double y1,
+                    double x2,
+                    double y2,
+                    double theMaximumSegmentLength)
+{
+  if (cw)
+    shape.connectPoints_cw(ring, x1, y1, x2, y2, theMaximumSegmentLength);
+  else
+    shape.connectPoints_ccw(ring, x1, y1, x2, y2, theMaximumSegmentLength);
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Extend an open ring to the next line along the shape edge, or close it
+ *
+ * No linestring to move onto found next - meaning we'd either move to the next
+ * corner or close the current ring.
+ */
+// ----------------------------------------------------------------------
+
+void extend_ring(const Fmi::Shape &shape,
+                 OGRLinearRing &ring,
+                 std::list<OGRLineString *> &theLines,
+                 bool cw,
+                 double x1,
+                 double y1,
+                 double x2,
+                 double y2,
+                 double theMaximumSegmentLength)
+{
+  auto best = (cw ? shape.search_cw(&ring, theLines, x1, y1, x2, y2)
+                  : shape.search_ccw(&ring, theLines, x1, y1, x2, y2));
+  if (best != theLines.end())
+  {
+    // Found a matching linestring to continue to from the same edge we were studying. Move to
+    // it and continue building. The line might continue from the same point, in which case we
+    // must skip the first point.
+
+    if (x1 != (*best)->getX(0) || y1 != (*best)->getY(0))
+    {
+      // printf(" -- connect %f,%f => %f,%f
+      // %f,%f\n",x1,y1,x2,y2,(*best)->getX(0),(*best)->getY(0));
+      connect_points(shape, ring, cw, x1, y1, x2, y2, theMaximumSegmentLength);
+
+      if (x2 != (*best)->getX(0) || y2 != (*best)->getY(0))
+        ring.addSubLineString(*best);
+      else
+        ring.addSubLineString(*best, 1);  // start from 2nd point
+    }
+    else
+    {
+      ring.addSubLineString(*best, 1);  // start from 2nd point
+    }
+    delete *best;
+    theLines.erase(best);
+  }
+  else
+  {
+    if (x1 != x2 || y1 != y2)
+    {
+      // printf(" ++ connect %f,%f => %f,%f\n",x1,y1,x2,y2);
+      connect_points(shape, ring, cw, x1, y1, x2, y2, theMaximumSegmentLength);
+    }
+
+    if (x2 == ring.getX(0) && y2 == ring.getY(0))
+      ring.closeRings();
+  }
+}
 }  // namespace
+
 
 ShapeClipper::ShapeClipper(const Shape_sptr &theShape, bool keep_inside)
 {
@@ -700,51 +779,7 @@ void Fmi::ShapeClipper::connectLines(std::list<OGRLinearRing *> &theRings,
     // either move to the next corner or close the current ring.
 
     if (!ring->get_IsClosed())
-    {
-      auto best = (cw ? itsShape->search_cw(ring, theLines, x1, y1, x2, y2)
-                      : itsShape->search_ccw(ring, theLines, x1, y1, x2, y2));
-      if (best != theLines.end())
-      {
-        // Found a matching linestring to continue to from the same edge we were studying. Move to
-        // it and continue building. The line might continue from the same point, in which case we
-        // must skip the first point.
-
-        if (x1 != (*best)->getX(0) || y1 != (*best)->getY(0))
-        {
-          // printf(" -- connect %f,%f => %f,%f
-          // %f,%f\n",x1,y1,x2,y2,(*best)->getX(0),(*best)->getY(0));
-          if (cw)
-            itsShape->connectPoints_cw(*ring, x1, y1, x2, y2, theMaximumSegmentLength);
-          else
-            itsShape->connectPoints_ccw(*ring, x1, y1, x2, y2, theMaximumSegmentLength);
-
-          if (x2 != (*best)->getX(0) || y2 != (*best)->getY(0))
-            ring->addSubLineString(*best);
-          else
-            ring->addSubLineString(*best, 1);  // start from 2nd point
-        }
-        else
-        {
-          ring->addSubLineString(*best, 1);  // start from 2nd point
-        }
-        delete *best;
-        theLines.erase(best);
-      }
-      else
-      {
-        if (x1 != x2 || y1 != y2)
-        {
-          // printf(" ++ connect %f,%f => %f,%f\n",x1,y1,x2,y2);
-          if (cw)
-            itsShape->connectPoints_cw(*ring, x1, y1, x2, y2, theMaximumSegmentLength);
-          else
-            itsShape->connectPoints_ccw(*ring, x1, y1, x2, y2, theMaximumSegmentLength);
-        }
-
-        if (x2 == ring->getX(0) && y2 == ring->getY(0))
-          ring->closeRings();
-      }
-    }
+      extend_ring(*itsShape, *ring, theLines, cw, x1, y1, x2, y2, theMaximumSegmentLength);
 
     if (ring->get_IsClosed())
     {
