@@ -75,6 +75,15 @@ class Shape_rect : public Shape
   static bool different(double x1, double y1, double x2, double y2);
 
  private:
+  struct LineState;
+
+  void skipOutside(LineState &st) const;
+  bool clipOutside(LineState &st, ShapeClipper &theClipper, bool exterior) const;
+  bool clipInside(LineState &st, ShapeClipper &theClipper, bool exterior) const;
+  bool clipEdge(LineState &st, ShapeClipper &theClipper, bool exterior) const;
+  bool cutOutside(LineState &st, ShapeClipper &theClipper, bool exterior) const;
+  bool cutInside(LineState &st, ShapeClipper &theClipper, bool exterior) const;
+  bool cutEdge(LineState &st, ShapeClipper &theClipper, bool exterior) const;
   double itsX1;  // bottom left coordinates
   double itsY1;
   double itsX2;  // top right coordinates

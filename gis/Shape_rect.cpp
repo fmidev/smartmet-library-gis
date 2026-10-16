@@ -34,6 +34,550 @@ void clip_one_edge(double &x1, double &y1, double x2, double y2, double limit)
 }
 
 }  // namespace
+
+// The state of clipping or cutting a linestring
+struct Shape_rect::LineState
+{
+  LineState(const OGRLineString& theGeom, int theSize) : g(theGeom), n(theSize) {}
+
+  const OGRLineString& g;  // For shorthand code
+  const int n;
+  int i = 0;
+  int position = 0;
+  int pos = 0;
+  double x = 0;
+  double y = 0;
+  double x0 = 0;
+  double y0 = 0;
+  bool add_start = false;
+  int start_index = 0;
+  double start_x = 0;
+  double start_y = 0;
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Skip points outside the rectangle on the same side as the current point
+ */
+// ----------------------------------------------------------------------
+
+void Shape_rect::skipOutside(LineState &st) const
+{
+  ++st.i;  // we already know it is outside
+
+  if (st.x < itsXMin)
+    while (st.i < st.n && st.g.getX(st.i) < itsXMin)
+      ++st.i;
+
+  else if (st.x > itsXMax)
+    while (st.i < st.n && st.g.getX(st.i) > itsXMax)
+      ++st.i;
+
+  else if (st.y < itsYMin)
+    while (st.i < st.n && st.g.getY(st.i) < itsYMin)
+      ++st.i;
+
+  else if (st.y > itsYMax)
+    while (st.i < st.n && st.g.getY(st.i) > itsYMax)
+      ++st.i;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Clip the line starting from a point outside the rectangle
+ *
+ * Returns false if the line ended outside.
+ */
+// ----------------------------------------------------------------------
+
+bool Shape_rect::clipOutside(LineState& st, ShapeClipper& theClipper, bool exterior) const
+{
+  // Skip points as fast as possible until something has to be checked
+  // in more detail.
+
+  skipOutside(st);
+
+  if (st.i >= st.n)
+    return false;
+
+  /*
+   * 7. out-in
+   *    - begin new linestring at intersection point
+   * 8. out-edge
+   *    - if passes inside the rectangle, produce linestring from the intersection points
+   *    - ignore otherwise
+   * 9. out-out
+   *    a) ignore if both points completely below, above, left or right of rectangle
+   *    b) calculate possible intersection.
+   *      - produce line between intersection points are of non zero length
+   *        and are not on the same edge (segment is colinear with the edge)
+   */
+
+  // Establish new position
+
+  st.x = st.g.getX(st.i);
+  st.y = st.g.getY(st.i);
+  st.pos = getPosition(st.x, st.y);
+
+  st.position |= st.pos;
+
+  // Calculate possible intersection coordinate with the box
+
+  st.x0 = st.g.getX(st.i - 1);
+  st.y0 = st.g.getY(st.i - 1);
+  clip_to_edges(st.x0, st.y0, st.x, st.y);
+
+  if (st.pos == Position::Inside)  // out-in
+  {
+    // x0,y0 begings the new linestring
+    st.start_index = st.i;
+    st.add_start = true;
+    // Main loop will enter the Inside/Edge section
+  }
+  else if (st.pos == Position::Outside)  // out-out
+  {
+    // Clip the other end too
+    clip_to_edges(st.x, st.y, st.x0, st.y0);
+
+    auto prev_pos = getPosition(st.x0, st.y0);
+    st.pos = getPosition(st.x, st.y);
+
+    if (different(st.x0, st.y0, st.x, st.y) &&           // discard corners etc
+        onEdge(prev_pos) &&                              // discard if does not intersect rect
+        onEdge(st.pos) && !onSameEdge(prev_pos, st.pos)  // discard if travels along edge
+    )
+    {
+      st.position |= Position::Inside;  // something is inside
+      auto* line = new OGRLineString;
+      line->addPoint(st.x0, st.y0);
+      line->addPoint(st.x, st.y);
+#if 0            
+        std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                  << OGR::exportToWkt(*line) << "\n";
+#endif
+      theClipper.add(line, exterior);
+    }
+
+    // Continue main loop outside the rect
+  }
+  else  // out-edge
+  {
+    auto prev_pos = getPosition(st.x0, st.y0);
+
+    if (!onSameEdge(st.pos, prev_pos))
+    {
+      st.position |= Position::Inside;  // something is inside
+      auto* line = new OGRLineString;
+      line->addPoint(st.x0, st.y0);
+      line->addPoint(st.x, st.y);
+#if 0            
+        std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                  << OGR::exportToWkt(*line) << "\n";
+#endif
+      theClipper.add(line, exterior);
+    }
+  }
+  return true;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Clip the line starting from a point inside the rectangle
+ *
+ * Returns true if the whole line is inside.
+ */
+// ----------------------------------------------------------------------
+
+bool Shape_rect::clipInside(LineState& st, ShapeClipper& theClipper, bool exterior) const
+{
+  while (++st.i < st.n)
+  {
+    st.x = st.g.getX(st.i);
+    st.y = st.g.getY(st.i);
+
+    st.pos = getPosition(st.x, st.y);
+    st.position |= st.pos;
+
+    if (st.pos == Position::Inside)  // in-in
+    {
+    }
+    else if (st.pos == Position::Outside)  // in-out
+    {
+      // Clip the outside point to edges
+      clip_to_edges(st.x, st.y, st.g.getX(st.i - 1), st.g.getY(st.i - 1));
+
+      auto* line = new OGRLineString();
+      if (st.add_start)
+        line->addPoint(st.x0, st.y0);
+      st.add_start = false;
+      if (st.start_index <= st.i - 1)
+        line->addSubLineString(&st.g, st.start_index, st.i - 1);
+      line->addPoint(st.x, st.y);
+#if 0
+        std::cout << "Adding EXT: " << OGR::exportToWkt(*line) << "\n";
+#endif
+      theClipper.addExterior(line);
+
+      break;  // going to outside the loop
+    }
+    else  // in-edge
+    {
+      if (st.start_index == 0 && st.i == st.n - 1)
+        return true;  // All inside?
+
+      auto* line = new OGRLineString();
+      if (st.add_start)
+        line->addPoint(st.x0, st.y0);
+      st.add_start = false;
+      line->addSubLineString(&st.g, st.start_index, st.i);
+#if 0
+        std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                  << OGR::exportToWkt(*line) << "\n";
+#endif
+      theClipper.add(line, exterior);
+
+      st.start_index = st.i;  // potentially going in again at this point
+      break;                  // going to the edge loop
+    }
+  }
+
+  // Was everything in? If so, generate no output here, just clone the linestring elsewhere
+  if (st.start_index == 0 && st.i >= st.n)
+    return true;
+
+  // Flush the last line segment if data ended and there is something to flush
+  if (st.pos == Position::Inside && (st.start_index < st.i - 1 || st.add_start))
+  {
+    auto* line = new OGRLineString();
+    if (st.add_start)
+    {
+      line->addPoint(st.x0, st.y0);
+      st.add_start = false;
+    }
+    line->addSubLineString(&st.g, st.start_index, st.i - 1);
+#if 0
+      std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                << OGR::exportToWkt(*line) << "\n";
+#endif
+    // theClipper.add(line, exterior);
+    theClipper.addExterior(line);
+  }
+  return false;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Clip the line starting from a point on the edge of the rectangle
+ *
+ * Returns true if the clipping is done.
+ */
+// ----------------------------------------------------------------------
+
+bool Shape_rect::clipEdge(LineState& st, ShapeClipper& theClipper, bool exterior) const
+{
+  while (++st.i < st.n)
+  {
+    auto prev_pos = st.pos;
+
+    st.x = st.g.getX(st.i);
+    st.y = st.g.getY(st.i);
+
+    st.pos = getPosition(st.x, st.y);
+    st.position |= st.pos;
+
+    if (st.pos == Position::Inside)  // edge-in
+    {
+      // Start new linestring
+      st.start_index = st.i - 1;
+      break;  // And continue main loop on the inside
+    }
+
+    if (st.pos == Position::Outside)  // edge-out
+    {
+      // Clip the outside point to edges
+      clip_to_edges(st.x, st.y, st.g.getX(st.i - 1), st.g.getY(st.i - 1));
+      st.pos = getPosition(st.x, st.y);
+
+      // Does the line exit through the inside of the box?
+
+      bool through_box = (different(st.x, st.y, st.g.getX(st.i), st.g.getY(st.i)) &&
+                          !onSameEdge(prev_pos, st.pos));
+
+      // Output a LineString if it at least one segment long
+
+      if (through_box)
+      {
+        auto* line = new OGRLineString();
+        line->addPoint(st.g.getX(st.i - 1), st.g.getY(st.i - 1));
+        line->addPoint(st.x, st.y);
+#if 0
+          std::cout << "Adding EXT: " << OGR::exportToWkt(*line) << "\n";
+#endif
+        theClipper.addExterior(line);
+      }
+      break;  // And continue main loop on the outside
+    }
+
+    // edge-edge
+
+    // travel to different edge?
+    if (!onSameEdge(prev_pos, st.pos))
+    {
+      st.position |= Position::Inside;  // passed through
+      auto* line = new OGRLineString();
+      line->addPoint(st.g.getX(st.i - 1), st.g.getY(st.i - 1));
+      line->addPoint(st.x, st.y);
+#if 0
+          std::cout << "Adding EXT: " << OGR::exportToWkt(*line) << "\n";
+#endif
+      theClipper.addExterior(line);
+      st.start_index = st.i;
+    }
+  }
+  return false;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Cut the line starting from a point outside the rectangle
+ *
+ * Returns false if the line ended outside.
+ */
+// ----------------------------------------------------------------------
+
+bool Shape_rect::cutOutside(LineState& st, ShapeClipper& theClipper, bool exterior) const
+{
+  // Skip points as fast as possible until something has to be checked
+  // in more detail.
+
+  skipOutside(st);
+
+  if (st.i >= st.n)
+  {
+    if (st.start_index == 0)
+      return false;  // everything was out
+
+    if (st.start_index > 0 && st.start_index < st.n)
+    {
+      auto* line = new OGRLineString();
+      if (st.add_start)
+        line->addPoint(st.start_x, st.start_y);
+      line->addSubLineString(&st.g, st.start_index, st.n - 1);
+#if 0
+        std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                  << OGR::exportToWkt(*line) << "\n";
+#endif
+      theClipper.add(line, exterior);
+    }
+    return false;
+  }
+
+  // Establish new position
+
+  st.x = st.g.getX(st.i);
+  st.y = st.g.getY(st.i);
+  st.pos = getPosition(st.x, st.y);
+
+  st.position |= st.pos;
+
+  /*
+   *  7. out-in
+   *     - end current linestring at intersection point
+   *  8. out-edge
+   *     - if passes inside the rectangle, terminate current linestring at the intersection
+   *     - otherwise terminate at the end point
+   *  9. out-out
+   *     a) keep if both points completely below, above, left or right of rectangle
+   *     b) calculate possible intersection.
+   *        - if line between intersections points is of non zero length, end current
+   *          linestring at the first intersection and begin a new one at the second
+   * intersection
+   *        - otherwise keep growing the current linestring with the segment
+   */
+
+  st.x0 = st.g.getX(st.i - 1);
+  st.y0 = st.g.getY(st.i - 1);
+
+  clip_to_edges(st.x0, st.y0, st.x, st.y);
+
+  if (st.pos == Position::Inside)  // out-in
+  {
+    auto* line = new OGRLineString();
+
+    if (st.add_start)
+      line->addPoint(st.start_x, st.start_y);
+    st.add_start = false;
+    line->addSubLineString(&st.g, st.start_index, st.i - 1);
+    line->addPoint(st.x0, st.y0);
+#if 0
+      std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                << OGR::exportToWkt(*line) << "\n";
+#endif
+    theClipper.add(line, exterior);
+    // Main loop will enter the Inside/Edge section
+  }
+  else if (st.pos == Position::Outside)  // out-out
+  {
+    // Clip the other end too
+    clip_to_edges(st.x, st.y, st.x0, st.y0);
+
+    auto prev_pos = getPosition(st.x0, st.y0);
+    st.pos = getPosition(st.x, st.y);
+    st.position |= st.pos;
+
+    if (different(st.x0, st.y0, st.x, st.y) &&  // discard corners etc
+        onEdge(prev_pos))                       // discard if does not intersect rect
+    {
+      // Intersection occurred. Must generate a linestring from start to intersection point
+      // then.
+      auto* line = new OGRLineString();
+
+      if (st.add_start)
+        line->addPoint(st.start_x, st.start_y);
+      line->addSubLineString(&st.g, st.start_index, st.i - 1);
+      line->addPoint(st.x0, st.y0);
+#if 0
+        std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                  << OGR::exportToWkt(*line) << "\n";
+#endif
+      theClipper.add(line, exterior);
+
+      st.position |= Position::Inside;  // mark we visited inside
+
+      // Start next line from the end intersection point
+      st.start_index = st.i;
+      st.start_x = st.x;
+      st.start_y = st.y;
+      st.add_start = true;
+    }
+
+    // Continue main loop outside the rect
+  }
+  else
+  {
+    auto* line = new OGRLineString();
+    if (st.add_start)
+      line->addPoint(st.start_x, st.start_y);
+    line->addSubLineString(&st.g, st.start_index, st.i - 1);
+    line->addPoint(st.x0, st.y0);
+    if (st.x != st.g.getX(st.i) || st.y != st.g.getY(st.i))
+      st.position |= Position::Inside;
+#if 0
+      std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
+                << OGR::exportToWkt(*line) << "\n";
+#endif
+    theClipper.add(line, exterior);
+
+    st.add_start = false;
+  }
+  return true;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Cut the line starting from a point inside the rectangle
+ *
+ * Returns true if the whole line is inside.
+ */
+// ----------------------------------------------------------------------
+
+bool Shape_rect::cutInside(LineState& st, ShapeClipper& theClipper, bool exterior) const
+{
+  /*
+   *  1. in-in
+   *     - ignore segment
+   *  2. in-edge
+   *     - ignore segment
+   *  3. in-out
+   *     - begin new linestring at intersection point
+   */
+
+  while (++st.i < st.n)
+  {
+    st.x = st.g.getX(st.i);
+    st.y = st.g.getY(st.i);
+    st.pos = getPosition(st.x, st.y);
+
+    st.position |= st.pos;
+
+    if (st.pos != Position::Outside)
+      continue;
+
+    // Clip the outside point to edges
+    clip_to_edges(st.x, st.y, st.g.getX(st.i - 1), st.g.getY(st.i - 1));
+    st.pos = getPosition(st.x, st.y);
+
+    st.position |= st.pos;
+
+    st.start_index = st.i;
+    st.add_start = true;
+    st.start_x = st.x;
+    st.start_y = st.y;
+    break;
+  }
+
+  // Was everything in? If so, generate no output
+  if (st.start_index == 0 && st.i >= st.n)
+    return true;
+  return false;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Cut the line starting from a point on the edge of the rectangle
+ *
+ * Returns true if the whole line is inside.
+ */
+// ----------------------------------------------------------------------
+
+bool Shape_rect::cutEdge(LineState& st, ShapeClipper& theClipper, bool exterior) const
+{
+  /*
+   *  4. edge-in
+   *     - ignore segment
+   *  5. edge-edge
+   *     - ignore segment
+   *  6. edge-out
+   *     - if passes inside the rectangle, start linestring at the exit intersection point
+   *     - otherwise begin new linestring at start point
+   */
+
+  while (++st.i < st.n)
+  {
+    auto prev_pos = st.pos;
+    st.x = st.g.getX(st.i);
+    st.y = st.g.getY(st.i);
+    st.pos = getPosition(st.x, st.y);
+
+    st.position |= st.pos;
+
+    if (st.pos == Position::Inside)
+      continue;
+    if (st.pos != Position::Outside)  // on edge
+    {
+      if (!onSameEdge(prev_pos, st.pos))
+        st.position |= Position::Inside;  // visited inside
+      continue;
+    }
+
+    // Clip the outside point to edges
+    clip_to_edges(st.x, st.y, st.g.getX(st.i - 1), st.g.getY(st.i - 1));
+
+    if (st.x != st.g.getX(st.i) || st.y != st.g.getY(st.i))
+      st.position |= Position::Inside;
+
+    st.start_index = st.i;
+    st.add_start = true;
+    st.start_x = st.x;
+    st.start_y = st.y;
+    break;
+  }
+
+  // Was everything in? If so, generate no output
+  if (st.start_index == 0 && st.i >= st.n)
+    return true;
+  return false;
+}
 Shape_rect::Shape_rect(double theX1, double theY1, double theX2, double theY2)
     : itsX1(theX1),
       itsY1(theY1),
@@ -48,7 +592,7 @@ Shape_rect::Shape_rect(double theX1, double theY1, double theX2, double theY2)
 
 Shape_rect::~Shape_rect() = default;
 
-int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, bool exterior) const
+int Shape_rect::clip(const OGRLineString* theGeom, ShapeClipper& theClipper, bool exterior) const
 {
   try
   {
@@ -64,300 +608,40 @@ int Shape_rect::clip(const OGRLineString *theGeom, ShapeClipper &theClipper, boo
 
     // For shorthand code
 
-    const OGRLineString &g = *theGeom;
-
     // Keep a record of the point where a line segment entered
     // the rectangle. If the boolean is set, we must insert
     // the point to the beginning of the linestring which then
     // continues inside the rectangle.
 
-    double x0 = 0;
-    double y0 = 0;
-    bool add_start = false;
-    int start_index = 0;
+    LineState st(*theGeom, n);
 
     // Start iterating
 
-    int i = 0;
-
-    while (i < n)
+    while (st.i < n)
     {
       // Establish initial position
 
-      double x = g.getX(i);
-      double y = g.getY(i);
-      auto pos = getPosition(x, y);
+      st.x = st.g.getX(st.i);
+      st.y = st.g.getY(st.i);
+      st.pos = getPosition(st.x, st.y);
 
       // Update global status
-      position |= pos;
+      st.position |= st.pos;
 
-      if (pos == Position::Outside)
+      if (st.pos == Position::Outside)
       {
-        // Skip points as fast as possible until something has to be checked
-        // in more detail.
-
-        ++i;  // we already know it is outside
-
-        if (x < itsXMin)
-          while (i < n && g.getX(i) < itsXMin)
-            ++i;
-
-        else if (x > itsXMax)
-          while (i < n && g.getX(i) > itsXMax)
-            ++i;
-
-        else if (y < itsYMin)
-          while (i < n && g.getY(i) < itsYMin)
-            ++i;
-
-        else if (y > itsYMax)
-          while (i < n && g.getY(i) > itsYMax)
-            ++i;
-
-        if (i >= n)
-          return position;
-
-        /*
-         * 7. out-in
-         *    - begin new linestring at intersection point
-         * 8. out-edge
-         *    - if passes inside the rectangle, produce linestring from the intersection points
-         *    - ignore otherwise
-         * 9. out-out
-         *    a) ignore if both points completely below, above, left or right of rectangle
-         *    b) calculate possible intersection.
-         *      - produce line between intersection points are of non zero length
-         *        and are not on the same edge (segment is colinear with the edge)
-         */
-
-        // Establish new position
-
-        x = g.getX(i);
-        y = g.getY(i);
-        pos = getPosition(x, y);
-
-        position |= pos;
-
-        // Calculate possible intersection coordinate with the box
-
-        x0 = g.getX(i - 1);
-        y0 = g.getY(i - 1);
-        clip_to_edges(x0, y0, x, y);
-
-        if (pos == Position::Inside)  // out-in
-        {
-          // x0,y0 begings the new linestring
-          start_index = i;
-          add_start = true;
-          // Main loop will enter the Inside/Edge section
-        }
-        else if (pos == Position::Outside)  // out-out
-        {
-          // Clip the other end too
-          clip_to_edges(x, y, x0, y0);
-
-          auto prev_pos = getPosition(x0, y0);
-          pos = getPosition(x, y);
-
-          if (different(x0, y0, x, y) &&                 // discard corners etc
-              onEdge(prev_pos) &&                        // discard if does not intersect rect
-              onEdge(pos) && !onSameEdge(prev_pos, pos)  // discard if travels along edge
-          )
-          {
-            position |= Position::Inside;  // something is inside
-            auto *line = new OGRLineString;
-            line->addPoint(x0, y0);
-            line->addPoint(x, y);
-#if 0            
-            std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
-                      << OGR::exportToWkt(*line) << "\n";
-#endif
-            theClipper.add(line, exterior);
-          }
-
-          // Continue main loop outside the rect
-        }
-        else  // out-edge
-        {
-          auto prev_pos = getPosition(x0, y0);
-
-          if (!onSameEdge(pos, prev_pos))
-          {
-            position |= Position::Inside;  // something is inside
-            auto *line = new OGRLineString;
-            line->addPoint(x0, y0);
-            line->addPoint(x, y);
-#if 0            
-            std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
-                      << OGR::exportToWkt(*line) << "\n";
-#endif
-            theClipper.add(line, exterior);
-          }
-        }
+        if (!clipOutside(st, theClipper, exterior))
+          return st.position;
       }
-
-      /*
-       *  1. in-in
-       *     - continue clip
-       *  2. in-edge
-       *     - terminate clip
-       *  3. in-out
-       *     - terminate clip at intersection point
-       */
-
-      else if (pos == Position::Inside)
+      else if (st.pos == Position::Inside)
       {
-        while (++i < n)
-        {
-          x = g.getX(i);
-          y = g.getY(i);
-
-          pos = getPosition(x, y);
-          position |= pos;
-
-          if (pos == Position::Inside)  // in-in
-          {
-          }
-          else if (pos == Position::Outside)  // in-out
-          {
-            // Clip the outside point to edges
-            clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1));
-
-            auto *line = new OGRLineString();
-            if (add_start)
-              line->addPoint(x0, y0);
-            add_start = false;
-            if (start_index <= i - 1)
-              line->addSubLineString(&g, start_index, i - 1);
-            line->addPoint(x, y);
-#if 0
-            std::cout << "Adding EXT: " << OGR::exportToWkt(*line) << "\n";
-#endif
-            theClipper.addExterior(line);
-
-            break;  // going to outside the loop
-          }
-          else  // in-edge
-          {
-            if (start_index == 0 && i == n - 1)
-              return Position::Inside;  // All inside?
-
-            auto *line = new OGRLineString();
-            if (add_start)
-              line->addPoint(x0, y0);
-            add_start = false;
-            line->addSubLineString(&g, start_index, i);
-#if 0
-            std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
-                      << OGR::exportToWkt(*line) << "\n";
-#endif
-            theClipper.add(line, exterior);
-
-            start_index = i;  // potentially going in again at this point
-            break;            // going to the edge loop
-          }
-        }
-
-        // Was everything in? If so, generate no output here, just clone the linestring elsewhere
-        if (start_index == 0 && i >= n)
+        if (clipInside(st, theClipper, exterior))
           return Position::Inside;
-
-        // Flush the last line segment if data ended and there is something to flush
-        if (pos == Position::Inside && (start_index < i - 1 || add_start))
-        {
-          auto *line = new OGRLineString();
-          if (add_start)
-          {
-            line->addPoint(x0, y0);
-            add_start = false;
-          }
-          line->addSubLineString(&g, start_index, i - 1);
-#if 0
-          std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
-                    << OGR::exportToWkt(*line) << "\n";
-#endif
-          // theClipper.add(line, exterior);
-          theClipper.addExterior(line);
-        }
       }
-
-      /*
-       *  4. edge-in
-       *     - begin new linestring
-       *  5. edge-edge
-       *     a) from edge 1 to edge 1
-       *        - ignore segment for travelling on the edges only
-       *     b) from edge 1 to edge 2
-       *        - produce segment between endpoints
-       *  6. edge-out
-       *     - if passes inside the rectangle, produce a linesegment
-       *     - ignore segment if goes straight out
-       */
-
-      else
-      {
-        while (++i < n)
-        {
-          auto prev_pos = pos;
-
-          x = g.getX(i);
-          y = g.getY(i);
-
-          pos = getPosition(x, y);
-          position |= pos;
-
-          if (pos == Position::Inside)  // edge-in
-          {
-            // Start new linestring
-            start_index = i - 1;
-            break;  // And continue main loop on the inside
-          }
-
-          if (pos == Position::Outside)  // edge-out
-          {
-            // Clip the outside point to edges
-            clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1));
-            pos = getPosition(x, y);
-
-            // Does the line exit through the inside of the box?
-
-            bool through_box =
-                (different(x, y, g.getX(i), g.getY(i)) && !onSameEdge(prev_pos, pos));
-
-            // Output a LineString if it at least one segment long
-
-            if (through_box)
-            {
-              auto *line = new OGRLineString();
-              line->addPoint(g.getX(i - 1), g.getY(i - 1));
-              line->addPoint(x, y);
-#if 0
-              std::cout << "Adding EXT: " << OGR::exportToWkt(*line) << "\n";
-#endif
-              theClipper.addExterior(line);
-            }
-            break;  // And continue main loop on the outside
-          }
-
-          // edge-edge
-
-          // travel to different edge?
-          if (!onSameEdge(prev_pos, pos))
-          {
-            position |= Position::Inside;  // passed through
-            auto *line = new OGRLineString();
-            line->addPoint(g.getX(i - 1), g.getY(i - 1));
-            line->addPoint(x, y);
-#if 0
-              std::cout << "Adding EXT: " << OGR::exportToWkt(*line) << "\n";
-#endif
-            theClipper.addExterior(line);
-            start_index = i;
-          }
-        }
-      }
+      else if (clipEdge(st, theClipper, exterior))
+        return st.position;
     }
-    return position;
+    return st.position;
   }
   catch (...)
   {
@@ -381,271 +665,44 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
 
     // For shorthand code
 
-    const OGRLineString &g = *theGeom;
-
     // Keep a record of the point where a line segment entered
     // the rectangle. If the boolean is set, we must insert
     // the point to the end of the linestring which began outside the rectangle.
 
-    double x0 = 0;
-    double y0 = 0;
-
-    bool add_start = false;
-    double start_x = 0;
-    double start_y = 0;
+    LineState st(*theGeom, n);
 
     // Start iterating
 
-    int i = 0;
-    int start_index = 0;
-
-    while (i < n)
+    while (st.i < n)
     {
       // Establish initial position
 
-      double x = g.getX(i);
-      double y = g.getY(i);
-      auto pos = getPosition(x, y);
+      st.x = st.g.getX(st.i);
+      st.y = st.g.getY(st.i);
+      st.pos = getPosition(st.x, st.y);
 
-      position |= pos;
+      st.position |= st.pos;
 
-      if (pos == Position::Outside)
+      if (st.pos == Position::Outside)
       {
-        // Skip points as fast as possible until something has to be checked
-        // in more detail.
-
-        ++i;  // we already know it is outside
-
-        if (x < itsXMin)
-          while (i < n && g.getX(i) < itsXMin)
-            ++i;
-
-        else if (x > itsXMax)
-          while (i < n && g.getX(i) > itsXMax)
-            ++i;
-
-        else if (y < itsYMin)
-          while (i < n && g.getY(i) < itsYMin)
-            ++i;
-
-        else if (y > itsYMax)
-          while (i < n && g.getY(i) > itsYMax)
-            ++i;
-
-        if (i >= n)
-        {
-          if (start_index == 0)
-            return position;  // everything was out
-
-          if (start_index > 0 && start_index < n)
-          {
-            auto *line = new OGRLineString();
-            if (add_start)
-              line->addPoint(start_x, start_y);
-            line->addSubLineString(&g, start_index, n - 1);
-#if 0
-            std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
-                      << OGR::exportToWkt(*line) << "\n";
-#endif
-            theClipper.add(line, exterior);
-          }
-          return position;
-        }
-
-        // Establish new position
-
-        x = g.getX(i);
-        y = g.getY(i);
-        pos = getPosition(x, y);
-
-        position |= pos;
-
-        /*
-         *  7. out-in
-         *     - end current linestring at intersection point
-         *  8. out-edge
-         *     - if passes inside the rectangle, terminate current linestring at the intersection
-         *     - otherwise terminate at the end point
-         *  9. out-out
-         *     a) keep if both points completely below, above, left or right of rectangle
-         *     b) calculate possible intersection.
-         *        - if line between intersections points is of non zero length, end current
-         *          linestring at the first intersection and begin a new one at the second
-         * intersection
-         *        - otherwise keep growing the current linestring with the segment
-         */
-
-        x0 = g.getX(i - 1);
-        y0 = g.getY(i - 1);
-
-        clip_to_edges(x0, y0, x, y);
-
-        if (pos == Position::Inside)  // out-in
-        {
-          auto *line = new OGRLineString();
-
-          if (add_start)
-            line->addPoint(start_x, start_y);
-          add_start = false;
-          line->addSubLineString(&g, start_index, i - 1);
-          line->addPoint(x0, y0);
-#if 0
-          std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
-                    << OGR::exportToWkt(*line) << "\n";
-#endif
-          theClipper.add(line, exterior);
-          // Main loop will enter the Inside/Edge section
-        }
-        else if (pos == Position::Outside)  // out-out
-        {
-          // Clip the other end too
-          clip_to_edges(x, y, x0, y0);
-
-          auto prev_pos = getPosition(x0, y0);
-          pos = getPosition(x, y);
-          position |= pos;
-
-          if (different(x0, y0, x, y) &&  // discard corners etc
-              onEdge(prev_pos))           // discard if does not intersect rect
-          {
-            // Intersection occurred. Must generate a linestring from start to intersection point
-            // then.
-            auto *line = new OGRLineString();
-
-            if (add_start)
-              line->addPoint(start_x, start_y);
-            line->addSubLineString(&g, start_index, i - 1);
-            line->addPoint(x0, y0);
-#if 0
-            std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
-                      << OGR::exportToWkt(*line) << "\n";
-#endif
-            theClipper.add(line, exterior);
-
-            position |= Position::Inside;  // mark we visited inside
-
-            // Start next line from the end intersection point
-            start_index = i;
-            start_x = x;
-            start_y = y;
-            add_start = true;
-          }
-
-          // Continue main loop outside the rect
-        }
-        else
-        {
-          auto *line = new OGRLineString();
-          if (add_start)
-            line->addPoint(start_x, start_y);
-          line->addSubLineString(&g, start_index, i - 1);
-          line->addPoint(x0, y0);
-          if (x != g.getX(i) || y != g.getY(i))
-            position |= Position::Inside;
-#if 0
-          std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
-                    << OGR::exportToWkt(*line) << "\n";
-#endif
-          theClipper.add(line, exterior);
-
-          add_start = false;
-        }
+        if (!cutOutside(st, theClipper, exterior))
+          return st.position;
       }
-
-      else if (pos == Position::Inside)
+      else if (st.pos == Position::Inside)
       {
-        /*
-         *  1. in-in
-         *     - ignore segment
-         *  2. in-edge
-         *     - ignore segment
-         *  3. in-out
-         *     - begin new linestring at intersection point
-         */
-
-        while (++i < n)
-        {
-          x = g.getX(i);
-          y = g.getY(i);
-          pos = getPosition(x, y);
-
-          position |= pos;
-
-          if (pos != Position::Outside)
-            continue;
-
-          // Clip the outside point to edges
-          clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1));
-          pos = getPosition(x, y);
-
-          position |= pos;
-
-          start_index = i;
-          add_start = true;
-          start_x = x;
-          start_y = y;
-          break;
-        }
-
-        // Was everything in? If so, generate no output
-        if (start_index == 0 && i >= n)
-          return position;
+        if (cutInside(st, theClipper, exterior))
+          return st.position;
       }
-      else  // edge
-      {
-        /*
-         *  4. edge-in
-         *     - ignore segment
-         *  5. edge-edge
-         *     - ignore segment
-         *  6. edge-out
-         *     - if passes inside the rectangle, start linestring at the exit intersection point
-         *     - otherwise begin new linestring at start point
-         */
-
-        while (++i < n)
-        {
-          auto prev_pos = pos;
-          x = g.getX(i);
-          y = g.getY(i);
-          pos = getPosition(x, y);
-
-          position |= pos;
-
-          if (pos == Position::Inside)
-            continue;
-          if (pos != Position::Outside)  // on edge
-          {
-            if (!onSameEdge(prev_pos, pos))
-              position |= Position::Inside;  // visited inside
-            continue;
-          }
-
-          // Clip the outside point to edges
-          clip_to_edges(x, y, g.getX(i - 1), g.getY(i - 1));
-
-          if (x != g.getX(i) || y != g.getY(i))
-            position |= Position::Inside;
-
-          start_index = i;
-          add_start = true;
-          start_x = x;
-          start_y = y;
-          break;
-        }
-
-        // Was everything in? If so, generate no output
-        if (start_index == 0 && i >= n)
-          return position;
-      }
+      else if (cutEdge(st, theClipper, exterior))
+        return st.position;
     }
 
-    if (add_start)
+    if (st.add_start)
     {
       auto *line = new OGRLineString();
 
-      line->addPoint(start_x, start_y);
-      line->addSubLineString(&g, start_index, n - 1);
+      line->addPoint(st.start_x, st.start_y);
+      line->addSubLineString(&st.g, st.start_index, n - 1);
 #if 0
       std::cout << __LINE__ << " adding " << (exterior ? "ext: " : "int: ")
                 << OGR::exportToWkt(*line) << "\n";
@@ -653,7 +710,7 @@ int Shape_rect::cut(const OGRLineString *theGeom, ShapeClipper &theClipper, bool
       theClipper.add(line, exterior);
     }
 
-    return position;
+    return st.position;
   }
   catch (...)
   {
