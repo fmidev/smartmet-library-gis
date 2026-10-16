@@ -500,6 +500,250 @@ std::unique_ptr<OGRLineString> ringToLineStringPreserveClosure(const OGRLinearRi
   return ls;
 }
 
+using LineStrings = std::vector<std::unique_ptr<OGRLineString>>;
+
+// Cyclic merge: if first run starts off-boundary and last run ends
+// off-boundary, they are two halves of a split at a projection failure.
+void mergeCyclicHalves(LineStrings& projRuns,
+                       const ProjectionBoundary& b,
+                       double tol,
+                       double densifyKm)
+{
+  if (projRuns.size() > 1)
+  {
+    auto& first = projRuns.front();
+    auto& last = projRuns.back();
+    if (first && last)
+    {
+      OGRPoint firstFront(first->getX(0), first->getY(0));
+      OGRPoint lastBack(last->getX(last->getNumPoints() - 1), last->getY(last->getNumPoints() - 1));
+      if (!isOnBoundary(firstFront, b, tol) && !isOnBoundary(lastBack, b, tol))
+      {
+        const double dx = lastBack.getX() - firstFront.getX();
+        const double dy = lastBack.getY() - firstFront.getY();
+        const double dist = std::sqrt(dx * dx + dy * dy);
+        if (dist <= densifyKm * 1000.0 * 3.0)
+        {
+          auto merged = std::make_unique<OGRLineString>();
+          for (int i = 0; i < last->getNumPoints(); ++i)
+            merged->addPoint(last->getX(i), last->getY(i));
+          for (int i = 1; i < first->getNumPoints(); ++i)
+            merged->addPoint(first->getX(i), first->getY(i));
+          projRuns.front() = std::move(merged);
+          projRuns.pop_back();
+        }
+      }
+    }
+  }
+}
+
+// True if the geographic ring spans the full world
+bool spansFullWorld(const OGRLineString& geo)
+{
+  // Check if the geographic ring spans the full world.
+  double geoLonMin = std::numeric_limits<double>::max();
+  double geoLonMax = -geoLonMin;
+  double geoLatMin = geoLonMin;
+  double geoLatMax = -geoLonMin;
+  for (int i = 0; i < geo.getNumPoints(); ++i)
+  {
+    geoLonMin = std::min(geoLonMin, geo.getX(i));
+    geoLonMax = std::max(geoLonMax, geo.getX(i));
+    geoLatMin = std::min(geoLatMin, geo.getY(i));
+    geoLatMax = std::max(geoLatMax, geo.getY(i));
+  }
+  return (geoLonMax - geoLonMin >= 359.0) && (geoLatMax - geoLatMin >= 179.0);
+}
+
+// True if the projected full world ring is degenerate, see the scenarios in
+// GeometryProjector::Impl::projectRingIntoClipper
+bool isDegenerateWorldRing(const OGRLineString& geo,
+                           const LineStrings& projRuns,
+                           const LineStrings& clippedRuns,
+                           const ProjectionBoundary& b)
+{
+  if (!spansFullWorld(geo))
+    return false;
+
+  bool isDegenerate = false;
+
+  if (clippedRuns.empty() && !projRuns.empty())
+  {
+    // Scenario B: all projected edges outside bbox → bbox is inside the
+    // projected world polygon → the entire bbox should be filled.
+    isDegenerate = true;
+  }
+  else if (clippedRuns.size() == 1)
+  {
+    // Scenario A: single run — check for near-zero shoelace area.
+    auto& run0 = clippedRuns.front();
+    if (run0 && run0->getNumPoints() >= 3)
+    {
+      double projArea = 0.0;
+      const int n = run0->getNumPoints();
+      for (int i = 0; i < n - 1; ++i)
+        projArea += run0->getX(i) * run0->getY(i + 1) - run0->getX(i + 1) * run0->getY(i);
+      projArea = std::abs(projArea) * 0.5;
+
+      const double boxArea = (b.maxX - b.minX) * (b.maxY - b.minY);
+      if (projArea < 1e-3 * boxArea)
+        isDegenerate = true;
+    }
+  }
+
+  return isDegenerate;
+}
+
+// Snap the end points of the line to the exact box boundary if they are within tolerance
+void snapToExactBoundary(OGRLineString* line, const ProjectionBoundary& b, double tol)
+{
+  if (!line || line->getNumPoints() < 2)
+    return;
+  auto snapCoord = [&](int idx)
+  {
+    double x = line->getX(idx);
+    double y = line->getY(idx);
+    if (std::abs(x - b.minX) < tol)
+      x = b.minX;
+    else if (std::abs(x - b.maxX) < tol)
+      x = b.maxX;
+    if (std::abs(y - b.minY) < tol)
+      y = b.minY;
+    else if (std::abs(y - b.maxY) < tol)
+      y = b.maxY;
+    line->setPoint(idx, x, y);
+  };
+
+  snapCoord(0);
+  snapCoord(line->getNumPoints() - 1);
+}
+
+// Extend the front or back end point of the run to the box boundary along the last segment
+void extendEndpointToBound(std::unique_ptr<OGRLineString>& run,
+                           bool atFront,
+                           const ProjectionBoundary& b,
+                           double tol)
+{
+  const int np = run->getNumPoints();
+  if (np < 2)
+    return;
+  double px = NAN;
+  double py = NAN;
+  double dx = NAN;
+  double dy = NAN;
+  if (atFront)
+  {
+    px = run->getX(0);
+    py = run->getY(0);
+    dx = px - run->getX(1);
+    dy = py - run->getY(1);
+  }
+  else
+  {
+    px = run->getX(np - 1);
+    py = run->getY(np - 1);
+    dx = px - run->getX(np - 2);
+    dy = py - run->getY(np - 2);
+  }
+  OGRPoint endPt(px, py);
+  if (isOnBoundary(endPt, b, tol))
+    return;  // already on boundary
+  const double len = std::sqrt(dx * dx + dy * dy);
+  if (len < 1e-10)
+    return;  // degenerate segment — cannot extrapolate
+  const double bigDist = 3.0 * std::max(b.maxX - b.minX, b.maxY - b.minY);
+  const ClipHit hit =
+      clipSegmentLB(px, py, px + (dx / len) * bigDist, py + (dy / len) * bigDist, b);
+  if (!hit.ok)
+    return;
+  OGRPoint bPt = hit.b;
+  snapToBoundaryPoint(bPt, b, tol);
+  if (atFront)
+  {
+    auto extended = std::make_unique<OGRLineString>();
+    extended->addPoint(bPt.getX(), bPt.getY());
+    for (int i = 0; i < np; ++i)
+      extended->addPoint(run->getX(i), run->getY(i));
+    run = std::move(extended);
+  }
+  else
+  {
+    run->addPoint(bPt.getX(), bPt.getY());
+  }
+}
+
+// Extend open-run endpoints to the box boundary when they are interior points
+// rather than on a box edge.  This happens for projections (e.g. cass) where
+// failures at extreme lat/lon leave the surviving segment endpoints inside the
+// box.  Without extension, connectLines() cannot close such a linestring and
+// throws "Stuck, discarding ring".
+void extendOpenRuns(LineStrings& clippedRuns, const ProjectionBoundary& b, double tol, double eps)
+{
+  for (auto& run : clippedRuns)
+  {
+    if (!run || run->getNumPoints() < 2)
+      continue;
+    const int rn = run->getNumPoints();
+    // Only open runs need extension.  Use nearlyEqual (not exact ==) as a second
+    // line of defence against sub-eps snap/rounding discrepancies that
+    // mergeCyclicRunsIfConnected may not have caught (e.g. when the run came
+    // from the cyclic-merge code path rather than clipProjectedLineToBounds).
+    // Force-close before skipping so the ring path below gets an exact ring.
+    if (nearlyEqual(run->getX(0), run->getX(rn - 1), eps) &&
+        nearlyEqual(run->getY(0), run->getY(rn - 1), eps))
+    {
+      run->setPoint(rn - 1, run->getX(0), run->getY(0));
+      continue;
+    }
+
+    // back first — does not shift front indices
+    extendEndpointToBound(run, /*atFront=*/false, b, tol);
+    // front second — may prepend a point
+    extendEndpointToBound(run, /*atFront=*/true, b, tol);
+    // snap newly added endpoints to exact boundary
+    snapToExactBoundary(run.get(), b, tol);
+  }
+}
+
+// Pass the open runs as linestrings and the closed ones as rings to the clipper
+void addRunsToClipper(const LineStrings& clippedRuns, bool isExterior, Fmi::RectClipper& clipper)
+{
+  for (auto& run : clippedRuns)
+  {
+    if (!run || run->getNumPoints() < 2)
+      continue;
+
+    const int n = run->getNumPoints();
+    const bool isOpen = (run->getX(0) != run->getX(n - 1) || run->getY(0) != run->getY(n - 1));
+
+#if 0
+    std::cerr << (isExterior ? "  exterior" : "  interior") << " run: pts=" << n
+              << " isOpen=" << isOpen << " front=(" << run->getX(0) << "," << run->getY(0) << ")"
+              << " back=(" << run->getX(n - 1) << "," << run->getY(n - 1) << ")\n";
+#endif
+
+    if (isOpen)
+    {
+      // Genuinely clipped by boundary - pass as linestring
+      auto* line = run->clone();
+      if (isExterior)
+        clipper.addExterior(line);
+      else
+        clipper.addInterior(line);
+    }
+    else
+    {
+      // Naturally closed ring - pass directly as ring
+      auto* ring = new OGRLinearRing;
+      ring->addSubLineString(run.get());
+      if (isExterior)
+        clipper.addExterior(ring);
+      else
+        clipper.addInterior(ring);
+    }
+  }
+}
+
 }  // namespace
 
 // ------------------------------ PIMPL ------------------------------
@@ -573,6 +817,11 @@ class GeometryProjector::Impl
   // Polygon splitting: exterior runs => polygon pieces; hole runs => interior rings or boundary
   // cuts
   std::unique_ptr<OGRGeometry> splitPolygonWithHolesFast(const OGRPolygon* polygon) const;
+  bool projectRingIntoClipper(const OGRLinearRing* ring,
+                              bool isExterior,
+                              const ProjectionBoundary& b,
+                              double eps,
+                              Fmi::RectClipper& clipper) const;
 
   // ---- best-effort projection helpers ----
   std::vector<std::unique_ptr<OGRLineString>> projectToProjectedRunsBestEffort(
@@ -851,6 +1100,133 @@ GeometryProjector::Impl::projectToProjectedRunsBestEffort(const OGRLineString& g
   return runs;
 }
 
+// ------------------------------ projectRingIntoClipper ------------------------------
+
+// Project a ring and feed its runs into the clipper
+bool GeometryProjector::Impl::projectRingIntoClipper(const OGRLinearRing* ring,
+                                                     bool isExterior,
+                                                     const ProjectionBoundary& b,
+                                                     double eps,
+                                                     Fmi::RectClipper& clipper) const
+{
+  if (!ring || ring->getNumPoints() < 4)
+    return false;
+
+  auto geo = ringToLineStringPreserveClosure(ring, /*forceClose=*/true, eps);
+
+  // Normalize winding before densification so that jump-detection runs are produced
+  // in the order the CCW reconnection algorithm (connectLines/search_ccw) expects.
+  // For exterior rings: CCW so the bottom edge is traversed first, seeding Run 1 at
+  // the bottom-right corner and Run 2 at the top-left corner.
+  // For interior rings: CW (the opposite).
+  // OGRLinearRing::isClockwise()==1 means CW (negative signed area in y-up coordinates).
+  {
+    int cw = ring->isClockwise();
+    bool doReverse = isExterior ? (cw != 0) : (cw == 0);
+    if (doReverse)
+      geo->reversePoints();
+  }
+
+  if (m_densifyKm > 0.0)
+    densifyGeographicKm(geo.get(), m_densifyKm);
+
+  // Jump threshold: the larger of 20× the densification step and 35% of the box height.
+  //
+  // Why two components?
+  //   - Pole-LINE projections (ECK1-6, Bacon, Ortelius, …): the south/north pole maps to
+  //     a horizontal line segment whose length equals the full box width (10–30 Mm).  The
+  //     SW→SE and NE→NW pole-line traversals exceed this threshold and are correctly split.
+  //     ECK3's steeply-curved meridians produce legitimate segments up to ~900 km near the
+  //     poles; the old 10× (500 km) multiplier was too low for those.
+  //   - Pole-POINT projections (van der Grinten I-III, Lagrange, Fahey, Loximuthal, …):
+  //     all meridians converge to a single point at each pole.  No pole-line jump exists,
+  //     but the first meridian segment from the pole to the nearest densified latitude can
+  //     reach ~9 000 km (vandg3).  Using 35% of the box height (≥ 14 Mm for vandg3) keeps
+  //     these legitimate segments below the threshold.  The threshold still sits well below
+  //     any actual pole-line (which spans 50–100% of the box width).
+  const double maxJumpMeters = (m_densifyKm > 0.0)
+                                   ? std::max(m_densifyKm * 1000.0 * 20.0, (b.maxY - b.minY) * 0.35)
+                                   : m_jumpThreshold;
+
+  auto projRuns = projectToProjectedRunsBestEffort(*geo, /*splitAtFailures=*/false);
+
+#if 0
+  std::cerr << "  projRuns=" << projRuns.size();
+  int totalPts = 0;
+  for (const auto& r : projRuns)
+    if (r)
+      totalPts += r->getNumPoints();
+  std::cerr << " totalPts=" << totalPts << " geoPts=" << geo->getNumPoints();
+  if (totalPts < geo->getNumPoints())
+    std::cerr << " *** PROJECTION FAILURES: " << (geo->getNumPoints() - totalPts)
+              << " points lost";
+  std::cerr << "\n";
+  if (!projRuns.empty())
+  {
+    const auto& first = projRuns.front();
+    const auto& last = projRuns.back();
+    if (first)
+      std::cerr << "  first run front=(" << first->getX(0) << "," << first->getY(0) << ")"
+                << " back=(" << first->getX(first->getNumPoints() - 1) << ","
+                << first->getY(first->getNumPoints() - 1) << ")\n";
+    if (projRuns.size() > 1 && last)
+      std::cerr << "  last run front=(" << last->getX(0) << "," << last->getY(0) << ")"
+                << " back=(" << last->getX(last->getNumPoints() - 1) << ","
+                << last->getY(last->getNumPoints() - 1) << ")\n";
+  }
+#endif
+
+  if (projRuns.empty())
+    return false;
+
+  // Cyclic merge of the two halves of a split at a projection failure
+  mergeCyclicHalves(projRuns, b, tol, m_densifyKm);
+
+  // Clip runs to bounding box with jump detection, then feed into clipper
+  auto clippedRuns =
+      clipRunsToBounds(projRuns, b, /*mergeCyclicRuns=*/true, /*detectJumps=*/true, maxJumpMeters);
+
+  // Detect and fix degenerate "world polygon" case.  Two scenarios:
+  //
+  // Scenario A — seam mismatch (azimuthal/oblique projections, e.g. LAEA,
+  //   bertin1953, ob_tran with non-zero o_lon_p): the geographic antimeridian
+  //   (lon=±180) is NOT the natural seam, so both sides of the world rectangle
+  //   project to the same curve.  The ring traces the antimeridian TWICE
+  //   (there-and-back), producing a zero-area "lollipop".
+  //   Signature: 1 clipped run whose shoelace area < 0.1 % of the bbox area.
+  //
+  // Scenario B — cylindrical overflow (WebMercator, large plate-carrée, …):
+  //   the projection's natural world extent EXCEEDS the user's bounding box on
+  //   ALL four sides.  Every projected edge of the world rectangle is strictly
+  //   outside the bbox; Liang-Barsky produces zero runs.
+  //   Signature: 0 clipped runs despite successful projection (projRuns non-empty).
+  //
+  // Fix for both: substitute the bounding-box rectangle as the exterior ring.
+  if (isExterior && clippedRuns.size() <= 1 &&
+      isDegenerateWorldRing(*geo, projRuns, clippedRuns, b))
+  {
+    auto* ring = new OGRLinearRing;  // NOLINT
+    ring->addPoint(b.minX, b.minY);
+    ring->addPoint(b.maxX, b.minY);
+    ring->addPoint(b.maxX, b.maxY);
+    ring->addPoint(b.minX, b.maxY);
+    ring->addPoint(b.minX, b.minY);
+    clipper.addExterior(ring);
+    return true;
+  }
+
+  for (auto& run : clippedRuns)
+    if (run)
+      snapToExactBoundary(run.get(), b, tol);
+
+  // Extend open-run endpoints to the box boundary, see extendOpenRuns
+  extendOpenRuns(clippedRuns, b, tol, eps);
+
+  addRunsToClipper(clippedRuns, isExterior, clipper);
+
+  return true;
+}
+
 // ------------------------------ splitPolygonWithHolesFast ------------------------------
 
 std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
@@ -861,339 +1237,16 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
   const Fmi::Box box(b.minX, b.minY, b.maxX, b.maxY);
   Fmi::RectClipper clipper(box, /*keep_inside=*/true);
 
-  // Helper: project a ring and feed its runs into the clipper
-  auto projectRingIntoClipper = [&](const OGRLinearRing* ring, bool isExterior) -> bool
-  {
-    if (!ring || ring->getNumPoints() < 4)
-      return false;
-
-    auto geo = ringToLineStringPreserveClosure(ring, /*forceClose=*/true, eps);
-
-    // Normalize winding before densification so that jump-detection runs are produced
-    // in the order the CCW reconnection algorithm (connectLines/search_ccw) expects.
-    // For exterior rings: CCW so the bottom edge is traversed first, seeding Run 1 at
-    // the bottom-right corner and Run 2 at the top-left corner.
-    // For interior rings: CW (the opposite).
-    // OGRLinearRing::isClockwise()==1 means CW (negative signed area in y-up coordinates).
-    {
-      int cw = ring->isClockwise();
-      bool doReverse = isExterior ? (cw != 0) : (cw == 0);
-      if (doReverse)
-        geo->reversePoints();
-    }
-
-    if (m_densifyKm > 0.0)
-      densifyGeographicKm(geo.get(), m_densifyKm);
-
-    // Jump threshold: the larger of 20× the densification step and 35% of the box height.
-    //
-    // Why two components?
-    //   - Pole-LINE projections (ECK1-6, Bacon, Ortelius, …): the south/north pole maps to
-    //     a horizontal line segment whose length equals the full box width (10–30 Mm).  The
-    //     SW→SE and NE→NW pole-line traversals exceed this threshold and are correctly split.
-    //     ECK3's steeply-curved meridians produce legitimate segments up to ~900 km near the
-    //     poles; the old 10× (500 km) multiplier was too low for those.
-    //   - Pole-POINT projections (van der Grinten I-III, Lagrange, Fahey, Loximuthal, …):
-    //     all meridians converge to a single point at each pole.  No pole-line jump exists,
-    //     but the first meridian segment from the pole to the nearest densified latitude can
-    //     reach ~9 000 km (vandg3).  Using 35% of the box height (≥ 14 Mm for vandg3) keeps
-    //     these legitimate segments below the threshold.  The threshold still sits well below
-    //     any actual pole-line (which spans 50–100% of the box width).
-    const double maxJumpMeters =
-        (m_densifyKm > 0.0) ? std::max(m_densifyKm * 1000.0 * 20.0, (b.maxY - b.minY) * 0.35)
-                            : m_jumpThreshold;
-
-    auto projRuns = projectToProjectedRunsBestEffort(*geo, /*splitAtFailures=*/false);
-
-#if 0
-    std::cerr << "  projRuns=" << projRuns.size();
-    int totalPts = 0;
-    for (const auto& r : projRuns)
-      if (r)
-        totalPts += r->getNumPoints();
-    std::cerr << " totalPts=" << totalPts << " geoPts=" << geo->getNumPoints();
-    if (totalPts < geo->getNumPoints())
-      std::cerr << " *** PROJECTION FAILURES: " << (geo->getNumPoints() - totalPts)
-                << " points lost";
-    std::cerr << "\n";
-    if (!projRuns.empty())
-    {
-      const auto& first = projRuns.front();
-      const auto& last = projRuns.back();
-      if (first)
-        std::cerr << "  first run front=(" << first->getX(0) << "," << first->getY(0) << ")"
-                  << " back=(" << first->getX(first->getNumPoints() - 1) << ","
-                  << first->getY(first->getNumPoints() - 1) << ")\n";
-      if (projRuns.size() > 1 && last)
-        std::cerr << "  last run front=(" << last->getX(0) << "," << last->getY(0) << ")"
-                  << " back=(" << last->getX(last->getNumPoints() - 1) << ","
-                  << last->getY(last->getNumPoints() - 1) << ")\n";
-    }
-#endif
-
-    if (projRuns.empty())
-      return false;
-
-    // Cyclic merge: if first run starts off-boundary and last run ends
-    // off-boundary, they are two halves of a split at a projection failure.
-    if (projRuns.size() > 1)
-    {
-      auto& first = projRuns.front();
-      auto& last = projRuns.back();
-      if (first && last)
-      {
-        OGRPoint firstFront(first->getX(0), first->getY(0));
-        OGRPoint lastBack(last->getX(last->getNumPoints() - 1),
-                          last->getY(last->getNumPoints() - 1));
-        if (!isOnBoundary(firstFront, b, tol) && !isOnBoundary(lastBack, b, tol))
-        {
-          const double dx = lastBack.getX() - firstFront.getX();
-          const double dy = lastBack.getY() - firstFront.getY();
-          const double dist = std::sqrt(dx * dx + dy * dy);
-          if (dist <= m_densifyKm * 1000.0 * 3.0)
-          {
-            auto merged = std::make_unique<OGRLineString>();
-            for (int i = 0; i < last->getNumPoints(); ++i)
-              merged->addPoint(last->getX(i), last->getY(i));
-            for (int i = 1; i < first->getNumPoints(); ++i)
-              merged->addPoint(first->getX(i), first->getY(i));
-            projRuns.front() = std::move(merged);
-            projRuns.pop_back();
-          }
-        }
-      }
-    }
-
-    // Clip runs to bounding box with jump detection, then feed into clipper
-    auto clippedRuns = clipRunsToBounds(
-        projRuns, b, /*mergeCyclicRuns=*/true, /*detectJumps=*/true, maxJumpMeters);
-
-    // Detect and fix degenerate "world polygon" case.  Two scenarios:
-    //
-    // Scenario A — seam mismatch (azimuthal/oblique projections, e.g. LAEA,
-    //   bertin1953, ob_tran with non-zero o_lon_p): the geographic antimeridian
-    //   (lon=±180) is NOT the natural seam, so both sides of the world rectangle
-    //   project to the same curve.  The ring traces the antimeridian TWICE
-    //   (there-and-back), producing a zero-area "lollipop".
-    //   Signature: 1 clipped run whose shoelace area < 0.1 % of the bbox area.
-    //
-    // Scenario B — cylindrical overflow (WebMercator, large plate-carrée, …):
-    //   the projection's natural world extent EXCEEDS the user's bounding box on
-    //   ALL four sides.  Every projected edge of the world rectangle is strictly
-    //   outside the bbox; Liang-Barsky produces zero runs.
-    //   Signature: 0 clipped runs despite successful projection (projRuns non-empty).
-    //
-    // Fix for both: substitute the bounding-box rectangle as the exterior ring.
-    if (isExterior && clippedRuns.size() <= 1)
-    {
-      // Check if the geographic ring spans the full world.
-      double geoLonMin = std::numeric_limits<double>::max();
-      double geoLonMax = -geoLonMin;
-      double geoLatMin = geoLonMin;
-      double geoLatMax = -geoLonMin;
-      for (int i = 0; i < geo->getNumPoints(); ++i)
-      {
-        geoLonMin = std::min(geoLonMin, geo->getX(i));
-        geoLonMax = std::max(geoLonMax, geo->getX(i));
-        geoLatMin = std::min(geoLatMin, geo->getY(i));
-        geoLatMax = std::max(geoLatMax, geo->getY(i));
-      }
-      const bool fullWorld = (geoLonMax - geoLonMin >= 359.0) && (geoLatMax - geoLatMin >= 179.0);
-
-      if (fullWorld)
-      {
-        bool isDegenerate = false;
-
-        if (clippedRuns.empty() && !projRuns.empty())
-        {
-          // Scenario B: all projected edges outside bbox → bbox is inside the
-          // projected world polygon → the entire bbox should be filled.
-          isDegenerate = true;
-        }
-        else if (clippedRuns.size() == 1)
-        {
-          // Scenario A: single run — check for near-zero shoelace area.
-          auto& run0 = clippedRuns.front();
-          if (run0 && run0->getNumPoints() >= 3)
-          {
-            double projArea = 0.0;
-            const int n = run0->getNumPoints();
-            for (int i = 0; i < n - 1; ++i)
-              projArea += run0->getX(i) * run0->getY(i + 1) - run0->getX(i + 1) * run0->getY(i);
-            projArea = std::abs(projArea) * 0.5;
-
-            const double boxArea = (b.maxX - b.minX) * (b.maxY - b.minY);
-            if (projArea < 1e-3 * boxArea)
-              isDegenerate = true;
-          }
-        }
-
-        if (isDegenerate)
-        {
-          auto* ring = new OGRLinearRing;  // NOLINT
-          ring->addPoint(b.minX, b.minY);
-          ring->addPoint(b.maxX, b.minY);
-          ring->addPoint(b.maxX, b.maxY);
-          ring->addPoint(b.minX, b.maxY);
-          ring->addPoint(b.minX, b.minY);
-          clipper.addExterior(ring);
-          return true;
-        }
-      }
-    }
-
-    auto snapToExactBoundary = [&](OGRLineString* line)
-    {
-      if (!line || line->getNumPoints() < 2)
-        return;
-      auto snapCoord = [&](int idx)
-      {
-        double x = line->getX(idx);
-        double y = line->getY(idx);
-        if (std::abs(x - b.minX) < tol)
-          x = b.minX;
-        else if (std::abs(x - b.maxX) < tol)
-          x = b.maxX;
-        if (std::abs(y - b.minY) < tol)
-          y = b.minY;
-        else if (std::abs(y - b.maxY) < tol)
-          y = b.maxY;
-        line->setPoint(idx, x, y);
-      };
-
-      snapCoord(0);
-      snapCoord(line->getNumPoints() - 1);
-    };
-
-    for (auto& run : clippedRuns)
-      if (run)
-        snapToExactBoundary(run.get());
-
-    // Extend open-run endpoints to the box boundary when they are interior points
-    // rather than on a box edge.  This happens for projections (e.g. cass) where
-    // failures at extreme lat/lon leave the surviving segment endpoints inside the
-    // box.  Without extension, connectLines() cannot close such a linestring and
-    // throws "Stuck, discarding ring".
-    for (auto& run : clippedRuns)
-    {
-      if (!run || run->getNumPoints() < 2)
-        continue;
-      const int rn = run->getNumPoints();
-      // Only open runs need extension.  Use nearlyEqual (not exact ==) as a second
-      // line of defence against sub-eps snap/rounding discrepancies that
-      // mergeCyclicRunsIfConnected may not have caught (e.g. when the run came
-      // from the cyclic-merge code path rather than clipProjectedLineToBounds).
-      // Force-close before skipping so the ring path below gets an exact ring.
-      if (nearlyEqual(run->getX(0), run->getX(rn - 1), eps) &&
-          nearlyEqual(run->getY(0), run->getY(rn - 1), eps))
-      {
-        run->setPoint(rn - 1, run->getX(0), run->getY(0));
-        continue;
-      }
-
-      auto extendEndpointToBound = [&](bool atFront)
-      {
-        const int np = run->getNumPoints();
-        if (np < 2)
-          return;
-        double px = NAN;
-        double py = NAN;
-        double dx = NAN;
-        double dy = NAN;
-        if (atFront)
-        {
-          px = run->getX(0);
-          py = run->getY(0);
-          dx = px - run->getX(1);
-          dy = py - run->getY(1);
-        }
-        else
-        {
-          px = run->getX(np - 1);
-          py = run->getY(np - 1);
-          dx = px - run->getX(np - 2);
-          dy = py - run->getY(np - 2);
-        }
-        OGRPoint endPt(px, py);
-        if (isOnBoundary(endPt, b, tol))
-          return;  // already on boundary
-        const double len = std::sqrt(dx * dx + dy * dy);
-        if (len < 1e-10)
-          return;  // degenerate segment — cannot extrapolate
-        const double bigDist = 3.0 * std::max(b.maxX - b.minX, b.maxY - b.minY);
-        const ClipHit hit =
-            clipSegmentLB(px, py, px + (dx / len) * bigDist, py + (dy / len) * bigDist, b);
-        if (!hit.ok)
-          return;
-        OGRPoint bPt = hit.b;
-        snapToBoundaryPoint(bPt, b, tol);
-        if (atFront)
-        {
-          auto extended = std::make_unique<OGRLineString>();
-          extended->addPoint(bPt.getX(), bPt.getY());
-          for (int i = 0; i < np; ++i)
-            extended->addPoint(run->getX(i), run->getY(i));
-          run = std::move(extended);
-        }
-        else
-        {
-          run->addPoint(bPt.getX(), bPt.getY());
-        }
-      };
-
-      extendEndpointToBound(/*atFront=*/false);  // back first — does not shift front indices
-      extendEndpointToBound(/*atFront=*/true);   // front second — may prepend a point
-      snapToExactBoundary(run.get());            // snap newly added endpoints to exact boundary
-    }
-
-    for (auto& run : clippedRuns)
-    {
-      if (!run || run->getNumPoints() < 2)
-        continue;
-
-      const int n = run->getNumPoints();
-      const bool isOpen = (run->getX(0) != run->getX(n - 1) || run->getY(0) != run->getY(n - 1));
-
-#if 0
-      std::cerr << (isExterior ? "  exterior" : "  interior") << " run: pts=" << n
-                << " isOpen=" << isOpen << " front=(" << run->getX(0) << "," << run->getY(0) << ")"
-                << " back=(" << run->getX(n - 1) << "," << run->getY(n - 1) << ")\n";
-#endif
-
-      if (isOpen)
-      {
-        // Genuinely clipped by boundary - pass as linestring
-        auto* line = run->clone();
-        if (isExterior)
-          clipper.addExterior(line);
-        else
-          clipper.addInterior(line);
-      }
-      else
-      {
-        // Naturally closed ring - pass directly as ring
-        auto* ring = new OGRLinearRing;
-        ring->addSubLineString(run.get());
-        if (isExterior)
-          clipper.addExterior(ring);
-        else
-          clipper.addInterior(ring);
-      }
-    }
-
-    return true;
-  };
-
   // Project exterior ring
   const OGRLinearRing* ext = polygon->getExteriorRing();
   if (!ext || ext->getNumPoints() < 4)
     return nullptr;
 
-  projectRingIntoClipper(ext, /*isExterior=*/true);
+  projectRingIntoClipper(ext, /*isExterior=*/true, b, eps, clipper);
 
   // Project holes
   for (int i = 0; i < polygon->getNumInteriorRings(); ++i)
-    projectRingIntoClipper(polygon->getInteriorRing(i), /*isExterior=*/false);
+    projectRingIntoClipper(polygon->getInteriorRing(i), /*isExterior=*/false, b, eps, clipper);
 
   if (clipper.empty())
     return nullptr;
