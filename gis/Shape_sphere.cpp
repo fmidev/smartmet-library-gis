@@ -54,6 +54,23 @@ double distance(double a, double b)
   }
 }
 
+// The angle difference for connecting the end points of the current line, or the given
+// default if the difference is not positive
+double end_connection_angle_diff(double angle1, double angle2, double defaultDiff)
+{
+  double angleDiff = angle1 - angle2;
+
+  if (angleDiff > PI && angle2 < angle1)
+    angleDiff = PI2 - angleDiff;
+
+  if (angleDiff < -PI)
+    angleDiff = PI2 + angleDiff;
+
+  if (angleDiff > 0)
+    return angleDiff;
+  return defaultDiff;
+}
+
 }  // namespace
 
 Shape_sphere::Shape_sphere(double theX, double theY, double theRadius)
@@ -901,54 +918,42 @@ LineIterator Shape_sphere::search_cw(OGRLinearRing* /*ring*/,
     auto best = lines.end();
     double angle1 = 0;
 
-    if (isOnEdge(xx1, yy1, angle1))
+    if (!isOnEdge(xx1, yy1, angle1))
+      return best;
+
+    double angle2 = 0;
+    double bestAngleDiff = 1000;
+    // Sometimes the best option is to connect the end points
+    // of the current line.
+    if (isOnEdge(xx2, yy2, angle2))
+      bestAngleDiff = end_connection_angle_diff(angle1, angle2, bestAngleDiff);
+
+    for (auto iter = lines.begin(); iter != lines.end(); ++iter)
     {
-      double angle2 = 0;
-      double bestAngleDiff = 1000;
-      if (isOnEdge(xx2, yy2, angle2))
-      {
-        // Sometimes the best option is to connect the end points
-        // of the current line.
+      double x = (*iter)->getX(0);
+      double y = (*iter)->getY(0);
+      double xx = x;
+      double yy = y;
+      getMetricCoordinates(x, y, xx, yy);
 
+      if (isOnEdge(xx, yy, angle2))
+      {
         double angleDiff = angle1 - angle2;
+        if (angle2 > angle1)
+          angleDiff = PI2 - (angle2 - angle1);
 
-        if (angleDiff > PI && angle2 < angle1)
-          angleDiff = PI2 - angleDiff;
+        // printf("Angles %f,%f => %f,%f  %f %f %f\n",x1,y1,x,y,angle1,angle2,bestAngleDiff);
 
-        if (angleDiff < -PI)
-          angleDiff = PI2 + angleDiff;
-
-        if (angleDiff > 0)
-          bestAngleDiff = angleDiff;
-      }
-
-      for (auto iter = lines.begin(); iter != lines.end(); ++iter)
-      {
-        double x = (*iter)->getX(0);
-        double y = (*iter)->getY(0);
-        double xx = x;
-        double yy = y;
-        getMetricCoordinates(x, y, xx, yy);
-
-        if (isOnEdge(xx, yy, angle2))
+        if (angleDiff < bestAngleDiff)
         {
-          double angleDiff = angle1 - angle2;
+          x2 = x;
+          y2 = y;
+          best = iter;
+          bestAngleDiff = angleDiff;
           if (angle2 > angle1)
-            angleDiff = PI2 - (angle2 - angle1);
-
-          // printf("Angles %f,%f => %f,%f  %f %f %f\n",x1,y1,x,y,angle1,angle2,bestAngleDiff);
-
-          if (angleDiff < bestAngleDiff)
-          {
-            x2 = x;
-            y2 = y;
-            best = iter;
-            bestAngleDiff = angleDiff;
-            if (angle2 > angle1)
-              angle2 = angle2 - 2 * PI;
-            // printf("++ BEST ANGLE %f %f => %f,%f   %f %f
-            // %f\n",x1,y1,x2,y2,angle1,angle2,bestAngleDiff);
-          }
+            angle2 = angle2 - 2 * PI;
+          // printf("++ BEST ANGLE %f %f => %f,%f   %f %f
+          // %f\n",x1,y1,x2,y2,angle1,angle2,bestAngleDiff);
         }
       }
     }
