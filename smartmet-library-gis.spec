@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.10.15
+Version: 26.10.16
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -41,7 +41,7 @@ BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: double-conversion-devel
 BuildRequires: libcurl-devel >= 7.61.0
-BuildRequires: smartmet-library-macgyver-devel >= 26.10.15
+BuildRequires: smartmet-library-macgyver-devel >= 26.10.16
 BuildRequires: %{smartmet_sfcgal} >= 1.3.1
 %if %{with tests}
 BuildRequires: smartmet-library-regression
@@ -61,7 +61,7 @@ Requires: geos313
 Requires: proj97
 Requires: libtiff >= 4.1
 Requires: libcurl >= 7.61.0
-Requires: smartmet-library-macgyver >= 26.10.15
+Requires: smartmet-library-macgyver >= 26.10.16
 #TestRequires: %{smartmet_boost}-devel
 #TestRequires: %{smartmet_fmt_devel}
 #TestRequires: gcc-c++
@@ -112,7 +112,7 @@ Requires: gcc-c++
 Requires: gdal312-devel
 Requires: proj97-devel
 Requires: libtiff-devel >= 4.1
-Requires: smartmet-library-macgyver-devel >= 26.10.15
+Requires: smartmet-library-macgyver-devel >= 26.10.16
 Obsoletes: libsmartmet-gis-devel < 16.2.20
 
 %description -n %{SPECNAME}-devel
@@ -138,6 +138,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Fri Oct 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.16-1.fmi
+- Fixed compiler warnings and clang-tidy findings (unused code, unreachable code, empty statements, member initialization, parameter passing, noexcept), no functional changes
+
 * Thu Oct 15 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.15-1.fmi
 - Declare member functions and parameters const where nothing is modified (const correctness), no functional changes
 - Removed the redundant non-const OGRSpatialReference constructor of the private SpatialReference::Impl
