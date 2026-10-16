@@ -629,6 +629,130 @@ void amalgamate_cluster(const std::vector<const OGRPolygon*>& cluster,
   }
 }
 
+// Polygons whose individual area meets or exceeds the mainland area
+std::vector<bool> find_mainlands(const std::vector<FlatPoly>& polys, double mainlandArea)
+{
+  std::vector<bool> is_mainland(polys.size(), false);
+  if (mainlandArea > 0)
+  {
+    for (std::size_t i = 0; i < polys.size(); ++i)
+      if (polygon_area_km2(polys[i].poly) >= mainlandArea)
+        is_mainland[i] = true;
+  }
+  return is_mainland;
+}
+
+// Group the non-mainland polygons whose envelopes are within lengthLimit of each other
+std::map<std::size_t, std::vector<std::size_t>> cluster_polygons(
+    const std::vector<FlatPoly>& polys, const std::vector<bool>& is_mainland, double lengthLimit)
+{
+  // Step 1: build an R-tree of polygon envelopes for fast neighbour lookup.
+  // Only non-mainland polygons participate in clustering.
+  namespace bg = boost::geometry;
+  namespace bgi = boost::geometry::index;
+  using BPoint = bg::model::point<double, 2, bg::cs::cartesian>;
+  using BBox = bg::model::box<BPoint>;
+  using RtValue = std::pair<BBox, std::size_t>;
+
+  bgi::rtree<RtValue, bgi::quadratic<16>> rtree;
+  for (std::size_t i = 0; i < polys.size(); ++i)
+  {
+    if (is_mainland[i])
+      continue;
+    const auto& e = polys[i].env;
+    rtree.insert({BBox{BPoint{e.MinX, e.MinY}, BPoint{e.MaxX, e.MaxY}}, i});
+  }
+
+  // Step 2: union-find polygons whose envelopes are within lengthLimit of each other.
+  // Bbox-distance is conservative: polygons with overlapping expanded envelopes might
+  // actually be > lengthLimit apart by their geometries, but we'll then just process
+  // them in the same CDT (slower than optimal, still correct). False negatives —
+  // missing a real neighbour — are not possible.
+  UnionFind uf(polys.size());
+  for (std::size_t i = 0; i < polys.size(); ++i)
+  {
+    if (is_mainland[i])
+      continue;
+    const auto& e = polys[i].env;
+    BBox query{BPoint{e.MinX - lengthLimit, e.MinY - lengthLimit},
+               BPoint{e.MaxX + lengthLimit, e.MaxY + lengthLimit}};
+    for (auto it = rtree.qbegin(bgi::intersects(query)); it != rtree.qend(); ++it)
+      if (it->second != i)
+        uf.unite(i, it->second);
+  }
+
+  // Step 3: group non-mainland polygons by their connected component.
+  // std::map keyed by the component representative gives a stable iteration order so
+  // that the output ordering is deterministic across runs.
+  std::map<std::size_t, std::vector<std::size_t>> clusters;
+  for (std::size_t i = 0; i < polys.size(); ++i)
+    if (!is_mainland[i])
+      clusters[uf.find(i)].push_back(i);
+  return clusters;
+}
+
+// Amalgamate a cluster of polygons
+void process_cluster(const std::vector<std::size_t>& members,
+                     const std::vector<FlatPoly>& polys,
+                     double minTotalArea,
+                     double lengthLimit,
+                     double areaLimit,
+                     std::vector<OGRGeometryPtr>& result)
+{
+  if (minTotalArea > 0)
+  {
+    double total_km2 = 0;
+    for (auto i : members)
+      total_km2 += polygon_area_km2(polys[i].poly);
+    if (total_km2 < minTotalArea)
+      return;
+  }
+
+  if (members.size() == 1)
+  {
+    const auto* p = polys[members[0]].poly;
+    if (areaLimit <= 0 || p->get_Area() >= areaLimit)
+      result.push_back(OGRGeometryPtr(p->clone()));
+  }
+  else
+  {
+    std::vector<const OGRPolygon*> cluster_polys;
+    cluster_polys.reserve(members.size());
+    for (auto i : members)
+      cluster_polys.push_back(polys[i].poly);
+    amalgamate_cluster(cluster_polys, lengthLimit, areaLimit, result);
+  }
+}
+
+// Emit the mainland polygons, optionally amalgamated individually
+void emit_mainlands(const std::vector<FlatPoly>& polys,
+                    const std::vector<bool>& is_mainland,
+                    bool mainlandAmalgamate,
+                    double lengthLimit,
+                    double areaLimit,
+                    std::vector<OGRGeometryPtr>& result)
+{
+  // Step 5: emit the mainland polygons. They bypassed the global cluster
+  // CDT but, when mainlandAmalgamate is set, are individually triangulated
+  // so the gap-triangle pass closes their own bays (depth-0 triangles inside
+  // a concavity whose three edges are all <= lengthLimit are accepted into
+  // the merged outline). Without the flag they're cloned unchanged. Both
+  // paths still respect areaLimit.
+  for (std::size_t i = 0; i < polys.size(); ++i)
+  {
+    if (!is_mainland[i])
+      continue;
+    const auto* p = polys[i].poly;
+    if (mainlandAmalgamate)
+    {
+      std::vector<const OGRPolygon*> single = {p};
+      amalgamate_cluster(single, lengthLimit, areaLimit, result);
+    }
+    else if (areaLimit <= 0 || p->get_Area() >= areaLimit)
+      result.push_back(OGRGeometryPtr(p->clone()));
+  }
+}
+
 }  // namespace
 
 void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
@@ -671,56 +795,10 @@ void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
     // otherwise dominate the triangulation cost; their merged outline with a
     // tiny neighbour is virtually identical to the mainland itself, so
     // skipping amalgamation for them costs almost nothing visually.
-    std::vector<bool> is_mainland(polys.size(), false);
-    if (m_mainlandArea > 0)
-    {
-      for (std::size_t i = 0; i < polys.size(); ++i)
-        if (polygon_area_km2(polys[i].poly) >= m_mainlandArea)
-          is_mainland[i] = true;
-    }
+    std::vector<bool> is_mainland = find_mainlands(polys, m_mainlandArea);
 
-    // Step 1: build an R-tree of polygon envelopes for fast neighbour lookup.
-    // Only non-mainland polygons participate in clustering.
-    namespace bg = boost::geometry;
-    namespace bgi = boost::geometry::index;
-    using BPoint = bg::model::point<double, 2, bg::cs::cartesian>;
-    using BBox = bg::model::box<BPoint>;
-    using RtValue = std::pair<BBox, std::size_t>;
-
-    bgi::rtree<RtValue, bgi::quadratic<16>> rtree;
-    for (std::size_t i = 0; i < polys.size(); ++i)
-    {
-      if (is_mainland[i])
-        continue;
-      const auto& e = polys[i].env;
-      rtree.insert({BBox{BPoint{e.MinX, e.MinY}, BPoint{e.MaxX, e.MaxY}}, i});
-    }
-
-    // Step 2: union-find polygons whose envelopes are within lengthLimit of each other.
-    // Bbox-distance is conservative: polygons with overlapping expanded envelopes might
-    // actually be > lengthLimit apart by their geometries, but we'll then just process
-    // them in the same CDT (slower than optimal, still correct). False negatives —
-    // missing a real neighbour — are not possible.
-    UnionFind uf(polys.size());
-    for (std::size_t i = 0; i < polys.size(); ++i)
-    {
-      if (is_mainland[i])
-        continue;
-      const auto& e = polys[i].env;
-      BBox query{BPoint{e.MinX - m_lengthLimit, e.MinY - m_lengthLimit},
-                 BPoint{e.MaxX + m_lengthLimit, e.MaxY + m_lengthLimit}};
-      for (auto it = rtree.qbegin(bgi::intersects(query)); it != rtree.qend(); ++it)
-        if (it->second != i)
-          uf.unite(i, it->second);
-    }
-
-    // Step 3: group non-mainland polygons by their connected component.
-    // std::map keyed by the component representative gives a stable iteration order so
-    // that the output ordering is deterministic across runs.
-    std::map<std::size_t, std::vector<std::size_t>> clusters;
-    for (std::size_t i = 0; i < polys.size(); ++i)
-      if (!is_mainland[i])
-        clusters[uf.find(i)].push_back(i);
+    // Steps 1-3: cluster the non-mainland polygons, see cluster_polygons.
+    auto clusters = cluster_polygons(polys, is_mainland, m_lengthLimit);
 
     // Step 4: process each cluster independently. Singletons short-circuit the CDT entirely
     // (they cannot merge with anything). Multi-member clusters go through the existing
@@ -735,51 +813,9 @@ void GeometryAmalgamator::apply(std::vector<OGRGeometryPtr>& geoms) const
     // data this drops thousands of small clusters that would otherwise dominate the cost.
     std::vector<OGRGeometryPtr> result;
     for (const auto& [_, members] : clusters)
-    {
-      if (m_minTotalArea > 0)
-      {
-        double total_km2 = 0;
-        for (auto i : members)
-          total_km2 += polygon_area_km2(polys[i].poly);
-        if (total_km2 < m_minTotalArea)
-          continue;
-      }
+      process_cluster(members, polys, m_minTotalArea, m_lengthLimit, m_areaLimit, result);
 
-      if (members.size() == 1)
-      {
-        const auto* p = polys[members[0]].poly;
-        if (m_areaLimit <= 0 || p->get_Area() >= m_areaLimit)
-          result.push_back(OGRGeometryPtr(p->clone()));
-      }
-      else
-      {
-        std::vector<const OGRPolygon*> cluster_polys;
-        cluster_polys.reserve(members.size());
-        for (auto i : members)
-          cluster_polys.push_back(polys[i].poly);
-        amalgamate_cluster(cluster_polys, m_lengthLimit, m_areaLimit, result);
-      }
-    }
-
-    // Step 5: emit the mainland polygons. They bypassed the global cluster
-    // CDT but, when m_mainlandAmalgamate is set, are individually triangulated
-    // so the gap-triangle pass closes their own bays (depth-0 triangles inside
-    // a concavity whose three edges are all <= lengthLimit are accepted into
-    // the merged outline). Without the flag they're cloned unchanged. Both
-    // paths still respect m_areaLimit.
-    for (std::size_t i = 0; i < polys.size(); ++i)
-    {
-      if (!is_mainland[i])
-        continue;
-      const auto* p = polys[i].poly;
-      if (m_mainlandAmalgamate)
-      {
-        std::vector<const OGRPolygon*> single = {p};
-        amalgamate_cluster(single, m_lengthLimit, m_areaLimit, result);
-      }
-      else if (m_areaLimit <= 0 || p->get_Area() >= m_areaLimit)
-        result.push_back(OGRGeometryPtr(p->clone()));
-    }
+    emit_mainlands(polys, is_mainland, m_mainlandAmalgamate, m_lengthLimit, m_areaLimit, result);
 
     geoms = std::move(result);
   }
