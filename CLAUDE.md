@@ -27,7 +27,7 @@ make BoxTest        # Compile one test (any *Test.cpp → executable)
 ./BoxTest           # Run it
 ```
 
-Tests use **Google Test** (gtest), not Boost.Test. Each `*Test.cpp` compiles to a standalone executable. Additionally, `ShapeTester` is a text-driven test runner that processes `test/tests/*.txt` files (line/polygon clip/cut scenarios for rect, circle, sphere shapes).
+Tests use FMI's `regression/tframe.h` or **Google Test** (gtest; the `GeometryProjector*`, `SpatialReference{ApiStability,Concurrency,Ownership}` and `TimeZoneFinder` tests), not Boost.Test. Each `*Test.cpp` compiles to a standalone executable. Additionally, `ShapeTester` is a text-driven test runner that processes `test/tests/*.txt` files (line/polygon clip/cut scenarios for rect, circle, sphere shapes).
 
 ### Test data
 
@@ -55,7 +55,7 @@ make -C test ASAN=yes test   # Address + UB sanitizer
 ### Key modules
 
 **Coordinate systems & projection:**
-- `SpatialReference` — proxy for `OGRSpatialReference`; accepts EPSG int, WKT string, or PROJ string; internally cached
+- `SpatialReference` — proxy for `OGRSpatialReference`; accepts EPSG int, WKT string, or PROJ string; derived values cached per definition string, the GDAL object private to each instance
 - `CoordinateTransformation` — wraps `OGRCoordinateTransformation` with antimeridian-aware `transformGeometry()`
 - `GeometryProjector` — high-level project + densify + clip-to-bounds in one step
 - `CoordinateMatrix` / `CoordinateMatrixCache` — grid-based coordinate transformation with caching
@@ -77,6 +77,7 @@ make -C test ASAN=yes test   # Address + UB sanitizer
 - `DEM` — Digital Elevation Model queries (SRTM tiles)
 - `SrtmTile` / `SrtmMatrix` — SRTM tile loading and interpolation
 - `LandCover` — GlobCover land classification lookups
+- `Gshhs` — reader for legacy binary GSHHS shoreline files (`gshhs*.b`)
 
 **Database:**
 - `PostGIS` — reads features from PostGIS with optional spatial/time filters

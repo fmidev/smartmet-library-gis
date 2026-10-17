@@ -8,7 +8,8 @@ the *Last updated* line at the bottom).
 `smartmet-library-gis` is the SmartMet Server's GIS workhorse — a
 C++ wrapper around GDAL/OGR, GEOS, and PROJ that provides coordinate
 projection, geometry clipping/cutting/smoothing/simplification,
-DEM and land-cover raster access, and PostGIS integration. All public
+DEM and land-cover raster access, PostGIS integration, and coordinate
+to timezone resolution. All public
 API is in the `Fmi::` namespace; the library produces both shared
 (`libsmartmet-gis.so`) and static (`libsmartmet-gis.a`) artefacts.
 
@@ -21,10 +22,13 @@ API is in the `Fmi::` namespace; the library produces both shared
   - **EPSG codes** (integer).
   - **WKT strings**.
   - **PROJ strings**.
-  - **Cached internally** — repeated construction with the same
-    descriptor returns the same backing object.
-- **`Fmi::OGRSpatialReferenceFactory`** — cached factory for
-  building `OGRSpatialReference` objects.
+  - **Cached internally** — the values derived from a descriptor
+    (WKT, PROJ string, EPSG code, axis flags, hash) are computed once
+    and shared; the `OGRSpatialReference` of each instance is a
+    private clone, made on first use.
+- **`Fmi::OGRSpatialReferenceFactory`** — parses each descriptor
+  once and hands out private clones (from a per-thread sample, so
+  without locking).
 - **`Fmi::ProjInfo`** — PROJ-string parsing helpers.
 - **`Fmi::EPSGInfo`** — EPSG metadata lookup (units, name, axis
   order).
@@ -62,7 +66,8 @@ Public operations:
   polylines.
 - **`polyclip` / `polycut`** — clip / cut while preserving polygon
   topology.
-- **`shapeClip`** — clip with an arbitrary closed shape.
+- **Shape overloads** of `lineclip` / `linecut` / `polyclip` /
+  `polycut` — clip / cut with a `Shape` (rectangle, circle, sphere).
 - **`OGR-clip`**, **`OGR-shapeClip`** — implementation files.
 - **Internal classes**: `ShapeClipper`, `RectClipper`.
 
@@ -130,8 +135,9 @@ The shape hierarchy used by clip/cut and friends:
 - **`Fmi::LandCover`** — GlobCover land-classification lookup by
   lat/lon (used together with the DEM for landscape-aware
   temperature interpolation).
-- **`Fmi::Gshhs`** — GSHHS (Global Self-consistent Hierarchical
-  High-resolution Geography) shoreline data access.
+- **`Fmi::Gshhs`** — reader for the legacy binary GSHHS (Global
+  Self-consistent Hierarchical High-resolution Shorelines) files
+  (`gshhs*.b`).
 
 ## 10. PostGIS integration
 
@@ -142,7 +148,18 @@ The shape hierarchy used by clip/cut and friends:
   - **CRS reprojection** at read time.
 - **`Fmi::Host`** — PostgreSQL connection parameters.
 
-## 11. Utilities
+## 11. Timezones
+
+- **`Fmi::TimeZoneFinder`** — exact coordinate to IANA timezone
+  resolution from timezone-boundary-builder polygons (default source
+  `/usr/share/smartmet/timezones/timezones-with-oceans.shp` from the
+  smartmet-timezones package) or any GDAL/OGR vector source,
+  including PostGIS. Immutable and thread safe after construction;
+  optional load area for command line tools; preferred zones for
+  disputed areas. Replaces the `timezone.shz` raster formerly used via
+  macgyver.
+
+## 12. Utilities
 
 - **`Fmi::BoolMatrix`** — 2-D boolean grid (used for mask
   computation).
@@ -155,7 +172,7 @@ The shape hierarchy used by clip/cut and friends:
   - Type aliases: `OGRGeometryPtr = std::shared_ptr<OGRGeometry>`,
     `GeometryPtr = std::shared_ptr<geos::geom::Geometry>`.
 
-## 12. Documentation
+## 13. Documentation
 
 Detailed documentation under `docs/`:
 
@@ -167,10 +184,16 @@ Detailed documentation under `docs/`:
 - **`gis-postgis.md`** — PostGIS reads.
 - **`gis-amalgamator.md`** — polygon amalgamation and
   simplification.
+- **`gis-timezones.md`** — coordinate to timezone resolution.
+- **`developer-guide.md`** — maintainer's view: caches, pools,
+  threads, compatibility, pitfalls.
+- **`proj-gdal-thread-safety.md`** — PROJ and GDAL thread safety
+  and how gis handles it.
 
-## 13. Testing
+## 14. Testing
 
-- **Google Test** (gtest) framework; one binary per `*Test.cpp`.
+- **`regression/tframe.h`** or **Google Test** (gtest); one binary
+  per `*Test.cpp`.
 - **Per-test build**:
   `cd test && make BoxTest && ./BoxTest`.
 - **`ShapeTester`** — text-driven runner that processes
@@ -185,7 +208,7 @@ Detailed documentation under `docs/`:
   the smaller test bundle is present (skipping the heavy
   DEM/LandCover tests).
 
-## 14. Build & integration
+## 15. Build & integration
 
 - **Library outputs**: `libsmartmet-gis.so` (shared) and
   `libsmartmet-gis.a` (static).

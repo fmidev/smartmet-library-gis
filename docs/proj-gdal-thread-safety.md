@@ -488,6 +488,10 @@ internally locked.
 
 ### 4.1 `SpatialReference::getEPSG()` lazily builds GDAL's node tree on a shared object
 
+**Status: fixed by §4.4.** `getEPSG()` now returns a value derived once on a private
+clone. The description below is of the code before that change; its line numbers are
+those of that time.
+
 `gis/gis/SpatialReference.cpp:342-372`:
 
 ```cpp
@@ -524,6 +528,9 @@ cached `std::optional<int>` and touches GDAL not at all. This matches what
 lazy GDAL path in the shared-object hot code.
 
 ### 4.2 The abstraction leaks the shared raw pointer
+
+**Status: superseded by §4.4.** `get()` and the conversions now return an object private
+to the `SpatialReference` instance, and the factory hands out clones only.
 
 `SpatialReference` exposes `get()`, `operator*`, `operator OGRSpatialReference&`
 and `operator OGRSpatialReference*` (`gis/gis/SpatialReference.cpp:258-304`).

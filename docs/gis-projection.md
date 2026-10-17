@@ -31,7 +31,7 @@ static void setCacheSize(std::size_t newMaxSize);
 static Cache::CacheStats getCacheStats();
 ```
 
-The internal cache avoids repeatedly parsing the same CRS definition. Call `setCacheSize` early in application initialization if the default is insufficient for the number of distinct CRS in use.
+The internal cache avoids repeatedly parsing the same CRS definition. Call `setCacheSize` early in application initialization if the default is insufficient for the number of distinct CRS in use. The derived values (WKT, PROJ string, EPSG code, flags) are shared by all instances built from the same definition string. The `OGRSpatialReference` returned by `get()`, `operator*` or the conversion operators is a clone private to the instance, so modifying it affects no one else; constructing from an `OGRSpatialReference` is not cached and is much slower than constructing from a string.
 
 ---
 

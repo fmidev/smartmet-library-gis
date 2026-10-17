@@ -4,7 +4,8 @@ This guide is for developers who change `smartmet-library-gis`, or build on it. 
 GDAL/OGR, GEOS and PROJ for the rest of SmartMet: spatial references and transformations,
 clipping and cutting of geometries (used for contours and map layers), projection of
 geometries with interrupts, DEM and land cover data, and PostGIS reading. newbase, the
-contour, gis and querydata engines, and the WMS, WFS and EDR plugins depend on it.
+contour, gis and querydata engines, and the WMS, WFS and EDR plugins depend on it. It also
+resolves coordinates to time zones (`TimeZoneFinder`).
 
 The topic documents describe each part in detail; this guide is the maintainer's view of how
 they fit together and what to watch out for.
@@ -18,6 +19,7 @@ they fit together and what to watch out for.
 | [gis-interrupts.md](gis-interrupts.md) | Projection discontinuities, antimeridian, poles |
 | [gis-raster.md](gis-raster.md) | `DEM`, SRTM tiles, `LandCover` |
 | [gis-postgis.md](gis-postgis.md) | `PostGIS`, `Host` |
+| [gis-timezones.md](gis-timezones.md) | `TimeZoneFinder`: coordinate to IANA time zone from polygons |
 | [proj-gdal-thread-safety.md](proj-gdal-thread-safety.md) | What PROJ and GDAL allow across threads |
 
 [CLAUDE.md](../CLAUDE.md) has the build summary.
@@ -38,7 +40,7 @@ they fit together and what to watch out for.
 
 ```bash
 make
-make test                        # Google Test programs + ShapeTester scenarios
+make test                        # test programs (tframe or Google Test) + ShapeTester scenarios
 make -C test BoxTest && ./test/BoxTest
 make -C test TSAN=yes test       # or ASAN=yes
 ```
@@ -57,18 +59,24 @@ test data set installed, some are skipped.
 `OGRSpatialReferenceFactory` knows (`FMI`, `NAD27`, `intl`, `GRS80`, …, each meaning a
 geographic system on that datum).
 
-Construction goes through two caches:
+Construction goes through one store, keyed by the description string (1000 entries,
+`SpatialReference::setCacheSize()`):
 
-1. `OGRSpatialReferenceFactory::Create(desc)` parses the description into an
-   `OGRSpatialReference` and caches it by the description string (1000 entries). Parsing
-   is serialised by the factory's mutex, since PROJ's database access is not safe to use
-   concurrently.
-2. `SpatialReference` itself caches the derived data (WKT, `ProjInfo`, hash, EPSG code,
-   geographic and axis flags) by the description string (10 000 entries). Copies share it.
+1. The first use of a description parses it into a **master** `OGRSpatialReference`,
+   which is never handed out. Parsing is serialised by the factory's mutex, since PROJ's
+   database access is not safe to use concurrently.
+2. The derived data (WKT, `ProjInfo`, hash, EPSG code, geographic and axis flags) is
+   computed once, on a private clone, when first asked for, and shared by every
+   `SpatialReference` made from the same string. Copies share it too.
+3. `OGRSpatialReferenceFactory::Create(desc)` hands out a **fresh clone** that belongs
+   to the caller. Each thread keeps its own sample of every description it uses, so the
+   clones are made without a lock.
 
-So creating the same `SpatialReference` again is cheap, and **every `SpatialReference`
-made from the same string shares one `OGRSpatialReference`**. Creating one from an
-`OGRSpatialReference` clones it instead, and is not cached.
+So creating the same `SpatialReference` again is cheap, and its accessors never call
+GDAL. `get()`, `operator*` and the conversion operators return an `OGRSpatialReference`
+private to that `SpatialReference` instance, cloned on first use. Creating a
+`SpatialReference` from an `OGRSpatialReference` clones it and derives everything again
+(about 1.7 ms instead of 0.2 µs), and is not cached: prefer the description string.
 
 Every spatial reference is set to `OAMS_TRADITIONAL_GIS_ORDER`: coordinates are always
 **x = longitude / easting, y = latitude / northing**, whatever the EPSG axis order.
@@ -111,10 +119,12 @@ is projected once instead of point by point; `CoordinateMatrixCache` can cache t
 
 ## 5. Threads
 
-* A `SpatialReference` may be shared between threads for reading. Do **not** modify the
-  `OGRSpatialReference` returned by `get()` or the conversion operators: it is shared by
-  every `SpatialReference` created from the same string. If you need a modified system,
-  clone it (`get()->Clone()`) and build a new `SpatialReference` from the clone.
+* A `SpatialReference` may be shared between threads for its accessors (WKT, PROJ
+  string, EPSG code, flags), which only read the shared derived data. The
+  `OGRSpatialReference` returned by `get()` or the conversion operators belongs to that
+  one instance: modifying it does not affect other instances, but like any GDAL object it
+  must be used by one thread at a time. Give each thread its own `SpatialReference` (a
+  copy is cheap) when the threads need the GDAL object.
 * A `CoordinateTransformation` must be used by **one thread at a time**; create one per
   thread (they are cheap to get from the pool).
 * See [proj-gdal-thread-safety.md](proj-gdal-thread-safety.md) for the PROJ and GDAL
@@ -134,7 +144,8 @@ with `GDAL_VERSION_MAJOR` and `PROJ_VERSION_MAJOR` checks.
 ## 7. Known pitfalls
 
 * **Axis order is always lon/lat (east/north)** in gis, even for EPSG:4326 (§2).
-* **Do not modify a shared `OGRSpatialReference`** (§5).
+* **The `OGRSpatialReference` of one `SpatialReference` instance is not for concurrent
+  use** (§5); copy the `SpatialReference` per thread.
 * **One `CoordinateTransformation` per thread** (§5).
 * **`getEPSG()` is empty for systems built from PROJ strings**, even when an EPSG code
   exists for the same definition.
