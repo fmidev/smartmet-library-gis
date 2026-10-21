@@ -5,7 +5,8 @@ GDAL/OGR, GEOS and PROJ for the rest of SmartMet: spatial references and transfo
 clipping and cutting of geometries (used for contours and map layers), projection of
 geometries with interrupts, DEM and land cover data, and PostGIS reading. newbase, the
 contour, gis and querydata engines, and the WMS, WFS and EDR plugins depend on it. It also
-resolves coordinates to time zones (`TimeZoneFinder`).
+resolves coordinates to time zones (`TimeZoneFinder`) and grids point observations with the
+help of the terrain (`PointGridding`).
 
 The topic documents describe each part in detail; this guide is the maintainer's view of how
 they fit together and what to watch out for.
@@ -20,6 +21,7 @@ they fit together and what to watch out for.
 | [gis-raster.md](gis-raster.md) | `DEM`, SRTM tiles, `LandCover` |
 | [gis-postgis.md](gis-postgis.md) | `PostGIS`, `Host` |
 | [gis-timezones.md](gis-timezones.md) | `TimeZoneFinder`: coordinate to IANA time zone from polygons |
+| [gis-pointgridding.md](gis-pointgridding.md) | `PointGridding`: terrain-aware gridding of point observations |
 | [proj-gdal-thread-safety.md](proj-gdal-thread-safety.md) | What PROJ and GDAL allow across threads |
 
 [CLAUDE.md](../CLAUDE.md) has the build summary.

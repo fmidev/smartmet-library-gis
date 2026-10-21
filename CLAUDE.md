@@ -27,7 +27,7 @@ make BoxTest        # Compile one test (any *Test.cpp → executable)
 ./BoxTest           # Run it
 ```
 
-Tests use FMI's `regression/tframe.h` or **Google Test** (gtest; the `GeometryProjector*`, `SpatialReference{ApiStability,Concurrency,Ownership}` and `TimeZoneFinder` tests), not Boost.Test. Each `*Test.cpp` compiles to a standalone executable. Additionally, `ShapeTester` is a text-driven test runner that processes `test/tests/*.txt` files (line/polygon clip/cut scenarios for rect, circle, sphere shapes).
+Tests use FMI's `regression/tframe.h` or **Google Test** (gtest; the `GeometryProjector*`, `SpatialReference{ApiStability,Concurrency,Ownership}`, `TimeZoneFinder` and `PointGridding` tests), not Boost.Test. Each `*Test.cpp` compiles to a standalone executable. Additionally, `ShapeTester` is a text-driven test runner that processes `test/tests/*.txt` files (line/polygon clip/cut scenarios for rect, circle, sphere shapes).
 
 ### Test data
 
@@ -85,6 +85,9 @@ make -C test ASAN=yes test   # Address + UB sanitizer
 
 **Timezones:**
 - `TimeZoneFinder` — exact coordinate to IANA timezone from timezone-boundary-builder polygons (default source `/usr/share/smartmet/timezones/timezones-with-oceans.shp` from smartmet-timezones). Pimpl, all data hidden in the `.cpp`; uses the GEOS C API (`-lgeos_c`). Test data in `test/data/timezones.geojson`. See `docs/gis-timezones.md`.
+
+**Gridding:**
+- `PointGridding` — terrain-aware gridding of station observations (local height/TPI regression from blurred moment fields, height-aware damped Barnes, leave-one-out gross error check); all Gaussians are extended box filters, no neighbour searches. Reference data from the Python prototype in `test/data/pointgridding`. See `docs/gis-pointgridding.md`.
 
 **Utilities:**
 - `GEOS` — GEOS geometry helpers and SVG export
