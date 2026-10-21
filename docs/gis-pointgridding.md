@@ -67,8 +67,8 @@ station itself: summit stations are often a kilometre above the cell mean height
    pick up coast versus inland differences.
 
 3. **Residual correction.** The station residuals from the trend are interpolated with a
-   damped, height-aware Barnes: `w = exp(−d²/2σ²)·exp(−Δh²/2σh²)` with σ = 40 km and
-   σh = 300 m, divided by `Σw + 0.5`. The height term keeps valley and summit stations
+   damped, height-aware Barnes: `w = exp(−d²/2σ²)·exp(−Δh²/2σh²)` with σh = 300 m, divided by
+   `Σw + 0.25`. Two passes are made, σ = 60 km and then 25 km for what remains. The height term keeps valley and summit stations
    from correcting each other, which matters most in inversions. It is computed with a
    bilateral grid: stations are splatted into 250 m height layers, the layers are blurred
    horizontally and across, and each cell reads the result at its own height. The damping
@@ -98,9 +98,13 @@ predictions:
 | Fixed lapse rate −6.5 K/km + Barnes | 1.98 | 3.10 | 4.27 | 2.07 |
 | Local height regression + Barnes | 1.75 | 2.39 | 2.33 | 2.09 |
 | Height + TPI regression + Barnes | 1.70 | 2.26 | 2.09 | 1.97 |
-| Height + TPI + height-aware Barnes (default) | **1.68** | **2.18** | **1.90** | **1.94** |
+| Height + TPI + height-aware Barnes, one 40 km pass | 1.68 | 2.18 | 1.90 | 1.94 |
+| The same with two passes (60 + 25 km), tuned (default) | **1.62** | **2.12** | **1.82** | **1.89** |
 
-The ranking is the same in every season and at every hour. Plain Barnes leaves summits 4 K
+The ranking is the same in every season and at every hour. The defaults come from a
+one-at-a-time sweep of the scales, ridges, damping and TPI smoothing followed by a check of
+their combinations: two residual passes, damping 0.25 and three times stronger local ridges
+improved every season; a third pass, a smaller local scale or a wider TPI did not. Plain Barnes leaves summits 4 K
 too warm and a fixed lapse rate 2 K too cold on average; on inversion mornings the errors are
 much larger. A quadratic height term was tried and made the results worse.
 
@@ -117,13 +121,13 @@ remaining misses are mostly isolated stations which cannot be judged.
 | `referenceHeight` | 500 m | Height at which the level `a` is defined |
 | `priorLapseRate` | −6.5 K/km | Regional prior of the height coefficient |
 | `regionalSigma`, `localSigma` | 600, 150 km | Scales of the regional and local fits |
-| `regionalHeightRidge`, `localHeightRidge` | 1.8, 0.27 station·km² | How much height span is needed to move the coefficient from its prior |
-| `regionalTPIRidge`, `localTPIRidge` | 0.2, 0.03 station·km² | The same for the TPI coefficient (prior 0) |
+| `regionalHeightRidge`, `localHeightRidge` | 1.8, 0.81 station·km² | How much height span is needed to move the coefficient from its prior |
+| `regionalTPIRidge`, `localTPIRidge` | 0.2, 0.09 station·km² | The same for the TPI coefficient (prior 0) |
 | `levelPrior` | 1 | Pseudo stations pulling the local level to the regional one |
-| `residualSigmas` | 40 km | Barnes passes, each correcting the residual of the previous |
+| `residualSigmas` | 60, 25 km | Barnes passes, each correcting the residual of the previous |
 | `bilateralSigmaH` | 300 m | Height scale of the residual passes, none for horizontal only |
 | `layerSpacing`, `maxHeight` | 250 m, 4000 m | Bilateral grid layers |
-| `damping` | 0.5 | Station equivalents in the Barnes denominator |
+| `damping` | 0.25 | Station equivalents in the Barnes denominator |
 | `coarsen` | 4 | Resolution of the smooth fields relative to the terrain grid |
 | `qc` and `qc*` | on | Gross error check, see section 2 |
 | `threads` | 0 | Threads per analysis, 0 = all cores |
@@ -132,12 +136,12 @@ The TPI smoothing scale (10 km) is a `Terrain` constructor argument.
 
 ## 5. Performance
 
-Full Europe, 2000×1760 cells at 2.5 km, 3000 stations, 8 threads: about 0.7 s for the fit
-including the gross error check and 0.2 s for composing the full-resolution grid. The
+Full Europe, 2000×1760 cells at 2.5 km, 3000 stations, 8 threads: about 0.36 s for the fit
+including the gross error check and 0.19 s for composing the full-resolution grid. The
 smooth fields are computed on the 10 km grid; computing them at 2.5 km does not change the
 cross-validation scores.
 
-The `Terrain` constructor blurs the height field once, about 0.2 s for Europe.
+The `Terrain` constructor blurs the height field once, about 0.1 s for Europe.
 
 ## 6. Limitations
 

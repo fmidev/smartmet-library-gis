@@ -113,19 +113,19 @@ struct Options
   // stations span enough of that predictor.
   double regionalHeightRidge = 20 * 0.3 * 0.3;
   double regionalTPIRidge = 20 * 0.1 * 0.1;
-  double localHeightRidge = 3 * 0.3 * 0.3;
-  double localTPIRidge = 3 * 0.1 * 0.1;
+  double localHeightRidge = 9 * 0.3 * 0.3;
+  double localTPIRidge = 9 * 0.1 * 0.1;
 
   double levelPrior = 1.0;  // pseudo stations pulling the local level toward the regional
 
   // Residual passes. With bilateralSigmaH set the passes are height-aware:
   // w = exp(-d^2 / 2 sigma^2) * exp(-dh^2 / 2 sigmaH^2)
-  std::vector<double> residualSigmas{40e3};
+  std::vector<double> residualSigmas{60e3, 25e3};
   std::optional<double> bilateralSigmaH = 300.0;  // m
   double layerSpacing = 250.0;                    // m, bilateral grid layers
   double maxHeight = 4000.0;                      // m, highest bilateral layer
 
-  double damping = 0.5;  // station equivalents, residuals relax to zero far from stations
+  double damping = 0.25;  // station equivalents, residuals relax to zero far from stations
 
   std::size_t coarsen = 4;  // smooth fields are computed on a grid this much coarser
 
