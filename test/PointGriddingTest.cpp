@@ -11,6 +11,7 @@
 
 #include "PointGridding.h"
 #include <chrono>
+#include <functional>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -234,4 +235,124 @@ TEST(PointGridding, ThreadCountDoesNotChangeTheResult)
   const auto b = Analysis(terrain, stations, many).grid();
   for (std::size_t n = 0; n < a.values().size(); n++)
     ASSERT_EQ(a.values()[n], b.values()[n]);
+}
+
+namespace
+{
+// A flat or sloping test area with stations on its western half only
+struct BackgroundCase
+{
+  Grid grid{0, 0, 5000, 120, 80};
+  std::vector<double> dem;
+  std::vector<Station> stations;
+
+  explicit BackgroundCase(double slope = 0.0)
+  {
+    for (std::size_t j = 0; j < grid.ny; j++)
+      for (std::size_t i = 0; i < grid.nx; i++)
+        dem.push_back(slope * static_cast<double>(i));
+  }
+
+  double height(double x) const { return std::max(0.0, x / grid.dx - 0.5) * dem.at(1); }
+
+  void addStations(const std::function<double(double, double, double)>& truth)
+  {
+    std::mt19937 gen(3);
+    std::uniform_real_distribution<double> ux(10e3, 280e3);
+    std::uniform_real_distribution<double> uy(10e3, 390e3);
+    for (int s = 0; s < 150; s++)
+    {
+      const double x = ux(gen);
+      const double y = uy(gen);
+      const double h = height(x);
+      stations.push_back(Station{x, y, h, truth(x, y, h)});
+    }
+  }
+};
+
+// The test area is only 600 km wide, so the scales are reduced to match
+Options background_options(double weight)
+{
+  Options options;
+  options.qc = false;
+  options.backgroundWeight = weight;
+  options.regionalSigma = 100e3;
+  options.localSigma = 40e3;
+  return options;
+}
+}  // namespace
+
+TEST(PointGridding, BackgroundBiasIsCorrectedNearStationsOnly)
+{
+  // The background is 2 degrees too warm everywhere, the observations are right
+  BackgroundCase c;
+  c.addStations([](double, double, double) { return 5.0; });
+  const Terrain terrain(c.grid, c.dem);
+  const Background bg{Field(c.grid, 7.0), Field(c.grid, 0.0)};
+  const Analysis analysis(terrain, c.stations, bg, background_options(1.0));
+
+  // Among the stations the bias is gone, far from them the background is kept
+  EXPECT_NEAR(analysis.predict(150e3, 200e3, 0), 5.0, 0.05);
+  EXPECT_NEAR(analysis.predict(595e3, 200e3, 0), 7.0, 0.3);
+  const auto f = analysis.grid();
+  for (double v : f.values())
+  {
+    ASSERT_GE(v, 5.0 - 0.01);
+    ASSERT_LE(v, 7.0 + 0.01);
+  }
+}
+
+TEST(PointGridding, BackgroundIsMovedToTheActualHeight)
+{
+  // The terrain rises eastwards, the model orography is flat, the truth follows the standard
+  // atmosphere: the background moved with the lapse rate needs no correction at all
+  BackgroundCase c(10.0);
+  const auto truth = [](double, double, double h) { return 10.0 - 6.5 * h / 1000.0; };
+  c.addStations(truth);
+  const Terrain terrain(c.grid, c.dem);
+  const Background bg{Field(c.grid, 10.0), Field(c.grid, 0.0)};
+  const Analysis analysis(terrain, c.stations, bg, background_options(1.0));
+
+  const auto f = analysis.grid();
+  for (std::size_t j = 0; j < c.grid.ny; j += 7)
+    for (std::size_t i = 0; i < c.grid.nx; i += 7)
+      ASSERT_NEAR(f(i, j), truth(0, 0, c.dem[j * c.grid.nx + i]), 1e-6);
+}
+
+TEST(PointGridding, BackgroundBlendAndMissingValues)
+{
+  BackgroundCase c;
+  c.addStations([](double x, double, double) { return 5.0 + x / 100e3; });
+  const Terrain terrain(c.grid, c.dem);
+  Field value(c.grid, 3.0);
+  for (std::size_t j = 0; j < c.grid.ny; j++)
+    for (std::size_t i = 100; i < c.grid.nx; i++)
+      value(i, j) = std::nan("");  // the eastern edge is outside the model
+  const Background bg{value, Field(c.grid, 0.0)};
+
+  const Analysis corrected(terrain, c.stations, bg, background_options(1.0));
+  const Analysis blended(terrain, c.stations, bg, background_options(0.7));
+  const Analysis plain(terrain, c.stations, background_options(1.0));
+
+  // The blend is a weighted mean of the corrected background and the plain analysis
+  for (double x : {50e3, 150e3, 300e3, 450e3})
+  {
+    const double expected = 0.7 * corrected.predict(x, 200e3, 0) + 0.3 * plain.predict(x, 200e3, 0);
+    EXPECT_NEAR(blended.predict(x, 200e3, 0), expected, 1e-9) << "x=" << x;
+  }
+
+  // Where the background is missing the plain analysis is used
+  const auto fb = blended.grid();
+  const auto fp = plain.grid();
+  EXPECT_DOUBLE_EQ(fb(110, 40), fp(110, 40));
+  EXPECT_TRUE(std::isfinite(corrected.grid()(110, 40)));
+}
+
+TEST(PointGridding, BackgroundMustBeOnTheTerrainGrid)
+{
+  BackgroundCase c;
+  const Terrain terrain(c.grid, c.dem);
+  const Grid other{0, 0, 10000, 60, 40};
+  const Background bg{Field(other, 0.0), Field(other, 0.0)};
+  EXPECT_THROW(Analysis(terrain, c.stations, bg, Options()), std::exception);
 }

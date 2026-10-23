@@ -320,6 +320,7 @@ struct Obs
   std::vector<double> h;
   std::vector<double> z;
   std::vector<double> smooth;  // smoothed terrain height at the station
+  std::vector<double> hm;      // model orography at the station, empty without a background
   std::vector<std::size_t> index;  // index in the input station list
 
   std::size_t size() const { return x.size(); }
@@ -336,12 +337,15 @@ struct Obs
       out.h.push_back(h[i]);
       out.z.push_back(z[i]);
       out.smooth.push_back(smooth[i]);
+      if (!hm.empty())
+        out.hm.push_back(hm[i]);
       out.index.push_back(index[i]);
     }
     return out;
   }
 };
 
+// The reference height of the height predictor is the model orography with a background
 double predictor_value(Predictor p, double h, double smooth, double href)
 {
   switch (p)
@@ -835,12 +839,18 @@ class BilateralStage : public Stage
 class Model
 {
  public:
+  // With a background the observations are the corrections to it, and the height predictor
+  // is the height above the model orography given on the terrain grid
   Model(const Terrain& terrain,
         const Options& options,
         const Obs& obs,
         bool with_residuals,
-        unsigned int threads)
-      : itsTerrain(terrain), itsOptions(options), itsCoarse(terrain.grid().coarsen(options.coarsen))
+        unsigned int threads,
+        const Field* model_elevation = nullptr)
+      : itsTerrain(terrain),
+        itsOptions(options),
+        itsCoarse(terrain.grid().coarsen(options.coarsen)),
+        itsModelElevation(model_elevation)
   {
     fit_trend(obs, threads);
     if (!with_residuals)
@@ -869,9 +879,10 @@ class Model
   double trend(double x, double y, double h, double smooth) const
   {
     double t = itsA.sample(x, y);
+    const double href =
+        (itsModelElevation ? itsModelElevation->sample(x, y) : itsOptions.referenceHeight);
     for (std::size_t k = 0; k < itsBeta.size(); k++)
-      t += itsBeta[k].sample(x, y) *
-           predictor_value(itsOptions.predictors[k], h, smooth, itsOptions.referenceHeight);
+      t += itsBeta[k].sample(x, y) * predictor_value(itsOptions.predictors[k], h, smooth, href);
     if (itsOptions.fixedLapseRate)
       t += *itsOptions.fixedLapseRate * (h - itsOptions.referenceHeight) / 1000.0;
     return t;
@@ -896,7 +907,7 @@ class Model
       beta.push_back(b.resample(g));
 
     Field out(g);
-    const double href = itsOptions.referenceHeight;
+    const double href0 = itsOptions.referenceHeight;
     parallel_for(g.size(),
                  threads,
                  [&](std::size_t n0, std::size_t n1)
@@ -904,6 +915,8 @@ class Model
                    for (std::size_t n = n0; n < n1; n++)
                    {
                      const double h = dem.data()[n];
+                     const double href =
+                         (itsModelElevation ? itsModelElevation->data()[n] : href0);
                      double t = a.data()[n];
                      for (std::size_t k = 0; k < beta.size(); k++)
                        t += beta[k].data()[n] * predictor_value(itsOptions.predictors[k],
@@ -911,7 +924,7 @@ class Model
                                                                 smooth.data()[n],
                                                                 href);
                      if (itsOptions.fixedLapseRate)
-                       t += *itsOptions.fixedLapseRate * (h - href) / 1000.0;
+                       t += *itsOptions.fixedLapseRate * (h - href0) / 1000.0;
                      out.data()[n] = t;
                    }
                  });
@@ -942,12 +955,19 @@ class Model
         z[s] -= *opt.fixedLapseRate * (obs.h[s] - href) / 1000.0;
 
     const std::size_t k = opt.predictors.size();
+    // Far from the stations the level relaxes to the mean of the observations, or with a
+    // background to no correction at all
+    const bool background = (itsModelElevation != nullptr);
+
     if (k == 0)
     {
       double level = 0;
-      for (double v : z)
-        level += v;
-      level /= std::max<std::size_t>(1, z.size());
+      if (!background)
+      {
+        for (double v : z)
+          level += v;
+        level /= std::max<std::size_t>(1, z.size());
+      }
       std::vector<std::vector<double>> q{std::vector<double>(obs.size(), 1.0), z};
       const auto m = gaussianSums(itsCoarse, obs.x, obs.y, q, opt.localSigma, threads);
       itsA = Field(itsCoarse);
@@ -965,22 +985,27 @@ class Model
     {
       const Predictor p = opt.predictors[i];
       for (std::size_t s = 0; s < obs.size(); s++)
-        pv[i][s] = predictor_value(p, obs.h[s], obs.smooth[s], href);
+        pv[i][s] =
+            predictor_value(p, obs.h[s], obs.smooth[s], itsModelElevation ? obs.hm[s] : href);
       const bool height = (p == Predictor::Height);
-      prior[i] = height ? opt.priorLapseRate : 0.0;
+      // The background has already been moved to the actual heights
+      prior[i] = (height && !itsModelElevation) ? opt.priorLapseRate : 0.0;
       ridge0[i] = height ? opt.regionalHeightRidge : opt.regionalTPIRidge;
       ridge1[i] = height ? opt.localHeightRidge : opt.localTPIRidge;
     }
 
     double level = 0;
-    for (std::size_t s = 0; s < obs.size(); s++)
+    if (!background)
     {
-      double v = z[s];
-      for (std::size_t i = 0; i < k; i++)
-        v -= prior[i] * pv[i][s];
-      level += v;
+      for (std::size_t s = 0; s < obs.size(); s++)
+      {
+        double v = z[s];
+        for (std::size_t i = 0; i < k; i++)
+          v -= prior[i] * pv[i][s];
+        level += v;
+      }
+      level /= std::max<std::size_t>(1, obs.size());
     }
-    level /= std::max<std::size_t>(1, obs.size());
 
     const auto regional = local_regression(
         itsCoarse,
@@ -1013,6 +1038,7 @@ class Model
   const Terrain& itsTerrain;
   const Options& itsOptions;
   Grid itsCoarse;
+  const Field* itsModelElevation = nullptr;
   Field itsA;
   std::vector<Field> itsBeta;
   std::vector<std::unique_ptr<Stage>> itsStages;
@@ -1033,7 +1059,8 @@ class Model
 std::vector<bool> quality_control(const Terrain& terrain,
                                   const Options& options,
                                   const Obs& obs,
-                                  unsigned int threads)
+                                  unsigned int threads,
+                                  const Field* model_elevation)
 {
   Options trend_only = options;
   trend_only.residualSigmas.clear();
@@ -1052,7 +1079,7 @@ std::vector<bool> quality_control(const Terrain& terrain,
       if (keep[i])
         where.push_back(i);
 
-    const Model trend(terrain, trend_only, sub, false, threads);
+    const Model trend(terrain, trend_only, sub, false, threads, model_elevation);
     std::vector<double> r(sub.size());
     for (std::size_t s = 0; s < sub.size(); s++)
       r[s] = sub.z[s] - trend.predict(sub.x[s], sub.y[s], sub.h[s], sub.smooth[s]);
@@ -1262,15 +1289,35 @@ Terrain::Terrain(const Grid& grid, std::vector<double> elevation, double tpiSigm
 class Analysis::Impl
 {
  public:
-  Impl(const Terrain& terrain, const std::vector<Station>& stations, const Options& options)
+  Impl(const Terrain& terrain,
+       const std::vector<Station>& stations,
+       const Background* background,
+       const Options& options)
       : itsTerrain(terrain), itsOptions(options), itsStatus(stations.size(), StationStatus::Used)
   {
     const Grid& grid = terrain.grid();
+    if (background)
+    {
+      if (!(background->value.grid() == grid) || !(background->elevation.grid() == grid))
+        throw Fmi::Exception(BCP, "The background must be given on the terrain grid");
+      itsBackground = *background;
+    }
+
+    // With a background obs holds the corrections to it, raw the observations themselves
     Obs obs;
+    std::vector<double> raw;
     for (std::size_t i = 0; i < stations.size(); i++)
     {
       const auto& s = stations[i];
-      if (!grid.contains(s.x, s.y) || !std::isfinite(s.value) || !std::isfinite(s.elevation))
+      double base = 0;
+      double hm = 0;
+      if (itsBackground && grid.contains(s.x, s.y))
+      {
+        hm = itsBackground->elevation.sample(s.x, s.y);
+        base = background_at(s.x, s.y, s.elevation, hm);
+      }
+      if (!grid.contains(s.x, s.y) || !std::isfinite(s.value) || !std::isfinite(s.elevation) ||
+          !std::isfinite(base))
       {
         itsStatus[i] = StationStatus::Outside;
         continue;
@@ -1278,42 +1325,135 @@ class Analysis::Impl
       obs.x.push_back(s.x);
       obs.y.push_back(s.y);
       obs.h.push_back(s.elevation);
-      obs.z.push_back(s.value);
+      obs.z.push_back(s.value - base);
       obs.smooth.push_back(terrain.smoothElevation().sample(s.x, s.y));
+      if (itsBackground)
+        obs.hm.push_back(hm);
       obs.index.push_back(i);
+      raw.push_back(s.value);
     }
 
+    const Field* model_elevation = (itsBackground ? &itsBackground->elevation : nullptr);
+
+    std::vector<bool> keep(obs.size(), true);
     if (options.qc && obs.size() > 0)
     {
-      const auto rejected = quality_control(terrain, itsOptions, obs, options.threads);
-      std::vector<bool> keep(obs.size());
+      const auto rejected =
+          quality_control(terrain, itsOptions, obs, options.threads, model_elevation);
       for (std::size_t s = 0; s < obs.size(); s++)
       {
         keep[s] = !rejected[s];
         if (rejected[s])
           itsStatus[obs.index[s]] = StationStatus::Rejected;
       }
-      obs = obs.subset(keep);
     }
 
-    itsModel = std::make_unique<Model>(terrain, itsOptions, obs, true, options.threads);
+    // The analysis of the observations alone, for blending and where the background is missing
+    if (itsBackground && (options.backgroundWeight < 1 || has_missing(itsBackground->value)))
+    {
+      Obs plain = obs;
+      plain.z = raw;
+      plain.hm.clear();
+      itsPlain = std::make_unique<Model>(
+          terrain, itsOptions, plain.subset(keep), true, options.threads);
+    }
+
+    itsModel = std::make_unique<Model>(
+        terrain, itsOptions, obs.subset(keep), true, options.threads, model_elevation);
+  }
+
+  // The background moved from the model orography hm to the height h
+  double background_at(double x, double y, double h, double hm) const
+  {
+    return itsBackground->value.sample(x, y) +
+           itsOptions.backgroundLapseRate * (h - hm) / 1000.0;
+  }
+
+  // Combine the correction, the background and the plain analysis
+  double combine(double correction, double base, double plain) const
+  {
+    if (!std::isfinite(base))
+      return plain;
+    const double corrected = base + correction;
+    if (!itsPlain)
+      return corrected;
+    const double w = itsOptions.backgroundWeight;
+    return w * corrected + (1 - w) * plain;
+  }
+
+  Field grid() const
+  {
+    Field out = itsModel->grid(itsOptions.threads);
+    if (!itsBackground)
+      return out;
+
+    const Field plain = (itsPlain ? itsPlain->grid(itsOptions.threads) : Field());
+    const Field& dem = itsTerrain.elevation();
+    const double lapse = itsOptions.backgroundLapseRate;
+    parallel_for(out.values().size(),
+                 itsOptions.threads,
+                 [&](std::size_t n0, std::size_t n1)
+                 {
+                   for (std::size_t n = n0; n < n1; n++)
+                   {
+                     const double base =
+                         itsBackground->value.data()[n] +
+                         lapse * (dem.data()[n] - itsBackground->elevation.data()[n]) / 1000.0;
+                     out.data()[n] =
+                         combine(out.data()[n], base, itsPlain ? plain.data()[n] : 0.0);
+                   }
+                 });
+    return out;
+  }
+
+  double predict(double x, double y, double elevation) const
+  {
+    const double smooth = itsTerrain.smoothElevation().sample(x, y);
+    const double correction = itsModel->predict(x, y, elevation, smooth);
+    if (!itsBackground)
+      return correction;
+    const double hm = itsBackground->elevation.sample(x, y);
+    const double plain = (itsPlain ? itsPlain->predict(x, y, elevation, smooth) : 0.0);
+    return combine(correction, background_at(x, y, elevation, hm), plain);
+  }
+
+  static bool has_missing(const Field& f)
+  {
+    for (double v : f.values())
+      if (!std::isfinite(v))
+        return true;
+    return false;
   }
 
   const Terrain& itsTerrain;
   const Options itsOptions;
+  std::optional<Background> itsBackground;
   std::vector<StationStatus> itsStatus;
   std::unique_ptr<Model> itsModel;
+  std::unique_ptr<Model> itsPlain;
 };
 
 Analysis::Analysis(const Terrain& terrain,
                    const std::vector<Station>& stations,
                    const Options& options)
-try : impl(std::make_unique<Impl>(terrain, stations, options))
+try : impl(std::make_unique<Impl>(terrain, stations, nullptr, options))
 {
 }
 catch (...)
 {
   throw Fmi::Exception::Trace(BCP, "Point gridding failed");
+}
+
+Analysis::Analysis(const Terrain& terrain,
+                   const std::vector<Station>& stations,
+                   const Background& background,
+                   const Options& options)
+try : impl(std::make_unique<Impl>(terrain, stations, &background, options))
+{
+}
+catch (...)
+{
+  throw Fmi::Exception::Trace(BCP, "Point gridding with a background failed");
 }
 
 Analysis::~Analysis() = default;
@@ -1323,7 +1463,7 @@ Field Analysis::grid() const
 {
   try
   {
-    return impl->itsModel->grid(impl->itsOptions.threads);
+    return impl->grid();
   }
   catch (...)
   {
@@ -1333,8 +1473,7 @@ Field Analysis::grid() const
 
 double Analysis::predict(double x, double y, double elevation) const
 {
-  const double smooth = impl->itsTerrain.smoothElevation().sample(x, y);
-  return impl->itsModel->predict(x, y, elevation, smooth);
+  return impl->predict(x, y, elevation);
 }
 
 const std::vector<StationStatus>& Analysis::status() const

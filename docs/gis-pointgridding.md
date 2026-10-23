@@ -1,7 +1,8 @@
 # Terrain-aware gridding of point observations
 
-`Fmi::PointGridding` interpolates station observations onto a regular grid without a
-background field such as a model analysis. The only help it has is the terrain. It is meant
+`Fmi::PointGridding` interpolates station observations onto a regular grid. Without a
+background field the only help it has is the terrain; with one, typically a recent forecast,
+the observations correct the background (section 4). It is meant
 for analyses made on the fly: a full 2.5 km grid over Europe (2000×1760 cells) from about
 3000 stations takes well under a second.
 
@@ -13,9 +14,10 @@ temperatures. The prototype also produced the reference data of `test/PointGridd
 1. [Usage](#1-usage)
 2. [The method](#2-the-method)
 3. [Validation](#3-validation)
-4. [Options](#4-options)
-5. [Performance](#5-performance)
-6. [Limitations](#6-limitations)
+4. [Correcting a background](#4-correcting-a-background)
+5. [Options](#5-options)
+6. [Performance](#6-performance)
+7. [Limitations](#7-limitations)
 
 ---
 
@@ -112,7 +114,45 @@ The gross error check was tested by adding errors of 4–15 K to 1 % of the stat
 errors over 10 K and 88 % of 8–10 K errors were caught, with 0.08 % false alarms. The
 remaining misses are mostly isolated stations which cannot be judged.
 
-## 4. Options
+## 4. Correcting a background
+
+```cpp
+// The background and the model orography interpolated to the terrain grid
+const Background background{forecast, modelOrography};
+const Analysis analysis(terrain, stations, background, Options());
+```
+
+1. The background is moved from the model orography to the actual heights with
+   `backgroundLapseRate` (−6.5 K/km; 0 for fields without a height dependency such as
+   reduced pressure). A 25 km model sees the Alps as a plateau, so this alone fixes most of
+   its mountain errors.
+2. The differences of the observations from the moved background are gridded with the
+   method of section 2. The height predictor becomes the height above the model orography,
+   with prior 0 since the background has already been moved. Far from the stations the
+   correction relaxes to zero, unlike the observations alone, whose level relaxes to their
+   mean: over the seas the result is the background.
+3. The result is blended with the analysis of the observations alone:
+   `backgroundWeight · corrected + (1 − backgroundWeight) · observations only`.
+   Where the background is missing (NaN), the observations alone are used.
+
+Validation with ECMWF IFS open data (0.25°) as the background, the same cross-validation as in
+section 3 for the cases with a background available, RMSE (K):
+
+| Method | All | 12 UTC | 18 UTC |
+|--------|-----|--------|--------|
+| Observations alone (section 3) | 1.62 | 1.43 | 1.49 |
+| IFS +6 h forecast alone | 1.98 | | |
+| IFS corrected with the observations | 1.49 | 1.28 | 1.35 |
+| Blend 0.7 · corrected + 0.3 · observations alone (default) | **1.46** | | |
+
+The forecast alone is worst in the Alps, which the 25 km model does not resolve, and the blend
+removes that weakness. The lead time hardly matters once corrected: 1.50, 1.51, 1.52 and
+1.54 K for 0, 6, 12 and 24 h forecasts, against 1.87–2.12 K uncorrected. Relaxing the
+correction to zero instead of the mean innovation did not change any of the scores at the
+stations; it only matters away from them. The blend weight was chosen on the same cases, so
+its advantage is slightly optimistic.
+
+## 5. Options
 
 | Option | Default | Meaning |
 |--------|---------|---------|
@@ -130,20 +170,23 @@ remaining misses are mostly isolated stations which cannot be judged.
 | `damping` | 0.25 | Station equivalents in the Barnes denominator |
 | `coarsen` | 4 | Resolution of the smooth fields relative to the terrain grid |
 | `qc` and `qc*` | on | Gross error check, see section 2 |
+| `backgroundLapseRate` | −6.5 K/km | Moves a background from the model orography to the actual heights |
+| `backgroundWeight` | 0.7 | Weight of the corrected background, the rest is the analysis of the observations alone |
 | `threads` | 0 | Threads per analysis, 0 = all cores |
 
 The TPI smoothing scale (10 km) is a `Terrain` constructor argument.
 
-## 5. Performance
+## 6. Performance
 
 Full Europe, 2000×1760 cells at 2.5 km, 3000 stations, 8 threads: about 0.36 s for the fit
 including the gross error check and 0.19 s for composing the full-resolution grid. The
 smooth fields are computed on the 10 km grid; computing them at 2.5 km does not change the
 cross-validation scores.
 
-The `Terrain` constructor blurs the height field once, about 0.1 s for Europe.
+The `Terrain` constructor blurs the height field once, about 0.1 s for Europe. A background
+doubles the cost when blended, since the observations are also analysed alone.
 
-## 6. Limitations
+## 7. Limitations
 
 - Terrain detail comes from the DEM only. Structures not seen by the stations, such as a
   cold pool in an unobserved valley, are modelled by the regression, not observed.

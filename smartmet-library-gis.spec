@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.10.21
+Version: 26.10.24
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -138,6 +138,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Sat Oct 24 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.24-1.fmi
+- PointGridding can correct a background such as a forecast with the observations
+
 * Tue Oct 21 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.21-1.fmi
 - Added Fmi::PointGridding for fast terrain-aware gridding of point observations
 * Mon Oct 19 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.17-2.fmi

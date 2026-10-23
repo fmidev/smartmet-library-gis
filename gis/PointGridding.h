@@ -91,8 +91,19 @@ struct Station
 
 enum class Predictor : std::uint8_t
 {
-  Height,  // (h - referenceHeight) in km
+  Height,  // (h - referenceHeight) in km, with a background (h - model height) in km
   TPI      // topographic position index (h - smoothed terrain) in km
+};
+
+// A first guess such as a forecast, given on the terrain grid. The observations then correct
+// the background instead of being gridded on their own: the background is moved from the
+// model orography to the actual heights with Options::backgroundLapseRate, and the differences
+// of the observations from it are gridded. Far from the stations the result relaxes to the
+// background, which is what is wanted over the seas.
+struct Background
+{
+  Field value;      // the background on the terrain grid, NaN where it is missing
+  Field elevation;  // the model orography on the terrain grid in metres
 };
 
 struct Options
@@ -140,6 +151,13 @@ struct Options
   double qcMinSupport = 1.0;       // station equivalents needed to judge a station
   unsigned int qcIterations = 3;
 
+  // Background. The weight is that of the corrected background, the rest comes from the
+  // analysis of the observations alone. A 25 km forecast does not resolve the Alps, and the
+  // blend 0.7 gave the best cross-validation scores for temperature (1.46 K, the corrected
+  // background alone 1.49 K, the observations alone 1.62 K).
+  double backgroundLapseRate = -6.5;  // K/km, from the model orography to the actual height
+  double backgroundWeight = 0.7;
+
   unsigned int threads = 0;  // 0 = hardware concurrency
 };
 
@@ -170,6 +188,13 @@ class Analysis
 {
  public:
   Analysis(const Terrain& terrain, const std::vector<Station>& stations, const Options& options);
+
+  // Correct a background with the observations. The background must be on the terrain grid.
+  Analysis(const Terrain& terrain,
+           const std::vector<Station>& stations,
+           const Background& background,
+           const Options& options);
+
   ~Analysis();
   Analysis(const Analysis& other) = delete;
   Analysis& operator=(const Analysis& other) = delete;
@@ -185,7 +210,8 @@ class Analysis
   // Status of each input station
   const std::vector<StationStatus>& status() const;
 
-  // Fitted height coefficient (K/km) on the coarse grid, if height is a predictor
+  // Fitted height coefficient (K/km) on the coarse grid, if height is a predictor. With a
+  // background this is the correction to backgroundLapseRate.
   std::optional<Field> lapseRate() const;
 
   class Impl;

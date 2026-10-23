@@ -87,7 +87,7 @@ make -C test ASAN=yes test   # Address + UB sanitizer
 - `TimeZoneFinder` — exact coordinate to IANA timezone from timezone-boundary-builder polygons (default source `/usr/share/smartmet/timezones/timezones-with-oceans.shp` from smartmet-timezones). Pimpl, all data hidden in the `.cpp`; uses the GEOS C API (`-lgeos_c`). Test data in `test/data/timezones.geojson`. See `docs/gis-timezones.md`.
 
 **Gridding:**
-- `PointGridding` — terrain-aware gridding of station observations (local height/TPI regression from blurred moment fields, height-aware damped Barnes, leave-one-out gross error check); all Gaussians are extended box filters, no neighbour searches. Reference data from the Python prototype in `test/data/pointgridding`. See `docs/gis-pointgridding.md`.
+- `PointGridding` — terrain-aware gridding of station observations (local height/TPI regression from blurred moment fields, height-aware damped Barnes, leave-one-out gross error check), optionally correcting a background such as a forecast; all Gaussians are extended box filters, no neighbour searches. Reference data from the Python prototype in `test/data/pointgridding`. See `docs/gis-pointgridding.md`.
 
 **Utilities:**
 - `GEOS` — GEOS geometry helpers and SVG export
