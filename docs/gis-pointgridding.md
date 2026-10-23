@@ -131,8 +131,11 @@ const Analysis analysis(terrain, stations, background, Options());
    with prior 0 since the background has already been moved. Far from the stations the
    correction relaxes to zero, unlike the observations alone, whose level relaxes to their
    mean: over the seas the result is the background.
-3. The result is blended with the analysis of the observations alone:
-   `backgroundWeight · corrected + (1 − backgroundWeight) · observations only`.
+3. The result is blended with the analysis of the observations alone, but only as far as
+   there are stations behind it: with `S` the Gaussian-weighted number of stations within
+   `localSigma`, the weight of the corrected background is `1 − (1 − backgroundWeight)·S/(S+1)`,
+   0.7 in station networks and 1 far from stations, where the analysis of the observations
+   alone knows nothing (over the seas it would pull a deep low toward the mean pressure).
    Where the background is missing (NaN), the observations alone are used. Near the edges of
    the background data its weight fades to zero over about `backgroundTaper` (50 km), so the
    two do not meet in a seam.
@@ -145,10 +148,14 @@ section 3 for the cases with a background available, RMSE (K):
 | Observations alone (section 3) | 1.62 | 1.43 | 1.49 |
 | IFS +6 h forecast alone | 1.98 | | |
 | IFS corrected with the observations | 1.49 | 1.28 | 1.35 |
-| Blend 0.7 · corrected + 0.3 · observations alone (default) | **1.46** | | |
+| Blend 0.7 · corrected + 0.3 · observations alone | 1.46 | | |
+| The same blend weighted by the station support (default) | **1.46** | | |
 
 The forecast alone is worst in the Alps, which the 25 km model does not resolve, and the blend
-removes that weakness. The lead time hardly matters once corrected: 1.50, 1.51, 1.52 and
+removes that weakness. Weighting the blend by the station support changes nothing in the
+networks (1.462 against 1.463 K overall, 1.82 K in the Alps above 1500 m) and improves
+isolated stations (fewer than three station equivalents within 150 km) from 2.41 to 2.31 K,
+where the fixed blend was worse than the corrected forecast alone (2.38 K). The lead time hardly matters once corrected: 1.50, 1.51, 1.52 and
 1.54 K for 0, 6, 12 and 24 h forecasts, against 1.87–2.12 K uncorrected. Relaxing the
 correction to zero instead of the mean innovation did not change any of the scores at the
 stations; it only matters away from them. The blend weight was chosen on the same cases, so

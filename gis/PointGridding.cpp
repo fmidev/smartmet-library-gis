@@ -1358,8 +1358,20 @@ class Analysis::Impl
       Obs plain = obs;
       plain.z = raw;
       plain.hm.clear();
-      itsPlain = std::make_unique<Model>(
-          terrain, itsOptions, plain.subset(keep), true, options.threads);
+      plain = plain.subset(keep);
+      itsPlain = std::make_unique<Model>(terrain, itsOptions, plain, true, options.threads);
+
+      // Station equivalents S within the local scale: the analysis of the observations alone
+      // is blended in by S / (S + 1), since far from the stations it knows nothing
+      const Grid coarse = grid.coarsen(options.coarsen);
+      itsSupport = gaussianSums(coarse,
+                                plain.x,
+                                plain.y,
+                                {std::vector<double>(plain.size(), 1.0)},
+                                options.localSigma,
+                                options.threads)[0];
+      for (std::size_t n = 0; n < coarse.size(); n++)
+        itsSupport.data()[n] /= itsSupport.data()[n] + 1.0;
     }
 
     itsModel = std::make_unique<Model>(
@@ -1373,15 +1385,18 @@ class Analysis::Impl
            itsOptions.backgroundLapseRate * (h - hm) / 1000.0;
   }
 
-  // Combine the correction, the background and the plain analysis
-  double combine(double correction, double base, double plain, double taper) const
+  // Combine the correction, the background and the plain analysis. The plain analysis is
+  // blended in only as far as there are stations behind it (support 0...1), and fully where
+  // the background fades out (taper 0).
+  double combine(
+      double correction, double base, double plain, double taper, double support) const
   {
     if (!std::isfinite(base))
       return plain;
     const double corrected = base + correction;
     if (!itsPlain)
       return corrected;
-    const double w = itsOptions.backgroundWeight * taper;
+    const double w = taper * (1 - (1 - itsOptions.backgroundWeight) * support);
     return w * corrected + (1 - w) * plain;
   }
 
@@ -1422,6 +1437,7 @@ class Analysis::Impl
       return out;
 
     const Field plain = (itsPlain ? itsPlain->grid(itsOptions.threads) : Field());
+    const Field support = (itsPlain ? itsSupport.resample(out.grid()) : Field());
     const Field& dem = itsTerrain.elevation();
     const double lapse = itsOptions.backgroundLapseRate;
     parallel_for(out.values().size(),
@@ -1433,8 +1449,11 @@ class Analysis::Impl
                      const double base =
                          itsBackground->value.data()[n] +
                          lapse * (dem.data()[n] - itsBackground->elevation.data()[n]) / 1000.0;
-                     out.data()[n] = combine(
-                         out.data()[n], base, itsPlain ? plain.data()[n] : 0.0, taper_at(n));
+                     out.data()[n] = combine(out.data()[n],
+                                             base,
+                                             itsPlain ? plain.data()[n] : 0.0,
+                                             taper_at(n),
+                                             itsPlain ? support.data()[n] : 0.0);
                    }
                  });
     return out;
@@ -1449,7 +1468,8 @@ class Analysis::Impl
     const double hm = itsBackground->elevation.sample(x, y);
     const double plain = (itsPlain ? itsPlain->predict(x, y, elevation, smooth) : 0.0);
     const double taper = (itsTaper.values().empty() ? 1.0 : itsTaper.sample(x, y));
-    return combine(correction, background_at(x, y, elevation, hm), plain, taper);
+    const double support = (itsPlain ? itsSupport.sample(x, y) : 0.0);
+    return combine(correction, background_at(x, y, elevation, hm), plain, taper, support);
   }
 
   static bool has_missing(const Field& f)
@@ -1463,7 +1483,8 @@ class Analysis::Impl
   const Terrain& itsTerrain;
   const Options itsOptions;
   std::optional<Background> itsBackground;
-  Field itsTaper;  // empty when the background has no missing values
+  Field itsTaper;    // empty when the background has no missing values
+  Field itsSupport;  // station support of the plain analysis on the coarse grid
   std::vector<StationStatus> itsStatus;
   std::unique_ptr<Model> itsModel;
   std::unique_ptr<Model> itsPlain;

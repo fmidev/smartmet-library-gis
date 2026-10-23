@@ -151,10 +151,12 @@ struct Options
   double qcMinSupport = 1.0;       // station equivalents needed to judge a station
   unsigned int qcIterations = 3;
 
-  // Background. The weight is that of the corrected background, the rest comes from the
-  // analysis of the observations alone. A 25 km forecast does not resolve the Alps, and the
-  // blend 0.7 gave the best cross-validation scores for temperature (1.46 K, the corrected
-  // background alone 1.49 K, the observations alone 1.62 K).
+  // Background. The weight is that of the corrected background among the stations, the rest
+  // comes from the analysis of the observations alone. A 25 km forecast does not resolve the
+  // Alps, and the blend 0.7 gave the best cross-validation scores for temperature (1.46 K, the
+  // corrected background alone 1.49 K, the observations alone 1.62 K). Far from the stations
+  // the weight rises to 1 with the station support S/(S+1), S the station equivalents within
+  // localSigma.
   double backgroundLapseRate = -6.5;  // K/km, from the model orography to the actual height
   double backgroundWeight = 0.7;
   // Where the background is missing the observations alone are used. The weight of the

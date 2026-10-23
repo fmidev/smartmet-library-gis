@@ -334,13 +334,16 @@ TEST(PointGridding, BackgroundBlendAndMissingValues)
   const Analysis blended(terrain, c.stations, bg, background_options(0.7));
   const Analysis plain(terrain, c.stations, background_options(1.0));
 
-  // The blend is a weighted mean of the corrected background and the plain analysis, away
-  // from the edge of the background at 500 km where its weight fades out
-  for (double x : {50e3, 150e3, 300e3})
+  // Among the stations the blend is close to 0.7 * corrected + 0.3 * plain, and away from them
+  // and from the edge of the background data at 500 km the corrected background is kept
+  for (double x : {100e3, 150e3, 200e3})
   {
-    const double expected = 0.7 * corrected.predict(x, 200e3, 0) + 0.3 * plain.predict(x, 200e3, 0);
-    EXPECT_NEAR(blended.predict(x, 200e3, 0), expected, 1e-9) << "x=" << x;
+    const double c0 = corrected.predict(x, 200e3, 0);
+    const double p0 = plain.predict(x, 200e3, 0);
+    EXPECT_NEAR(blended.predict(x, 200e3, 0), 0.7 * c0 + 0.3 * p0, 0.05 * std::abs(c0 - p0) + 1e-6)
+        << "x=" << x;
   }
+  EXPECT_NEAR(blended.predict(410e3, 200e3, 0), corrected.predict(410e3, 200e3, 0), 0.05);
 
   // Where the background is missing the plain analysis is used, and there is no seam at the
   // edge: the largest step between neighbouring cells is no larger than elsewhere
