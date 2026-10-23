@@ -1349,7 +1349,11 @@ class Analysis::Impl
     }
 
     // The analysis of the observations alone, for blending and where the background is missing
-    if (itsBackground && (options.backgroundWeight < 1 || has_missing(itsBackground->value)))
+    const bool missing = (itsBackground && (has_missing(itsBackground->value) ||
+                                            has_missing(itsBackground->elevation)));
+    if (missing)
+      itsTaper = taper(*itsBackground, options);
+    if (itsBackground && (options.backgroundWeight < 1 || missing))
     {
       Obs plain = obs;
       plain.z = raw;
@@ -1370,15 +1374,45 @@ class Analysis::Impl
   }
 
   // Combine the correction, the background and the plain analysis
-  double combine(double correction, double base, double plain) const
+  double combine(double correction, double base, double plain, double taper) const
   {
     if (!std::isfinite(base))
       return plain;
     const double corrected = base + correction;
     if (!itsPlain)
       return corrected;
-    const double w = itsOptions.backgroundWeight;
+    const double w = itsOptions.backgroundWeight * taper;
     return w * corrected + (1 - w) * plain;
+  }
+
+  // Weight multiplier of the background: 1 well inside its data, falling continuously to 0 at
+  // the edges of the data. A blurred validity mask, normalised by the blurred ones so that the
+  // edges of the grid itself do not count, is 1/2 at the edge of the data.
+  static Field taper(const Background& theBackground, const Options& theOptions)
+  {
+    const Grid& g = theBackground.value.grid();
+    Field valid(g);
+    for (std::size_t n = 0; n < g.size(); n++)
+      valid.data()[n] = (std::isfinite(theBackground.value.data()[n]) &&
+                         std::isfinite(theBackground.elevation.data()[n]))
+                            ? 1.0
+                            : 0.0;
+    Field result = valid;
+    Field norm(g, 1.0);
+    const double sigma_cells = theOptions.backgroundTaper / g.dx;
+    blur(result, sigma_cells, theOptions.threads);
+    blur(norm, sigma_cells, theOptions.threads);
+    for (std::size_t n = 0; n < g.size(); n++)
+    {
+      const double t = (norm.data()[n] > 0 ? result.data()[n] / norm.data()[n] : 0.0);
+      result.data()[n] = (valid.data()[n] > 0 ? std::clamp(2 * t - 1, 0.0, 1.0) : 0.0);
+    }
+    return result;
+  }
+
+  double taper_at(std::size_t n) const
+  {
+    return itsTaper.values().empty() ? 1.0 : itsTaper.data()[n];
   }
 
   Field grid() const
@@ -1399,8 +1433,8 @@ class Analysis::Impl
                      const double base =
                          itsBackground->value.data()[n] +
                          lapse * (dem.data()[n] - itsBackground->elevation.data()[n]) / 1000.0;
-                     out.data()[n] =
-                         combine(out.data()[n], base, itsPlain ? plain.data()[n] : 0.0);
+                     out.data()[n] = combine(
+                         out.data()[n], base, itsPlain ? plain.data()[n] : 0.0, taper_at(n));
                    }
                  });
     return out;
@@ -1414,7 +1448,8 @@ class Analysis::Impl
       return correction;
     const double hm = itsBackground->elevation.sample(x, y);
     const double plain = (itsPlain ? itsPlain->predict(x, y, elevation, smooth) : 0.0);
-    return combine(correction, background_at(x, y, elevation, hm), plain);
+    const double taper = (itsTaper.values().empty() ? 1.0 : itsTaper.sample(x, y));
+    return combine(correction, background_at(x, y, elevation, hm), plain, taper);
   }
 
   static bool has_missing(const Field& f)
@@ -1428,6 +1463,7 @@ class Analysis::Impl
   const Terrain& itsTerrain;
   const Options itsOptions;
   std::optional<Background> itsBackground;
+  Field itsTaper;  // empty when the background has no missing values
   std::vector<StationStatus> itsStatus;
   std::unique_ptr<Model> itsModel;
   std::unique_ptr<Model> itsPlain;

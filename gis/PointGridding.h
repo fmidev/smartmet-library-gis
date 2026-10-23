@@ -103,7 +103,7 @@ enum class Predictor : std::uint8_t
 struct Background
 {
   Field value;      // the background on the terrain grid, NaN where it is missing
-  Field elevation;  // the model orography on the terrain grid in metres
+  Field elevation;  // the model orography on the terrain grid in metres, NaN where missing
 };
 
 struct Options
@@ -157,6 +157,10 @@ struct Options
   // background alone 1.49 K, the observations alone 1.62 K).
   double backgroundLapseRate = -6.5;  // K/km, from the model orography to the actual height
   double backgroundWeight = 0.7;
+  // Where the background is missing the observations alone are used. The weight of the
+  // background fades to zero over about this distance from the edges of its data, so that
+  // the result has no seam there.
+  double backgroundTaper = 50e3;  // m
 
   unsigned int threads = 0;  // 0 = hardware concurrency
 };

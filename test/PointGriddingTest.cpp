@@ -334,18 +334,33 @@ TEST(PointGridding, BackgroundBlendAndMissingValues)
   const Analysis blended(terrain, c.stations, bg, background_options(0.7));
   const Analysis plain(terrain, c.stations, background_options(1.0));
 
-  // The blend is a weighted mean of the corrected background and the plain analysis
-  for (double x : {50e3, 150e3, 300e3, 450e3})
+  // The blend is a weighted mean of the corrected background and the plain analysis, away
+  // from the edge of the background at 500 km where its weight fades out
+  for (double x : {50e3, 150e3, 300e3})
   {
     const double expected = 0.7 * corrected.predict(x, 200e3, 0) + 0.3 * plain.predict(x, 200e3, 0);
     EXPECT_NEAR(blended.predict(x, 200e3, 0), expected, 1e-9) << "x=" << x;
   }
 
-  // Where the background is missing the plain analysis is used
-  const auto fb = blended.grid();
-  const auto fp = plain.grid();
-  EXPECT_DOUBLE_EQ(fb(110, 40), fp(110, 40));
-  EXPECT_TRUE(std::isfinite(corrected.grid()(110, 40)));
+  // Where the background is missing the plain analysis is used, and there is no seam at the
+  // edge: the largest step between neighbouring cells is no larger than elsewhere
+  for (const auto* a : {&corrected, &blended})
+  {
+    const auto f = a->grid();
+    const auto fp = plain.grid();
+    EXPECT_DOUBLE_EQ(f(110, 40), fp(110, 40));
+    double edge_step = 0;
+    double inner_step = 0;
+    for (std::size_t i = 1; i < c.grid.nx; i++)
+    {
+      const double step = std::abs(f(i, 40) - f(i - 1, 40));
+      if (i >= 95 && i <= 105)
+        edge_step = std::max(edge_step, step);
+      else if (i >= 60 && i <= 90)
+        inner_step = std::max(inner_step, step);
+    }
+    EXPECT_LT(edge_step, 2 * inner_step + 0.02);
+  }
 }
 
 TEST(PointGridding, BackgroundMustBeOnTheTerrainGrid)

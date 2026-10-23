@@ -133,7 +133,9 @@ const Analysis analysis(terrain, stations, background, Options());
    mean: over the seas the result is the background.
 3. The result is blended with the analysis of the observations alone:
    `backgroundWeight · corrected + (1 − backgroundWeight) · observations only`.
-   Where the background is missing (NaN), the observations alone are used.
+   Where the background is missing (NaN), the observations alone are used. Near the edges of
+   the background data its weight fades to zero over about `backgroundTaper` (50 km), so the
+   two do not meet in a seam.
 
 Validation with ECMWF IFS open data (0.25°) as the background, the same cross-validation as in
 section 3 for the cases with a background available, RMSE (K):
@@ -172,6 +174,7 @@ its advantage is slightly optimistic.
 | `qc` and `qc*` | on | Gross error check, see section 2 |
 | `backgroundLapseRate` | −6.5 K/km | Moves a background from the model orography to the actual heights |
 | `backgroundWeight` | 0.7 | Weight of the corrected background, the rest is the analysis of the observations alone |
+| `backgroundTaper` | 50 km | The background fades out over about this distance from the edges of its data |
 | `threads` | 0 | Threads per analysis, 0 = all cores |
 
 The TPI smoothing scale (10 km) is a `Terrain` constructor argument.
