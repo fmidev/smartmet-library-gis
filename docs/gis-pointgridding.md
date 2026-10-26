@@ -218,7 +218,11 @@ station is kept by the gross error check. In the WMS plugin tests the gridded hu
 2008-12-05 06 UTC reaches 104 % in a map tile without the limits.
 
 The terrain method beat the Barnes method for both quantities, with the temperature prior
-of −6.5 K/km replaced by 0. A linear height trend through a saturating profile undershoots near
+of −6.5 K/km replaced by 0. Keeping the prior at −6.5 per km made no difference for humidity
+(8.737 % either way) and was slightly worse for wind speed (1.744 against 1.743 m/s, worse in
+59 of the 85 cases): the station networks span enough height for the fitted coefficient to
+override the prior. The prior matters where there are no stations, such as unobserved
+mountains, and there a temperature lapse rate has no meaning for these quantities. A linear height trend through a saturating profile undershoots near
 the saturation level, which limits cannot fix, so with a small `qcMinThreshold` correct
 saturated stations can be rejected.
 
