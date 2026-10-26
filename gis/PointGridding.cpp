@@ -1023,91 +1023,116 @@ class Model
                  });
   }
 
-  void fit_trend(const Obs& obs, unsigned int threads)
+  // The predictor values of the stations, and the prior, regional ridge and local ridge
+  // of each predictor
+  struct TrendPredictors
+  {
+    std::vector<std::vector<double>> values;
+    std::vector<double> prior;
+    std::vector<double> ridge0;
+    std::vector<double> ridge1;
+  };
+
+  TrendPredictors trend_predictors(const Obs& obs) const
   {
     const Options& opt = itsOptions;
-    const double href = opt.referenceHeight;
-
-    std::vector<double> z = obs.z;
-    if (opt.fixedLapseRate)
-      for (std::size_t s = 0; s < obs.size(); s++)
-        z[s] -= *opt.fixedLapseRate * (obs.h[s] - href) / 1000.0;
-
     const std::size_t k = opt.predictors.size();
-    // Far from the stations the level relaxes to the mean of the observations, or with a
-    // background to no correction at all
-    const bool background = (itsModelElevation != nullptr);
-
-    if (k == 0)
-    {
-      double level = 0;
-      if (!background)
-      {
-        for (double v : z)
-          level += v;
-        level /= std::max<std::size_t>(1, z.size());
-      }
-      std::vector<std::vector<double>> q{std::vector<double>(obs.size(), 1.0), z};
-      const auto m = gaussianSums(itsCoarse, obs.x, obs.y, q, opt.localSigma, threads);
-      itsA = Field(itsCoarse);
-      for (std::size_t n = 0; n < itsCoarse.size(); n++)
-        itsA.data()[n] =
-            (m[1].data()[n] + opt.levelPrior * level) / (m[0].data()[n] + opt.levelPrior);
-      return;
-    }
-
-    std::vector<std::vector<double>> pv(k, std::vector<double>(obs.size()));
-    std::vector<double> prior(k);
-    std::vector<double> ridge0(k);
-    std::vector<double> ridge1(k);
+    TrendPredictors tp;
+    tp.values.assign(k, std::vector<double>(obs.size()));
+    tp.prior.resize(k);
+    tp.ridge0.resize(k);
+    tp.ridge1.resize(k);
     for (std::size_t i = 0; i < k; i++)
     {
       const Predictor p = opt.predictors[i];
       for (std::size_t s = 0; s < obs.size(); s++)
-        pv[i][s] =
-            predictor_value(p, obs.h[s], obs.smooth[s], itsModelElevation ? obs.hm[s] : href);
+        tp.values[i][s] = predictor_value(
+            p, obs.h[s], obs.smooth[s], itsModelElevation ? obs.hm[s] : opt.referenceHeight);
       const bool height = (p == Predictor::Height);
       // The background has already been moved to the actual heights
-      prior[i] = (height && !itsModelElevation) ? opt.priorLapseRate : 0.0;
-      ridge0[i] = height ? opt.regionalHeightRidge : opt.regionalTPIRidge;
-      ridge1[i] = height ? opt.localHeightRidge : opt.localTPIRidge;
+      tp.prior[i] = (height && !itsModelElevation) ? opt.priorLapseRate : 0.0;
+      tp.ridge0[i] = height ? opt.regionalHeightRidge : opt.regionalTPIRidge;
+      tp.ridge1[i] = height ? opt.localHeightRidge : opt.localTPIRidge;
+    }
+    return tp;
+  }
+
+  // The mean of the observations with the prior trend removed
+  static double mean_level(const std::vector<double>& z, const TrendPredictors& tp)
+  {
+    double level = 0;
+    for (std::size_t s = 0; s < z.size(); s++)
+    {
+      double v = z[s];
+      for (std::size_t i = 0; i < tp.prior.size(); i++)
+        v -= tp.prior[i] * tp.values[i][s];
+      level += v;
+    }
+    return level / std::max<std::size_t>(1, z.size());
+  }
+
+  // Without predictors the trend is a level only
+  void fit_level(const Obs& obs, const std::vector<double>& z, unsigned int threads)
+  {
+    const Options& opt = itsOptions;
+    double level = 0;
+    if (itsModelElevation == nullptr)
+    {
+      for (double v : z)
+        level += v;
+      level /= std::max<std::size_t>(1, z.size());
+    }
+    std::vector<std::vector<double>> q{std::vector<double>(obs.size(), 1.0), z};
+    const auto m = gaussianSums(itsCoarse, obs.x, obs.y, q, opt.localSigma, threads);
+    itsA = Field(itsCoarse);
+    for (std::size_t n = 0; n < itsCoarse.size(); n++)
+      itsA.data()[n] =
+          (m[1].data()[n] + opt.levelPrior * level) / (m[0].data()[n] + opt.levelPrior);
+  }
+
+  void fit_trend(const Obs& obs, unsigned int threads)
+  {
+    const Options& opt = itsOptions;
+
+    std::vector<double> z = obs.z;
+    if (opt.fixedLapseRate)
+      for (std::size_t s = 0; s < obs.size(); s++)
+        z[s] -= *opt.fixedLapseRate * (obs.h[s] - opt.referenceHeight) / 1000.0;
+
+    if (opt.predictors.empty())
+    {
+      fit_level(obs, z, threads);
+      return;
     }
 
-    double level = 0;
-    if (!background)
-    {
-      for (std::size_t s = 0; s < obs.size(); s++)
-      {
-        double v = z[s];
-        for (std::size_t i = 0; i < k; i++)
-          v -= prior[i] * pv[i][s];
-        level += v;
-      }
-      level /= std::max<std::size_t>(1, obs.size());
-    }
+    const auto tp = trend_predictors(obs);
+
+    // Far from the stations the level relaxes to the mean of the observations, or with a
+    // background to no correction at all
+    const double level = (itsModelElevation == nullptr ? mean_level(z, tp) : 0.0);
 
     const auto regional = local_regression(
         itsCoarse,
         obs,
-        pv,
+        tp.values,
         z,
         opt.regionalSigma,
         [level](std::size_t) { return level; },
-        [&prior](std::size_t i, std::size_t) { return prior[i]; },
+        [&tp](std::size_t i, std::size_t) { return tp.prior[i]; },
         1.0,
-        ridge0,
+        tp.ridge0,
         threads);
 
     auto local = local_regression(
         itsCoarse,
         obs,
-        pv,
+        tp.values,
         z,
         opt.localSigma,
         [&regional](std::size_t n) { return regional.a.data()[n]; },
         [&regional](std::size_t i, std::size_t n) { return regional.beta[i].data()[n]; },
         opt.levelPrior,
-        ridge1,
+        tp.ridge1,
         threads);
 
     itsA = std::move(local.a);
@@ -1408,18 +1433,7 @@ class Analysis::Impl
     const Field* model_elevation = (itsBackground ? &itsBackground->elevation : nullptr);
     const Field* base = (itsBackground ? &itsBase : nullptr);
 
-    std::vector<bool> keep(obs.size(), true);
-    if (options.qc && obs.size() > 0)
-    {
-      const auto rejected =
-          quality_control(terrain, itsOptions, obs, options.threads, model_elevation, base);
-      for (std::size_t s = 0; s < obs.size(); s++)
-      {
-        keep[s] = !rejected[s];
-        if (rejected[s])
-          itsStatus[obs.index[s]] = StationStatus::Rejected;
-      }
-    }
+    const auto keep = check_quality(obs, model_elevation, base);
 
     // The analysis of the observations alone, for blending and where the background is missing
     const bool missing = (itsBackground && (has_missing(itsBackground->value) ||
@@ -1427,29 +1441,50 @@ class Analysis::Impl
     if (missing)
       itsTaper = taper(*itsBackground, options);
     if (itsBackground && (options.backgroundWeight < 1 || missing))
-    {
-      Obs plain = obs;
-      plain.z = raw;
-      plain.hm.clear();
-      plain.base.clear();
-      plain = plain.subset(keep);
-      itsPlain = std::make_unique<Model>(terrain, itsOptions, plain, true, options.threads);
-
-      // Station equivalents S within the local scale: the analysis of the observations alone
-      // is blended in by S / (S + 1), since far from the stations it knows nothing
-      const Grid coarse = grid.coarsen(options.coarsen);
-      itsSupport = gaussianSums(coarse,
-                                plain.x,
-                                plain.y,
-                                {std::vector<double>(plain.size(), 1.0)},
-                                options.localSigma,
-                                options.threads)[0];
-      for (std::size_t n = 0; n < coarse.size(); n++)
-        itsSupport.data()[n] /= itsSupport.data()[n] + 1.0;
-    }
+      fit_plain(obs, raw, keep);
 
     itsModel = std::make_unique<Model>(
         terrain, itsOptions, obs.subset(keep), true, options.threads, model_elevation, base);
+  }
+
+  // The stations to keep: those which pass the quality control when it is enabled
+  std::vector<bool> check_quality(const Obs& obs, const Field* model_elevation, const Field* base)
+  {
+    std::vector<bool> keep(obs.size(), true);
+    if (!itsOptions.qc || obs.size() == 0)
+      return keep;
+    const auto rejected =
+        quality_control(itsTerrain, itsOptions, obs, itsOptions.threads, model_elevation, base);
+    for (std::size_t s = 0; s < obs.size(); s++)
+    {
+      keep[s] = !rejected[s];
+      if (rejected[s])
+        itsStatus[obs.index[s]] = StationStatus::Rejected;
+    }
+    return keep;
+  }
+
+  // The analysis of the observations alone, and the support of the stations for blending it
+  void fit_plain(const Obs& obs, const std::vector<double>& raw, const std::vector<bool>& keep)
+  {
+    Obs plain = obs;
+    plain.z = raw;
+    plain.hm.clear();
+    plain.base.clear();
+    plain = plain.subset(keep);
+    itsPlain = std::make_unique<Model>(itsTerrain, itsOptions, plain, true, itsOptions.threads);
+
+    // Station equivalents S within the local scale: the analysis of the observations alone
+    // is blended in by S / (S + 1), since far from the stations it knows nothing
+    const Grid coarse = itsTerrain.grid().coarsen(itsOptions.coarsen);
+    itsSupport = gaussianSums(coarse,
+                              plain.x,
+                              plain.y,
+                              {std::vector<double>(plain.size(), 1.0)},
+                              itsOptions.localSigma,
+                              itsOptions.threads)[0];
+    for (std::size_t n = 0; n < coarse.size(); n++)
+      itsSupport.data()[n] /= itsSupport.data()[n] + 1.0;
   }
 
   // The usable stations. Values slightly out of range are clamped, values farther out than

@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.10.26
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -138,6 +138,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Mon Oct 26 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.26-2.fmi
+- Point gridding: the trend fit and the analysis setup split into smaller functions
+
 * Mon Oct 26 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.26-1.fmi
 - PointGridding: optional lower and upper limits of the values (Options::lowerLimit, upperLimit), applied after the trend and every residual pass and in the gross error check, so that stations at a limit neither spread spurious residuals nor get rejected for disagreeing with a trend beyond the limit. ABI change: the layout of PointGridding::Options changed
 
