@@ -10,10 +10,11 @@
 #include <gtest/gtest.h>
 
 #include "PointGridding.h"
+#include <algorithm>
 #include <chrono>
-#include <functional>
 #include <cmath>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <random>
 #include <sstream>
@@ -373,4 +374,275 @@ TEST(PointGridding, BackgroundMustBeOnTheTerrainGrid)
   const Grid other{0, 0, 10000, 60, 40};
   const Background bg{Field(other, 0.0), Field(other, 0.0)};
   EXPECT_THROW(Analysis(terrain, c.stations, bg, Options()), std::exception);
+}
+
+namespace
+{
+// Stations all over a test area whose terrain rises eastwards by slope metres per cell, with
+// hills added as needed
+struct LimitCase
+{
+  Grid grid{0, 0, 5000, 120, 80};
+  std::vector<double> dem;
+  std::vector<Station> stations;
+
+  explicit LimitCase(double slope)
+  {
+    for (std::size_t j = 0; j < grid.ny; j++)
+      for (std::size_t i = 0; i < grid.nx; i++)
+        dem.push_back(slope * static_cast<double>(i));
+  }
+
+  void addHill(double x0, double y0, double height, double sigma)
+  {
+    for (std::size_t j = 0; j < grid.ny; j++)
+      for (std::size_t i = 0; i < grid.nx; i++)
+      {
+        const double dx = (static_cast<double>(i) + 0.5) * grid.dx - x0;
+        const double dy = (static_cast<double>(j) + 0.5) * grid.dx - y0;
+        dem[j * grid.nx + i] += height * std::exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
+      }
+  }
+
+  double height(double x, double y) const { return Field(grid, dem).sample(x, y); }
+
+  // Stations at the heights of the terrain
+  void addStations(const std::function<double(double, double, double)>& truth, int count = 200)
+  {
+    const Field elevation(grid, dem);
+    std::mt19937 gen(5);
+    std::uniform_real_distribution<double> ux(10e3, 590e3);
+    std::uniform_real_distribution<double> uy(10e3, 390e3);
+    for (int s = 0; s < count; s++)
+    {
+      const double x = ux(gen);
+      const double y = uy(gen);
+      const double h = elevation.sample(x, y);
+      stations.push_back(Station{x, y, h, truth(x, y, h)});
+    }
+  }
+
+  // RMS error against the truth over the grid cells for which where(i) holds
+  double rmse(
+      const Field& f,
+      const std::function<double(double, double, double)>& truth,
+      const std::function<bool(std::size_t)>& where = [](std::size_t) { return true; }) const
+  {
+    double sum = 0;
+    std::size_t n = 0;
+    for (std::size_t j = 0; j < grid.ny; j++)
+      for (std::size_t i = 0; i < grid.nx; i++)
+      {
+        if (!where(i))
+          continue;
+        const double x = grid.x0 + (static_cast<double>(i) + 0.5) * grid.dx;
+        const double y = grid.y0 + (static_cast<double>(j) + 0.5) * grid.dx;
+        const double e = f(i, j) - truth(x, y, dem[j * grid.nx + i]);
+        sum += e * e;
+        n++;
+      }
+    return std::sqrt(sum / static_cast<double>(n));
+  }
+};
+
+Options limit_options()
+{
+  Options options;
+  options.regionalSigma = 100e3;
+  options.localSigma = 40e3;
+  options.priorLapseRate = 0;
+  return options;
+}
+
+std::pair<double, double> range_of(const Field& f)
+{
+  const auto [lo, hi] = std::minmax_element(f.values().begin(), f.values().end());
+  return {*lo, *hi};
+}
+}  // namespace
+
+TEST(PointGridding, LimitsKeepSaturatedStations)
+{
+  // Relative humidity rising with height and saturating above 500 m: the height regression
+  // through the saturated stations overshoots 100 % on the slopes, and without limits the
+  // gross error check rejects saturated stations for disagreeing with it
+  LimitCase c(10.0);
+  const auto truth = [](double, double, double h) { return std::min(100.0, 60.0 + 0.08 * h); };
+  c.addStations(truth);
+  const Terrain terrain(c.grid, c.dem);
+
+  Options options = limit_options();
+  const Analysis unlimited(terrain, c.stations, options);
+  options.lowerLimit = 0.0;
+  options.upperLimit = 100.0;
+  const Analysis limited(terrain, c.stations, options);
+
+  const auto fu = unlimited.grid();
+  const auto fl = limited.grid();
+  EXPECT_GT(range_of(fu).second, 100.5);
+  EXPECT_LE(range_of(fl).second, 100.0);
+  EXPECT_GE(range_of(fl).first, 0.0);
+
+  for (std::size_t s = 0; s < c.stations.size(); s++)
+    EXPECT_EQ(limited.status()[s], StationStatus::Used) << "station " << s;
+
+  // Better than clamping the unlimited analysis afterwards, also on the saturated slopes
+  Field clamped = fu;
+  for (std::size_t n = 0; n < clamped.values().size(); n++)
+    clamped.data()[n] = std::clamp(clamped.data()[n], 0.0, 100.0);
+  const auto saturated = [](std::size_t i) { return i >= 60; };
+  EXPECT_LT(c.rmse(fl, truth), c.rmse(clamped, truth));
+  EXPECT_LE(c.rmse(fl, truth, saturated), c.rmse(clamped, truth, saturated));
+
+  // Points and the grid agree
+  for (std::size_t i = 5; i < c.grid.nx; i += 10)
+  {
+    const double x = (static_cast<double>(i) + 0.5) * c.grid.dx;
+    EXPECT_NEAR(limited.predict(x, 200e3 + 2500, c.dem[i]), fl(i, 40), 1e-6) << "i=" << i;
+  }
+}
+
+TEST(PointGridding, SummitStationAtTheLimitIsKept)
+{
+  // Humidity rising with height up to saturation at 1000 m, and a station in the cloud on a
+  // 1700 m summit. The height trend extrapolates far beyond 100 % there, and without limits
+  // the gross error check rejects the summit for disagreeing with it.
+  LimitCase c(5.0);
+  const double px = 300e3;
+  const double py = 200e3;
+  c.addHill(px, py, 1500.0, 10e3);
+  const auto truth = [](double, double, double h) { return std::min(100.0, 50.0 + 0.05 * h); };
+  c.addStations(truth);
+  const std::size_t summit = c.stations.size();
+  const Terrain terrain(c.grid, c.dem);
+  const double h = c.dem[40 * c.grid.nx + 60];
+  c.stations.push_back(Station{px + 2500, py + 2500, h, 100.0});
+  const auto rejected = [](const Analysis& a)
+  { return std::count(a.status().begin(), a.status().end(), StationStatus::Rejected); };
+
+  Options options = limit_options();
+  const Analysis unlimited(terrain, c.stations, options);
+  options.upperLimit = 100.0;
+  const Analysis limited(terrain, c.stations, options);
+
+  EXPECT_EQ(unlimited.status()[summit], StationStatus::Rejected);
+  EXPECT_EQ(limited.status()[summit], StationStatus::Used);
+  EXPECT_LE(rejected(limited), rejected(unlimited));
+  EXPECT_NEAR(limited.predict(px + 2500, py + 2500, h), 100.0, 0.1);
+  EXPECT_LE(range_of(limited.grid()).second, 100.0);
+}
+
+TEST(PointGridding, CalmStationsDoNotSpreadWind)
+{
+  // Wind speed rising with height over hills, calm below 500 m. The height trend through the
+  // calm valleys goes negative, the calm stations get positive residuals, and without limits
+  // the residual passes spread them as wind into the neighbouring calm cells.
+  LimitCase c(0.0);
+  for (std::size_t j = 0; j < c.grid.ny; j++)
+    for (std::size_t i = 0; i < c.grid.nx; i++)
+    {
+      const double x = (static_cast<double>(i) + 0.5) * c.grid.dx;
+      const double y = (static_cast<double>(j) + 0.5) * c.grid.dx;
+      c.dem[j * c.grid.nx + i] = 500.0 + 400.0 * std::sin(x / 40e3) * std::cos(y / 50e3);
+    }
+  const Terrain terrain(c.grid, c.dem);
+  const auto truth = [](double, double, double h) { return std::max(0.0, (h - 500.0) / 50.0); };
+  std::mt19937 gen(7);
+  std::uniform_real_distribution<double> ux(10e3, 590e3);
+  std::uniform_real_distribution<double> uy(10e3, 390e3);
+  for (int s = 0; s < 300; s++)
+  {
+    const double x = ux(gen);
+    const double y = uy(gen);
+    const double h = terrain.elevation().sample(x, y);
+    c.stations.push_back(Station{x, y, h, truth(x, y, h)});
+  }
+
+  Options options = limit_options();
+  const Analysis unlimited(terrain, c.stations, options);
+  options.lowerLimit = 0.0;
+  const Analysis limited(terrain, c.stations, options);
+
+  const auto fu = unlimited.grid();
+  const auto fl = limited.grid();
+  EXPECT_GE(range_of(fl).first, 0.0);
+
+  // Compared with clamping the unlimited analysis afterwards, in the calm cells
+  Field clamped = fu;
+  for (std::size_t n = 0; n < clamped.values().size(); n++)
+    clamped.data()[n] = std::max(clamped.data()[n], 0.0);
+  double calm_limited = 0;
+  double calm_clamped = 0;
+  std::size_t n_calm = 0;
+  for (std::size_t n = 0; n < c.dem.size(); n++)
+    if (c.dem[n] < 450.0)
+    {
+      calm_limited += fl.data()[n];
+      calm_clamped += clamped.data()[n];
+      n_calm++;
+    }
+  calm_limited /= static_cast<double>(n_calm);
+  calm_clamped /= static_cast<double>(n_calm);
+  EXPECT_LT(calm_limited, calm_clamped);
+  EXPECT_LT(c.rmse(fl, truth), c.rmse(clamped, truth));
+}
+
+TEST(PointGridding, LimitsApplyToTheBackground)
+{
+  // A humid background moved up the slope with a positive lapse rate goes past saturation.
+  // The limits apply to the values, so the field stays at 100 % where the moved background
+  // would exceed it, also where there are no stations.
+  LimitCase c(10.0);
+  c.addStations([](double, double, double) { return 95.0; }, 0);
+  c.stations.push_back(Station{50e3, 200e3, c.height(50e3, 200e3), 96.0});
+  c.stations.push_back(Station{100e3, 100e3, c.height(100e3, 100e3), 97.0});
+  const Terrain terrain(c.grid, c.dem);
+  const Background bg{Field(c.grid, 95.0), Field(c.grid, 0.0)};
+
+  Options options = limit_options();
+  options.qc = false;
+  options.backgroundLapseRate = 10.0;
+  options.upperLimit = 100.0;
+  const Analysis analysis(terrain, c.stations, bg, options);
+  const auto f = analysis.grid();
+  EXPECT_LE(range_of(f).second, 100.0);
+  EXPECT_DOUBLE_EQ(f(119, 40), 100.0);
+  EXPECT_DOUBLE_EQ(analysis.predict(590e3, 200e3, 1200.0), 100.0);
+}
+
+TEST(PointGridding, StationValuesOutsideTheLimits)
+{
+  // Slightly out of range values are clamped, gross ones rejected when qc is enabled
+  const Grid grid{0, 0, 5000, 40, 40};
+  const Terrain terrain(grid, std::vector<double>(grid.size(), 0.0));
+  const std::vector<Station> stations{
+      {50e3, 50e3, 0, 98.0}, {100e3, 100e3, 0, 103.0}, {150e3, 150e3, 0, 150.0}};
+  Options options;
+  options.predictors.clear();
+  options.lowerLimit = 0.0;
+  options.upperLimit = 100.0;
+  options.qcMinThreshold = 6.0;
+  const Analysis checked(terrain, stations, options);
+  EXPECT_EQ(checked.status()[0], StationStatus::Used);
+  EXPECT_EQ(checked.status()[1], StationStatus::Used);
+  EXPECT_EQ(checked.status()[2], StationStatus::Rejected);
+  EXPECT_LE(range_of(checked.grid()).second, 100.0);
+
+  options.qc = false;
+  const Analysis unchecked(terrain, stations, options);
+  EXPECT_EQ(unchecked.status()[2], StationStatus::Used);
+  EXPECT_NEAR(unchecked.predict(150e3, 150e3, 0), 100.0, 0.1);
+}
+
+TEST(PointGridding, InvalidLimits)
+{
+  const Grid grid{0, 0, 5000, 20, 20};
+  const Terrain terrain(grid, std::vector<double>(grid.size(), 0.0));
+  const std::vector<Station> stations{{50e3, 50e3, 0, 1.0}};
+  Options options;
+  options.lowerLimit = 1.0;
+  options.upperLimit = 1.0;
+  EXPECT_THROW(Analysis(terrain, stations, options), std::exception);
+  options.upperLimit = std::nan("");
+  EXPECT_THROW(Analysis(terrain, stations, options), std::exception);
 }

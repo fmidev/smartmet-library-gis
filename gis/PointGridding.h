@@ -164,6 +164,15 @@ struct Options
   // the result has no seam there.
   double backgroundTaper = 50e3;  // m
 
+  // Physical range of the analysed quantity, for example 0...100 for relative humidity or a
+  // lower limit of 0 for wind speed. With a background the limits apply to the values, not to
+  // the corrections. The trend and every residual pass are limited before the next pass sees
+  // them, so a station at a limit does not spread a spurious residual around it, and the gross
+  // error check compares the stations with limited predictions. Station values out of range by
+  // at most qcMinThreshold are clamped, values farther out are rejected when qc is enabled.
+  std::optional<double> lowerLimit;
+  std::optional<double> upperLimit;
+
   unsigned int threads = 0;  // 0 = hardware concurrency
 };
 
@@ -187,7 +196,7 @@ enum class StationStatus : std::uint8_t
 {
   Used,
   Outside,  // outside the grid or a non-finite value
-  Rejected  // failed the gross error check
+  Rejected  // failed the gross error check, or far outside the limits of the values
 };
 
 class Analysis

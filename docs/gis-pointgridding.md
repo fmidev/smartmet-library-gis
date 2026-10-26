@@ -15,9 +15,10 @@ temperatures. The prototype also produced the reference data of `test/PointGridd
 2. [The method](#2-the-method)
 3. [Validation](#3-validation)
 4. [Correcting a background](#4-correcting-a-background)
-5. [Options](#5-options)
-6. [Performance](#6-performance)
-7. [Limitations](#7-limitations)
+5. [Limited values](#5-limited-values)
+6. [Options](#6-options)
+7. [Performance](#7-performance)
+8. [Limitations](#8-limitations)
 
 ---
 
@@ -161,7 +162,67 @@ correction to zero instead of the mean innovation did not change any of the scor
 stations; it only matters away from them. The blend weight was chosen on the same cases, so
 its advantage is slightly optimistic.
 
-## 5. Options
+## 5. Limited values
+
+Quantities with a physical range, such as relative humidity (0...100 %), wind speed (≥ 0) or
+friction (0...1), set `Options::lowerLimit` and/or `upperLimit`. The method is linear and can
+leave the range even when every observation is in it:
+
+- **The trend extrapolates.** A height trend fitted through saturated stations goes beyond
+  100 % up the slopes, and a wind speed trend through calm valleys goes negative.
+- **Residuals at a limit are spurious.** A saturated station under a 115 % trend has the
+  residual −15 %, which the residual passes spread to its neighbours: a cell nearby with a trend
+  of 102 % would come out at 87 %. A calm station under a −2 m/s trend spreads +2 m/s of wind
+  into the calm cells around it.
+- **The gross error check compares with an impossible prediction.** A station at 100 % under a
+  prediction of 115 % has an innovation of −15 %.
+- **A background moved with the lapse rate** can leave the range, and the corrections are
+  then computed against an impossible value.
+
+The limits are therefore applied inside the analysis and not only to the result. With `base`
+the background moved to the station or cell height (0 without a background), every stage
+returns `clamp(base + t) − base` for its prediction `t`: the trend is limited before the
+residuals of the first pass are computed, the result of each pass before the next, and the
+grid in the same order. The background itself is clamped after the lapse-rate move, and the
+gross error check compares a station with the limited prediction. The corrected background and
+the analysis of the observations alone are then both in range, and so is their blend. Station
+values out of range by at most `qcMinThreshold` are clamped (a humidity sensor reporting 101 %),
+values farther out are rejected when `qc` is on. Without limits the results are bit for bit the
+same as before.
+
+A smooth transform (logit for a range, log for a lower limit) was rejected: 100 % and calm
+winds are common exact values which the transforms cannot represent, the gross error
+thresholds and the background correction would no longer be in the units of the quantity, and
+the tuning of section 3 would not carry over.
+
+**Validation.** The 85 cases of section 3 with relative humidity (`RH`, about 2400 stations a
+case) and 10-minute wind speed (`WS`, about 2700), 10-fold cross-validation scored at the
+stations passing the gross error check of the full data, with `priorLapseRate` 0 and
+`qcMinThreshold` 10 % and 5 m/s. RMSE:
+
+| Method | Unlimited | Unlimited, clamped afterwards | Limited | Unlimited predictions out of range |
+|--------|-----------|-------------------------------|---------|------------------------------------|
+| Humidity, terrain | 8.791 % | 8.738 % | **8.737 %** | 0.39 % |
+| Humidity, Barnes | 9.408 % | 9.408 % | 9.408 % | 0.02 % |
+| Wind speed, terrain | 1.745 m/s | 1.743 m/s | **1.743 m/s** | 0.51 % |
+| Wind speed, Barnes | 1.812 m/s | 1.812 m/s | 1.812 m/s | 0.02 % |
+
+At the stations the limits are worth 0.05 % and 0.002 m/s, and limiting every stage gains
+almost nothing over clamping the result. The stations at a limit (7100 saturated, 15400 calm)
+were not rejected any less often either: the gross error check was not misled by the trend in
+these cases. Out of range values occur mostly away from the stations, which cross-validation
+at the stations does not see. There the synthetic cases of the unit tests show the difference:
+with calm valleys under a negative trend, limiting every stage halves the spurious wind in the
+calm cells compared with clamping the result (0.07 against 0.12 m/s), and a saturated summit
+station is kept by the gross error check. In the WMS plugin tests the gridded humidity of
+2008-12-05 06 UTC reaches 104 % in a map tile without the limits.
+
+The terrain method beat the Barnes method for both quantities, with the temperature prior
+of −6.5 K/km replaced by 0. A linear height trend through a saturating profile undershoots near
+the saturation level, which limits cannot fix, so with a small `qcMinThreshold` correct
+saturated stations can be rejected.
+
+## 6. Options
 
 | Option | Default | Meaning |
 |--------|---------|---------|
@@ -182,11 +243,12 @@ its advantage is slightly optimistic.
 | `backgroundLapseRate` | −6.5 K/km | Moves a background from the model orography to the actual heights |
 | `backgroundWeight` | 0.7 | Weight of the corrected background, the rest is the analysis of the observations alone |
 | `backgroundTaper` | 50 km | The background fades out over about this distance from the edges of its data |
+| `lowerLimit`, `upperLimit` | none | Physical range of the values, see section 5 |
 | `threads` | 0 | Threads per analysis, 0 = all cores |
 
 The TPI smoothing scale (10 km) is a `Terrain` constructor argument.
 
-## 6. Performance
+## 7. Performance
 
 Full Europe, 2000×1760 cells at 2.5 km, 3000 stations, 8 threads: about 0.36 s for the fit
 including the gross error check and 0.19 s for composing the full-resolution grid. The
@@ -196,11 +258,12 @@ cross-validation scores.
 The `Terrain` constructor blurs the height field once, about 0.1 s for Europe. A background
 doubles the cost when blended, since the observations are also analysed alone.
 
-## 7. Limitations
+## 8. Limitations
 
 - Terrain detail comes from the DEM only. Structures not seen by the stations, such as a
   cold pool in an unobserved valley, are modelled by the regression, not observed.
-- Wind should be gridded as vector components, and precipitation needs its own treatment
-  of dry and wet areas; neither is handled here.
+- Wind direction should be gridded as vector components, and precipitation needs its own
+  treatment of dry and wet areas; neither is handled here. Wind speed alone can be gridded
+  with a lower limit of 0.
 - The algorithm assumes an equal-area grid; with geographic coordinates the Gaussian would
   be elongated toward the poles.

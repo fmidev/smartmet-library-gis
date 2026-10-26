@@ -321,9 +321,13 @@ struct Obs
   std::vector<double> z;
   std::vector<double> smooth;  // smoothed terrain height at the station
   std::vector<double> hm;      // model orography at the station, empty without a background
+  std::vector<double> base;    // background at the station, empty without a background
   std::vector<std::size_t> index;  // index in the input station list
 
   std::size_t size() const { return x.size(); }
+
+  // The value z is relative to
+  double baseAt(std::size_t s) const { return base.empty() ? 0.0 : base[s]; }
 
   Obs subset(const std::vector<bool>& keep) const
   {
@@ -339,10 +343,56 @@ struct Obs
       out.smooth.push_back(smooth[i]);
       if (!hm.empty())
         out.hm.push_back(hm[i]);
+      if (!base.empty())
+        out.base.push_back(base[i]);
       out.index.push_back(index[i]);
     }
     return out;
   }
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief The physical range of the analysed values
+ *
+ * Corrections to a background are limited so that base + correction stays in range. Without
+ * limits nothing is touched, so that the results stay bit for bit the same.
+ */
+// ----------------------------------------------------------------------
+
+class Limits
+{
+ public:
+  explicit Limits(const Options& options)
+      : itsActive(options.lowerLimit || options.upperLimit),
+        itsLower(options.lowerLimit.value_or(-std::numeric_limits<double>::infinity())),
+        itsUpper(options.upperLimit.value_or(std::numeric_limits<double>::infinity()))
+  {
+    if (!std::isfinite(itsLower) && options.lowerLimit)
+      throw Fmi::Exception(BCP, "The lower limit of the values must be finite");
+    if (!std::isfinite(itsUpper) && options.upperLimit)
+      throw Fmi::Exception(BCP, "The upper limit of the values must be finite");
+    if (itsLower >= itsUpper)
+      throw Fmi::Exception(BCP, "The lower limit of the values must be below the upper limit");
+  }
+
+  bool active() const { return itsActive; }
+  double lower() const { return itsLower; }
+  double upper() const { return itsUpper; }
+
+  // The value clamped to the range. NaN stays NaN.
+  double value(double v) const { return itsActive ? std::min(std::max(v, itsLower), itsUpper) : v; }
+
+  // The correction t to base limited so that base + t is in range
+  double correction(double base, double t) const { return itsActive ? value(base + t) - base : t; }
+
+  // How far a value is outside the range, 0 inside it
+  double excess(double v) const { return std::max({itsLower - v, v - itsUpper, 0.0}); }
+
+ private:
+  bool itsActive = false;
+  double itsLower;
+  double itsUpper;
 };
 
 // The reference height of the height predictor is the model orography with a background
@@ -840,26 +890,32 @@ class Model
 {
  public:
   // With a background the observations are the corrections to it, and the height predictor
-  // is the height above the model orography given on the terrain grid
+  // is the height above the model orography given on the terrain grid. The base is then the
+  // background moved to the terrain heights, which the limits of the values are applied to.
   Model(const Terrain& terrain,
         const Options& options,
         const Obs& obs,
         bool with_residuals,
         unsigned int threads,
-        const Field* model_elevation = nullptr)
+        const Field* model_elevation = nullptr,
+        const Field* base = nullptr)
       : itsTerrain(terrain),
         itsOptions(options),
+        itsLimits(options),
         itsCoarse(terrain.grid().coarsen(options.coarsen)),
-        itsModelElevation(model_elevation)
+        itsModelElevation(model_elevation),
+        itsBase(base)
   {
     fit_trend(obs, threads);
     if (!with_residuals)
       return;
     for (double sigma : options.residualSigmas)
     {
+      // The residuals from the limited prediction: a station at a limit agrees with a trend
+      // beyond it, and must not spread the difference to its neighbours
       std::vector<double> r(obs.size());
       for (std::size_t s = 0; s < obs.size(); s++)
-        r[s] = obs.z[s] - predict(obs.x[s], obs.y[s], obs.h[s], obs.smooth[s]);
+        r[s] = obs.z[s] - predict(obs.x[s], obs.y[s], obs.h[s], obs.smooth[s], obs.baseAt(s));
       if (options.bilateralSigmaH)
         itsStages.emplace_back(new BilateralStage(itsCoarse,
                                                   obs,
@@ -888,11 +944,13 @@ class Model
     return t;
   }
 
-  double predict(double x, double y, double h, double smooth) const
+  // The prediction limited after the trend and after every residual pass. The base is the
+  // value the prediction is a correction to, 0 without a background.
+  double predict(double x, double y, double h, double smooth, double base) const
   {
-    double t = trend(x, y, h, smooth);
+    double t = itsLimits.correction(base, trend(x, y, h, smooth));
     for (const auto& stage : itsStages)
-      t += stage->at(x, y, h);
+      t = itsLimits.correction(base, t + stage->at(x, y, h));
     return t;
   }
 
@@ -928,8 +986,12 @@ class Model
                      out.data()[n] = t;
                    }
                  });
+    limit(out, threads);
     for (const auto& stage : itsStages)
+    {
       stage->addTo(out, dem, threads);
+      limit(out, threads);
+    }
     return out;
   }
 
@@ -944,6 +1006,23 @@ class Model
   const Grid& coarse() const { return itsCoarse; }
 
  private:
+  // Limit the corrections on the terrain grid to the range of the values
+  void limit(Field& field, unsigned int threads) const
+  {
+    if (!itsLimits.active())
+      return;
+    parallel_for(field.values().size(),
+                 threads,
+                 [&](std::size_t n0, std::size_t n1)
+                 {
+                   for (std::size_t n = n0; n < n1; n++)
+                   {
+                     const double base = (itsBase ? itsBase->data()[n] : 0.0);
+                     field.data()[n] = itsLimits.correction(base, field.data()[n]);
+                   }
+                 });
+  }
+
   void fit_trend(const Obs& obs, unsigned int threads)
   {
     const Options& opt = itsOptions;
@@ -1037,12 +1116,23 @@ class Model
 
   const Terrain& itsTerrain;
   const Options& itsOptions;
+  Limits itsLimits;
   Grid itsCoarse;
   const Field* itsModelElevation = nullptr;
+  const Field* itsBase = nullptr;
   Field itsA;
   std::vector<Field> itsBeta;
   std::vector<std::unique_ptr<Stage>> itsStages;
 };
+
+// The station z against the prediction trend + loo, where r = z - trend. With limits the
+// prediction is limited: a station at a limit agrees with any prediction beyond it.
+double innovation(const Limits& limits, double z, double r, double loo, double base)
+{
+  if (!limits.active())
+    return r - loo;
+  return z - limits.correction(base, z - r + loo);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -1052,7 +1142,9 @@ class Model
  * estimate of its neighbours at similar heights (horizontally at a larger scale if there
  * are too few of them). The threshold scales with the leave-one-out local spread of the
  * innovations, so legitimately rough fields such as mountain inversions are not mistaken
- * for errors. Returns the rejection flags.
+ * for errors. With limits on the values the station is compared with the limited prediction,
+ * so that a station at a limit is not rejected for disagreeing with a trend beyond it.
+ * Returns the rejection flags.
  */
 // ----------------------------------------------------------------------
 
@@ -1060,8 +1152,10 @@ std::vector<bool> quality_control(const Terrain& terrain,
                                   const Options& options,
                                   const Obs& obs,
                                   unsigned int threads,
-                                  const Field* model_elevation)
+                                  const Field* model_elevation,
+                                  const Field* base)
 {
+  const Limits limits(options);
   Options trend_only = options;
   trend_only.residualSigmas.clear();
   trend_only.qc = false;
@@ -1079,10 +1173,10 @@ std::vector<bool> quality_control(const Terrain& terrain,
       if (keep[i])
         where.push_back(i);
 
-    const Model trend(terrain, trend_only, sub, false, threads, model_elevation);
+    const Model trend(terrain, trend_only, sub, false, threads, model_elevation, base);
     std::vector<double> r(sub.size());
     for (std::size_t s = 0; s < sub.size(); s++)
-      r[s] = sub.z[s] - trend.predict(sub.x[s], sub.y[s], sub.h[s], sub.smooth[s]);
+      r[s] = sub.z[s] - trend.predict(sub.x[s], sub.y[s], sub.h[s], sub.smooth[s], sub.baseAt(s));
 
     std::vector<double> loo;
     std::vector<double> support;
@@ -1112,7 +1206,7 @@ std::vector<bool> quality_control(const Terrain& terrain,
         loo[s] = loo2[s];
         support[s] = support2[s];
       }
-      innov[s] = r[s] - loo[s];
+      innov[s] = innovation(limits, sub.z[s], r[s], loo[s], sub.baseAt(s));
       cap[s] = std::min(innov[s] * innov[s], maxcap);
     }
 
@@ -1293,7 +1387,10 @@ class Analysis::Impl
        const std::vector<Station>& stations,
        const Background* background,
        const Options& options)
-      : itsTerrain(terrain), itsOptions(options), itsStatus(stations.size(), StationStatus::Used)
+      : itsTerrain(terrain),
+        itsOptions(options),
+        itsLimits(options),
+        itsStatus(stations.size(), StationStatus::Used)
   {
     const Grid& grid = terrain.grid();
     if (background)
@@ -1301,45 +1398,21 @@ class Analysis::Impl
       if (!(background->value.grid() == grid) || !(background->elevation.grid() == grid))
         throw Fmi::Exception(BCP, "The background must be given on the terrain grid");
       itsBackground = *background;
+      itsBase = base_field();
     }
 
     // With a background obs holds the corrections to it, raw the observations themselves
-    Obs obs;
     std::vector<double> raw;
-    for (std::size_t i = 0; i < stations.size(); i++)
-    {
-      const auto& s = stations[i];
-      double base = 0;
-      double hm = 0;
-      if (itsBackground && grid.contains(s.x, s.y))
-      {
-        hm = itsBackground->elevation.sample(s.x, s.y);
-        base = background_at(s.x, s.y, s.elevation, hm);
-      }
-      if (!grid.contains(s.x, s.y) || !std::isfinite(s.value) || !std::isfinite(s.elevation) ||
-          !std::isfinite(base))
-      {
-        itsStatus[i] = StationStatus::Outside;
-        continue;
-      }
-      obs.x.push_back(s.x);
-      obs.y.push_back(s.y);
-      obs.h.push_back(s.elevation);
-      obs.z.push_back(s.value - base);
-      obs.smooth.push_back(terrain.smoothElevation().sample(s.x, s.y));
-      if (itsBackground)
-        obs.hm.push_back(hm);
-      obs.index.push_back(i);
-      raw.push_back(s.value);
-    }
+    const Obs obs = observations(stations, raw);
 
     const Field* model_elevation = (itsBackground ? &itsBackground->elevation : nullptr);
+    const Field* base = (itsBackground ? &itsBase : nullptr);
 
     std::vector<bool> keep(obs.size(), true);
     if (options.qc && obs.size() > 0)
     {
       const auto rejected =
-          quality_control(terrain, itsOptions, obs, options.threads, model_elevation);
+          quality_control(terrain, itsOptions, obs, options.threads, model_elevation, base);
       for (std::size_t s = 0; s < obs.size(); s++)
       {
         keep[s] = !rejected[s];
@@ -1358,6 +1431,7 @@ class Analysis::Impl
       Obs plain = obs;
       plain.z = raw;
       plain.hm.clear();
+      plain.base.clear();
       plain = plain.subset(keep);
       itsPlain = std::make_unique<Model>(terrain, itsOptions, plain, true, options.threads);
 
@@ -1375,19 +1449,82 @@ class Analysis::Impl
     }
 
     itsModel = std::make_unique<Model>(
-        terrain, itsOptions, obs.subset(keep), true, options.threads, model_elevation);
+        terrain, itsOptions, obs.subset(keep), true, options.threads, model_elevation, base);
   }
 
-  // The background moved from the model orography hm to the height h
+  // The usable stations. Values slightly out of range are clamped, values farther out than
+  // qcMinThreshold are gross errors when qc is enabled.
+  Obs observations(const std::vector<Station>& stations, std::vector<double>& raw)
+  {
+    const Grid& grid = itsTerrain.grid();
+    Obs obs;
+    for (std::size_t i = 0; i < stations.size(); i++)
+    {
+      const auto& s = stations[i];
+      double base = 0;
+      double hm = 0;
+      if (itsBackground && grid.contains(s.x, s.y))
+      {
+        hm = itsBackground->elevation.sample(s.x, s.y);
+        base = background_at(s.x, s.y, s.elevation, hm);
+      }
+      if (!grid.contains(s.x, s.y) || !std::isfinite(s.value) || !std::isfinite(s.elevation) ||
+          !std::isfinite(base))
+      {
+        itsStatus[i] = StationStatus::Outside;
+        continue;
+      }
+      if (itsOptions.qc && itsLimits.excess(s.value) > itsOptions.qcMinThreshold)
+      {
+        itsStatus[i] = StationStatus::Rejected;
+        continue;
+      }
+      const double value = itsLimits.value(s.value);
+      obs.x.push_back(s.x);
+      obs.y.push_back(s.y);
+      obs.h.push_back(s.elevation);
+      obs.z.push_back(value - base);
+      obs.smooth.push_back(itsTerrain.smoothElevation().sample(s.x, s.y));
+      if (itsBackground)
+      {
+        obs.hm.push_back(hm);
+        obs.base.push_back(base);
+      }
+      obs.index.push_back(i);
+      raw.push_back(value);
+    }
+    return obs;
+  }
+
+  // The background moved from the model orography hm to the height h, limited to the range
   double background_at(double x, double y, double h, double hm) const
   {
-    return itsBackground->value.sample(x, y) +
-           itsOptions.backgroundLapseRate * (h - hm) / 1000.0;
+    return itsLimits.value(itsBackground->value.sample(x, y) +
+                           itsOptions.backgroundLapseRate * (h - hm) / 1000.0);
+  }
+
+  // The background moved to the terrain heights, NaN where it is missing
+  Field base_field() const
+  {
+    const Field& dem = itsTerrain.elevation();
+    Field base(dem.grid());
+    const double lapse = itsOptions.backgroundLapseRate;
+    parallel_for(base.values().size(),
+                 itsOptions.threads,
+                 [&](std::size_t n0, std::size_t n1)
+                 {
+                   for (std::size_t n = n0; n < n1; n++)
+                     base.data()[n] = itsLimits.value(
+                         itsBackground->value.data()[n] +
+                         lapse * (dem.data()[n] - itsBackground->elevation.data()[n]) / 1000.0);
+                 });
+    return base;
   }
 
   // Combine the correction, the background and the plain analysis. The plain analysis is
   // blended in only as far as there are stations behind it (support 0...1), and fully where
-  // the background fades out (taper 0).
+  // the background fades out (taper 0). Both are within the limits, and so is their blend
+  // apart from rounding.
   double combine(
       double correction, double base, double plain, double taper, double support) const
   {
@@ -1395,9 +1532,9 @@ class Analysis::Impl
       return plain;
     const double corrected = base + correction;
     if (!itsPlain)
-      return corrected;
+      return itsLimits.value(corrected);
     const double w = taper * (1 - (1 - itsOptions.backgroundWeight) * support);
-    return w * corrected + (1 - w) * plain;
+    return itsLimits.value(w * corrected + (1 - w) * plain);
   }
 
   // Weight multiplier of the background: 1 well inside its data, falling continuously to 0 at
@@ -1438,19 +1575,14 @@ class Analysis::Impl
 
     const Field plain = (itsPlain ? itsPlain->grid(itsOptions.threads) : Field());
     const Field support = (itsPlain ? itsSupport.resample(out.grid()) : Field());
-    const Field& dem = itsTerrain.elevation();
-    const double lapse = itsOptions.backgroundLapseRate;
     parallel_for(out.values().size(),
                  itsOptions.threads,
                  [&](std::size_t n0, std::size_t n1)
                  {
                    for (std::size_t n = n0; n < n1; n++)
                    {
-                     const double base =
-                         itsBackground->value.data()[n] +
-                         lapse * (dem.data()[n] - itsBackground->elevation.data()[n]) / 1000.0;
                      out.data()[n] = combine(out.data()[n],
-                                             base,
+                                             itsBase.data()[n],
                                              itsPlain ? plain.data()[n] : 0.0,
                                              taper_at(n),
                                              itsPlain ? support.data()[n] : 0.0);
@@ -1462,14 +1594,15 @@ class Analysis::Impl
   double predict(double x, double y, double elevation) const
   {
     const double smooth = itsTerrain.smoothElevation().sample(x, y);
-    const double correction = itsModel->predict(x, y, elevation, smooth);
     if (!itsBackground)
-      return correction;
+      return itsModel->predict(x, y, elevation, smooth, 0.0);
     const double hm = itsBackground->elevation.sample(x, y);
-    const double plain = (itsPlain ? itsPlain->predict(x, y, elevation, smooth) : 0.0);
+    const double base = background_at(x, y, elevation, hm);
+    const double correction = itsModel->predict(x, y, elevation, smooth, base);
+    const double plain = (itsPlain ? itsPlain->predict(x, y, elevation, smooth, 0.0) : 0.0);
     const double taper = (itsTaper.values().empty() ? 1.0 : itsTaper.sample(x, y));
     const double support = (itsPlain ? itsSupport.sample(x, y) : 0.0);
-    return combine(correction, background_at(x, y, elevation, hm), plain, taper, support);
+    return combine(correction, base, plain, taper, support);
   }
 
   static bool has_missing(const Field& f)
@@ -1482,7 +1615,9 @@ class Analysis::Impl
 
   const Terrain& itsTerrain;
   const Options itsOptions;
+  const Limits itsLimits;
   std::optional<Background> itsBackground;
+  Field itsBase;     // the background moved to the terrain heights, empty without one
   Field itsTaper;    // empty when the background has no missing values
   Field itsSupport;  // station support of the plain analysis on the coarse grid
   std::vector<StationStatus> itsStatus;
