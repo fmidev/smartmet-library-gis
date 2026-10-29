@@ -2,7 +2,7 @@ PROG = $(patsubst %.cpp,%,$(wildcard *.cpp))
 
 REQUIRES = fmt gdal geos
 
-include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
+include $(or $(PREFIX),$(shell smartbuildcfg --prefix))/share/smartmet/devel/makefile.inc
 
 FLAGS = -std=$(CXX_STD) -Wall -W -Wno-unused-parameter -DGEOS_INLINE
 
