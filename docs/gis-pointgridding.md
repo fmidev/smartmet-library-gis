@@ -69,15 +69,29 @@ station itself: summit stations are often a kilometre above the cell mean height
    atmosphere elsewhere, for example over flat land, where a height regression would only
    pick up coast versus inland differences.
 
-3. **Residual correction.** The station residuals from the trend are interpolated with a
-   damped, height-aware Barnes: `w = exp(−d²/2σ²)·exp(−Δh²/2σh²)` with σh = 300 m, divided by
-   `Σw + 0.25`. Two passes are made, σ = 60 km and then 25 km for what remains. The height term keeps valley and summit stations
-   from correcting each other, which matters most in inversions. It is computed with a
-   bilateral grid: stations are splatted into 250 m height layers, the layers are blurred
-   horizontally and across, and each cell reads the result at its own height. The damping
-   makes the correction fade to zero far from stations, so that over the sea and in sparse
-   areas the result falls back to the terrain trend instead of spreading one station's
-   anomaly.
+3. **Residual correction.** The station residuals from the trend are interpolated with
+   optimal interpolation (simple kriging with a fixed covariance). The station weights α solve
+   `(C + εI)α = r`, where `C` holds the covariances of the residuals `r` at the stations and
+   ε = 0.5 is the observation error variance relative to the residual variance, and the
+   correction at any point is `Σ αᵢ c(dᵢ)`. The covariance is height-aware,
+   `c = ½[exp(−d²/2L₁²) + exp(−d²/2L₂²)]·exp(−Δh²/2σh²)` with L = 120 and 50 km and
+   σh = 500 m. Unlike Barnes, the weights account for the redundancy of clustered stations:
+   ten stations in one town count for little more than one. The height term keeps valley and
+   summit stations from correcting each other, which matters most in inversions. Far from
+   the stations the correction relaxes to zero, so that over the sea and in sparse areas the
+   result falls back to the terrain trend instead of spreading one station's anomaly.
+
+   The system is solved with conjugate gradients to a relative residual of 10⁻³ (about 30
+   iterations for 2800 European stations, 15–30 ms), with the covariances cut off at four
+   times the larger scale; the bucketed neighbour search over the stations is the only one
+   in the method. `Σ αᵢ c(dᵢ)` is a Gaussian sum of the weights, computed with the same
+   bilateral grid as the Barnes passes below: the stations are splatted into 250 m height
+   layers, the layers are blurred horizontally and across, and each cell reads the result at
+   its own height.
+
+   The earlier residual correction, `Options::residuals = Residuals::Barnes`, is a damped,
+   height-aware Barnes: `w = exp(−d²/2σ²)·exp(−Δh²/2σh²)` with σh = 300 m, divided by
+   `Σw + 0.25`, in two passes of σ = 60 km and then 25 km for what remains.
 
 4. **Composition.** The smooth fields are resampled to the terrain grid and combined with
    the full-resolution heights.
@@ -102,7 +116,8 @@ predictions:
 | Local height regression + Barnes | 1.75 | 2.39 | 2.33 | 2.09 |
 | Height + TPI regression + Barnes | 1.70 | 2.26 | 2.09 | 1.97 |
 | Height + TPI + height-aware Barnes, one 40 km pass | 1.68 | 2.18 | 1.90 | 1.94 |
-| The same with two passes (60 + 25 km), tuned (default) | **1.62** | **2.12** | **1.82** | **1.89** |
+| The same with two passes (60 + 25 km), tuned | 1.62 | 2.12 | 1.82 | 1.89 |
+| Height + TPI + optimal interpolation of the residuals (default) | **1.57** | | | |
 
 The ranking is the same in every season and at every hour. The defaults come from a
 one-at-a-time sweep of the scales, ridges, damping and TPI smoothing followed by a check of
@@ -110,6 +125,34 @@ their combinations: two residual passes, damping 0.25 and three times stronger l
 improved every season; a third pass, a smaller local scale or a wider TPI did not. Plain Barnes leaves summits 4 K
 too warm and a fixed lapse rate 2 K too cold on average; on inversion mornings the errors are
 much larger. A quadratic height term was tried and made the results worse.
+
+Optimal interpolation replaced the Barnes passes as the default residual correction in
+26.10.30. Pooled over the same cases (the gis implementation, against the Barnes passes of
+the column above recomputed on the same stations, 1.602 K):
+
+| Residual correction | Temperature (K) | Relative humidity (%) | Wind speed (m/s) | Cases better than Barnes |
+|---------------------|-----------------|-----------------------|------------------|--------------------------|
+| Barnes passes | 1.602 | 8.735 | 1.743 | |
+| OI, σh 300 m, ε 0.5 | 1.579 | 8.639 | 1.705 | 70, 73, 84 of 85 |
+| OI, σh 500 m, ε 0.5 (default) | **1.572** | **8.599** | 1.708 | 81, 84, 84 |
+| OI, σh 300 m, ε 0.7 | 1.587 | 8.665 | **1.699** | 57, 66, 84 |
+
+Humidity and wind speed use `priorLapseRate = 0` and their limits as in section 5. A
+prototype with exact Gaussian sums found the covariance scales 120 + 50 km best among 80,
+100, 120 and 150 km and single scales. The gain, 1.5–2.5 %, is real in nearly every case
+but small next to the 35 % the terrain trend gives over plain Barnes. OI is the better choice
+mainly where stations cluster.
+
+Not worth adding, by the same cross-validation of the terrain method's errors:
+
+- Distance to the coast as a predictor. Stations whose 2.5 km cell is sea have a −0.31 K
+  bias, but even a per-case fit of the errors on the coast distance only reduces the RMSE
+  from 1.602 to 1.593 K.
+- Station height relative to the cell mean. Stations 100–300 m above their cell are 0.4 K
+  too cold, but a linear fit removes almost nothing since 70 % of the stations are within
+  30 m of their cell mean.
+- Angular distance weighting (Shepard 1968, the `adw` mode of pyg2p), with or without the
+  terrain trend: 1.68–2.53 K for temperature, worse than the terrain method in every case.
 
 The gross error check was tested by adding errors of 4–15 K to 1 % of the stations: 94 % of
 errors over 10 K and 88 % of 8–10 K errors were caught, with 0.08 % false alarms. The
@@ -198,7 +241,7 @@ the tuning of section 3 would not carry over.
 **Validation.** The 85 cases of section 3 with relative humidity (`RH`, about 2400 stations a
 case) and 10-minute wind speed (`WS`, about 2700), 10-fold cross-validation scored at the
 stations passing the gross error check of the full data, with `priorLapseRate` 0 and
-`qcMinThreshold` 10 % and 5 m/s. RMSE:
+`qcMinThreshold` 10 % and 5 m/s, and the Barnes residual passes of the time. RMSE:
 
 | Method | Unlimited | Unlimited, clamped afterwards | Limited | Unlimited predictions out of range |
 |--------|-----------|-------------------------------|---------|------------------------------------|
@@ -230,7 +273,7 @@ saturated stations can be rejected.
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `predictors` | height, TPI | Regression predictors. Empty for fields without a height dependency: the method is then a damped multi-scale Barnes interpolation. |
+| `predictors` | height, TPI | Regression predictors. Empty for fields without a height dependency: the method is then a plain interpolation of the observations. |
 | `fixedLapseRate` | none | K/km applied instead of a fitted height term |
 | `referenceHeight` | 500 m | Height at which the level `a` is defined |
 | `priorLapseRate` | −6.5 K/km | Regional prior of the height coefficient |
@@ -238,10 +281,14 @@ saturated stations can be rejected.
 | `regionalHeightRidge`, `localHeightRidge` | 1.8, 0.81 station·km² | How much height span is needed to move the coefficient from its prior |
 | `regionalTPIRidge`, `localTPIRidge` | 0.2, 0.09 station·km² | The same for the TPI coefficient (prior 0) |
 | `levelPrior` | 1 | Pseudo stations pulling the local level to the regional one |
+| `residuals` | OI | Residual correction: optimal interpolation or Barnes passes |
+| `oiScales` | 120, 50 km | OI: the covariance is the mean of Gaussians of these scales |
+| `oiSigmaH` | 500 m | OI: height scale of the covariance, none for horizontal only |
+| `oiErrorRatio` | 0.5 | OI: observation error variance relative to the residual variance |
 | `residualSigmas` | 60, 25 km | Barnes passes, each correcting the residual of the previous |
-| `bilateralSigmaH` | 300 m | Height scale of the residual passes, none for horizontal only |
+| `bilateralSigmaH` | 300 m | Height scale of the Barnes passes, none for horizontal only |
 | `layerSpacing`, `maxHeight` | 250 m, 4000 m | Bilateral grid layers |
-| `damping` | 0.25 | Station equivalents in the Barnes denominator |
+| `damping` | 0.25 | Station equivalents in the Barnes denominator, also used by the gross error check |
 | `coarsen` | 4 | Resolution of the smooth fields relative to the terrain grid |
 | `qc` and `qc*` | on | Gross error check, see section 2 |
 | `backgroundLapseRate` | −6.5 K/km | Moves a background from the model orography to the actual heights |
@@ -254,8 +301,10 @@ The TPI smoothing scale (10 km) is a `Terrain` constructor argument.
 
 ## 7. Performance
 
-Full Europe, 2000×1760 cells at 2.5 km, 3000 stations, 8 threads: about 0.36 s for the fit
-including the gross error check and 0.19 s for composing the full-resolution grid. The
+Full Europe, 2000×1760 cells at 2.5 km, 2800 stations, 24 threads: about 0.38 s for the fit
+including the gross error check and 0.16 s for composing the full-resolution grid, the same
+with optimal interpolation and with the Barnes passes. With one thread the fit takes 1.2 s
+with Barnes and 1.3 s with optimal interpolation, whose solve takes 15–30 ms of it. The
 smooth fields are computed on the 10 km grid; computing them at 2.5 km does not change the
 cross-validation scores.
 

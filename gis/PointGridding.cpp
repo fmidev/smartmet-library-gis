@@ -579,7 +579,7 @@ class Stage
   virtual void addTo(Field& target, const Field& elevation, unsigned int threads) const = 0;
 };
 
-// Damped Barnes: sum(w r) / (sum(w) + damping)
+// Damped Barnes: sum(w r) / (sum(w) + damping), or just sum(w r) when not normalised
 class BarnesStage : public Stage
 {
  public:
@@ -588,16 +588,18 @@ class BarnesStage : public Stage
               const std::vector<double>& r,
               double sigma,
               double damping,
-              unsigned int threads)
+              unsigned int threads,
+              bool normalise = true)
       : itsDamping(damping)
   {
     std::vector<std::vector<double>> q{std::vector<double>(obs.size(), 1.0), r};
     auto m = gaussianSums(grid, obs.x, obs.y, q, sigma, threads);
     itsSw = std::move(m[0]);
     itsSwr = std::move(m[1]);
-    itsValue = Field(grid);
-    for (std::size_t n = 0; n < grid.size(); n++)
-      itsValue.data()[n] = itsSwr.data()[n] / (itsSw.data()[n] + damping);
+    itsValue = (normalise ? Field(grid) : itsSwr);
+    if (normalise)
+      for (std::size_t n = 0; n < grid.size(); n++)
+        itsValue.data()[n] = itsSwr.data()[n] / (itsSw.data()[n] + damping);
     itsK1 = kernel(sigma / grid.dx).profile.at(1);
   }
 
@@ -640,7 +642,8 @@ class BarnesStage : public Stage
 
 // Height-aware damped Barnes via a bilateral grid: stations are splatted linearly into
 // height layers, each layer is blurred horizontally, the layer stack is blurred vertically
-// with a small discrete Gaussian and the result is read back at (x, y, h).
+// with a small discrete Gaussian and the result is read back at (x, y, h). Not normalised the
+// result is just the height-aware Gaussian sum of r.
 class BilateralStage : public Stage
 {
  public:
@@ -652,10 +655,12 @@ class BilateralStage : public Stage
                  double sigma_h,
                  double max_height,
                  double damping,
-                 unsigned int threads)
+                 unsigned int threads,
+                 bool normalise = true)
       : itsLayers(static_cast<std::size_t>(std::ceil(max_height / layer_spacing)) + 1),
         itsDz(layer_spacing),
         itsDamping(damping),
+        itsNormalise(normalise),
         itsK1(kernel(sigma / grid.dx).profile.at(1))
   {
     std::vector<Field> sw;
@@ -857,7 +862,7 @@ class BilateralStage : public Stage
                      }
                      double* value = itsValue[l].data();
                      for (std::size_t n = 0; n < grid.size(); n++)
-                       value[n] = vswr[n] / (vsw[n] + itsDamping);
+                       value[n] = (itsNormalise ? vswr[n] / (vsw[n] + itsDamping) : vswr[n]);
                    }
                  });
   }
@@ -873,11 +878,248 @@ class BilateralStage : public Stage
   std::size_t itsLayers = 0;
   double itsDz = 0;
   double itsDamping = 0;
+  bool itsNormalise = true;
   double itsK1 = 0;
   double itsKv1 = 0;
   std::vector<Field> itsSw;
   std::vector<Field> itsSwr;
   std::vector<Field> itsValue;
+};
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Optimal interpolation of the residuals
+ *
+ * The station weights alpha solve (C + eps I) alpha = r with conjugate gradients, where C
+ * holds the covariances of the residuals at the stations cut off at four times the largest
+ * scale. The estimate sum_i alpha_i c(d_i) is a sum of Gaussian sums of the weights, one per
+ * scale, computed like the numerators of the Barnes passes. The neighbour search for C is
+ * the only one in the method, and it is over the stations, not the grid.
+ */
+// ----------------------------------------------------------------------
+
+class OiStage : public Stage
+{
+ public:
+  OiStage(const Grid& grid,
+          const Obs& obs,
+          const std::vector<double>& r,
+          const Options& options,
+          unsigned int threads)
+  {
+    if (options.oiScales.empty())
+      throw Fmi::Exception(BCP, "Optimal interpolation needs at least one covariance scale");
+    for (double sigma : options.oiScales)
+      if (!(sigma > 0))
+        throw Fmi::Exception(BCP,
+                             "The covariance scales of optimal interpolation must be positive");
+    if (!(options.oiErrorRatio > 0))
+      throw Fmi::Exception(BCP, "The error ratio of optimal interpolation must be positive");
+    if (options.oiSigmaH && !(*options.oiSigmaH > 0))
+      throw Fmi::Exception(BCP, "The height scale of optimal interpolation must be positive");
+
+    auto alpha = weights(obs, r, options, threads);
+    const double share = 1.0 / static_cast<double>(options.oiScales.size());
+    for (double& a : alpha)
+      a *= share;
+
+    for (double sigma : options.oiScales)
+    {
+      if (options.oiSigmaH)
+        itsStages.emplace_back(new BilateralStage(grid,
+                                                  obs,
+                                                  alpha,
+                                                  sigma,
+                                                  options.layerSpacing,
+                                                  *options.oiSigmaH,
+                                                  options.maxHeight,
+                                                  0.0,
+                                                  threads,
+                                                  false));
+      else
+        itsStages.emplace_back(new BarnesStage(grid, obs, alpha, sigma, 0.0, threads, false));
+    }
+  }
+
+  double at(double x, double y, double h) const override
+  {
+    double sum = 0;
+    for (const auto& stage : itsStages)
+      sum += stage->at(x, y, h);
+    return sum;
+  }
+
+  void addTo(Field& target, const Field& elevation, unsigned int threads) const override
+  {
+    for (const auto& stage : itsStages)
+      stage->addTo(target, elevation, threads);
+  }
+
+ private:
+  using Row = std::vector<std::pair<std::size_t, double>>;
+
+  // The covariance of the residuals at two stations, without the error term
+  static double covariance(double d2, double dh, const Options& options)
+  {
+    double c = 0;
+    for (double sigma : options.oiScales)
+      c += std::exp(-d2 / (2 * sigma * sigma));
+    c /= static_cast<double>(options.oiScales.size());
+    if (options.oiSigmaH)
+    {
+      const double sh = *options.oiSigmaH;
+      c *= std::exp(-dh * dh / (2 * sh * sh));
+    }
+    return c;
+  }
+
+  // The stations in buckets of the cutoff distance: the neighbours of a station within the
+  // cutoff are in the 3x3 buckets around its own
+  class Buckets
+  {
+   public:
+    Buckets(const Obs& obs, double size)
+        : itsObs(obs),
+          itsSize(size),
+          itsX0(*std::min_element(obs.x.begin(), obs.x.end())),
+          itsY0(*std::min_element(obs.y.begin(), obs.y.end())),
+          itsNx(index(*std::max_element(obs.x.begin(), obs.x.end()), itsX0) + 1),
+          itsNy(index(*std::max_element(obs.y.begin(), obs.y.end()), itsY0) + 1),
+          itsBuckets(static_cast<std::size_t>(itsNx * itsNy))
+    {
+      for (std::size_t s = 0; s < obs.size(); s++)
+        itsBuckets[bucket(index(obs.x[s], itsX0), index(obs.y[s], itsY0))].push_back(s);
+    }
+
+    // Call fn(j) for every station j in the buckets around station s
+    template <typename F>
+    void neighbours(std::size_t s, const F& fn) const
+    {
+      const long bx = index(itsObs.x[s], itsX0);
+      const long by = index(itsObs.y[s], itsY0);
+      for (long jy = std::max(0L, by - 1); jy <= std::min(itsNy - 1, by + 1); jy++)
+        for (long jx = std::max(0L, bx - 1); jx <= std::min(itsNx - 1, bx + 1); jx++)
+          for (std::size_t j : itsBuckets[bucket(jx, jy)])
+            fn(j);
+    }
+
+   private:
+    long index(double v, double v0) const
+    {
+      return static_cast<long>(std::floor((v - v0) / itsSize));
+    }
+    std::size_t bucket(long i, long j) const { return static_cast<std::size_t>(j * itsNx + i); }
+
+    const Obs& itsObs;
+    double itsSize;
+    double itsX0;
+    double itsY0;
+    long itsNx;
+    long itsNy;
+    std::vector<std::vector<std::size_t>> itsBuckets;
+  };
+
+  // The rows of C + eps I within the cutoff distance
+  static std::vector<Row> matrix(const Obs& obs, const Options& options, unsigned int threads)
+  {
+    const double cutoff = 4 * *std::max_element(options.oiScales.begin(), options.oiScales.end());
+    const double cutoff2 = cutoff * cutoff;
+    const Buckets buckets(obs, cutoff);
+
+    // The bilateral layers clamp the heights to their range, so the covariances do too
+    std::vector<double> h(obs.h);
+    for (double& v : h)
+      v = std::min(std::max(v, 0.0), options.maxHeight);
+
+    std::vector<Row> rows(obs.size());
+    parallel_for(obs.size(),
+                 threads,
+                 [&](std::size_t i0, std::size_t i1)
+                 {
+                   for (std::size_t i = i0; i < i1; i++)
+                     buckets.neighbours(i,
+                                        [&](std::size_t j)
+                                        {
+                                          const double dx = obs.x[i] - obs.x[j];
+                                          const double dy = obs.y[i] - obs.y[j];
+                                          const double d2 = dx * dx + dy * dy;
+                                          if (d2 >= cutoff2)
+                                            return;
+                                          double c = covariance(d2, h[i] - h[j], options);
+                                          if (i == j)
+                                            c += options.oiErrorRatio;
+                                          rows[i].emplace_back(j, c);
+                                        });
+                 });
+    return rows;
+  }
+
+  // Conjugate gradients for (C + eps I) alpha = r. The matrix is symmetric positive definite:
+  // a Gaussian covariance plus a positive diagonal, the cutoff only perturbing it slightly.
+  static std::vector<double> weights(const Obs& obs,
+                                     const std::vector<double>& r,
+                                     const Options& options,
+                                     unsigned int threads)
+  {
+    const std::size_t n = obs.size();
+    std::vector<double> x(n, 0.0);
+    if (n == 0)
+      return x;
+    const auto rows = matrix(obs, options, threads);
+
+    const auto multiply = [&](const std::vector<double>& v, std::vector<double>& out)
+    {
+      parallel_for(n,
+                   threads,
+                   [&](std::size_t i0, std::size_t i1)
+                   {
+                     for (std::size_t i = i0; i < i1; i++)
+                     {
+                       double sum = 0;
+                       for (const auto& [j, c] : rows[i])
+                         sum += c * v[j];
+                       out[i] = sum;
+                     }
+                   });
+    };
+    const auto dot = [](const std::vector<double>& a, const std::vector<double>& b)
+    {
+      double sum = 0;
+      for (std::size_t i = 0; i < a.size(); i++)
+        sum += a[i] * b[i];
+      return sum;
+    };
+
+    std::vector<double> res = r;
+    std::vector<double> p = r;
+    std::vector<double> ap(n);
+    // A relative residual of 1e-3 takes under half the iterations of 1e-8 (29 vs 66 for
+    // 2800 European stations) and moves the grid at most 0.006 K for temperature and 0.02 %
+    // for relative humidity
+    double rr = dot(res, res);
+    const double tolerance = 1e-6 * rr;
+    for (std::size_t iter = 0; iter < 10 * n && rr > tolerance; iter++)
+    {
+      multiply(p, ap);
+      const double pap = dot(p, ap);
+      if (!(pap > 0))
+        break;
+      const double step = rr / pap;
+      for (std::size_t i = 0; i < n; i++)
+      {
+        x[i] += step * p[i];
+        res[i] -= step * ap[i];
+      }
+      const double rr_next = dot(res, res);
+      const double beta = rr_next / rr;
+      for (std::size_t i = 0; i < n; i++)
+        p[i] = res[i] + beta * p[i];
+      rr = rr_next;
+    }
+    return x;
+  }
+
+  std::vector<std::unique_ptr<Stage>> itsStages;
 };
 
 // ----------------------------------------------------------------------
@@ -909,6 +1151,14 @@ class Model
     fit_trend(obs, threads);
     if (!with_residuals)
       return;
+    if (options.residuals == Residuals::OI)
+    {
+      std::vector<double> r(obs.size());
+      for (std::size_t s = 0; s < obs.size(); s++)
+        r[s] = obs.z[s] - predict(obs.x[s], obs.y[s], obs.h[s], obs.smooth[s], obs.baseAt(s));
+      itsStages.emplace_back(new OiStage(itsCoarse, obs, r, options, threads));
+      return;
+    }
     for (double sigma : options.residualSigmas)
     {
       // The residuals from the limited prediction: a station at a limit agrees with a trend

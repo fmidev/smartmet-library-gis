@@ -4,8 +4,8 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.10.26
-Release: 2%{?dist}.fmi
+Version: 26.10.30
+Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -138,6 +138,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Fri Oct 30 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.30-1.fmi
+- Point gridding: optimal interpolation of the residuals (Options::residuals, oiScales, oiSigmaH, oiErrorRatio) is the new default, slightly more accurate than the Barnes passes in cross-validation at about the same cost. ABI change: PointGridding::Options layout
+
 * Mon Oct 26 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.26-2.fmi
 - Point gridding: the trend fit and the analysis setup split into smaller functions
 

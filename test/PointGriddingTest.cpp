@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include "PointGridding.h"
+#include <macgyver/Exception.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -191,8 +192,11 @@ TEST(PointGridding, MatchesPrototype)
   const auto expected = read_csv(datadir + "expected_stations.csv");
   ASSERT_EQ(stations.size(), expected.size());
 
+  // The prototype uses the Barnes residual passes
+  Options options;
+  options.residuals = Residuals::Barnes;
   const auto t0 = std::chrono::steady_clock::now();
-  const Analysis analysis(terrain, stations, Options());
+  const Analysis analysis(terrain, stations, options);
   const auto f = analysis.grid();
   const auto t1 = std::chrono::steady_clock::now();
   std::cout << "Analysis of " << stations.size() << " stations on " << reference_grid.nx << "x"
@@ -228,14 +232,18 @@ TEST(PointGridding, ThreadCountDoesNotChangeTheResult)
 {
   const auto& terrain = reference_terrain();
   const auto stations = reference_stations();
-  Options one;
-  one.threads = 1;
-  Options many;
-  many.threads = 7;
-  const auto a = Analysis(terrain, stations, one).grid();
-  const auto b = Analysis(terrain, stations, many).grid();
-  for (std::size_t n = 0; n < a.values().size(); n++)
-    ASSERT_EQ(a.values()[n], b.values()[n]);
+  for (auto residuals : {Residuals::Barnes, Residuals::OI})
+  {
+    Options one;
+    one.residuals = residuals;
+    one.threads = 1;
+    Options many = one;
+    many.threads = 7;
+    const auto a = Analysis(terrain, stations, one).grid();
+    const auto b = Analysis(terrain, stations, many).grid();
+    for (std::size_t n = 0; n < a.values().size(); n++)
+      ASSERT_EQ(a.values()[n], b.values()[n]);
+  }
 }
 
 namespace
@@ -445,9 +453,11 @@ struct LimitCase
   }
 };
 
-Options limit_options()
+// LimitsWithOptimalInterpolation checks the limits for optimal interpolation of the residuals
+Options limit_options(Residuals residuals = Residuals::Barnes)
 {
   Options options;
+  options.residuals = residuals;
   options.regionalSigma = 100e3;
   options.localSigma = 40e3;
   options.priorLapseRate = 0;
@@ -618,6 +628,7 @@ TEST(PointGridding, StationValuesOutsideTheLimits)
   const std::vector<Station> stations{
       {50e3, 50e3, 0, 98.0}, {100e3, 100e3, 0, 103.0}, {150e3, 150e3, 0, 150.0}};
   Options options;
+  options.residuals = Residuals::Barnes;
   options.predictors.clear();
   options.lowerLimit = 0.0;
   options.upperLimit = 100.0;
@@ -632,6 +643,88 @@ TEST(PointGridding, StationValuesOutsideTheLimits)
   const Analysis unchecked(terrain, stations, options);
   EXPECT_EQ(unchecked.status()[2], StationStatus::Used);
   EXPECT_NEAR(unchecked.predict(150e3, 150e3, 0), 100.0, 0.1);
+}
+
+TEST(PointGridding, LimitsWithOptimalInterpolation)
+{
+  // The saturated slopes of LimitsKeepSaturatedStations: in range, no station rejected, and
+  // the points agree with the grid
+  LimitCase c(10.0);
+  const auto truth = [](double, double, double h) { return std::min(100.0, 60.0 + 0.08 * h); };
+  c.addStations(truth);
+  const Terrain terrain(c.grid, c.dem);
+  Options options = limit_options(Residuals::OI);
+  options.lowerLimit = 0.0;
+  options.upperLimit = 100.0;
+  const Analysis limited(terrain, c.stations, options);
+  const auto fl = limited.grid();
+  EXPECT_LE(range_of(fl).second, 100.0);
+  EXPECT_GE(range_of(fl).first, 0.0);
+  for (std::size_t s = 0; s < c.stations.size(); s++)
+    EXPECT_EQ(limited.status()[s], StationStatus::Used) << "station " << s;
+  for (std::size_t i = 5; i < c.grid.nx; i += 10)
+  {
+    const double x = (static_cast<double>(i) + 0.5) * c.grid.dx;
+    EXPECT_NEAR(limited.predict(x, 200e3 + 2500, c.dem[i]), fl(i, 40), 1e-6) << "i=" << i;
+  }
+  // The truth is noise free, which favours the near exact Barnes passes (1.04 %) over the
+  // smoothing of the observation error in optimal interpolation (1.70 %)
+  EXPECT_LT(c.rmse(fl, truth), 2.0);
+}
+
+TEST(PointGridding, OptimalInterpolationDeclustersStations)
+{
+  // Ten stations at almost the same place west of a point and one station as far east of it.
+  // Barnes counts the cluster as ten votes, optimal interpolation as little more than one, so
+  // its estimate halfway is much nearer the mean of the two sides.
+  const Grid grid{0, 0, 5000, 80, 40};
+  const Terrain terrain(grid, std::vector<double>(grid.size(), 0.0));
+  std::vector<Station> stations;
+  for (int k = 0; k < 10; k++)
+    stations.push_back(Station{150e3 + 500.0 * k, 100e3, 0, 0.0});
+  stations.push_back(Station{250e3, 100e3, 0, 11.0});
+
+  Options options;
+  options.residuals = Residuals::OI;
+  options.predictors.clear();
+  options.bilateralSigmaH.reset();
+  options.qc = false;
+  options.localSigma = 1e7;  // the trend is the mean 1 everywhere
+  options.regionalSigma = 1e7;
+  const Analysis oi(terrain, stations, options);
+  options.residuals = Residuals::Barnes;
+  const Analysis barnes(terrain, stations, options);
+
+  const double x = 202250;  // halfway between the centre of the cluster and the station
+  const double mid = 5.5;
+  EXPECT_LT(std::abs(oi.predict(x, 100e3, 0) - mid),
+            0.6 * std::abs(barnes.predict(x, 100e3, 0) - mid));
+  EXPECT_LT(barnes.predict(x, 100e3, 0), 3.0);
+
+  // Near the stations each side keeps its own value, the single station shrunk toward the
+  // trend by the observation error
+  EXPECT_NEAR(oi.predict(152e3, 100e3, 0), 0.0, 1.0);
+  EXPECT_GT(oi.predict(250e3, 100e3, 0), 6.0);
+}
+
+TEST(PointGridding, InvalidOptimalInterpolationOptions)
+{
+  const Grid grid{0, 0, 5000, 20, 20};
+  const Terrain terrain(grid, std::vector<double>(grid.size(), 0.0));
+  const std::vector<Station> stations{{50e3, 50e3, 0, 1.0}, {60e3, 50e3, 0, 2.0}};
+  Options options;
+  options.residuals = Residuals::OI;
+  options.qc = false;
+  options.oiScales.clear();
+  EXPECT_THROW(Analysis(terrain, stations, options), Fmi::Exception);
+  options.oiScales = {50e3, 0.0};
+  EXPECT_THROW(Analysis(terrain, stations, options), Fmi::Exception);
+  options.oiScales = {50e3};
+  options.oiErrorRatio = 0;
+  EXPECT_THROW(Analysis(terrain, stations, options), Fmi::Exception);
+  options.oiErrorRatio = 0.5;
+  options.oiSigmaH = 0.0;
+  EXPECT_THROW(Analysis(terrain, stations, options), Fmi::Exception);
 }
 
 TEST(PointGridding, InvalidLimits)

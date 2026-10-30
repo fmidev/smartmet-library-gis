@@ -13,14 +13,15 @@
  *     acts as the prior of the local fit, and the regional fit is pulled toward the
  *     standard atmosphere lapse rate, so the coefficients stay sensible where the stations
  *     do not span enough height.
- *  3. Damped Barnes passes (optionally height-aware) for the residuals. Far from stations
- *     the residual relaxes to zero, so the result falls back to the terrain trend.
+ *  3. Optimal interpolation (or damped Barnes passes) of the residuals, optionally
+ *     height-aware. Far from stations the residual relaxes to zero, so the result falls back
+ *     to the terrain trend.
  *  4. The smooth fields are combined with the full-resolution terrain.
  *
  * Gaussian weighting is approximated by repeated extended box filters (Gwosdek et al.
- * 2011), as in the fast Barnes interpolation of Zürcher (2023). The cost is
- * O(stations + cells) independent of the length scales, and no neighbour searches are
- * needed.
+ * 2011), as in the fast Barnes interpolation of Zürcher (2023). The cost of the gridding is
+ * O(stations + cells) independent of the length scales. The only neighbour search is that of
+ * the optimal interpolation weights, which is over the stations, not the grid.
  *
  * All coordinates are in a projected, preferably equal-area, coordinate system in metres.
  * The grid should be fixed per area (Europe, Africa...) so that all requests for the same
@@ -95,6 +96,13 @@ enum class Predictor : std::uint8_t
   TPI      // topographic position index (h - smoothed terrain) in km
 };
 
+// How the residuals from the terrain trend are interpolated
+enum class Residuals : std::uint8_t
+{
+  Barnes,  // damped Barnes passes over Options::residualSigmas
+  OI       // optimal interpolation (simple kriging) with a fixed covariance
+};
+
 // A first guess such as a forecast, given on the terrain grid. The observations then correct
 // the background instead of being gridded on their own: the background is moved from the
 // model orography to the actual heights with Options::backgroundLapseRate, and the differences
@@ -129,14 +137,27 @@ struct Options
 
   double levelPrior = 1.0;  // pseudo stations pulling the local level toward the regional
 
-  // Residual passes. With bilateralSigmaH set the passes are height-aware:
+  // Residual analysis. Optimal interpolation solves the station weights alpha from
+  // (C + oiErrorRatio I) alpha = r, C the covariances of the residuals r at the stations, and
+  // the estimate is sum_i alpha_i c(d_i). Unlike Barnes it accounts for the redundancy of
+  // clustered stations, and it relaxes to the trend far from the stations without damping.
+  // The covariance is the mean of Gaussians of oiScales, times a height term of scale
+  // oiSigmaH when set. In cross-validation it was slightly more accurate than the Barnes
+  // passes (temperature 1.572 K vs 1.602 K) at about the same cost; the terrain trend
+  // matters far more than either.
+  Residuals residuals = Residuals::OI;
+  std::vector<double> oiScales{120e3, 50e3};  // m
+  std::optional<double> oiSigmaH = 500.0;     // m
+  double oiErrorRatio = 0.5;  // observation error variance relative to the residual variance
+
+  // Barnes residual passes. With bilateralSigmaH set the passes are height-aware:
   // w = exp(-d^2 / 2 sigma^2) * exp(-dh^2 / 2 sigmaH^2)
   std::vector<double> residualSigmas{60e3, 25e3};
   std::optional<double> bilateralSigmaH = 300.0;  // m
   double layerSpacing = 250.0;                    // m, bilateral grid layers
   double maxHeight = 4000.0;                      // m, highest bilateral layer
 
-  double damping = 0.25;  // station equivalents, residuals relax to zero far from stations
+  double damping = 0.25;  // Barnes: station equivalents, residuals relax to zero far away
 
   std::size_t coarsen = 4;  // smooth fields are computed on a grid this much coarser
 
