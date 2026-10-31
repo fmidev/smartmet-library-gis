@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.10.30
+Version: 26.11.1
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -138,6 +138,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Sun Nov  1 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.1-1.fmi
+- Point gridding: terrain covariates (Terrain::addCovariate, Options::covariates) as additional trend predictors, such as the fraction of sea smoothed over 10 km, which reduces the cross-validation RMSE by 1-3 % overall and 5-10 % on the coast. ABI change: PointGridding::Options and Terrain layout
+
 * Fri Oct 30 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.30-1.fmi
 - Point gridding: optimal interpolation of the residuals (Options::residuals, oiScales, oiSigmaH, oiErrorRatio) is the new default, slightly more accurate than the Barnes passes in cross-validation at about the same cost. ABI change: PointGridding::Options layout
 

@@ -137,6 +137,13 @@ struct Options
 
   double levelPrior = 1.0;  // pseudo stations pulling the local level toward the regional
 
+  // Terrain covariates (Terrain::addCovariate), such as the fraction of sea smoothed over
+  // 10 km, used as additional predictors of the trend. Fitted like the TPI: prior 0 and ridge
+  // penalties in station * (covariate unit)^2
+  std::vector<std::size_t> covariates;
+  double regionalCovariateRidge = 20 * 0.3 * 0.3;
+  double localCovariateRidge = 9 * 0.3 * 0.3;
+
   // Residual analysis. Optimal interpolation solves the station weights alpha from
   // (C + oiErrorRatio I) alpha = r, C the covariances of the residuals r at the stations, and
   // the estimate is sum_i alpha_i c(d_i). Unlike Barnes it accounts for the redundancy of
@@ -208,9 +215,17 @@ class Terrain
   const Field& elevation() const { return itsElevation; }
   const Field& smoothElevation() const { return itsSmoothElevation; }
 
+  // An additional field on the terrain grid, such as the fraction of sea or lakes, smoothed
+  // with a Gaussian of sigma metres (0 for none). Returns its index for Options::covariates.
+  // Add the covariates before the terrain is shared between threads.
+  std::size_t addCovariate(Field field, double sigma = 0);
+  const Field& covariate(std::size_t index) const;
+  std::size_t covariateCount() const { return itsCovariates.size(); }
+
  private:
   Field itsElevation;
   Field itsSmoothElevation;
+  std::vector<Field> itsCovariates;
 };
 
 enum class StationStatus : std::uint8_t

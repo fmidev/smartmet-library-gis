@@ -739,3 +739,71 @@ TEST(PointGridding, InvalidLimits)
   options.upperLimit = std::nan("");
   EXPECT_THROW(Analysis(terrain, stations, options), std::exception);
 }
+
+TEST(PointGridding, SeaFractionCovariate)
+{
+  // Flat terrain with sea west of x = 200 km. The truth is 3 units higher over the sea, varying
+  // with the sea fraction smoothed over 10 km, which the height and TPI cannot see.
+  const Grid grid{0, 0, 5000, 80, 40};
+  Terrain terrain(grid, std::vector<double>(grid.size(), 0.0));
+  Field sea(grid, 0.0);
+  for (std::size_t j = 0; j < grid.ny; j++)
+    for (std::size_t i = 0; i < 40; i++)
+      sea(i, j) = 1.0;
+  const std::size_t index = terrain.addCovariate(sea, 10e3);
+  const Field& fraction = terrain.covariate(index);
+  EXPECT_NEAR(fraction(0, 20), 1.0, 1e-9);  // renormalised at the edge
+  EXPECT_NEAR(fraction(79, 20), 0.0, 1e-9);
+  EXPECT_NEAR(fraction(39, 20) + fraction(40, 20), 1.0, 1e-6);
+
+  const auto truth = [&](double x, double y)
+  { return 10.0 + 3.0 * fraction.sample(x, y) + 2.0 * y / 200e3; };
+  std::vector<Station> stations;
+  std::mt19937 gen(3);
+  std::uniform_real_distribution<double> ux(5e3, 395e3);
+  std::uniform_real_distribution<double> uy(5e3, 195e3);
+  for (int s = 0; s < 40; s++)
+  {
+    const double x = ux(gen);
+    const double y = uy(gen);
+    stations.push_back(Station{x, y, 0.0, truth(x, y)});
+  }
+
+  Options options;
+  options.qc = false;
+  const auto rmse = [&](const Analysis& analysis)
+  {
+    const auto f = analysis.grid();
+    double sse = 0;
+    for (std::size_t j = 0; j < grid.ny; j++)
+      for (std::size_t i = 0; i < grid.nx; i++)
+      {
+        const double e = f(i, j) - truth((i + 0.5) * grid.dx, (j + 0.5) * grid.dx);
+        sse += e * e;
+      }
+    return std::sqrt(sse / static_cast<double>(grid.size()));
+  };
+  const double without = rmse(Analysis(terrain, stations, options));
+  options.covariates = {index};
+  const Analysis with(terrain, stations, options);
+  const double with_rmse = rmse(with);
+  // 0.78 and 0.52: the ridge shrinks the sea coefficient toward 0 with only 40 stations
+  EXPECT_LT(with_rmse, 0.75 * without) << "without " << without << ", with " << with_rmse;
+
+  options.covariates = {index + 1};
+  EXPECT_THROW(Analysis(terrain, stations, options), std::exception);
+}
+
+TEST(PointGridding, InvalidCovariates)
+{
+  const Grid grid{0, 0, 5000, 20, 20};
+  Terrain terrain(grid, std::vector<double>(grid.size(), 0.0));
+  EXPECT_THROW(terrain.addCovariate(Field(Grid{0, 0, 5000, 20, 10}, 0.0)), Fmi::Exception);
+  Field missing(grid, 0.0);
+  missing(3, 3) = std::nan("");
+  EXPECT_THROW(terrain.addCovariate(missing), Fmi::Exception);
+  EXPECT_EQ(terrain.covariateCount(), 0U);
+  EXPECT_EQ(terrain.addCovariate(Field(grid, 0.5)), 0U);
+  EXPECT_EQ(terrain.covariateCount(), 1U);
+  EXPECT_THROW(terrain.covariate(1), Fmi::Exception);
+}

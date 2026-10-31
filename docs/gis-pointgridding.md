@@ -143,11 +143,29 @@ prototype with exact Gaussian sums found the covariance scales 120 + 50 km best 
 but small next to the 35 % the terrain trend gives over plain Barnes. OI is the better choice
 mainly where stations cluster.
 
+The fraction of sea smoothed over 10 km as an additional trend predictor (`Terrain::addCovariate`,
+`Options::covariates`, from GlobCover classes 240–242 averaged onto the 2.5 km grid), 5-fold
+cross-validation on the same cases:
+
+| Covariates | Temperature (K) | Relative humidity (%) | Wind speed (m/s) | Cases better |
+|------------|-----------------|-----------------------|------------------|--------------|
+| None | 1.597 | 8.729 | 1.712 | |
+| Sea fraction, 10 km | 1.579 (−1.1 %) | 8.604 (−1.4 %) | 1.658 (−3.2 %) | 56, 68, 84 of 85 |
+| Sea fraction, 3 + 30 km | 1.566 (−2.0 %) | 8.572 (−1.8 %) | 1.650 (−3.6 %) | 62, 72, 84 |
+
+The gain is concentrated on the coast: at stations with more than half sea within 3 km the
+10 km fraction reduces the RMSE by 6.5 % for temperature, 4.7 % for humidity and 9.6 % for
+wind speed. The 3 + 30 km pair is slightly better but two scales of the same field are hard
+to justify physically, and 3 km is below the scale the trend can resolve. The fraction of
+lakes made the analysis worse at lake-dominated stations (+24 % for temperature), as did urban
+areas at urban stations (+13 %).
+
 Not worth adding, by the same cross-validation of the terrain method's errors:
 
 - Distance to the coast as a predictor. Stations whose 2.5 km cell is sea have a −0.31 K
   bias, but even a per-case fit of the errors on the coast distance only reduces the RMSE
-  from 1.602 to 1.593 K.
+  from 1.602 to 1.593 K. The smoothed sea fraction above captures more, since its
+  coefficient is fitted locally.
 - Station height relative to the cell mean. Stations 100–300 m above their cell are 0.4 K
   too cold, but a linear fit removes almost nothing since 70 % of the stations are within
   30 m of their cell mean.
@@ -281,6 +299,8 @@ saturated stations can be rejected.
 | `regionalHeightRidge`, `localHeightRidge` | 1.8, 0.81 station·km² | How much height span is needed to move the coefficient from its prior |
 | `regionalTPIRidge`, `localTPIRidge` | 0.2, 0.09 station·km² | The same for the TPI coefficient (prior 0) |
 | `levelPrior` | 1 | Pseudo stations pulling the local level to the regional one |
+| `covariates` | none | Indices of terrain covariates (`Terrain::addCovariate`) used as additional trend predictors, prior 0 |
+| `regionalCovariateRidge`, `localCovariateRidge` | 1.8, 0.81 | Ridges of the covariate coefficients in station·(covariate unit)² |
 | `residuals` | OI | Residual correction: optimal interpolation or Barnes passes |
 | `oiScales` | 120, 50 km | OI: the covariance is the mean of Gaussians of these scales |
 | `oiSigmaH` | 500 m | OI: height scale of the covariance, none for horizontal only |
@@ -298,6 +318,12 @@ saturated stations can be rejected.
 | `threads` | 0 | Threads per analysis, 0 = all cores |
 
 The TPI smoothing scale (10 km) is a `Terrain` constructor argument.
+
+A covariate is any field on the terrain grid, such as the fraction of sea, added with
+`Terrain::addCovariate(field, sigma)`, which smooths it with a Gaussian of `sigma` metres
+(renormalised at the edges) and returns its index for `Options::covariates`. Add the
+covariates before the terrain is shared between threads. The sea fraction is best smoothed
+over 10 km; values sampled at the stations and at the cells come from the smoothed field.
 
 ## 7. Performance
 

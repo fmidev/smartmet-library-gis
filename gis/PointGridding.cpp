@@ -1188,7 +1188,7 @@ class Model
     const double href =
         (itsModelElevation ? itsModelElevation->sample(x, y) : itsOptions.referenceHeight);
     for (std::size_t k = 0; k < itsBeta.size(); k++)
-      t += itsBeta[k].sample(x, y) * predictor_value(itsOptions.predictors[k], h, smooth, href);
+      t += itsBeta[k].sample(x, y) * term_at(k, x, y, h, smooth, href);
     if (itsOptions.fixedLapseRate)
       t += *itsOptions.fixedLapseRate * (h - itsOptions.referenceHeight) / 1000.0;
     return t;
@@ -1227,10 +1227,7 @@ class Model
                          (itsModelElevation ? itsModelElevation->data()[n] : href0);
                      double t = a.data()[n];
                      for (std::size_t k = 0; k < beta.size(); k++)
-                       t += beta[k].data()[n] * predictor_value(itsOptions.predictors[k],
-                                                                h,
-                                                                smooth.data()[n],
-                                                                href);
+                       t += beta[k].data()[n] * term_in_cell(k, n, h, smooth.data()[n], href);
                      if (itsOptions.fixedLapseRate)
                        t += *itsOptions.fixedLapseRate * (h - href0) / 1000.0;
                      out.data()[n] = t;
@@ -1243,6 +1240,23 @@ class Model
       limit(out, threads);
     }
     return out;
+  }
+
+  // The value of trend term k: the predictors first, then the covariates
+  double term_at(std::size_t k, double x, double y, double h, double smooth, double href) const
+  {
+    const std::size_t np = itsOptions.predictors.size();
+    if (k < np)
+      return predictor_value(itsOptions.predictors[k], h, smooth, href);
+    return itsTerrain.covariate(itsOptions.covariates[k - np]).sample(x, y);
+  }
+
+  double term_in_cell(std::size_t k, std::size_t n, double h, double smooth, double href) const
+  {
+    const std::size_t np = itsOptions.predictors.size();
+    if (k < np)
+      return predictor_value(itsOptions.predictors[k], h, smooth, href);
+    return itsTerrain.covariate(itsOptions.covariates[k - np]).data()[n];
   }
 
   std::optional<Field> coefficient(Predictor p) const
@@ -1286,13 +1300,14 @@ class Model
   TrendPredictors trend_predictors(const Obs& obs) const
   {
     const Options& opt = itsOptions;
-    const std::size_t k = opt.predictors.size();
+    const std::size_t np = opt.predictors.size();
+    const std::size_t k = np + opt.covariates.size();
     TrendPredictors tp;
     tp.values.assign(k, std::vector<double>(obs.size()));
     tp.prior.resize(k);
     tp.ridge0.resize(k);
     tp.ridge1.resize(k);
-    for (std::size_t i = 0; i < k; i++)
+    for (std::size_t i = 0; i < np; i++)
     {
       const Predictor p = opt.predictors[i];
       for (std::size_t s = 0; s < obs.size(); s++)
@@ -1303,6 +1318,15 @@ class Model
       tp.prior[i] = (height && !itsModelElevation) ? opt.priorLapseRate : 0.0;
       tp.ridge0[i] = height ? opt.regionalHeightRidge : opt.regionalTPIRidge;
       tp.ridge1[i] = height ? opt.localHeightRidge : opt.localTPIRidge;
+    }
+    for (std::size_t i = np; i < k; i++)
+    {
+      const Field& covariate = itsTerrain.covariate(opt.covariates[i - np]);
+      for (std::size_t s = 0; s < obs.size(); s++)
+        tp.values[i][s] = covariate.sample(obs.x[s], obs.y[s]);
+      tp.prior[i] = 0.0;
+      tp.ridge0[i] = opt.regionalCovariateRidge;
+      tp.ridge1[i] = opt.localCovariateRidge;
     }
     return tp;
   }
@@ -1349,7 +1373,7 @@ class Model
       for (std::size_t s = 0; s < obs.size(); s++)
         z[s] -= *opt.fixedLapseRate * (obs.h[s] - opt.referenceHeight) / 1000.0;
 
-    if (opt.predictors.empty())
+    if (opt.predictors.empty() && opt.covariates.empty())
     {
       fit_level(obs, z, threads);
       return;
@@ -1649,6 +1673,41 @@ Terrain::Terrain(const Grid& grid, std::vector<double> elevation, double tpiSigm
   {
     throw Fmi::Exception::Trace(BCP, "Failed to initialize gridding terrain");
   }
+}
+
+std::size_t Terrain::addCovariate(Field field, double sigma)
+{
+  try
+  {
+    if (!(field.grid() == grid()))
+      throw Fmi::Exception(BCP, "A covariate must be given on the terrain grid");
+    for (double v : field.values())
+      if (!std::isfinite(v))
+        throw Fmi::Exception(BCP, "A covariate must not have missing values");
+    if (sigma > 0)
+    {
+      // Renormalised near the edges like the smoothed terrain
+      Field ones(grid(), 1.0);
+      blur(field, sigma / grid().dx, 0);
+      blur(ones, sigma / grid().dx, 0);
+      for (std::size_t n = 0; n < grid().size(); n++)
+        field.data()[n] /= ones.data()[n];
+    }
+    itsCovariates.push_back(std::move(field));
+    return itsCovariates.size() - 1;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Failed to add a gridding covariate");
+  }
+}
+
+const Field& Terrain::covariate(std::size_t index) const
+{
+  if (index >= itsCovariates.size())
+    throw Fmi::Exception(BCP, "Unknown gridding covariate")
+        .addParameter("index", std::to_string(index));
+  return itsCovariates[index];
 }
 
 // ----------------------------------------------------------------------
