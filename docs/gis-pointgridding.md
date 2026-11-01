@@ -150,12 +150,12 @@ cross-validation on the same cases:
 | Covariates | Temperature (K) | Relative humidity (%) | Wind speed (m/s) | Cases better |
 |------------|-----------------|-----------------------|------------------|--------------|
 | None | 1.597 | 8.729 | 1.712 | |
-| Sea fraction, 10 km (default use) | 1.575 (−1.4 %) | 8.611 (−1.4 %) | 1.660 (−3.1 %) | 61, 68, 83 of 85 |
+| Sea fraction, 10 km (default use) | 1.576 (−1.3 %) | 8.599 (−1.5 %) | 1.658 (−3.1 %) | 62, 70, 84 of 85 |
 | The same without the limits below | 1.579 (−1.1 %) | 8.604 (−1.4 %) | 1.658 (−3.2 %) | 56, 68, 84 |
 | Sea fractions of 3 + 30 km, without the limits | 1.566 (−2.0 %) | 8.572 (−1.8 %) | 1.650 (−3.6 %) | 62, 72, 84 |
 
 The gain is concentrated on the coast: at stations with more than half sea within 3 km the
-10 km fraction reduces the RMSE by 8.8 % for temperature, 5.1 % for humidity and 8.9 % for
+10 km fraction reduces the RMSE by 7.9 % for temperature, 5.2 % for humidity and 9.4 % for
 wind speed. The 3 + 30 km pair is slightly better but two scales of the same field are hard
 to justify physically, and 3 km is below the scale the trend can resolve. The fraction of
 lakes made the analysis worse at lake-dominated stations (+24 % for temperature), as did urban
@@ -327,7 +327,9 @@ covariates before the terrain is shared between threads. The sea fraction is bes
 over 10 km; values sampled at the stations and at the cells come from the smoothed field.
 
 The trend limits each covariate to the range of its values at the stations within
-`localSigma` of the cell, or where there are none, at the nearest stations. The coefficient
+`localSigma` of the cell, or where there are none, at the nearest stations. The bounds are
+smoothed (σ = `localSigma`/4, over a window widened accordingly so that they still enclose
+those stations), since a plain running maximum would leave steps in the trend. The coefficient
 of the sea fraction is fitted on coastal stations, which seldom have more than half sea
 around them; without the limits the trend would extrapolate their sea effect to the open
 sea, where the fraction is 1. The limits do not change the fit at the stations.

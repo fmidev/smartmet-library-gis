@@ -1154,8 +1154,12 @@ void running_max(std::vector<double>& v, std::size_t nx, std::size_t ny, std::si
   }
 }
 
-// The largest value of the stations within radius of each cell (a square window), or where
-// there are none, of the nearest stations found by widening the window
+// A smooth upper bound of the values of the stations within radius of each cell, or where
+// there are none, of the nearest stations found by widening the window. The running maximum
+// is piecewise constant and would leave steps in the trend, so it is taken over a window
+// widened by three smoothing sigmas and then blurred: every cell within those three sigmas
+// has the stations within radius of the cell in its window, so the blurred bound still
+// exceeds them.
 Field nearby_max(const Grid& grid, const Obs& obs, const std::vector<double>& values, double radius)
 {
   const double inf = std::numeric_limits<double>::infinity();
@@ -1173,7 +1177,9 @@ Field nearby_max(const Grid& grid, const Obs& obs, const std::vector<double>& va
                           cell(obs.x[s], grid.x0, grid.dx, grid.nx);
     v[n] = std::max(v[n], values[s]);
   }
-  const auto r = static_cast<std::size_t>(std::max(1.0, std::round(radius / grid.dx)));
+  const double sigma = radius / 4;
+  const auto r =
+      static_cast<std::size_t>(std::max(1.0, std::ceil((radius + 3 * sigma) / grid.dx)));
   running_max(v, grid.nx, grid.ny, r);
   auto wider = v;
   while (std::find(v.begin(), v.end(), -inf) != v.end())
@@ -1183,7 +1189,15 @@ Field nearby_max(const Grid& grid, const Obs& obs, const std::vector<double>& va
       if (v[n] == -inf)
         v[n] = wider[n];
   }
-  return Field(grid, std::move(v));
+
+  // Blur with a zero boundary condition, renormalised near the edges
+  Field bound(grid, std::move(v));
+  Field ones(grid, 1.0);
+  blur(bound, sigma / grid.dx, 0);
+  blur(ones, sigma / grid.dx, 0);
+  for (std::size_t n = 0; n < grid.size(); n++)
+    bound.data()[n] /= ones.data()[n];
+  return bound;
 }
 
 class Model
