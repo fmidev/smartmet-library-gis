@@ -807,3 +807,44 @@ TEST(PointGridding, InvalidCovariates)
   EXPECT_EQ(terrain.covariateCount(), 1U);
   EXPECT_THROW(terrain.covariate(1), Fmi::Exception);
 }
+
+TEST(PointGridding, CovariatesAreNotExtrapolated)
+{
+  // Sea west of x = 200 km and stations only on the land east of x = 200 km, where the sea
+  // fraction smoothed over 10 km stays below 0.5. At sea, where the fraction is 1, the trend
+  // must not extrapolate the coastal sea effect.
+  const Grid grid{0, 0, 5000, 80, 40};
+  Terrain terrain(grid, std::vector<double>(grid.size(), 0.0));
+  Field sea(grid, 0.0);
+  for (std::size_t j = 0; j < grid.ny; j++)
+    for (std::size_t i = 0; i < 40; i++)
+      sea(i, j) = 1.0;
+  const std::size_t index = terrain.addCovariate(sea, 10e3);
+  const Field& fraction = terrain.covariate(index);
+
+  std::vector<Station> stations;
+  double max_fraction = 0;
+  double max_value = 0;
+  for (double x = 202.5e3; x < 400e3; x += 10e3)
+    for (double y = 10e3; y < 200e3; y += 30e3)
+    {
+      const double f = fraction.sample(x, y);
+      max_fraction = std::max(max_fraction, f);
+      stations.push_back(Station{x, y, 0.0, 10.0 + 10.0 * f});
+      max_value = std::max(max_value, stations.back().value);
+    }
+  ASSERT_LT(max_fraction, 0.5);
+
+  Options options;
+  options.qc = false;
+  options.covariates = {index};
+  const Analysis analysis(terrain, stations, options);
+  const auto f = analysis.grid();
+  // Across the sea the trend keeps the largest sea effect seen at the stations. Without the
+  // limits it would rise to 15.6 at 50 km from the coast.
+  for (std::size_t i = 0; i < 36; i++)
+    EXPECT_LT(f(i, 20), max_value) << "i=" << i;
+  EXPECT_LT(analysis.predict(152.5e3, 102.5e3, 0), max_value);
+  // Near the stations the sea effect is still there
+  EXPECT_GT(f(39, 20), 12.0);
+}

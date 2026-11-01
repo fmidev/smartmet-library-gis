@@ -1128,6 +1128,64 @@ class OiStage : public Stage
  */
 // ----------------------------------------------------------------------
 
+// Running maximum over windows of 2r+1 cells in both directions. Empty cells are -inf.
+void running_max(std::vector<double>& v, std::size_t nx, std::size_t ny, std::size_t r)
+{
+  std::vector<double> tmp(v.size());
+  for (std::size_t j = 0; j < ny; j++)
+    for (std::size_t i = 0; i < nx; i++)
+    {
+      double m = -std::numeric_limits<double>::infinity();
+      const std::size_t i1 = std::min(nx - 1, i + r);
+      for (std::size_t k = (i > r ? i - r : 0); k <= i1; k++)
+        m = std::max(m, v[j * nx + k]);
+      tmp[j * nx + i] = m;
+    }
+  for (std::size_t j = 0; j < ny; j++)
+  {
+    const std::size_t j1 = std::min(ny - 1, j + r);
+    for (std::size_t i = 0; i < nx; i++)
+    {
+      double m = -std::numeric_limits<double>::infinity();
+      for (std::size_t k = (j > r ? j - r : 0); k <= j1; k++)
+        m = std::max(m, tmp[k * nx + i]);
+      v[j * nx + i] = m;
+    }
+  }
+}
+
+// The largest value of the stations within radius of each cell (a square window), or where
+// there are none, of the nearest stations found by widening the window
+Field nearby_max(const Grid& grid, const Obs& obs, const std::vector<double>& values, double radius)
+{
+  const double inf = std::numeric_limits<double>::infinity();
+  if (obs.size() == 0)
+    return Field(grid, inf);
+  std::vector<double> v(grid.size(), -inf);
+  const auto cell = [](double c, double c0, double dx, std::size_t n)
+  {
+    const double f = std::floor((c - c0) / dx);
+    return static_cast<std::size_t>(std::clamp(f, 0.0, static_cast<double>(n - 1)));
+  };
+  for (std::size_t s = 0; s < obs.size(); s++)
+  {
+    const std::size_t n = cell(obs.y[s], grid.y0, grid.dx, grid.ny) * grid.nx +
+                          cell(obs.x[s], grid.x0, grid.dx, grid.nx);
+    v[n] = std::max(v[n], values[s]);
+  }
+  const auto r = static_cast<std::size_t>(std::max(1.0, std::round(radius / grid.dx)));
+  running_max(v, grid.nx, grid.ny, r);
+  auto wider = v;
+  while (std::find(v.begin(), v.end(), -inf) != v.end())
+  {
+    running_max(wider, grid.nx, grid.ny, r);
+    for (std::size_t n = 0; n < v.size(); n++)
+      if (v[n] == -inf)
+        v[n] = wider[n];
+  }
+  return Field(grid, std::move(v));
+}
+
 class Model
 {
  public:
@@ -1187,8 +1245,16 @@ class Model
     double t = itsA.sample(x, y);
     const double href =
         (itsModelElevation ? itsModelElevation->sample(x, y) : itsOptions.referenceHeight);
+    const std::size_t np = itsOptions.predictors.size();
     for (std::size_t k = 0; k < itsBeta.size(); k++)
-      t += itsBeta[k].sample(x, y) * term_at(k, x, y, h, smooth, href);
+    {
+      const double term =
+          (k < np ? predictor_value(itsOptions.predictors[k], h, smooth, href)
+                  : std::clamp(itsTerrain.covariate(itsOptions.covariates[k - np]).sample(x, y),
+                               itsCovariateLow[k - np].sample(x, y),
+                               itsCovariateHigh[k - np].sample(x, y)));
+      t += itsBeta[k].sample(x, y) * term;
+    }
     if (itsOptions.fixedLapseRate)
       t += *itsOptions.fixedLapseRate * (h - itsOptions.referenceHeight) / 1000.0;
     return t;
@@ -1213,6 +1279,14 @@ class Model
     std::vector<Field> beta;
     for (const auto& b : itsBeta)
       beta.push_back(b.resample(g));
+    std::vector<Field> low;
+    std::vector<Field> high;
+    for (std::size_t c = 0; c < itsCovariateLow.size(); c++)
+    {
+      low.push_back(itsCovariateLow[c].resample(g));
+      high.push_back(itsCovariateHigh[c].resample(g));
+    }
+    const std::size_t np = itsOptions.predictors.size();
 
     Field out(g);
     const double href0 = itsOptions.referenceHeight;
@@ -1227,7 +1301,20 @@ class Model
                          (itsModelElevation ? itsModelElevation->data()[n] : href0);
                      double t = a.data()[n];
                      for (std::size_t k = 0; k < beta.size(); k++)
-                       t += beta[k].data()[n] * term_in_cell(k, n, h, smooth.data()[n], href);
+                     {
+                       double term = 0;
+                       if (k < np)
+                         term =
+                             predictor_value(itsOptions.predictors[k], h, smooth.data()[n], href);
+                       else
+                       {
+                         const std::size_t c = k - np;
+                         term = std::clamp(itsTerrain.covariate(itsOptions.covariates[c]).data()[n],
+                                           low[c].data()[n],
+                                           high[c].data()[n]);
+                       }
+                       t += beta[k].data()[n] * term;
+                     }
                      if (itsOptions.fixedLapseRate)
                        t += *itsOptions.fixedLapseRate * (h - href0) / 1000.0;
                      out.data()[n] = t;
@@ -1240,23 +1327,6 @@ class Model
       limit(out, threads);
     }
     return out;
-  }
-
-  // The value of trend term k: the predictors first, then the covariates
-  double term_at(std::size_t k, double x, double y, double h, double smooth, double href) const
-  {
-    const std::size_t np = itsOptions.predictors.size();
-    if (k < np)
-      return predictor_value(itsOptions.predictors[k], h, smooth, href);
-    return itsTerrain.covariate(itsOptions.covariates[k - np]).sample(x, y);
-  }
-
-  double term_in_cell(std::size_t k, std::size_t n, double h, double smooth, double href) const
-  {
-    const std::size_t np = itsOptions.predictors.size();
-    if (k < np)
-      return predictor_value(itsOptions.predictors[k], h, smooth, href);
-    return itsTerrain.covariate(itsOptions.covariates[k - np]).data()[n];
   }
 
   std::optional<Field> coefficient(Predictor p) const
@@ -1411,6 +1481,23 @@ class Model
 
     itsA = std::move(local.a);
     itsBeta = std::move(local.beta);
+
+    // The covariates are limited to the range of the stations near each cell. The trend
+    // terms come after the predictors, the covariates last. Without the limits a coefficient
+    // fitted on coastal stations with some sea around them would be extrapolated to the
+    // open sea, where the fraction of sea is 1.
+    const std::size_t np = opt.predictors.size();
+    for (std::size_t c = 0; c < opt.covariates.size(); c++)
+    {
+      const auto& v = tp.values[np + c];
+      std::vector<double> negated(v.size());
+      std::transform(v.begin(), v.end(), negated.begin(), std::negate<>());
+      itsCovariateHigh.push_back(nearby_max(itsCoarse, obs, v, opt.localSigma));
+      Field low = nearby_max(itsCoarse, obs, negated, opt.localSigma);
+      for (std::size_t n = 0; n < itsCoarse.size(); n++)
+        low.data()[n] = -low.data()[n];
+      itsCovariateLow.push_back(std::move(low));
+    }
   }
 
   const Terrain& itsTerrain;
@@ -1421,6 +1508,8 @@ class Model
   const Field* itsBase = nullptr;
   Field itsA;
   std::vector<Field> itsBeta;
+  std::vector<Field> itsCovariateLow;  // the range of the covariates at nearby stations
+  std::vector<Field> itsCovariateHigh;
   std::vector<std::unique_ptr<Stage>> itsStages;
 };
 

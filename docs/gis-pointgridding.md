@@ -325,6 +325,12 @@ A covariate is any field on the terrain grid, such as the fraction of sea, added
 covariates before the terrain is shared between threads. The sea fraction is best smoothed
 over 10 km; values sampled at the stations and at the cells come from the smoothed field.
 
+The trend limits each covariate to the range of its values at the stations within
+`localSigma` of the cell, or where there are none, at the nearest stations. The coefficient
+of the sea fraction is fitted on coastal stations, which seldom have more than half sea
+around them; without the limits the trend would extrapolate their sea effect to the open
+sea, where the fraction is 1. The limits do not change the fit at the stations.
+
 ## 7. Performance
 
 Full Europe, 2000×1760 cells at 2.5 km, 2800 stations, 24 threads: about 0.38 s for the fit
