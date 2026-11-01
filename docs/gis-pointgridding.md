@@ -150,11 +150,12 @@ cross-validation on the same cases:
 | Covariates | Temperature (K) | Relative humidity (%) | Wind speed (m/s) | Cases better |
 |------------|-----------------|-----------------------|------------------|--------------|
 | None | 1.597 | 8.729 | 1.712 | |
-| Sea fraction, 10 km | 1.579 (−1.1 %) | 8.604 (−1.4 %) | 1.658 (−3.2 %) | 56, 68, 84 of 85 |
-| Sea fraction, 3 + 30 km | 1.566 (−2.0 %) | 8.572 (−1.8 %) | 1.650 (−3.6 %) | 62, 72, 84 |
+| Sea fraction, 10 km (default use) | 1.575 (−1.4 %) | 8.611 (−1.4 %) | 1.660 (−3.1 %) | 61, 68, 83 of 85 |
+| The same without the limits below | 1.579 (−1.1 %) | 8.604 (−1.4 %) | 1.658 (−3.2 %) | 56, 68, 84 |
+| Sea fractions of 3 + 30 km, without the limits | 1.566 (−2.0 %) | 8.572 (−1.8 %) | 1.650 (−3.6 %) | 62, 72, 84 |
 
 The gain is concentrated on the coast: at stations with more than half sea within 3 km the
-10 km fraction reduces the RMSE by 6.5 % for temperature, 4.7 % for humidity and 9.6 % for
+10 km fraction reduces the RMSE by 8.8 % for temperature, 5.1 % for humidity and 8.9 % for
 wind speed. The 3 + 30 km pair is slightly better but two scales of the same field are hard
 to justify physically, and 3 km is below the scale the trend can resolve. The fraction of
 lakes made the analysis worse at lake-dominated stations (+24 % for temperature), as did urban
