@@ -109,7 +109,7 @@ class LineFilter
   VertexCounter m_counter;          // how many times a vertex appears in the full geometry
   Weight m_filter;                  // filterer
   std::vector<double> m_distances;  // distances between adjacent vertices in current polyline
-  std::vector<int> m_counts;        // occurrance counts for current polyline
+  std::vector<int> m_counts;        // occurrence counts for current polyline
   OGRPoint m_first_point{0, 0};
   OGRPoint m_prev_point{0, 0};
   int m_first_pos = 0;
@@ -142,7 +142,7 @@ class LineFilter
   // Start filtering from a point. Returns false if smoothing at the vertex is disabled
   bool reset(const OGRPoint* point, int i)
   {
-    // Indicate filtering not accepted atleast yet for append()
+    // Indicate filtering not accepted at least yet for append()
     m_total_weight = 0;
     m_from_cache = false;
     m_debug = false;
@@ -153,7 +153,7 @@ class LineFilter
       return false;
 
     // Cannot smoothen a point if when adjacent points are not allowed either or there would
-    // be a gap beetween isobands where they diverge
+    // be a gap between isobands where they diverge
     long n = m_counts.size();
     if (m_closed)
     {
@@ -277,7 +277,7 @@ class LineFilter
 
   void count(const OGRGeometry* geom) { m_counter.add(geom); }
 
-  // Initialize occurrance counts
+  // Initialize occurrence counts
   void init_counts(const OGRLineString* geom)
   {
     const auto n = geom->getNumPoints();

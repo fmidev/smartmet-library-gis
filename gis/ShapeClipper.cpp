@@ -489,7 +489,7 @@ void Fmi::ShapeClipper::reconnect()
       add_vertex_counts(counts, itsExteriorLines);
       add_vertex_counts(counts, itsInteriorLines);
 
-      // Remove single occurrances for hopefully improved speed during the next stages.
+      // Remove single occurrences for hopefully improved speed during the next stages.
       // The usefulness of this has not been profiled, and is just a guesstimate.
       remove_singles(counts);
 

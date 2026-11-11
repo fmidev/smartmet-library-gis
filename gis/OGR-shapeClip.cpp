@@ -1,6 +1,6 @@
 /*
 
- When a polylon or polyline is clipped with a rectangle, the possible cases
+ When a polygon or polyline is clipped with a rectangle, the possible cases
  when handling an individual line segment based on the location of its end points are:
 
  1. in-in

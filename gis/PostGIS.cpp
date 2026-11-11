@@ -494,7 +494,7 @@ void add_attributes(OGRFeature& feature,
  *
  * \param theSR nullptr, if original SR in database is desired
  * \param theName "schema.table"
- * \param theFieldNames names of the fileds to be fetched
+ * \param theFieldNames names of the fields to be fetched
  * \return Features return value contains geometries and related attributes
  */
 // ----------------------------------------------------------------------

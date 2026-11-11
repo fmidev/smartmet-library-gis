@@ -99,7 +99,7 @@ class OGRCoordinateTransformationPool
   std::size_t m_maxsize = 40UL * 40UL;
 };
 
-// Actual objet pool
+// Actual object pool
 OGRCoordinateTransformationPool gPool;
 
 // Clear the pool (deleting PROJ-backed transformations) via AtExit before the

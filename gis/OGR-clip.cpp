@@ -1,6 +1,6 @@
 /*
 
-  When a polylon or polyline is clipped with a rectangle, the possible cases
+  When a polygon or polyline is clipped with a rectangle, the possible cases
   when handling an individual line segment based on the location of its end points are:
 
   1. in-in
@@ -1319,7 +1319,7 @@ void do_polygon_to_polygons(const OGRPolygon *theGeom,
     // - Intact ones are retained as is
     // - If there are no merges, bbox becomes a new hole
 
-    // std::cerr << "Prosessing holes\n";
+    // std::cerr << "Processing holes\n";
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; ++i)
     {

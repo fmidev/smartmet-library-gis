@@ -48,7 +48,7 @@ class SpatialReference
   SpatialReference &operator=(const SpatialReference &other) = delete;
   SpatialReference &operator=(SpatialReference &&other) = delete;
 
-  // Excplicit and implicit accessors
+  // Explicit and implicit accessors
 
   const OGRSpatialReference &operator*() const;
   OGRSpatialReference *get() const;
