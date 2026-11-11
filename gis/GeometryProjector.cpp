@@ -594,6 +594,35 @@ bool isDegenerateWorldRing(const OGRLineString& geo,
   return isDegenerate;
 }
 
+// True if the box centre is inside the ring formed by concatenating the projected runs.
+// Only meaningful when no projected edge intersects the box, since then the box is
+// either completely inside or completely outside the ring.
+bool boxInsideProjectedRing(const LineStrings& projRuns, const ProjectionBoundary& b)
+{
+  const double cx = 0.5 * (b.minX + b.maxX);
+  const double cy = 0.5 * (b.minY + b.maxY);
+
+  std::vector<std::pair<double, double>> pts;
+  for (const auto& run : projRuns)
+    if (run)
+      for (int i = 0; i < run->getNumPoints(); ++i)
+        pts.emplace_back(run->getX(i), run->getY(i));
+
+  if (pts.size() < 3)
+    return false;
+
+  // Even-odd ray casting, the closing segment back to the first point included
+  bool inside = false;
+  for (std::size_t i = 0, j = pts.size() - 1; i < pts.size(); j = i++)
+  {
+    const auto [xi, yi] = pts[i];
+    const auto [xj, yj] = pts[j];
+    if ((yi > cy) != (yj > cy) && cx < xj + (cy - yj) * (xi - xj) / (yi - yj))
+      inside = !inside;
+  }
+  return inside;
+}
+
 // Snap the end points of the line to the exact box boundary if they are within tolerance
 void snapToExactBoundary(OGRLineString* line, const ProjectionBoundary& b, double tol)
 {
@@ -802,6 +831,9 @@ class GeometryProjector::Impl
 
   double m_densifyKm = 50.0;  // default densification is to 50 km
 
+  // Minimum distance from the box centre for rejecting projected points as implausible
+  double m_minRejectionMargin = 0.0;
+
   // ---- core dispatch ----
   std::unique_ptr<OGRGeometry> projectPoint(const OGRPoint* point);
   std::unique_ptr<OGRGeometry> projectLineString(const OGRLineString* line);
@@ -821,7 +853,8 @@ class GeometryProjector::Impl
                               bool isExterior,
                               const ProjectionBoundary& b,
                               double eps,
-                              Fmi::RectClipper& clipper) const;
+                              Fmi::RectClipper& clipper,
+                              bool& boxInsideHole) const;
 
   // ---- best-effort projection helpers ----
   std::vector<std::unique_ptr<OGRLineString>> projectToProjectedRunsBestEffort(
@@ -844,6 +877,14 @@ GeometryProjector::Impl::Impl(OGRSpatialReference* sourceSRS, OGRSpatialReferenc
 
   m_sourceSRS->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
   m_targetSRS->SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+
+  // Half of the Earth's circumference in target units for projected systems
+  if (m_targetSRS->IsProjected())
+  {
+    const double units = m_targetSRS->GetLinearUnits();  // metres per unit
+    if (units > 0)
+      m_minRejectionMargin = 20000e3 / units;
+  }
 
   m_transform.reset(OGRCreateCoordinateTransformation(m_sourceSRS.get(), m_targetSRS.get()));
   m_inverseTransform.reset(OGRCreateCoordinateTransformation(m_targetSRS.get(), m_sourceSRS.get()));
@@ -1055,7 +1096,10 @@ std::unique_ptr<OGRPoint> GeometryProjector::Impl::projectSinglePoint(double x,
   // avoid rejecting legitimate far-outside points that will be clipped.
   const double boxW = m_projectedBounds[2] - m_projectedBounds[0];
   const double boxH = m_projectedBounds[3] - m_projectedBounds[1];
-  const double margin = 10.0 * std::max(boxW, boxH);
+  // The margin never drops below the size of the Earth. Otherwise, for small boxes
+  // such as zoomed in map tiles, the vertices of large polygons covering the box
+  // would all be rejected, and the polygon would disappear.
+  const double margin = std::max(10.0 * std::max(boxW, boxH), m_minRejectionMargin);
   const double centerX = 0.5 * (m_projectedBounds[0] + m_projectedBounds[2]);
   const double centerY = 0.5 * (m_projectedBounds[1] + m_projectedBounds[3]);
   if (std::abs(px - centerX) > margin || std::abs(py - centerY) > margin)
@@ -1107,7 +1151,8 @@ bool GeometryProjector::Impl::projectRingIntoClipper(const OGRLinearRing* ring,
                                                      bool isExterior,
                                                      const ProjectionBoundary& b,
                                                      double eps,
-                                                     Fmi::RectClipper& clipper) const
+                                                     Fmi::RectClipper& clipper,
+                                                     bool& boxInsideHole) const
 {
   if (!ring || ring->getNumPoints() < 4)
     return false;
@@ -1202,8 +1247,7 @@ bool GeometryProjector::Impl::projectRingIntoClipper(const OGRLinearRing* ring,
   //   Signature: 0 clipped runs despite successful projection (projRuns non-empty).
   //
   // Fix for both: substitute the bounding-box rectangle as the exterior ring.
-  if (isExterior && clippedRuns.size() <= 1 &&
-      isDegenerateWorldRing(*geo, projRuns, clippedRuns, b))
+  auto addBoxAsExterior = [&]()
   {
     auto* ring = new OGRLinearRing;  // NOLINT
     ring->addPoint(b.minX, b.minY);
@@ -1212,6 +1256,24 @@ bool GeometryProjector::Impl::projectRingIntoClipper(const OGRLinearRing* ring,
     ring->addPoint(b.minX, b.maxY);
     ring->addPoint(b.minX, b.minY);
     clipper.addExterior(ring);
+  };
+
+  if (isExterior && clippedRuns.size() <= 1 &&
+      isDegenerateWorldRing(*geo, projRuns, clippedRuns, b))
+  {
+    addBoxAsExterior();
+    return true;
+  }
+
+  // No edge of a regular ring intersects the box: the box is either completely
+  // inside or completely outside the ring. If inside an exterior, the whole box
+  // is covered. If inside a hole, nothing of the polygon is visible.
+  if (clippedRuns.empty() && boxInsideProjectedRing(projRuns, b))
+  {
+    if (isExterior)
+      addBoxAsExterior();
+    else
+      boxInsideHole = true;
     return true;
   }
 
@@ -1242,13 +1304,15 @@ std::unique_ptr<OGRGeometry> GeometryProjector::Impl::splitPolygonWithHolesFast(
   if (!ext || ext->getNumPoints() < 4)
     return nullptr;
 
-  projectRingIntoClipper(ext, /*isExterior=*/true, b, eps, clipper);
+  bool boxInsideHole = false;
+  projectRingIntoClipper(ext, /*isExterior=*/true, b, eps, clipper, boxInsideHole);
 
   // Project holes
-  for (int i = 0; i < polygon->getNumInteriorRings(); ++i)
-    projectRingIntoClipper(polygon->getInteriorRing(i), /*isExterior=*/false, b, eps, clipper);
+  for (int i = 0; i < polygon->getNumInteriorRings() && !boxInsideHole; ++i)
+    projectRingIntoClipper(
+        polygon->getInteriorRing(i), /*isExterior=*/false, b, eps, clipper, boxInsideHole);
 
-  if (clipper.empty())
+  if (boxInsideHole || clipper.empty())
     return nullptr;
 
   clipper.reconnect();

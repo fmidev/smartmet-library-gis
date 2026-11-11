@@ -1248,6 +1248,106 @@ TEST(AdditionalTests, JumpThreshold_ZeroThreshold_DisablesJumpDetection)
   (void)out;
 }
 
+// ============================================================================
+// Small boxes (zoomed in map tiles) with no polygon edge inside the box
+// ============================================================================
+
+namespace
+{
+// Radar coverage area mask of www.ilmatieteenlaitos.fi
+const char* coverage_wkt =
+    "POLYGON((21.25 57.72, 22.73 57.78, 24.25 58.14, 28.83 58.66, 29.96 58.97, 31.30 59.65, "
+    "32.70 59.95, 34.25 60.82, 34.91 61.97, 34.40 63.01, 34.83 64.32, 34.13 65.15, 32.15 65.95, "
+    "33.99 68.44, 32.98 69.81, 30.19 70.64, 26.40 70.81, 23.42 70.38, 21.33 69.42, 20.70 67.38, "
+    "21.47 66.08, 20.73 65.12, 19.16 64.36, 17.60 62.56, 17.50 61.40, 16.95 60.78, 16.81 60.04, "
+    "17.19 59.28, 18.25 58.45, 19.45 57.98, 21.18 57.75, 21.25 57.72))";
+
+// Web Mercator tile of the given zoom level centered at lon,lat
+Bounds mercatorTile(double lon, double lat, int zoom)
+{
+  const double R = 6378137.0;
+  const double cx = R * lon * M_PI / 180.0;
+  const double cy = R * std::log(std::tan(M_PI / 4 + lat * M_PI / 360.0));
+  const double w = 2 * M_PI * R / (1 << zoom);
+  return Bounds{cx - w / 2, cy - w / 2, cx + w / 2, cy + w / 2};
+}
+
+std::unique_ptr<OGRGeometry> projectToTile(const char* wkt, const Bounds& b)
+{
+  OGRSpatialReference wgs84 = makeSRS(4326);
+  OGRSpatialReference merc = makeSRS(3857);
+  OGRGeometry* g = nullptr;
+  if (OGRGeometryFactory::createFromWkt(wkt, nullptr, &g) != OGRERR_NONE)
+    throw std::runtime_error("Invalid WKT in test");
+  std::unique_ptr<OGRGeometry> geom(g);
+  Fmi::GeometryProjector p(&wgs84, &merc);
+  p.setProjectedBounds(b.minX, b.minY, b.maxX, b.maxY);
+  return p.projectGeometry(geom.get());
+}
+
+double area(const OGRGeometry* g)
+{
+  if (!g || g->IsEmpty())
+    return 0;
+  const auto gt = wkbFlatten(g->getGeometryType());
+  if (gt == wkbPolygon)
+    return static_cast<const OGRPolygon*>(g)->get_Area();
+  if (gt == wkbMultiPolygon)
+    return static_cast<const OGRMultiPolygon*>(g)->get_Area();
+  return 0;
+}
+}  // namespace
+
+TEST(AdditionalTests, SmallBox_InsidePolygon_FillsWholeBox)
+{
+  static GdalInitGuard guard;
+  for (int zoom = 6; zoom <= 18; ++zoom)
+  {
+    const auto b = mercatorTile(24.94, 60.17, zoom);  // Helsinki
+    auto out = projectToTile(coverage_wkt, b);
+    const double boxArea = (b.maxX - b.minX) * (b.maxY - b.minY);
+    EXPECT_NEAR(area(out.get()), boxArea, 1e-6 * boxArea) << "zoom " << zoom;
+  }
+}
+
+TEST(AdditionalTests, SmallBox_OutsidePolygon_IsEmpty)
+{
+  static GdalInitGuard guard;
+  for (int zoom = 6; zoom <= 18; ++zoom)
+  {
+    const auto b = mercatorTile(13.40, 52.52, zoom);  // Berlin
+    auto out = projectToTile(coverage_wkt, b);
+    EXPECT_EQ(area(out.get()), 0.0) << "zoom " << zoom;
+  }
+}
+
+TEST(AdditionalTests, SmallBox_InsideHole_IsEmpty)
+{
+  static GdalInitGuard guard;
+  const char* wkt =
+      "POLYGON((10 50, 40 50, 40 75, 10 75, 10 50),(20 55, 30 55, 30 65, 20 65, 20 55))";
+  for (int zoom = 6; zoom <= 18; ++zoom)
+  {
+    const auto b = mercatorTile(25.0, 60.0, zoom);
+    auto out = projectToTile(wkt, b);
+    EXPECT_EQ(area(out.get()), 0.0) << "zoom " << zoom;
+  }
+}
+
+TEST(AdditionalTests, SmallBox_CrossedByEdge_IsPartiallyCovered)
+{
+  static GdalInitGuard guard;
+  // The western edge of the polygon at lon=20 runs through the middle of the tile
+  const char* wkt = "POLYGON((20 50, 40 50, 40 75, 20 75, 20 50))";
+  for (int zoom = 10; zoom <= 18; ++zoom)
+  {
+    const auto b = mercatorTile(20.0, 62.0, zoom);
+    auto out = projectToTile(wkt, b);
+    const double boxArea = (b.maxX - b.minX) * (b.maxY - b.minY);
+    EXPECT_NEAR(area(out.get()), 0.5 * boxArea, 1e-3 * boxArea) << "zoom " << zoom;
+  }
+}
+
 int main(int argc, char** argv)
 {
   // Clear the SpatialReference/PROJ-backed caches before unordered static

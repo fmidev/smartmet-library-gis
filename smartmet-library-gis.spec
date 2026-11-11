@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.11.1
+Version: 26.11.11
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -138,6 +138,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Wed Nov 11 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.11-1.fmi
+- GeometryProjector: a polygon covering the whole projected box without any edges inside it is no longer projected to an empty geometry, the box is filled (or emptied if inside a hole). Also projected vertices are no longer rejected as implausible if they are within half the circumference of the Earth from the box, which made polygons disappear or lose edges in zoomed in map tiles
+
 * Sun Nov  1 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.1-1.fmi
 - Point gridding: terrain covariates (Terrain::addCovariate, Options::covariates) as additional trend predictors, such as the fraction of sea smoothed over 10 km, which reduces the cross-validation RMSE by 1.3-3.1 % overall and 5-9 % on the coast. The covariates are limited to a smooth bound of their range at nearby stations, so that a coastal sea effect is not extrapolated to the open sea. ABI change: PointGridding::Options and Terrain layout
 
