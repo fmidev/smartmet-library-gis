@@ -1,7 +1,8 @@
 #include "GeometryBuilder.h"
-
 #include <macgyver/Exception.h>
-#include <iostream>
+#include <cstddef>
+#include <ogr_geometry.h>
+#include <string>
 
 namespace Fmi
 {

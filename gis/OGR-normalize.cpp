@@ -1,7 +1,9 @@
 #include "OGR.h"
-#include <macgyver/DebugTools.h>
 #include <macgyver/Exception.h>
+#include <macgyver/TypeName.h>
 #include <ogr_geometry.h>
+#include <string>
+#include <typeinfo>
 
 namespace
 {

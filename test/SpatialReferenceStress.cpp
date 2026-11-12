@@ -18,22 +18,20 @@
 // OGRSpatialReference at the same time. A shared cache guarantees they always
 // do; giving each caller its own clone guarantees they never do.
 
-#include "OGR.h"
-#include "OGRSpatialReferenceFactory.h"
-#include "SpatialReference.h"
 #include "CoordinateTransformation.h"
+#include "OGRSpatialReferenceFactory.h"
 #include "ProjInfo.h"
-
-#include <ogr_spatialref.h>
-
+#include "SpatialReference.h"
 #include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
+#include <initializer_list>
 #include <map>
-#include <set>
+#include <memory>
 #include <mutex>
+#include <ogr_spatialref.h>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>

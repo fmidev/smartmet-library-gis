@@ -1,9 +1,12 @@
 #pragma once
 
 #include "Shape.h"
+#include <iosfwd>
 
 namespace Fmi
 {
+class ShapeClipper;
+
 class Shape_rect : public Shape
 {
  public:

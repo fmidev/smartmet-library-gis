@@ -8,13 +8,15 @@
  */
 // ======================================================================
 
-#include <gtest/gtest.h>
-
 #include "TimeZoneFinder.h"
+#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
 #include <limits>
-#include <stdexcept>
+#include <optional>
+#include <string>
+#include <vector>
 
 #ifndef GTEST_SKIP
 // RHEL8 ships gtest 1.8.0, GTEST_SKIP is available only since 1.10.0

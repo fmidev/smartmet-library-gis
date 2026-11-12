@@ -1,6 +1,10 @@
+#include "BBox.h"
 #include "EPSGInfo.h"
-#include "TestDefs.h"
 #include <regression/tframe.h>
+#include <cmath>
+#include <iostream>
+#include <optional>
+#include <string>
 
 using namespace std;
 

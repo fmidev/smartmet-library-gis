@@ -1,19 +1,18 @@
 #define BOOST_FILESYSTEM_NO_DEPRECATED
 
 #include "LandCover.h"
-
 #include "SrtmMatrix.h"
 #include "SrtmTile.h"
-#include <macgyver/Exception.h>
-
 #include <fmt/format.h>
-#include <filesystem>
-
+#include <macgyver/Exception.h>
 #include <cmath>
-#include <limits>
+#include <cstddef>
+#include <filesystem>
+#include <functional>
 #include <list>
 #include <map>
 #include <string>
+#include <utility>
 
 namespace Fmi
 {

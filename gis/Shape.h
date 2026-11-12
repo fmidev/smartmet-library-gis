@@ -1,8 +1,8 @@
 #pragma once
 
-#include <macgyver/Exception.h>
 #include <iostream>
 #include <list>
+#include <memory>
 #include <ogr_geometry.h>
 
 namespace Fmi

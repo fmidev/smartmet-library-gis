@@ -1,6 +1,8 @@
 #include "OGR.h"
 #include <macgyver/Exception.h>
+#include <cstring>
 #include <ogr_geometry.h>
+#include <string>
 
 namespace Fmi::OGR
 {

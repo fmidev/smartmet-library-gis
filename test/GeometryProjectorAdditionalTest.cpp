@@ -1,21 +1,18 @@
 // GeometryProjectorAdditionalTests.cpp
 // Additional comprehensive tests for GeometryProjector
 
+#include "GeometryProjector.h"
+#include "gtest/gtest.h"
 #include <gtest/gtest.h>
-
 #include <macgyver/StaticCleanup.h>
-
 #include <cmath>
 #include <gdal.h>
-#include <limits>
 #include <memory>
 #include <ogr_geometry.h>
 #include <ogr_spatialref.h>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-#include "GeometryProjector.h"
 
 namespace
 {

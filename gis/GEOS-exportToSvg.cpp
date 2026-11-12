@@ -1,23 +1,18 @@
 #include "GEOS.h"
-
-// GEOS does not seem to include <memory> as it should for Point.h
-#include <memory>
-
-#include <fmt/format.h>
 #include <fmt/printf.h>
 #include <geos/geom/Coordinate.h>
-#include <geos/geom/CoordinateSequence.h>
-#include <geos/geom/LineString.h>
 #include <geos/geom/LinearRing.h>
 #include <geos/geom/MultiLineString.h>
 #include <geos/geom/MultiPoint.h>
 #include <geos/geom/MultiPolygon.h>
-#include <geos/geom/Point.h>
 #include <geos/geom/Polygon.h>
 #include <geos/geom/PrecisionModel.h>
 #include <geos/version.h>
 #include <macgyver/Exception.h>
 #include <macgyver/NumericCast.h>
+#include <cmath>
+#include <cstring>
+#include <string>
 
 #define GEOS_VERSION_ID (100 * GEOS_VERSION_MAJOR + GEOS_VERSION_MINOR)
 

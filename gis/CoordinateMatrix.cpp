@@ -3,6 +3,7 @@
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 #include <cmath>
+#include <string>
 
 namespace Fmi
 {

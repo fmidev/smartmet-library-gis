@@ -4,6 +4,7 @@
 #include <macgyver/StringConversion.h>
 #include <gdal_version.h>
 #include <ogrsf_frmts.h>
+#include <utility>
 
 namespace Fmi
 {

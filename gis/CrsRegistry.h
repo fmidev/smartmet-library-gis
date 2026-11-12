@@ -23,9 +23,8 @@
 #pragma once
 
 #include "ProjInfo.h"
-
-#include <macgyver/Cache.h>
-
+#include <macgyver/CacheStats.h>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>

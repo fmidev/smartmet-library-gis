@@ -1,9 +1,11 @@
 // ======================================================================
 
 #include "Box.h"
-#include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
+#include <algorithm>
+#include <cmath>
+#include <string>
 
 // ----------------------------------------------------------------------
 /*!

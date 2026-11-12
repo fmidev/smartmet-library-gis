@@ -1,12 +1,12 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
-#include <vector>
 
 namespace Fmi
 {
-class CoordinateTransformation;
 class CoordinateMatrix;
+class CoordinateTransformation;
 
 // Create bilinear interpolation grid from rectilinear unprojected grid coordinates to
 // projected grid coordinates

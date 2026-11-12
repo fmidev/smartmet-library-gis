@@ -3,10 +3,16 @@
 #include "OGR.h"
 #include <boost/functional/hash.hpp>
 #include <boost/math/constants/constants.hpp>
-#include <cassert>
-#include <iostream>
+#include <macgyver/Exception.h>
+#include <algorithm>
+#include <cmath>
+#include <iterator>
+#include <memory>
+#include <ogr_geometry.h>
+#include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace Fmi
 {

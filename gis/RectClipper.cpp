@@ -3,7 +3,10 @@
 #include "GeometryBuilder.h"
 #include "OGR.h"
 #include <macgyver/Exception.h>
-#include <cassert>
+#include <algorithm>
+#include <iterator>
+#include <ogr_geometry.h>
+#include <string>
 
 namespace
 {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Shape.h"
+#include <iosfwd>
 
 namespace Fmi
 {

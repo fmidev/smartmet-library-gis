@@ -1,4 +1,6 @@
 #pragma once
+#include <cstddef>
+#include <functional>
 #include <ogr_geometry.h>
 #include <unordered_map>
 

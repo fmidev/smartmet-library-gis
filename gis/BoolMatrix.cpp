@@ -1,6 +1,9 @@
 #include "BoolMatrix.h"
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
+#include <algorithm>
+#include <string>
+#include <utility>
 
 namespace Fmi
 {

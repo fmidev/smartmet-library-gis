@@ -11,17 +11,14 @@
 // its own sample and needs no lock at all.
 
 #include "OGRSpatialReferenceFactory.h"
-#include "ProjInfo.h"
 #include "SpatialReference.h"
-
-#include <ogr_spatialref.h>
-
 #include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <mutex>
+#include <ogr_spatialref.h>
 #include <string>
 #include <thread>
 #include <vector>

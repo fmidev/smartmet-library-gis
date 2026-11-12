@@ -1,6 +1,7 @@
 // An API for handling STRM digital elevation model tiles (.hgt files)
 
 #pragma once
+#include <cstddef>
 #include <memory>
 #include <string>
 
@@ -33,6 +34,7 @@ class SrtmTile
 
  private:
   class Impl;
+
   std::unique_ptr<Impl> impl;
 
 };  // class SrtmTile

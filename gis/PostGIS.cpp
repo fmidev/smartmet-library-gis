@@ -3,14 +3,17 @@
 #include "PostGIS.h"
 #include "CoordinateTransformation.h"
 #include "GeometryProjector.h"
-#include "OGR.h"
 #include "SpatialReference.h"
-#include <cpl_error.h>
 #include <fmt/format.h>
-#include <gdal_version.h>
-#include <iostream>
+#include <macgyver/DateTime.h>
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <map>
+#include <memory>
 #include <ogrsf_frmts.h>
 #include <stdexcept>
+#include <utility>
 
 #if GDAL_VERSION_MAJOR > 3 || (GDAL_VERSION_MAJOR == 3 && GDAL_VERSION_MINOR >= 13)
 struct OGRSpatialReferenceReleaser
@@ -22,9 +25,6 @@ struct OGRSpatialReferenceReleaser
   }
 };
 #endif
-
-#include "Box.h"
-#include <geos_c.h>
 
 // Segment geometries by 1 degree accuracy when clipping/cutting to a rectangle
 const double default_segmentation_length = 1.0;

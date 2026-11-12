@@ -6,7 +6,10 @@
 
 #include "Shape.h"
 #include <list>
-#include <ogr_geometry.h>
+
+class OGRLineString;
+class OGRLinearRing;
+class OGRPolygon;
 
 namespace Fmi
 {

@@ -2,9 +2,11 @@
 #include "GeometrySimplifier.h"
 #include "OGR.h"
 #include "Types.h"
-#include <geos/geom/Geometry.h>
 #include <regression/tframe.h>
+#include <iostream>
+#include <memory>
 #include <ogr_geometry.h>
+#include <string>
 #include <vector>
 
 using namespace std;

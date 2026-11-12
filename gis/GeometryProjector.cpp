@@ -1,21 +1,19 @@
 // GeometryProjector.cpp
 
 #include "GeometryProjector.h"
+#include "Box.h"
 #include "GeometryBuilder.h"
-#include "OGR.h"
 #include "RectClipper.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cpl_conv.h>
-#include <cpl_error.h>
 #include <cstdint>
 #include <functional>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <ogr_api.h>
 #include <ogr_geometry.h>
-#include <ogr_spatialref.h>
 #include <stdexcept>
 #include <utility>
 #include <vector>

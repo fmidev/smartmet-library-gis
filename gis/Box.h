@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include <algorithm>
+#include <cstddef>
 
 namespace Fmi
 {

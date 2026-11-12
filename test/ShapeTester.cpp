@@ -1,15 +1,24 @@
-#include "Box.h"
-#include "CoordinateTransformation.h"
 #include "OGR.h"
 #include "Shape_circle.h"
 #include "Shape_rect.h"
 #include "Shape_sphere.h"
-#include "SpatialReference.h"
-#include "TestDefs.h"
 #include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
+#include <sys/types.h>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 #include <memory>
 #include <ogr_geometry.h>
+#include <string>
+#include <vector>
+
+namespace Fmi
+{
+class Shape;
+}  // namespace Fmi
 
 using namespace std;
 

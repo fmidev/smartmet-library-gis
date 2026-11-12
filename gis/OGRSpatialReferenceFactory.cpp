@@ -3,20 +3,21 @@
 #include "OGR.h"
 #include "ProjInfo.h"
 #include <fmt/format.h>
+#include <macgyver/Cache.h>
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
-#include <macgyver/StringConversion.h>
 #include <macgyver/StaticCleanup.h>
-#include <gdal_version.h>
-#include <ogr_geometry.h>
-#include <ogr_spatialref.h>
-#include <algorithm>
+#include <macgyver/StringConversion.h>
 #include <atomic>
-#include <set>
+#include <functional>
 #include <list>
+#include <map>
 #include <mutex>
+#include <ogr_geometry.h>
+#include <optional>
+#include <set>
 #include <unordered_map>
-#include <vector>
+#include <utility>
 
 namespace Fmi
 {

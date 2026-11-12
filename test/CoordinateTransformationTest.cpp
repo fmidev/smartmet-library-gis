@@ -1,12 +1,12 @@
 #include "CoordinateTransformation.h"
 #include "SpatialReference.h"
-#include "TestDefs.h"
-
 #include <macgyver/StaticCleanup.h>
-#include <ogr_spatialref.h>
 #include <regression/tframe.h>
 #include <cmath>
+#include <iostream>
 #include <memory>
+#include <ogr_spatialref.h>
+#include <string>
 
 using namespace std;
 

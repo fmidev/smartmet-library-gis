@@ -7,17 +7,20 @@
 #include "TimeZoneFinder.h"
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
+#include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstdint>
+#include <exception>
 #include <geos_c.h>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <mutex>
 #include <ogrsf_frmts.h>
 #include <thread>
 #include <utility>
-#include <algorithm>
 
 namespace Fmi
 {

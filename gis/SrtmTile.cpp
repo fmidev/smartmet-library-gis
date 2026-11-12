@@ -1,10 +1,13 @@
 #define BOOST_FILESYSTEM_NO_DEPRECATED
 
 #include "SrtmTile.h"
-
+#include <boost/iostreams/device/mapped_file.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/MappedFile.h>
+#include <cctype>
+#include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <mutex>
 

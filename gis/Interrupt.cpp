@@ -1,14 +1,16 @@
 #include "Interrupt.h"
 #include "OGR.h"
 #include "ProjInfo.h"
-#include "Shape_circle.h"
 #include "Shape_rect.h"
 #include "SpatialReference.h"
 #include <boost/math/constants/constants.hpp>
 #include <macgyver/Exception.h>
+#include <algorithm>
+#include <cmath>
 #include <memory>
 #include <ogr_geometry.h>
-#include <ogr_spatialref.h>
+#include <optional>
+#include <string>
 
 namespace Fmi
 {

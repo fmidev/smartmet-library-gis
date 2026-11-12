@@ -1,12 +1,10 @@
 #include "OGR.h"
-
 #include <macgyver/StaticCleanup.h>
-#include <ogr_geometry.h>
-#include <ogr_spatialref.h>
 #include <regression/tframe.h>
-
 #include <cmath>
+#include <iostream>
 #include <memory>
+#include <ogr_geometry.h>
 #include <string>
 
 using namespace std;

@@ -1,21 +1,19 @@
 #include "CoordinateTransformation.h"
 #include "Box.h"
-#include "GeometryBuilder.h"
 #include "GeometryProjector.h"
 #include "Interrupt.h"
 #include "OGR.h"
 #include "OGRCoordinateTransformationFactory.h"
 #include "ProjInfo.h"
-#include "Shape.h"
 #include "SpatialReference.h"
-#include "Types.h"
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
-#include <gdal_version.h>
-#include <limits>
 #include <cmath>
+#include <limits>
+#include <list>
 #include <ogr_geometry.h>
-#include <ogr_spatialref.h>
+#include <string>
+#include <utility>
 
 namespace Fmi
 {

@@ -1,13 +1,15 @@
 #pragma once
 
+#include <iterator>
 #include <list>
-#include <ogr_geometry.h>
+#include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 class OGRGeometry;
+class OGRLinearRing;
 class OGRPolygon;
-class OGRMultiPolygon;
 class OGRSpatialReference;
 
 // cannot forward declare OGR similarly since OGRwkbGeometryType is an enum
@@ -22,9 +24,8 @@ class Geometry;
 
 namespace Fmi
 {
-class CoordinateTransformation;
 class Box;
-class SpatialReference;
+class CoordinateTransformation;
 class GeometryBuilder;
 class Shape;
 

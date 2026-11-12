@@ -112,6 +112,8 @@
 #include "OGR.h"
 #include "RectClipper.h"
 #include <macgyver/Exception.h>
+#include <ogr_geometry.h>
+#include <string>
 
 namespace Fmi
 {

@@ -1,5 +1,6 @@
 #pragma once
-#include <macgyver/Cache.h>
+#include <macgyver/CacheStats.h>
+#include <cstddef>
 #include <memory>
 
 namespace Fmi

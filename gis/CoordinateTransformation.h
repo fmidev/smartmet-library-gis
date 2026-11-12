@@ -1,16 +1,16 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <vector>
 
-class OGRSpatialReference;
 class OGRCoordinateTransformation;
 class OGRGeometry;
 
 namespace Fmi
 {
-class SpatialReference;
 class GeometryProjector;
+class SpatialReference;
 
 class CoordinateTransformation
 {
@@ -44,6 +44,7 @@ class CoordinateTransformation
 
  private:
   class Impl;
+
   std::shared_ptr<Impl> impl;
 
 };  // class CoordinateTransformation

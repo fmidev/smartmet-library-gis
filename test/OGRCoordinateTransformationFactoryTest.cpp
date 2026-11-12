@@ -1,16 +1,12 @@
 #include "OGRCoordinateTransformationFactory.h"
-#include "TestDefs.h"
-
 #include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
-
-#include <ogr_spatialref.h>
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 #include <pthread.h>
 #include <string>
 #include <thread>

@@ -1,6 +1,13 @@
 #include "Shape_rect.h"
 #include "OGR.h"
 #include "ShapeClipper.h"
+#include <macgyver/Exception.h>
+#include <algorithm>
+#include <cmath>
+#include <list>
+#include <ogr_geometry.h>
+#include <ostream>
+#include <string>
 
 namespace Fmi
 {

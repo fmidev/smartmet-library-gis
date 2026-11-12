@@ -2,6 +2,7 @@
 #include "OGR.h"
 #include <macgyver/Exception.h>
 #include <ogr_geometry.h>
+#include <string>
 
 using Fmi::Box;
 

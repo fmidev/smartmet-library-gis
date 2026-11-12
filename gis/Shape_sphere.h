@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Shape.h"
+#include <iosfwd>
+#include <ogr_spatialref.h>
 
 namespace Fmi
 {

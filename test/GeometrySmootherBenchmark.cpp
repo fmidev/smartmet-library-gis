@@ -20,10 +20,13 @@
 // ======================================================================
 
 #include "GeometrySmoother.h"
+#include "Types.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <initializer_list>
+#include <memory>
 #include <ogr_geometry.h>
 #include <vector>
 

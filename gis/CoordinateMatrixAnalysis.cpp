@@ -3,9 +3,9 @@
 #include <macgyver/Exception.h>
 #include <algorithm>
 #include <cmath>
-#include <iomanip>
-#include <iostream>
-#include <optional>
+#include <iterator>
+#include <string>
+#include <vector>
 
 namespace Fmi
 {

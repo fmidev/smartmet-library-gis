@@ -1,6 +1,8 @@
 #pragma once
 
 #include "BoolMatrix.h"
+#include <cstddef>
+#include <utility>
 
 namespace Fmi
 {

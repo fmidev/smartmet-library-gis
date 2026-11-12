@@ -1,13 +1,13 @@
 #include "Box.h"
-#include "TestDefs.h"
-
 #include <fmt/format.h>
 #include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
-
+#include <cmath>
 #include <gdal_version.h>
 #include <iostream>
+#include <memory>
 #include <ogr_spatialref.h>
+#include <utility>
 
 using namespace std;
 

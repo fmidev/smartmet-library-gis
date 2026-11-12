@@ -3,11 +3,14 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <functional>
 #include <exception>
+#include <functional>
+#include <iterator>
 #include <limits>
 #include <mutex>
+#include <string>
 #include <thread>
+#include <utility>
 
 namespace Fmi
 {

@@ -21,20 +21,24 @@
 #include "CoordinateTransformation.h"
 #include "OGRCoordinateTransformationFactory.h"
 #include "OGRSpatialReferenceFactory.h"
-#include "ProjInfo.h"
 #include "SpatialReference.h"
-
-#include <ogr_geometry.h>
-#include <ogr_spatialref.h>
-
+#include "gtest/gtest.h"
 #include <gtest/gtest.h>
-
+#include <macgyver/CacheStats.h>
+#include <cstddef>
 #include <memory>
 #include <mutex>
+#include <ogr_spatialref.h>
 #include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
+
+class OGRGeometry;
+namespace Fmi
+{
+class ProjInfo;
+}  // namespace Fmi
 
 namespace
 {

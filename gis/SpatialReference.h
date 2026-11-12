@@ -1,6 +1,7 @@
 #pragma once
 
-#include <macgyver/Cache.h>
+#include <macgyver/CacheStats.h>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -82,6 +83,7 @@ class SpatialReference
 
  private:
   class Impl;
+
   std::unique_ptr<Impl> impl;
 };
 

@@ -109,12 +109,12 @@
 
 #include "GeometryBuilder.h"
 #include "OGR.h"
+#include "Shape.h"
 #include "ShapeClipper.h"
-#include "Shape_circle.h"
 #include <macgyver/Exception.h>
-#include <iomanip>
-#include <iostream>
-#include <list>
+#include <memory>
+#include <ogr_geometry.h>
+#include <string>
 
 namespace Fmi
 {

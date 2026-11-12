@@ -1,21 +1,23 @@
-#include <gtest/gtest.h>
-
-#include <macgyver/StaticCleanup.h>
-
-#include <cmath>
-#include <gdal.h>
-#include <limits>
-#include <memory>
-#include <ogr_geometry.h>
-#include <ogr_spatialref.h>
-#include <stdexcept>
-#include <string>
-#include <vector>
-
 #include "CoordinateTransformation.h"
 #include "GeometryProjector.h"
 #include "Interrupt.h"
+#include "Shape.h"
 #include "SpatialReference.h"
+#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+#include <macgyver/StaticCleanup.h>
+#include <algorithm>
+#include <cmath>
+#include <exception>
+#include <gdal.h>
+#include <limits>
+#include <list>
+#include <memory>
+#include <ogr_geometry.h>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace
 {
@@ -237,8 +239,6 @@ struct Fixture
     return p;
   }
 };
-
-#include <limits>
 
 // Signed area of a ring (shoelace). Positive => CCW in usual Cartesian coords.
 double signedArea(const OGRLinearRing* r)

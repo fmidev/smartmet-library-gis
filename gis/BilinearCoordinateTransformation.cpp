@@ -4,8 +4,8 @@
 #include "CoordinateTransformation.h"
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
-
 #include <memory>
+#include <string>
 
 namespace Fmi
 {

@@ -1,9 +1,12 @@
 #include "Box.h"
 #include "OGR.h"
-#include <fmt/format.h>
 #include <fmt/printf.h>
 #include <macgyver/Exception.h>
+#include <algorithm>
+#include <cmath>
 #include <ogr_geometry.h>
+#include <string>
+#include <vector>
 
 // Not in use on SmartMet Editor yet
 

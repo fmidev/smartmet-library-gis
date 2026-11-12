@@ -3,9 +3,15 @@
 #include "VertexCounter.h"
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
+#include <algorithm>
 #include <array>
+#include <cmath>
+#include <functional>
+#include <memory>
 #include <ogr_geometry.h>
 #include <string>
+#include <unordered_map>
+#include <utility>
 
 namespace Fmi
 {

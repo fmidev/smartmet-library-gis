@@ -1,14 +1,18 @@
 #include "Box.h"
 #include "CoordinateTransformation.h"
 #include "OGR.h"
+#include "Shape.h"
 #include "Shape_rect.h"
 #include "SpatialReference.h"
-#include "TestDefs.h"
 #include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
+#include <cstdlib>
+#include <iostream>
 #include <memory>
-#include <set>
 #include <ogr_geometry.h>
+#include <optional>
+#include <set>
+#include <string>
 
 using namespace std;
 

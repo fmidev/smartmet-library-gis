@@ -4,6 +4,7 @@
 #include <gdal_version.h>
 #include <map>
 #include <memory>
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -25,6 +26,7 @@ class OGRDataSource;
 using GDALDataPtr = std::shared_ptr<OGRDataSource>;
 #else
 class GDALDataset;
+
 using GDALDataPtr = std::shared_ptr<GDALDataset>;
 #endif
 

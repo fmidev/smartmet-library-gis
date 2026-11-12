@@ -1,14 +1,18 @@
 #include "OGRCoordinateTransformationFactory.h"
 #include "OGRSpatialReferenceFactory.h"
-#include <boost/thread.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 #include <macgyver/StaticCleanup.h>
+#include <algorithm>
+#include <functional>
+#include <iterator>
 #include <list>
+#include <mutex>
 #include <ogr_spatialref.h>
 #include <proj.h>
 #include <shared_mutex>
+#include <utility>
 
 namespace Fmi
 {

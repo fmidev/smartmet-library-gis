@@ -1,7 +1,10 @@
 #include "DEM.h"
-#include "TestDefs.h"
-
 #include <regression/tframe.h>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
+
 using namespace std;
 
 std::string tostr(double value)

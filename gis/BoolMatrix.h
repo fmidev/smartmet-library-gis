@@ -1,8 +1,7 @@
 #pragma once
 #include <array>
+#include <cstddef>
 #include <cstdint>
-#include <iomanip>
-#include <iostream>
 #include <vector>
 
 namespace Fmi

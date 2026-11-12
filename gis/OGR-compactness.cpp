@@ -14,14 +14,14 @@
 // ======================================================================
 
 #include "OGR.h"
-
 #include <boost/math/constants/constants.hpp>
 #include <macgyver/Exception.h>
-#include <ogr_geometry.h>
-#include <ogr_spatialref.h>
-
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <memory>
+#include <ogr_geometry.h>
+#include <string>
 
 namespace
 {

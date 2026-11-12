@@ -1,9 +1,11 @@
 #include "GEOS.h"
-#include "TestDefs.h"
-
+#include <geos/geom/GeometryFactory.h>
 #include <geos/io/WKTReader.h>
 #include <geos/version.h>
 #include <regression/tframe.h>
+#include <iostream>
+#include <memory>
+#include <string>
 
 using namespace std;
 

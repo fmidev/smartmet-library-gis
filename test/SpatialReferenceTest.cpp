@@ -1,13 +1,14 @@
 #include "SpatialReference.h"
-#include "TestDefs.h"
-
-#include <ogr_spatialref.h>
-
 #include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
 #include <atomic>
+#include <cstddef>
+#include <initializer_list>
+#include <iostream>
 #include <memory>
+#include <ogr_spatialref.h>
 #include <optional>
+#include <string>
 #include <thread>
 #include <vector>
 

@@ -1,7 +1,7 @@
 #pragma once
-#include <optional>
-
+#include <iosfwd>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 

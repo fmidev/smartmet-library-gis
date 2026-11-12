@@ -2,7 +2,14 @@
 #include "OGR.h"
 #include "ShapeClipper.h"
 #include <macgyver/Exception.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <cmath>
+#include <list>
 #include <ogr_geometry.h>
+#include <ostream>
+#include <string>
+#include <vector>
 
 namespace Fmi
 {

@@ -4,8 +4,14 @@
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 #include <algorithm>
+#include <cmath>
+#include <functional>
+#include <limits>
+#include <memory>
 #include <ogr_geometry.h>
 #include <queue>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace Fmi

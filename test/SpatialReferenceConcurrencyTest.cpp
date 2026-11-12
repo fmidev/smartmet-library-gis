@@ -43,24 +43,24 @@
 #include "OGRSpatialReferenceFactory.h"
 #include "ProjInfo.h"
 #include "SpatialReference.h"
-
-#include <cpl_conv.h>
-#include <cpl_error.h>
-#include <ogr_geometry.h>
-#include <ogr_spatialref.h>
-
+#include "gtest/gtest.h"
 #include <gtest/gtest.h>
-
 #include <atomic>
 #include <condition_variable>
 #include <cstdlib>
+#include <exception>
 #include <functional>
+#include <iterator>
 #include <map>
+#include <memory>
 #include <mutex>
+#include <ogr_geometry.h>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace

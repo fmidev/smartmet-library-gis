@@ -1,7 +1,10 @@
 #include "OGR.h"
 #include <boost/math/constants/constants.hpp>
 #include <macgyver/Exception.h>
+#include <cmath>
+#include <cstddef>
 #include <ogr_geometry.h>
+#include <string>
 
 namespace
 {

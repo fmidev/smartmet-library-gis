@@ -4,12 +4,14 @@
 #include "CoordinateTransformation.h"
 #include "SpatialReference.h"
 #include <fmt/format.h>
+#include <macgyver/Cache.h>
 #include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
 #include <proj/io.hpp>
-#include <sqlite3pp/sqlite3pp.h>
 #include <sqlite3pp/sqlite3ppext.h>
+#include <memory>
 #include <sqlite3.h>
+#include <vector>
 
 namespace Fmi
 {

@@ -14,18 +14,19 @@
 #include "OGRSpatialReferenceFactory.h"
 #include "ProjInfo.h"
 #include "SpatialReference.h"
-
-#include <ogr_geometry.h>
-#include <ogr_spatialref.h>
-
+#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 #include <atomic>
+#include <cstddef>
+#include <iterator>
+#include <memory>
 #include <mutex>
+#include <ogr_geometry.h>
 #include <set>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 namespace
 {

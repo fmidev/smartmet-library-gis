@@ -1,18 +1,22 @@
 #include "GeometryAmalgamator.h"
-#include "VertexCounter.h"
 #include <ankerl/unordered_dense.h>
 #include <boost/geometry.hpp>
-#include <boost/geometry/index/rtree.hpp>
 #include <macgyver/Exception.h>
 #include <macgyver/Hash.h>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <functional>
 #include <map>
+#include <memory>
 #include <ogr_geometry.h>
+#include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
-
 // CDT is header-only; include only from the .cpp to avoid dependency leakage
 #include "CDT/CDT.h"
+#include "VertexCounter.h"
 
 namespace Fmi
 {

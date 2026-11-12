@@ -4,8 +4,9 @@
 #include "ProjInfo.h"
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
-#include <ogr_spatialref.h>
 #include <mutex>
+#include <ogr_spatialref.h>
+#include <utility>
 
 namespace Fmi
 {

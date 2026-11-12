@@ -7,19 +7,26 @@
  */
 // ======================================================================
 
-#include <gtest/gtest.h>
-
 #include "PointGridding.h"
+#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 #include <macgyver/Exception.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
+#include <exception>
 #include <fstream>
 #include <functional>
+#include <initializer_list>
 #include <iostream>
+#include <optional>
 #include <random>
+#include <ratio>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace Fmi::PointGridding;

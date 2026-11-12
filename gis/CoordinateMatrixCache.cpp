@@ -1,8 +1,9 @@
 #include "CoordinateMatrixCache.h"
-
 #include "CoordinateMatrix.h"
-
+#include <macgyver/Cache.h>
 #include <macgyver/Exception.h>
+#include <optional>
+#include <string>
 
 namespace Fmi
 {

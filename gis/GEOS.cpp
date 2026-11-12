@@ -1,9 +1,6 @@
 #include "GEOS.h"
-
-#include <geos/geom/Geometry.h>
 #include <geos/io/WKBWriter.h>
 #include <macgyver/Exception.h>
-
 #include <sstream>
 
 // ----------------------------------------------------------------------

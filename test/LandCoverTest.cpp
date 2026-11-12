@@ -1,8 +1,10 @@
 #include "LandCover.h"
-#include "TestDefs.h"
-
 #include <macgyver/StringConversion.h>
 #include <regression/tframe.h>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 using namespace std;
 

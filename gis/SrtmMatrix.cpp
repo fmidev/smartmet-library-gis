@@ -1,10 +1,11 @@
 #include "SrtmMatrix.h"
-
 #include "SrtmTile.h"
 #include <macgyver/Exception.h>
-
 #include <algorithm>
+#include <cstddef>
 #include <limits>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace Fmi

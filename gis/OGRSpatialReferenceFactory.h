@@ -1,4 +1,5 @@
-#include <macgyver/Cache.h>
+#include <macgyver/CacheStats.h>
+#include <cstddef>
 #include <memory>
 #include <mutex>
 #include <string>

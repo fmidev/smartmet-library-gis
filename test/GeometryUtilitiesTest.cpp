@@ -8,9 +8,12 @@
 #include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
 #include <cmath>
+#include <iostream>
 #include <memory>
-#include <string>
 #include <ogr_geometry.h>
+#include <optional>
+#include <stdexcept>
+#include <string>
 
 using namespace std;
 

@@ -1,17 +1,18 @@
 #include "Gshhs.h"
-
 #include <macgyver/StaticCleanup.h>
-#include <ogr_geometry.h>
-#include <ogr_spatialref.h>
 #include <regression/tframe.h>
-
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <fstream>
+#include <iostream>
+#include <iterator>
 #include <memory>
+#include <ogr_geometry.h>
+#include <optional>
 #include <string>
+#include <unistd.h>
+#include <utility>
 #include <vector>
 
 using namespace std;

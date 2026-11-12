@@ -1,7 +1,11 @@
 #pragma once
 
 #include <list>
-#include <ogr_geometry.h>
+
+class OGRGeometry;
+class OGRLineString;
+class OGRPoint;
+class OGRPolygon;
 
 /*
  * Collect polygons, linestrings and points, and build a minimal geometry from them.

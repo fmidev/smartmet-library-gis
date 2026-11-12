@@ -1,12 +1,12 @@
 #include "ProjInfo.h"
-
-#include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
+#include <ostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Fmi

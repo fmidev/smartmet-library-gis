@@ -1,5 +1,7 @@
 #include "VertexCounter.h"
 #include <macgyver/Exception.h>
+#include <string>
+#include <utility>
 
 namespace Fmi
 {

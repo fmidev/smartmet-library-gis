@@ -9,19 +9,15 @@
 
 #pragma once
 
-#include "Host.h"
-#include "SpatialReference.h"
 #include "Types.h"
-
 #include <optional>
-
 #include <set>
 #include <string>
 
-class OGRSpatialReference;
-
 namespace Fmi
 {
+class SpatialReference;
+
 namespace PostGIS
 {
 // read geometries and attribute fields

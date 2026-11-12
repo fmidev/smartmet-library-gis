@@ -1,9 +1,10 @@
 #include "GeometryAmalgamator.h"
 #include "Types.h"
 #include <regression/tframe.h>
-#include <cmath>
+#include <iostream>
+#include <memory>
 #include <ogr_geometry.h>
-#include <sstream>
+#include <string>
 #include <vector>
 
 using namespace std;

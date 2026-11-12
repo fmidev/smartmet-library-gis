@@ -1,5 +1,6 @@
 #include "Shape.h"
-#include "ShapeClipper.h"
+#include <macgyver/Exception.h>
+#include <string>
 
 namespace Fmi
 {
