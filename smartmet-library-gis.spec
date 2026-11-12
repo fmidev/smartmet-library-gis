@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.11.11
+Version: 26.11.12
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -138,6 +138,9 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Thu Nov 12 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.12-1.fmi
+- GeometryProjector: fixed the regressions of 26.11.11 (inverted polygons and extra edges along the box borders in for example polar stereographic maps). Whether the box is inside a polygon ring is now tested in source coordinates, since a projected ring may enclose a point at infinity. Projected vertices are rejected again if they are farther than 10 box sizes or 4 densification steps from the box, the larger of the two
+
 * Wed Nov 11 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.11-1.fmi
 - GeometryProjector: a polygon covering the whole projected box without any edges inside it is no longer projected to an empty geometry, the box is filled (or emptied if inside a hole). Also projected vertices are no longer rejected as implausible if they are within half the circumference of the Earth from the box, which made polygons disappear or lose edges in zoomed in map tiles
 

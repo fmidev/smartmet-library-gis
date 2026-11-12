@@ -1348,6 +1348,32 @@ TEST(AdditionalTests, SmallBox_CrossedByEdge_IsPartiallyCovered)
   }
 }
 
+TEST(AdditionalTests, PolarStereographic_SouthernCap_DoesNotCoverNorthernBox)
+{
+  static GdalInitGuard guard;
+  // In a north polar stereographic projection the ring of a cap around the south pole
+  // encircles the north pole in the projected plane, but the cap itself is the area
+  // outside the circle. A box over Finland must not be covered.
+  const char* wkt = "POLYGON((-180 -30, 180 -30, 180 -89, -180 -89, -180 -30))";
+  OGRSpatialReference wgs84 = makeSRS(4326);
+  OGRSpatialReference stere = makeSRS(3995);
+  OGRGeometry* g = nullptr;
+  ASSERT_EQ(OGRGeometryFactory::createFromWkt(wkt, nullptr, &g), OGRERR_NONE);
+  std::unique_ptr<OGRGeometry> geom(g);
+
+  double cx = 25.0;
+  double cy = 65.0;
+  std::unique_ptr<OGRCoordinateTransformation> ct(
+      OGRCreateCoordinateTransformation(&wgs84, &stere));
+  ASSERT_TRUE(ct);
+  ASSERT_TRUE(ct->Transform(1, &cx, &cy));
+
+  Fmi::GeometryProjector p(&wgs84, &stere);
+  p.setProjectedBounds(cx - 1.5e6, cy - 1.5e6, cx + 1.5e6, cy + 1.5e6);
+  auto out = p.projectGeometry(geom.get());
+  EXPECT_EQ(area(out.get()), 0.0) << (out ? out->exportToWkt() : std::string("null"));
+}
+
 int main(int argc, char** argv)
 {
   // Clear the SpatialReference/PROJ-backed caches before unordered static
