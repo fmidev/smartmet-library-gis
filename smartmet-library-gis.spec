@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.11.13
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -138,6 +138,17 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Fri Nov 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.13-2.fmi
+- Rectangle clipping and cutting: intersections with the box edges are calculated with
+  double-double precision from the original segment end points, so that rounding can no longer
+  swap the order of nearly coincident exit and entry points along an edge. Previously a sliver
+  just outside the box could cause the polygon to be wrapped around the entire box
+- Rectangle clipping: a hole touching the box at a single point no longer replaces the result,
+  and a polygon touching the box at a single point is no longer wrapped around the box
+- Rectangle cutting: collapsed slivers with less than 4 points are discarded
+- Added OGR::isClockwise, a robust signed area based orientation test. OGRLinearRing::isClockwise
+  fails for needle-like spikes at the lowest vertex, which caused wrong winding normalization
+
 * Fri Nov 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.13-1.fmi
 - Include cleanup: headers include what they use and prefer forward declarations,
   unnecessary includes removed. No functional changes, but code using these headers may

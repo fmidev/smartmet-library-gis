@@ -41,6 +41,20 @@ OGRGeometry* result = Fmi::OGR::polycut(*geom, box, maxSegmentLength);
 
 The returned pointer is owned by the caller and must be deleted.
 
+### Numerical robustness
+
+The points where segments cross the box edges are calculated with double-double precision
+(`EdgeIntersection.h`) from the original segment end points, so they are practically correctly
+rounded. Rounding is monotonic, so the crossings of different segments can coincide but never
+swap their order along an edge. A swapped exit and entry point would otherwise cause a sliver
+just outside the box to be reconnected around the entire box.
+
+Coinciding crossings mean that a ring touches the box at a single point. When clipping, a
+closed piece oriented like the result rings is complete, while one oriented against them is a
+part of a hole, and the box edges are walked around it. Collapsed slivers with less than four
+points are discarded. Rings touching the box at a single point are returned as self-touching
+rings, as before.
+
 ---
 
 ## Shape-Based Operations
@@ -150,6 +164,10 @@ Fmi::OGR::normalize(ring);
 
 // Set winding order to RFC 7946 (exterior CCW, holes CW)
 Fmi::OGR::normalizeWindingOrder(geom);
+
+// Orientation from the signed area. OGRLinearRing::isClockwise() looks only at the turn at
+// the lowest vertex and fails if that vertex is the tip of a needle-like spike.
+bool cw = Fmi::OGR::isClockwise(ring);
 ```
 
 ### inside

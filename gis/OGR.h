@@ -113,6 +113,10 @@ void normalize(OGRLinearRing& theRing);
 // Normalize winding order: exterior=CCW, interior=CW (RFC 7946)
 void normalizeWindingOrder(OGRGeometry* theGeom);
 
+// Robust orientation test based on the signed area. OGRLinearRing::isClockwise() decides by
+// the turn at the lowest vertex, which fails for needle-like spikes at that vertex.
+bool isClockwise(const OGRLinearRing& theRing);
+
 // Is the given coordinate inside a shape?
 bool inside(const OGRGeometry& theGeom, double theX, double theY);
 bool inside(const OGRPolygon& theGeom, double theX, double theY);

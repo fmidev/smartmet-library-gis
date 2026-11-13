@@ -65,6 +65,107 @@ OGRLinearRing *make_hole(const Fmi::Box &theBox, double max_length = 0)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Test whether appending a line would close a ring with the wrong orientation
+ *
+ * When clipping, the intersection points of a sliver just outside the box may coincide.
+ * A hole may then touch the box at a single point, and the parts of the hole before and
+ * after the point could be joined into a loop which is oriented against the direction
+ * of travel along the box edges. The box must be walked around the hole first instead.
+ */
+// ----------------------------------------------------------------------
+
+bool closes_wrong_way(const OGRLineString& line, const OGRLineString& next, bool cw)
+{
+  const int n1 = line.getNumPoints();
+  const int n2 = next.getNumPoints();
+  if (n1 == 0 || n2 == 0 || next.getX(n2 - 1) != line.getX(0) || next.getY(n2 - 1) != line.getY(0))
+    return false;
+
+  OGRLinearRing ring;
+  ring.addSubLineString(&line);
+  ring.addSubLineString(&next, 1);
+  if (ring.getNumPoints() < 4)
+    return false;
+  return Fmi::OGR::isClockwise(ring) != cw;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief The next box corner in the direction of travel
+ */
+// ----------------------------------------------------------------------
+
+void next_corner(double x1, double y1, bool cw, double& x2, double& y2, const Fmi::Box& box)
+{
+  if (cw)
+  {
+    if (y1 == box.ymin() && x1 > box.xmin())
+      x2 = box.xmin(), y2 = box.ymin();
+    else if (x1 == box.xmin() && y1 < box.ymax())
+      x2 = box.xmin(), y2 = box.ymax();
+    else if (y1 == box.ymax() && x1 < box.xmax())
+      x2 = box.xmax(), y2 = box.ymax();
+    else
+      x2 = box.xmax(), y2 = box.ymin();
+  }
+  else
+  {
+    if (y1 == box.ymin() && x1 < box.xmax())
+      x2 = box.xmax(), y2 = box.ymin();
+    else if (x1 == box.xmin() && y1 > box.ymin())
+      x2 = box.xmin(), y2 = box.ymin();
+    else if (y1 == box.ymax() && x1 > box.xmin())
+      x2 = box.xmin(), y2 = box.ymax();
+    else
+      x2 = box.xmax(), y2 = box.ymax();
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Test whether the end of a line can be joined to the start of the next one
+ *
+ * When clipping, joining lines into a clockwise loop among the exterior lines would turn a
+ * part of a hole touching the box at a single point into a separate exterior. Such lines
+ * must be connected along the box edges instead.
+ */
+// ----------------------------------------------------------------------
+
+bool joinable(const OGRLineString& line1,
+              const OGRLineString& line2,
+              bool exterior,
+              bool keep_inside)
+{
+  const int n1 = line1.getNumPoints();
+  if (line1.getX(n1 - 1) != line2.getX(0) || line1.getY(n1 - 1) != line2.getY(0))
+    return false;
+  return !(keep_inside && exterior && closes_wrong_way(line1, line2, false));
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Add a line closed by reconnecting as an exterior or interior ring
+ *
+ * A collapsed sliver with less than 4 points has no area and is discarded.
+ */
+// ----------------------------------------------------------------------
+
+void add_closed_line(const OGRLineString& line, Fmi::RectClipper& clipper, bool exterior)
+{
+  if (line.getNumPoints() < 4)
+    return;
+
+  auto* ring = new OGRLinearRing;
+  ring->addSubLineString(&line, 0, -1);
+
+  if (exterior)
+    clipper.addExterior(ring);
+  else
+    clipper.addInterior(ring);
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Reconnect disjointed parts
  *
  * When we clip a LinearRing we may get multiple linestrings.
@@ -79,7 +180,10 @@ OGRLinearRing *make_hole(const Fmi::Box &theBox, double max_length = 0)
  */
 // ----------------------------------------------------------------------
 
-void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper, bool exterior)
+void reconnectLines(std::list<OGRLineString *> &lines,
+                    Fmi::RectClipper &clipper,
+                    bool exterior,
+                    bool keep_inside)
 {
   try
   {
@@ -105,9 +209,8 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
         auto *line2 = *pos2;
         const int n2 = line2->getNumPoints();
 
-        // Continue if the ends do not match
-        if (pos1 == pos2 || n2 == 0 || line1->getX(n1 - 1) != line2->getX(0) ||
-            line1->getY(n1 - 1) != line2->getY(0))
+        // Continue if the ends do not match or the lines may not be joined
+        if (pos1 == pos2 || n2 == 0 || !joinable(*line1, *line2, exterior, keep_inside))
         {
           ++pos2;
           continue;
@@ -128,12 +231,7 @@ void reconnectLines(std::list<OGRLineString *> &lines, Fmi::RectClipper &clipper
 
         if (line1->get_IsClosed())
         {
-          auto *ring = new OGRLinearRing;
-          ring->addSubLineString(line1, 0, -1);
-          if (exterior)
-            clipper.addExterior(ring);
-          else
-            clipper.addInterior(ring);
+          add_closed_line(*line1, clipper, exterior);
 
           delete line1;
 
@@ -478,6 +576,26 @@ std::list<OGRLineString *>::iterator search_ccw(OGRLinearRing *ring,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Test whether a ring being built along the box edges is complete
+ *
+ * When clipping, a closed ring oriented against the direction of travel along the box
+ * edges is a part of a hole which touches the box at a single point. This happens when
+ * the intersection points of a sliver just outside the box coincide. The ring must then
+ * be continued around the box instead of being closed at the touching point.
+ */
+// ----------------------------------------------------------------------
+
+bool is_complete(const OGRLinearRing& ring, bool cw, bool keep_inside)
+{
+  if (!ring.get_IsClosed())
+    return false;
+  if (!keep_inside || ring.getNumPoints() < 4)
+    return true;
+  return Fmi::OGR::isClockwise(ring) == cw;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Reconnect lines into polygons along box edges
  */
 // ----------------------------------------------------------------------
@@ -513,6 +631,16 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
         ring->addSubLineString(line);
         delete line;
         cornerSteps = 0;
+
+        // A line may already be closed if the intersection points of a sliver just outside
+        // the box coincide
+        if (is_complete(*ring, cw, keep_inside))
+        {
+          Fmi::OGR::normalize(*ring);
+          theRings.push_back(ring);
+          ring = nullptr;
+          continue;
+        }
       }
 
       int nr = ring->getNumPoints();
@@ -523,6 +651,14 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
 
       auto best = (cw ? search_cw(ring, theLines, x1, y1, x2, y2, theBox)
                       : search_ccw(ring, theLines, x1, y1, x2, y2, theBox));
+
+      if (best != theLines.end() && keep_inside && x1 == (*best)->getX(0) &&
+          y1 == (*best)->getY(0) && closes_wrong_way(*ring, **best, cw))
+      {
+        // Walk around the box first
+        next_corner(x1, y1, cw, x2, y2, theBox);
+        best = theLines.end();
+      }
 
       if (best != theLines.end())
       {
@@ -595,8 +731,8 @@ void Fmi::RectClipper::reconnect()
 {
   try
   {
-    reconnectLines(itsExteriorLines, *this, /*exterior=*/true);
-    reconnectLines(itsInteriorLines, *this, /*exterior=*/false);
+    reconnectLines(itsExteriorLines, *this, /*exterior=*/true, itsKeepInsideFlag);
+    reconnectLines(itsInteriorLines, *this, /*exterior=*/false, itsKeepInsideFlag);
   }
   catch (...)
   {
@@ -697,7 +833,7 @@ void Fmi::RectClipper::addExterior(OGRLinearRing *theRing)
   try
   {
     OGR::normalize(*theRing);
-    if (theRing->isClockwise() == 1)
+    if (Fmi::OGR::isClockwise(*theRing))
       theRing->reversePoints();
     itsExteriorRings.push_back(theRing);
   }
@@ -742,7 +878,7 @@ void Fmi::RectClipper::addInterior(OGRLinearRing *theRing)
   try
   {
     OGR::normalize(*theRing);
-    if (theRing->isClockwise() == 0)
+    if (!Fmi::OGR::isClockwise(*theRing))
       theRing->reversePoints();
     itsInteriorRings.push_back(theRing);
   }

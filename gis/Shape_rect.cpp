@@ -1,4 +1,5 @@
 #include "Shape_rect.h"
+#include "EdgeIntersection.h"
 #include "OGR.h"
 #include "ShapeClipper.h"
 #include <macgyver/Exception.h>
@@ -30,7 +31,7 @@ void clip_one_edge(double &x1, double &y1, double x2, double y2, double limit)
   {
     if (x1 != x2)
     {
-      y1 += (y2 - y1) * (limit - x1) / (x2 - x1);
+      y1 = EdgeIntersection::crossing(x1, y1, x2, y2, limit);
       x1 = limit;
     }
   }
@@ -144,7 +145,8 @@ bool Shape_rect::clipOutside(LineState& st, ShapeClipper& theClipper, bool exter
   else if (st.pos == Position::Outside)  // out-out
   {
     // Clip the other end too
-    clip_to_edges(st.x, st.y, st.x0, st.y0);
+    // Use the original start point to avoid accumulating rounding errors
+    clip_to_edges(st.x, st.y, st.g.getX(st.i - 1), st.g.getY(st.i - 1));
 
     auto prev_pos = getPosition(st.x0, st.y0);
     st.pos = getPosition(st.x, st.y);
@@ -448,7 +450,8 @@ bool Shape_rect::cutOutside(LineState& st, ShapeClipper& theClipper, bool exteri
   else if (st.pos == Position::Outside)  // out-out
   {
     // Clip the other end too
-    clip_to_edges(st.x, st.y, st.x0, st.y0);
+    // Use the original start point to avoid accumulating rounding errors
+    clip_to_edges(st.x, st.y, st.g.getX(st.i - 1), st.g.getY(st.i - 1));
 
     auto prev_pos = getPosition(st.x0, st.y0);
     st.pos = getPosition(st.x, st.y);
@@ -1299,15 +1302,24 @@ void Shape_rect::clip_to_edges(double &x1, double &y1, double x2, double y2) con
 {
   try
   {
+    // If the point clipped to the x-limit is still outside in y-direction, the y-limit is
+    // clipped using the original start point to avoid accumulating rounding errors.
+
+    const double ox = x1;
+    const double oy = y1;
+
     if (x1 < itsXMin)
       clip_one_edge(x1, y1, x2, y2, itsXMin);
     else if (x1 > itsXMax)
       clip_one_edge(x1, y1, x2, y2, itsXMax);
 
-    if (y1 < itsYMin)
-      clip_one_edge(y1, x1, y2, x2, itsYMin);
-    else if (y1 > itsYMax)
-      clip_one_edge(y1, x1, y2, x2, itsYMax);
+    if (y1 < itsYMin || y1 > itsYMax)
+    {
+      const double limit = (y1 < itsYMin ? itsYMin : itsYMax);
+      x1 = ox;
+      y1 = oy;
+      clip_one_edge(y1, x1, y2, x2, limit);
+    }
   }
   catch (...)
   {

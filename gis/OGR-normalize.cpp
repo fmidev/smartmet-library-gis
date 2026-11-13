@@ -54,13 +54,13 @@ void normalize_winding(OGRPolygon *theGeom)
 
     auto *exterior = theGeom->getExteriorRing();
 
-    if (exterior->isClockwise())
+    if (Fmi::OGR::isClockwise(*exterior))
       exterior->reversePoints();
 
     for (int i = 0, n = theGeom->getNumInteriorRings(); i < n; i++)
     {
       auto *hole = theGeom->getInteriorRing(i);
-      if (!hole->isClockwise())
+      if (!Fmi::OGR::isClockwise(*hole))
         hole->reversePoints();
     }
   }
@@ -250,4 +250,36 @@ void Fmi::OGR::normalize(OGRPolygon &thePoly)
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Test whether a ring is clockwise based on its signed area
+ *
+ * The area is accumulated relative to the first vertex to reduce rounding errors.
+ * OGRLinearRing::isClockwise() looks only at the turn at the lowest vertex, which gives
+ * the wrong answer if that vertex is the tip of a needle-like spike.
+ */
+// ----------------------------------------------------------------------
+
+bool Fmi::OGR::isClockwise(const OGRLinearRing& theRing)
+{
+  const int n = theRing.getNumPoints();
+  if (n < 3)
+    return false;
+
+  const double x0 = theRing.getX(0);
+  const double y0 = theRing.getY(0);
+  double area = 0;
+  double px = 0;
+  double py = 0;
+  for (int i = 1; i < n; i++)
+  {
+    const double x = theRing.getX(i) - x0;
+    const double y = theRing.getY(i) - y0;
+    area += px * y - x * py;
+    px = x;
+    py = y;
+  }
+  return area < 0;
 }

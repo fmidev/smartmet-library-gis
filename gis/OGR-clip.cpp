@@ -108,6 +108,7 @@
  */
 
 #include "Box.h"
+#include "EdgeIntersection.h"
 #include "GeometryBuilder.h"
 #include "OGR.h"
 #include "RectClipper.h"
@@ -212,7 +213,7 @@ inline void clip_one_edge(double &x1, double &y1, double x2, double y2, double l
 {
   if (x1 != x2)
   {
-    y1 += (y2 - y1) * (limit - x1) / (x2 - x1);
+    y1 = EdgeIntersection::crossing(x1, y1, x2, y2, limit);
     x1 = limit;
   }
 }
@@ -226,6 +227,10 @@ inline void clip_one_edge(double &x1, double &y1, double x2, double y2, double l
  *       that nothing is clipped unless the point is truly outside the
  *       rectangle! Without this handling lines ending on the edges of
  *       the rectangle would be very difficult.
+ *
+ * If the point clipped to the x-limit is still outside in y-direction,
+ * the y-limit is clipped using the original start point instead of the
+ * already clipped point to avoid accumulating rounding errors.
  */
 // ----------------------------------------------------------------------
 
@@ -233,15 +238,21 @@ void clip_to_edges(double &x1, double &y1, double x2, double y2, const Box &theB
 {
   try
   {
+    const double ox = x1;
+    const double oy = y1;
+
     if (x1 < theBox.xmin())
       clip_one_edge(x1, y1, x2, y2, theBox.xmin());
     else if (x1 > theBox.xmax())
       clip_one_edge(x1, y1, x2, y2, theBox.xmax());
 
-    if (y1 < theBox.ymin())
-      clip_one_edge(y1, x1, y2, x2, theBox.ymin());
-    else if (y1 > theBox.ymax())
-      clip_one_edge(y1, x1, y2, x2, theBox.ymax());
+    if (y1 < theBox.ymin() || y1 > theBox.ymax())
+    {
+      const double limit = (y1 < theBox.ymin() ? theBox.ymin() : theBox.ymax());
+      x1 = ox;
+      y1 = oy;
+      clip_one_edge(y1, x1, y2, x2, limit);
+    }
   }
   catch (...)
   {
@@ -473,8 +484,9 @@ bool clip_rect_outside(RectLineState& st, RectClipper& theRect, const Box& theBo
   }
   else if (st.pos == Box::Outside)  // out-out
   {
-    // Clip the other end too
-    clip_to_edges(st.x, st.y, st.x0, st.y0, theBox);
+    // Clip the other end too, using the original start point to avoid accumulating
+    // rounding errors
+    clip_to_edges(st.x, st.y, st.g.getX(st.i - 1), st.g.getY(st.i - 1), theBox);
 
     auto prev_pos = theBox.position(st.x0, st.y0);
     st.pos = theBox.position(st.x, st.y);
@@ -770,8 +782,9 @@ bool cut_rect_outside(RectLineState& st, RectClipper& theRect, const Box& theBox
   }
   else if (st.pos == Box::Outside)  // out-out
   {
-    // Clip the other end too
-    clip_to_edges(st.x, st.y, st.x0, st.y0, theBox);
+    // Clip the other end too, using the original start point to avoid accumulating
+    // rounding errors
+    clip_to_edges(st.x, st.y, st.g.getX(st.i - 1), st.g.getY(st.i - 1), theBox);
 
     Box::Position prev_pos = theBox.position(st.x0, st.y0);
     st.pos = theBox.position(st.x, st.y);

@@ -6,6 +6,7 @@
 #include "SpatialReference.h"
 #include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -13,6 +14,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <vector>
 
 using namespace std;
 
@@ -601,7 +603,7 @@ void lineclip()
       // Two points inside
       {"POLYGON ((5 7,5 3,-5 5,5 7))", "LINESTRING (0 4,5 3,5 7,0 6)"},
       {"POLYGON ((5 7,5 3,-5 13,5 7))", "LINESTRING (0 8,5 3,5 7,0 10)"},
-      {"POLYGON ((6 6,4 4,-4 14,6 6))", "LINESTRING (0 9,4 4,6 6,1.0 10.0)"},
+      {"POLYGON ((6 6,4 4,-4 14,6 6))", "LINESTRING (0 9,4 4,6 6,1 10)"},
 
       // Polygon with hole which surrounds the rectangle
       {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(-1 -1,11 -1,11 11,-1 11,-1 -1))",
@@ -742,7 +744,7 @@ void polyclip()
       {"POLYGON ((5 5,-15 30,-15 -20,5 5))",	"POLYGON ((0 0,1 0,5 5,1 10,0 10,0 0))"},
       {"POLYGON ((5 7,-5 5,5 3,5 7))",	"POLYGON ((0 4,5 3,5 7,0 6,0 4))"},
       {"POLYGON ((5 7,-5 13,5 3,5 7))",	"POLYGON ((0 8,5 3,5 7,0 10,0 8))"},
-      {"POLYGON ((6 6,-4 14,4 4,6 6))",	"POLYGON ((0 9,4 4,6 6,1.0 10.0,0 10,0 9))"},
+      {"POLYGON ((6 6,-4 14,4 4,6 6))",	"POLYGON ((0 9,4 4,6 6,1 10,0 10,0 9))"},
       {"POLYGON ((-2 -2,12 -2,12 12,-2 12,-2 -2),(-1 -1,-1 11,11 11,11 -1,-1 -1))",	"GEOMETRYCOLLECTION EMPTY"},
       {"POLYGON ((-2 -2,12 -2,12 12,-2 12,-2 -2),(1 1,1 9,9 9,9 1,1 1))",	"POLYGON ((0 0,10 0,10 10,0 10,0 0),(1 1,1 9,9 9,9 1,1 1))"},
       {"POLYGON ((5 5,5 -5,15 -5,15 5,5 5),(8 1,9 1,9 -1,8 -1,8 1))",	"POLYGON ((5 0,8 0,8 1,9 1,9 0,10 0,10 5,5 5,5 0))"},
@@ -870,6 +872,90 @@ void polyclip_spike()
   OGRGeometryFactory::destroyGeometry(output);
   if (ret != ok)
     TEST_FAILED("\n\tInput   : " + wkt + "\n\tExpected: " + ok + "\n\tGot     : " + ret);
+
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+// Cases where the intersection points of a sliver just outside the box are less than an ulp
+// apart or coincide. Rounding errors used to swap the exit and entry points along the edge,
+// and the polygon was closed around the entire box. A hole touching the box at a single point
+// used to become the result instead of the box minus the hole. The clipped area is compared
+// with the exact intersection, in both ring orientations.
+
+void polyclip_robustness()
+{
+  using namespace Fmi;
+  using Fmi::Box;
+
+  Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
+
+  OGRPolygon boxpoly;
+  {
+    auto* ring = new OGRLinearRing;
+    ring->addPoint(0, 0);
+    ring->addPoint(10, 0);
+    ring->addPoint(10, 10);
+    ring->addPoint(0, 10);
+    ring->addPoint(0, 0);
+    boxpoly.addRingDirectly(ring);
+  }
+
+  // clang-format off
+  std::vector<std::string> mytests = {
+      // Hole vertex outside the box by less than the precision of the intersection points
+      "POLYGON ((-10 -10,20 -10,20 20,-10 20,-10 -10),(-1e-20 5,5 6,5 4,-1e-20 5))",
+      "POLYGON ((-10 -10,20 -10,20 20,-10 20,-10 -10),(5 10.00000000000001,4 5,6 5,5 10.00000000000001))",
+      "POLYGON ((-1000000000000 -1000000000000,1000000000000 -1000000000000,1000000000000 1000000000000,-1000000000000 1000000000000,-1000000000000 -1000000000000),(4.798654209377729 9.999845869865974,2.381278539053547 10.000007917450663,2.4994040184774966 9.999999998967464,3.5126722633311696 2.0531351778429334,4.798654209377729 9.999845869865974))",
+      // Intersection with a segment from a distant vertex accumulated rounding errors
+      "POLYGON ((9.999994007405794 6.2030820591167295,1.845236007112419 4.7184450590915965,9.867205092055046 7548.414537834283,10.000000372812707 5.841536482735888,9.999994007405794 6.2030820591167295))",
+      "POLYGON ((9.99999999999996 3.099788092934694,10.000000202694 5.116585857412284,9.996543720861549 -34386.742171168175,1.74964659866491 6.453386938357529,9.99999999999996 3.099788092934694))",
+      // Exit and entry points around a vertex just outside the box a fraction of an ulp apart
+      "POLYGON ((7.49793926976447 9.999999992864785,10.068302569363548 10.000041123249426,7.145813959891749 9.99999435823351,3.8009826933570947 0.592733622170374,7.49793926976447 9.999999992864785))",
+      "POLYGON ((8.28387425389983 9.999998728381446,10.062775192689546 10.000003144219926,8.790353392284123 9.999999985635304,3.0987496706471234 2.0455413851671485,8.28387425389983 9.999998728381446))",
+      // Coinciding exit and entry points. OGRLinearRing::isClockwise() also misjudges the
+      // orientation of this ring due to the spike at the lowest vertex.
+      "POLYGON ((9.999999999999979 3.424948808652351,10.000000000062462 1.3840472507097399,9.99999986628665 4370.920166242484,2.9552376090990116 3.7414632425033565,9.999999999999979 3.424948808652351))"};
+  // clang-format on
+
+  int errors = 0;
+  for (const auto& wkt : mytests)
+  {
+    for (int reversed = 0; reversed < 2; reversed++)
+    {
+      OGRGeometry* input = nullptr;
+      if (OGRGeometryFactory::createFromWkt(wkt.c_str(), nullptr, &input) != OGRERR_NONE)
+        TEST_FAILED("Failed to parse input " + wkt);
+      if (reversed)
+        for (auto* ring : *input->toPolygon())
+          ring->reversePoints();
+
+      std::unique_ptr<OGRGeometry> exact(input->Intersection(&boxpoly));
+      const double expected = exact->toPolygon()->get_Area();
+
+      Fmi::OGR::normalizeWindingOrder(input);
+      std::unique_ptr<OGRGeometry> output(OGR::polyclip(*input, box));
+      OGRGeometryFactory::destroyGeometry(input);
+
+      double area = 0;
+      if (output->getGeometryType() == wkbPolygon)
+        area = output->toPolygon()->get_Area();
+      else if (output->getGeometryType() == wkbMultiPolygon)
+        area = output->toMultiPolygon()->get_Area();
+
+      if (std::abs(area - expected) > 1e-9)
+      {
+        ++errors;
+        std::cerr << "\n\tinput   :\t" << wkt << (reversed ? " (reversed)" : "")
+                  << "\n\texpected area:\t" << expected << "\n\tresult area  :\t" << area
+                  << "\n\tresult  :\t" << OGR::exportToWkt(*output) << "\n";
+      }
+    }
+  }
+
+  if (errors > 0)
+    TEST_FAILED("Test failed with " + std::to_string(errors) + " errors");
 
   TEST_PASSED();
 }
@@ -1080,7 +1166,7 @@ void linecut()
       // Two points inside
       {"POLYGON ((5 7,5 3,-5 5,5 7))", "LINESTRING (0 6,-5 5,0 4)"},
       {"POLYGON ((5 7,5 3,-5 13,5 7))", "LINESTRING (0 10,-5 13,0 8)"},
-      {"POLYGON ((6 6,4 4,-4 14,6 6))", "LINESTRING (1.0 10.0,-4 14,0 9)"},
+      {"POLYGON ((6 6,4 4,-4 14,6 6))", "LINESTRING (1 10,-4 14,0 9)"},
 
       // Polygon with hole which surrounds the rectangle
       {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(-1 -1,11 -1,11 11,-1 11,-1 -1))",
@@ -1258,7 +1344,7 @@ void polycut()
       // Two points inside
       {"POLYGON ((5 7,5 3,-5 5,5 7))", "POLYGON ((-5 5,0 4,0 6,-5 5))"},
       {"POLYGON ((5 7,5 3,-5 13,5 7))", "POLYGON ((-5 13,0 8,0 10,-5 13))"},
-      {"POLYGON ((6 6,4 4,-4 14,6 6))", "POLYGON ((-4 14,0 9,0 10,1.0 10.0,-4 14))"},
+      {"POLYGON ((6 6,4 4,-4 14,6 6))", "POLYGON ((-4 14,0 9,0 10,1 10,-4 14))"},
 
       // Polygon with hole which surrounds the rectangle
       {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(-1 -1,11 -1,11 11,-1 11,-1 -1))",
@@ -1500,7 +1586,7 @@ void linecut_shape_rect()
       // Two points inside
       {"POLYGON ((5 7,5 3,-5 5,5 7))", "LINESTRING (0 6,-5 5,0 4)"},
       {"POLYGON ((5 7,5 3,-5 13,5 7))", "LINESTRING (0 10,-5 13,0 8)"},
-      {"POLYGON ((6 6,4 4,-4 14,6 6))", "LINESTRING (1.0 10.0,-4 14,0 9)"},
+      {"POLYGON ((6 6,4 4,-4 14,6 6))", "LINESTRING (1 10,-4 14,0 9)"},
 
       // Polygon with hole which surrounds the rectangle
       {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(-1 -1,11 -1,11 11,-1 11,-1 -1))",
@@ -1677,7 +1763,7 @@ void polycut_shape_rect()
       // Two points inside
       {"POLYGON ((5 7,5 3,-5 5,5 7))", "POLYGON ((-5 5,0 4,0 6,-5 5))"},
       {"POLYGON ((5 7,5 3,-5 13,5 7))", "POLYGON ((-5 13,0 8,0 10,-5 13))"},
-      {"POLYGON ((6 6,4 4,-4 14,6 6))", "POLYGON ((-4 14,0 9,0 10,1.0 10.0,-4 14))"},
+      {"POLYGON ((6 6,4 4,-4 14,6 6))", "POLYGON ((-4 14,0 9,0 10,1 10,-4 14))"},
 
       // Polygon with hole which surrounds the rectangle
       {"POLYGON ((-2 -2,-2 12,12 12,12 -2,-2 -2),(-1 -1,11 -1,11 11,-1 11,-1 -1))",
@@ -2155,6 +2241,7 @@ class tests : public tframe::tests
     TEST(polyclip_segmentation);
     TEST(polyclip_case_hirlam);
     TEST(polyclip_spike);
+    TEST(polyclip_robustness);
     TEST(linecut);
     TEST(polycut);
     TEST(linecut_shape_rect);

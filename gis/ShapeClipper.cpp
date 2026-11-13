@@ -653,7 +653,7 @@ void Fmi::ShapeClipper::addExterior(OGRLinearRing *theRing)
   try
   {
     OGR::normalize(*theRing);
-    if (theRing->isClockwise() == 0)
+    if (!Fmi::OGR::isClockwise(*theRing))
       theRing->reversePoints();
     itsExteriorRings.push_back(theRing);
   }
@@ -698,7 +698,7 @@ void Fmi::ShapeClipper::addInterior(OGRLinearRing *theRing)
   try
   {
     OGR::normalize(*theRing);
-    if (theRing->isClockwise() == 1)
+    if (Fmi::OGR::isClockwise(*theRing))
       theRing->reversePoints();
 
     itsInteriorRings.push_back(theRing);
