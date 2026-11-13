@@ -5,7 +5,7 @@
 Summary: gis library
 Name: %{SPECNAME}
 Version: 26.11.13
-Release: 2%{?dist}.fmi
+Release: 3%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
 URL: https://github.com/fmidev/smartmet-library-gis
@@ -138,6 +138,13 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Fri Nov 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.13-3.fmi
+- Rectangle cutting: a hole touching the box at a single point is now merged with the hole cut
+  by the box, previously the box was not cut out at all. Collapsed slivers without area are
+  discarded
+- Added randomized polyclip and polycut tests with slivers crossing the box edges, the same
+  test as in GEOS for RectangleIntersection
+
 * Fri Nov 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.13-2.fmi
 - Rectangle clipping and cutting: intersections with the box edges are calculated with
   double-double precision from the original segment end points, so that rounding can no longer

@@ -4,16 +4,25 @@
 #include "Shape.h"
 #include "Shape_rect.h"
 #include "SpatialReference.h"
+#include <geos/geom/CoordinateSequence.h>
+#include <geos/geom/GeometryFactory.h>
+#include <geos/geom/LinearRing.h>
+#include <geos/geom/Polygon.h>
+#include <geos/operation/overlayng/OverlayNG.h>
+#include <geos/util/TopologyException.h>
 #include <macgyver/StaticCleanup.h>
 #include <regression/tframe.h>
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <ogr_geometry.h>
 #include <optional>
+#include <random>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace std;
@@ -957,6 +966,196 @@ void polyclip_robustness()
   if (errors > 0)
     TEST_FAILED("Test failed with " + std::to_string(errors) + " errors");
 
+  TEST_PASSED();
+}
+
+// ----------------------------------------------------------------------
+
+// Randomized test with slivers which leave the box through an edge and return through the same
+// edge with nearly coincident intersection points, using one to four outside vertices, as
+// shells and as holes, on all four edges and in both orientations. The area of the result is
+// compared with the floating precision GEOS OverlayNG result. Rounding errors used to swap the
+// exit and entry points so that the polygon was wrapped around the entire box. The same test
+// exists in GEOS for RectangleIntersection, which originates from this code.
+
+namespace RandomSlivers
+{
+using Points = std::vector<std::pair<double, double>>;
+
+// std::mt19937_64 produces the same sequence on all platforms, unlike the standard distributions
+struct Generator
+{
+  std::mt19937_64 rng{20261113};
+  double uniform(double lo, double hi)
+  {
+    return lo + (hi - lo) * static_cast<double>(rng() >> 11) * 0x1.0p-53;
+  }
+  std::size_t pick(std::size_t n) { return static_cast<std::size_t>(rng() % n); }
+};
+
+Points make_sliver(Generator& gen)
+{
+  const double steps[] = {1e-15, 1e-12, 1e-9, 1e-6, 1e-3, 1};
+  const double offsets[] = {0, 1, -1, 2, -2, 5, -5, 1e3, -1e3};
+
+  // Exit from A through the top edge to outside vertices V1..Vk which are all above the edge
+  Points pts;
+  const double ax = gen.uniform(1, 9);
+  const double ay = 10 - std::pow(10.0, gen.uniform(-14, 0.5));
+  pts.emplace_back(ax, ay);
+
+  const std::size_t k = 1 + gen.pick(4);
+  double vx = ax + gen.uniform(-3, 3);
+  double vy = 10 + std::pow(10.0, gen.uniform(-14, 0.5));
+  pts.emplace_back(vx, vy);
+  for (std::size_t j = 1; j < k; j++)
+  {
+    const double t = steps[gen.pick(6)];
+    vx += gen.uniform(-1, 1) * t;
+    vy = std::max(10 + 1e-15, vy + gen.uniform(-1, 1) * t);
+    pts.emplace_back(vx, vy);
+  }
+
+  // Return from Vk to B through the top edge at nearly the point where the polygon left the box
+  const double px = ax + (pts[1].first - ax) * (10 - ay) / (pts[1].second - ay);
+  const double qx = px + offsets[gen.pick(9)] * std::fabs(px) * 2.2e-16;
+  const double by = 10 - std::pow(10.0, gen.uniform(-14, 0.5));
+  const double bx = vx + (qx - vx) * (vy - by) / (vy - 10);
+  pts.emplace_back(bx, by);
+  pts.emplace_back(gen.uniform(2, 8), gen.uniform(0.5, 3));
+
+  // Rotate to a random edge around the center of the box
+  const std::size_t r = gen.pick(4);
+  for (auto& p : pts)
+    for (std::size_t i = 0; i < r; i++)
+      p = {10 - p.second, p.first};
+
+  pts.push_back(pts.front());
+  return pts;
+}
+
+OGRLinearRing* make_ogr_ring(const Points& pts, bool reversed)
+{
+  auto* ring = new OGRLinearRing;
+  for (const auto& p : pts)
+    ring->addPoint(p.first, p.second);
+  if (reversed)
+    ring->reversePoints();
+  return ring;
+}
+
+std::unique_ptr<geos::geom::LinearRing> make_geos_ring(const geos::geom::GeometryFactory& factory,
+                                                       const Points& pts)
+{
+  auto seq = std::make_unique<geos::geom::CoordinateSequence>();
+  for (const auto& p : pts)
+    seq->add(geos::geom::CoordinateXY(p.first, p.second));
+  return factory.createLinearRing(std::move(seq));
+}
+
+double area(const OGRGeometry& geom)
+{
+  if (const auto* poly = dynamic_cast<const OGRPolygon*>(&geom))
+    return poly->get_Area();
+  if (const auto* coll = dynamic_cast<const OGRGeometryCollection*>(&geom))
+    return coll->get_Area();
+  return 0;
+}
+
+void run(bool keep_inside)
+{
+  using geos::operation::overlayng::OverlayNG;
+
+  Fmi::Box box(0, 0, 10, 10, 10, 10);  // 0,0-->10,10 with irrelevant transformation sizes
+  const Points shell = {{-1e6, -1e6}, {1e6, -1e6}, {1e6, 1e6}, {-1e6, 1e6}, {-1e6, -1e6}};
+  const Points boxpts = {{0, 0}, {10, 0}, {10, 10}, {0, 10}, {0, 0}};
+
+  auto factory = geos::geom::GeometryFactory::create();
+  auto geosbox = factory->createPolygon(make_geos_ring(*factory, boxpts));
+
+  Generator gen;
+  int tested = 0;
+  int errors = 0;
+
+  for (int n = 0; n < 20000; n++)
+  {
+    const auto sliver = make_sliver(gen);
+    const bool hole = (n % 2 == 1);
+
+    std::unique_ptr<geos::geom::Polygon> geospoly;
+    if (hole)
+    {
+      std::vector<std::unique_ptr<geos::geom::LinearRing>> holes;
+      holes.push_back(make_geos_ring(*factory, sliver));
+      geospoly = factory->createPolygon(make_geos_ring(*factory, shell), std::move(holes));
+    }
+    else
+      geospoly = factory->createPolygon(make_geos_ring(*factory, sliver));
+
+    // The construction may produce a self-intersecting polygon
+    if (!geospoly->isValid())
+      continue;
+
+    // Floating precision overlay without the snapping fallback of Geometry::intersection,
+    // whose tolerance would collapse the slivers
+    double expected = 0;
+    try
+    {
+      expected =
+          OverlayNG::overlay(geospoly.get(),
+                             geosbox.get(),
+                             keep_inside ? OverlayNG::INTERSECTION : OverlayNG::DIFFERENCE)
+              ->getArea();
+    }
+    catch (const geos::util::TopologyException&)
+    {
+      continue;
+    }
+
+    const double tolerance = 1e-7 + 1e-14 * geospoly->getArea();
+
+    for (int reversed = 0; reversed < 2; reversed++)
+    {
+      OGRPolygon input;
+      if (hole)
+      {
+        input.addRingDirectly(make_ogr_ring(shell, reversed));
+        input.addRingDirectly(make_ogr_ring(sliver, reversed));
+      }
+      else
+        input.addRingDirectly(make_ogr_ring(sliver, reversed));
+      Fmi::OGR::normalizeWindingOrder(&input);
+
+      ++tested;
+      std::unique_ptr<OGRGeometry> output(keep_inside ? Fmi::OGR::polyclip(input, box)
+                                                      : Fmi::OGR::polycut(input, box));
+      if (std::abs(area(*output) - expected) > tolerance && ++errors <= 5)
+      {
+        std::cerr << "\n\tinput   :\t" << Fmi::OGR::exportToWkt(input, 17)
+                  << "\n\texpected area:\t" << expected << "\n\tresult area  :\t"
+                  << area(*output) << "\n\tresult  :\t" << Fmi::OGR::exportToWkt(*output, 17)
+                  << "\n";
+      }
+    }
+  }
+
+  if (tested < 4000)
+    TEST_FAILED("Only " + std::to_string(tested) + " valid random polygons");
+  if (errors > 0)
+    TEST_FAILED("Test failed with " + std::to_string(errors) + " errors out of " +
+                std::to_string(tested));
+}
+}  // namespace RandomSlivers
+
+void polyclip_randomized()
+{
+  RandomSlivers::run(true);
+  TEST_PASSED();
+}
+
+void polycut_randomized()
+{
+  RandomSlivers::run(false);
   TEST_PASSED();
 }
 
@@ -2242,6 +2441,8 @@ class tests : public tframe::tests
     TEST(polyclip_case_hirlam);
     TEST(polyclip_spike);
     TEST(polyclip_robustness);
+    TEST(polyclip_randomized);
+    TEST(polycut_randomized);
     TEST(linecut);
     TEST(polycut);
     TEST(linecut_shape_rect);

@@ -65,16 +65,47 @@ OGRLinearRing *make_hole(const Fmi::Box &theBox, double max_length = 0)
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Test whether appending a line would close a ring with the wrong orientation
- *
- * When clipping, the intersection points of a sliver just outside the box may coincide.
- * A hole may then touch the box at a single point, and the parts of the hole before and
- * after the point could be joined into a loop which is oriented against the direction
- * of travel along the box edges. The box must be walked around the hole first instead.
+ * \brief Direction of travel along the box edges when connecting lines into rings
  */
 // ----------------------------------------------------------------------
 
-bool closes_wrong_way(const OGRLineString& line, const OGRLineString& next, bool cw)
+bool walk_clockwise(bool keep_inside, bool exterior)
+{
+  if (keep_inside)
+    return !exterior;  // clipping: holes CW, exteriors CCW
+  return true;         // cutting: always CW (for both exteriors and holes)
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Test whether a closed ring is complete, or touches the box at a single point
+ *
+ * The intersection points of a sliver just outside the box may coincide, and a closed ring
+ * may then be formed without travelling along the box edges. When clipping, a ring oriented
+ * like the direction of travel is complete, while one oriented against it is a part of a hole
+ * touching the box. When cutting, an exterior ring (oriented against the clockwise travel) is
+ * complete, while a hole touching the box must be merged with the hole formed by the box. In
+ * both cases the box must then be walked around the ring.
+ */
+// ----------------------------------------------------------------------
+
+bool orientation_complete(const OGRLinearRing& ring, bool cw, bool keep_inside)
+{
+  return (Fmi::OGR::isClockwise(ring) == cw) == keep_inside;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Test whether appending a line would close a ring which is not complete
+ *
+ * See orientation_complete. The box must then be walked around the ring first.
+ */
+// ----------------------------------------------------------------------
+
+bool closes_wrong_way(const OGRLineString& line,
+                      const OGRLineString& next,
+                      bool cw,
+                      bool keep_inside)
 {
   const int n1 = line.getNumPoints();
   const int n2 = next.getNumPoints();
@@ -86,7 +117,7 @@ bool closes_wrong_way(const OGRLineString& line, const OGRLineString& next, bool
   ring.addSubLineString(&next, 1);
   if (ring.getNumPoints() < 4)
     return false;
-  return Fmi::OGR::isClockwise(ring) != cw;
+  return !orientation_complete(ring, cw, keep_inside);
 }
 
 // ----------------------------------------------------------------------
@@ -125,8 +156,8 @@ void next_corner(double x1, double y1, bool cw, double& x2, double& y2, const Fm
 /*!
  * \brief Test whether the end of a line can be joined to the start of the next one
  *
- * When clipping, joining lines into a clockwise loop among the exterior lines would turn a
- * part of a hole touching the box at a single point into a separate exterior. Such lines
+ * Joining lines into a closed ring which touches the box at a single point and is not
+ * complete would for example turn a part of a hole into a separate exterior. Such lines
  * must be connected along the box edges instead.
  */
 // ----------------------------------------------------------------------
@@ -139,7 +170,7 @@ bool joinable(const OGRLineString& line1,
   const int n1 = line1.getNumPoints();
   if (line1.getX(n1 - 1) != line2.getX(0) || line1.getY(n1 - 1) != line2.getY(0))
     return false;
-  return !(keep_inside && exterior && closes_wrong_way(line1, line2, false));
+  return !closes_wrong_way(line1, line2, walk_clockwise(keep_inside, exterior), keep_inside);
 }
 
 // ----------------------------------------------------------------------
@@ -578,10 +609,8 @@ std::list<OGRLineString *>::iterator search_ccw(OGRLinearRing *ring,
 /*!
  * \brief Test whether a ring being built along the box edges is complete
  *
- * When clipping, a closed ring oriented against the direction of travel along the box
- * edges is a part of a hole which touches the box at a single point. This happens when
- * the intersection points of a sliver just outside the box coincide. The ring must then
- * be continued around the box instead of being closed at the touching point.
+ * See orientation_complete. Otherwise the ring is continued around the box instead of being
+ * closed at the touching point.
  */
 // ----------------------------------------------------------------------
 
@@ -589,9 +618,9 @@ bool is_complete(const OGRLinearRing& ring, bool cw, bool keep_inside)
 {
   if (!ring.get_IsClosed())
     return false;
-  if (!keep_inside || ring.getNumPoints() < 4)
+  if (ring.getNumPoints() < 4)
     return true;
-  return Fmi::OGR::isClockwise(ring) == cw;
+  return orientation_complete(ring, cw, keep_inside);
 }
 
 // ----------------------------------------------------------------------
@@ -612,11 +641,7 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
     if (theLines.empty())
       return;
 
-    bool cw = false;
-    if (keep_inside)
-      cw = !exterior;  // clipping: holes CW, exteriors CCW
-    else
-      cw = true;  // cutting: always CW (for both exteriors and holes)
+    const bool cw = walk_clockwise(keep_inside, exterior);
 
     OGRLinearRing *ring = nullptr;
     int cornerSteps = 0;
@@ -652,8 +677,8 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
       auto best = (cw ? search_cw(ring, theLines, x1, y1, x2, y2, theBox)
                       : search_ccw(ring, theLines, x1, y1, x2, y2, theBox));
 
-      if (best != theLines.end() && keep_inside && x1 == (*best)->getX(0) &&
-          y1 == (*best)->getY(0) && closes_wrong_way(*ring, **best, cw))
+      if (best != theLines.end() && x1 == (*best)->getX(0) && y1 == (*best)->getY(0) &&
+          closes_wrong_way(*ring, **best, cw, keep_inside))
       {
         // Walk around the box first
         next_corner(x1, y1, cw, x2, y2, theBox);
@@ -693,6 +718,32 @@ void connectLines(std::list<OGRLinearRing *> &theRings,
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Test whether a clipped line has no extent or encloses no area
+ *
+ * A line which leaves the box and returns to the same point, because the intersection
+ * points of a sliver just outside the box coincide, is a closed line with less than four
+ * distinct points. It has no area, and keeping it would prevent the box from being added.
+ */
+// ----------------------------------------------------------------------
+
+bool degenerate(const OGRLineString &line)
+{
+  const int n = line.getNumPoints();
+  if (n < 2)
+    return true;
+  if (line.getX(0) != line.getX(n - 1) || line.getY(0) != line.getY(n - 1))
+    return false;
+
+  // Count the points ignoring consecutive duplicates
+  int count = 1;
+  for (int i = 1; i < n && count < 4; i++)
+    if (line.getX(i) != line.getX(i - 1) || line.getY(i) != line.getY(i - 1))
+      ++count;
+  return count < 4;
 }
 
 }  // namespace
@@ -853,10 +904,8 @@ void Fmi::RectClipper::addExterior(OGRLineString *theLine)
 {
   try
   {
-    auto n = theLine->getNumPoints();
-
     // We may have just touched the exterior at a single point
-    if (n < 2)
+    if (degenerate(*theLine))
       delete theLine;
     else
       itsExteriorLines.push_back(theLine);
@@ -898,7 +947,11 @@ void Fmi::RectClipper::addInterior(OGRLineString *theLine)
 {
   try
   {
-    itsInteriorLines.push_back(theLine);
+    // We may have just touched a hole at a single point
+    if (degenerate(*theLine))
+      delete theLine;
+    else
+      itsInteriorLines.push_back(theLine);
   }
   catch (...)
   {
