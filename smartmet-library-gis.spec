@@ -4,7 +4,7 @@
 %define SPECNAME smartmet-library-%{DIRNAME}
 Summary: gis library
 Name: %{SPECNAME}
-Version: 26.11.12
+Version: 26.11.13
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -138,6 +138,11 @@ FMI GIS library static library
 %{_libdir}/libsmartmet-%{DIRNAME}.a
 
 %changelog
+* Fri Nov 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.13-1.fmi
+- Include cleanup: headers include what they use and prefer forward declarations,
+  unnecessary includes removed. No functional changes, but code using these headers may
+  need to add includes it used to get indirectly
+
 * Thu Nov 12 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.12-1.fmi
 - GeometryProjector: fixed the regressions of 26.11.11 (inverted polygons and extra edges along the box borders in for example polar stereographic maps). Whether the box is inside a polygon ring is now tested in source coordinates, since a projected ring may enclose a point at infinity. Projected vertices are rejected again if they are farther than 10 box sizes or 4 densification steps from the box, the larger of the two
 
